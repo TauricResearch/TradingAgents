@@ -14,6 +14,7 @@
       --ok: #3ecf8e;
       --bad: #f07178;
       --line: #2a3542;
+      --warn: #e6c07b;
     }
     * { box-sizing: border-box; }
     body {
@@ -71,6 +72,7 @@
     .pill { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.75rem; }
     .paper { background: #1e3a2f; color: var(--ok); }
     .live { background: #3a2428; color: var(--bad); }
+    .warn { background: #3a3420; color: var(--warn); }
     pre {
       white-space: pre-wrap;
       word-break: break-word;
@@ -84,6 +86,22 @@
     }
     .err { color: var(--bad); }
     a { color: var(--accent); }
+    details.past {
+      margin-top: 1rem;
+      border-top: 1px solid var(--line);
+      padding-top: 0.75rem;
+    }
+    details.past > summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      list-style: none;
+    }
+    details.past > summary::-webkit-details-marker { display: none; }
+    details.past > summary::before { content: "▸ "; color: var(--accent); }
+    details.past[open] > summary::before { content: "▾ "; }
   </style>
 </head>
 <body>
@@ -100,8 +118,8 @@
       <p class="meta" style="margin:0 0 0.8rem">
         Pick a brokerage/paper account (loads its whole book as context), then enter
         <strong>one symbol to decide on</strong> — e.g. a holding like <code>VOO</code>,
-        or a candidate like <code>SPY</code>. This does <em>not</em> rebalance the whole
-        portfolio in one click; it produces a Buy/Hold/Sell recommendation for that ticker.
+        or a candidate like <code>SPY</code>. Quote-page deep links auto-start research
+        on <code>/start</code> and open the live run page.
       </p>
       <label for="account">Account</label>
       <select id="account"></select>
@@ -113,6 +131,10 @@
       <p class="meta" id="runStatus"></p>
       <h2 style="margin-top:1.2rem">Portfolio snapshot (context for the agents)</h2>
       <pre id="portfolio">Select an account…</pre>
+      <details class="past" id="pastWrap" hidden>
+        <summary id="pastSummary">Past reports on this ticker</summary>
+        <div id="pastTable" style="margin-top:0.55rem"></div>
+      </details>
     </section>
     <section>
       <h2>Recent runs</h2>
@@ -124,6 +146,8 @@
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
+    const ACCOUNT_KEY = 'tradingagents_last_account';
+
     async function api(path, opts) {
       const res = await fetch(path, opts);
       const data = await res.json().catch(() => ({}));
@@ -134,15 +158,45 @@
       if (!res.ok) throw new Error(data.error || res.statusText);
       return data;
     }
-    function renderAccounts(accounts) {
+
+    function pill(status) {
+      const s = (status || '').toLowerCase();
+      const cls = s === 'ok' ? 'paper' : (s === 'failed' ? 'live' : 'warn');
+      return `<span class="pill ${cls}">${status || '?'}</span>`;
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function preferredAccount(accounts, sticky) {
+      const qs = new URLSearchParams(location.search);
+      const fromQs = (qs.get('account') || '').trim();
+      const fromStore = (localStorage.getItem(ACCOUNT_KEY) || '').trim();
+      const order = [fromQs, sticky, fromStore];
+      for (const cand of order) {
+        if (cand && accounts.some(a => a.account === cand)) return cand;
+      }
+      return accounts[0] && accounts[0].account;
+    }
+
+    function renderAccounts(accounts, sticky) {
       const sel = $('account');
+      const chosen = preferredAccount(accounts, sticky);
       sel.innerHTML = accounts.map(a =>
-        `<option value="${a.account}">${a.label || a.account} ${a.paper ? '(paper)' : '(live)'}</option>`
+        `<option value="${esc(a.account)}" ${a.account === chosen ? 'selected' : ''}>${esc(a.label || a.account)} ${a.paper ? '(paper)' : '(live)'}</option>`
       ).join('');
+      if (chosen) {
+        sel.value = chosen;
+        localStorage.setItem(ACCOUNT_KEY, chosen);
+      }
       if (accounts.length) loadPortfolio();
     }
+
     async function loadPortfolio() {
       const account = $('account').value;
+      if (!account) return;
+      localStorage.setItem(ACCOUNT_KEY, account);
       $('portfolio').textContent = 'Loading…';
       try {
         const data = await api('/api/portfolio?account=' + encodeURIComponent(account));
@@ -157,30 +211,51 @@
         if (p.positions.length > 40) lines.push(`… +${p.positions.length - 40} more`);
         $('portfolio').textContent = lines.join('\n');
       } catch (e) {
-        $('portfolio').innerHTML = `<span class="err">${e.message}</span>`;
+        $('portfolio').innerHTML = `<span class="err">${esc(e.message)}</span>`;
       }
     }
+
+    function renderPast(ticker, rows) {
+      const wrap = $('pastWrap');
+      if (!ticker || !rows || !rows.length) { wrap.hidden = true; return; }
+      wrap.hidden = false;
+      $('pastSummary').textContent = `Past reports on ${ticker} (${rows.length})`;
+      $('pastTable').innerHTML = `<table>
+        <thead><tr><th>When</th><th>Rating</th><th>Account</th><th>Status</th><th>Conclusion</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td><a href="/runs/${esc(r.id)}">${esc((r.created_at || '').replace('T',' ').slice(0,19))}</a></td>
+            <td><strong>${esc(r.rating || '—')}</strong></td>
+            <td>${esc(r.account || '—')}</td>
+            <td>${pill(r.status)}</td>
+            <td class="meta">${esc(r.conclusion || r.error || '')}</td>
+          </tr>`).join('')}</tbody></table>`;
+    }
+
+    async function loadPastForTicker(ticker) {
+      if (!ticker) { renderPast('', []); return; }
+      const data = await api('/api/runs?ticker=' + encodeURIComponent(ticker));
+      renderPast(ticker, data.runs || []);
+    }
+
     async function loadRuns() {
       const data = await api('/api/runs');
       const rows = (data.runs || []).map(r => `
-        <tr data-id="${r.id}" style="cursor:pointer">
-          <td>${r.created_at || ''}</td>
-          <td>${r.ticker || ''}</td>
-          <td>${r.account || '—'}</td>
-          <td><span class="pill ${r.status === 'ok' ? 'paper' : 'live'}">${r.status}</span></td>
+        <tr data-id="${esc(r.id)}" style="cursor:pointer">
+          <td><a href="/runs/${esc(r.id)}">${esc((r.created_at || '').replace('T',' ').slice(0,19))}</a></td>
+          <td>${esc(r.ticker || '')}</td>
+          <td>${esc(r.rating || '—')}</td>
+          <td>${esc(r.account || '—')}</td>
+          <td>${pill(r.status)}</td>
         </tr>`).join('');
-      $('runs').innerHTML = `<table><thead><tr><th>When</th><th>Ticker</th><th>Account</th><th>Status</th></tr></thead><tbody>${rows || '<tr><td colspan=4>No runs yet</td></tr>'}</tbody></table>`;
-      $('runs').querySelectorAll('tr[data-id]').forEach(tr => {
-        tr.onclick = async () => {
-          const detail = await api('/api/runs/' + tr.dataset.id);
-          $('log').textContent = detail.log || detail.error || JSON.stringify(detail, null, 2);
-        };
-      });
+      $('runs').innerHTML = `<table><thead><tr><th>When</th><th>Ticker</th><th>Rating</th><th>Account</th><th>Status</th></tr></thead><tbody>${rows || '<tr><td colspan=5>No runs yet</td></tr>'}</tbody></table>`;
     }
+
     $('account').onchange = loadPortfolio;
+    $('ticker').addEventListener('change', () => loadPastForTicker(($('ticker').value || '').trim().toUpperCase()));
     $('runBtn').onclick = async () => {
       $('runBtn').disabled = true;
-      $('runStatus').textContent = 'Queued…';
+      $('runStatus').textContent = 'Launching research…';
       try {
         const data = await api('/api/analyze', {
           method: 'POST',
@@ -191,46 +266,31 @@
             analysts: $('analysts').value
           })
         });
-        $('runStatus').textContent = `Run ${data.run.id} ${data.run.status}`;
-        const poll = setInterval(async () => {
-          const d = await api('/api/runs/' + data.run.id);
-          $('runStatus').textContent = `Run ${d.id}: ${d.status}`;
-          if (d.status === 'ok' || d.status === 'failed') {
-            clearInterval(poll);
-            $('runBtn').disabled = false;
-            $('log').textContent = d.log || d.error || '';
-            loadRuns();
-          }
-        }, 4000);
+        if (data.redirect) {
+          location.href = data.redirect;
+          return;
+        }
+        location.href = '/runs/' + data.run.id;
       } catch (e) {
-        $('runStatus').innerHTML = `<span class="err">${e.message}</span>`;
+        $('runStatus').innerHTML = `<span class="err">${esc(e.message)}</span>`;
         $('runBtn').disabled = false;
       }
     };
+
     function applyQueryParams() {
       const qs = new URLSearchParams(location.search);
       const ticker = (qs.get('ticker') || qs.get('symbol') || '').trim().toUpperCase();
       if (ticker) $('ticker').value = ticker;
-      const account = (qs.get('account') || '').trim();
-      if (account) {
-        const sel = $('account');
-        const opt = [...sel.options].find(o => o.value === account);
-        if (opt) sel.value = account;
-      }
-      return {
-        ticker,
-        account,
-        analyze: qs.get('analyze') === '1' || qs.get('run') === '1'
-      };
+      return { ticker };
     }
+
     (async () => {
       const data = await api('/api/accounts');
       $('viewer').textContent = (data.viewer && data.viewer.email) || '';
-      renderAccounts(data.accounts || []);
+      renderAccounts(data.accounts || [], data.sticky_account || '');
       const q = applyQueryParams();
-      if (q.account) await loadPortfolio();
       await loadRuns();
-      if (q.analyze && q.ticker) $('runBtn').click();
+      await loadPastForTicker(q.ticker || ($('ticker').value || '').trim().toUpperCase());
     })().catch(e => {
       if (e.message !== 'login') $('viewer').textContent = e.message;
     });

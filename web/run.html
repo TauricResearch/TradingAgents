@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradingAgents run</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --text: #e7eef7;
+      --muted: #8b9bb0;
+      --accent: #3d9cf0;
+      --ok: #3ecf8e;
+      --bad: #f07178;
+      --line: #2a3542;
+      --warn: #e6c07b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1b2a3d, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header, main { padding: 1.25rem 2rem; }
+    header { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 1.45rem; }
+    h1 span { color: var(--accent); }
+    a { color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; }
+    @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+    section {
+      background: color-mix(in srgb, var(--panel) 92%, black);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem 1.1rem 1.2rem;
+      margin-bottom: 1rem;
+    }
+    h2 { margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .pill { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+    .ok { background: #1e3a2f; color: var(--ok); }
+    .failed { background: #3a2428; color: var(--bad); }
+    .running, .queued { background: #3a3420; color: var(--warn); }
+    .rating {
+      font-size: 1.6rem; font-weight: 700; margin: 0.4rem 0;
+    }
+    pre, .prose {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0c1117;
+      border-radius: 8px;
+      padding: 0.75rem;
+      max-height: 480px;
+      overflow: auto;
+      font-size: 0.82rem;
+      color: #c5d0dc;
+      margin: 0;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.4rem 0.3rem; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 500; }
+    details.past {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel) 92%, black);
+      padding: 0.6rem 1rem 0.9rem;
+      margin-bottom: 1rem;
+    }
+    details.past > summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      list-style: none;
+      padding: 0.35rem 0;
+    }
+    details.past > summary::-webkit-details-marker { display: none; }
+    details.past > summary::before { content: "▸ "; color: var(--accent); }
+    details.past[open] > summary::before { content: "▾ "; }
+    .kv { display: grid; grid-template-columns: 7rem 1fr; gap: 0.35rem 0.75rem; font-size: 0.92rem; }
+    .kv dt { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1><a href="/" style="text-decoration:none"><span>TradingAgents</span></a> · run</h1>
+      <div class="meta" id="subtitle">Loading…</div>
+    </div>
+    <div class="meta" id="viewer"></div>
+  </header>
+  <main>
+    <section>
+      <h2>Decision</h2>
+      <div id="statusLine"></div>
+      <div class="rating" id="rating">—</div>
+      <p class="meta" id="conclusionMeta"></p>
+      <div class="prose" id="conclusion">Starting research…</div>
+      <p class="meta" id="reportLink" style="margin-top:0.75rem"></p>
+    </section>
+
+    <details class="past" id="pastWrap" hidden>
+      <summary id="pastSummary">Past reports on this ticker</summary>
+      <div id="pastTable" style="margin-top:0.5rem"></div>
+    </details>
+
+    <div class="grid">
+      <section>
+        <h2>Full decision / thinking</h2>
+        <pre id="decision">—</pre>
+      </section>
+      <section>
+        <h2>Run metadata</h2>
+        <dl class="kv" id="meta"></dl>
+        <h2 style="margin-top:1.2rem">Raw log</h2>
+        <pre id="log">—</pre>
+      </section>
+    </div>
+  </main>
+  <script id="boot" type="application/json">__BOOTSTRAP__</script>
+  <script>
+    const BOOT = JSON.parse(document.getElementById('boot').textContent);
+    const $ = (id) => document.getElementById(id);
+
+    function pill(status) {
+      const s = (status || '').toLowerCase();
+      const cls = s === 'ok' ? 'ok' : (s === 'failed' ? 'failed' : 'running');
+      return `<span class="pill ${cls}">${status || '?'}</span>`;
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function renderPast(rows) {
+      const wrap = $('pastWrap');
+      if (!rows || !rows.length) { wrap.hidden = true; return; }
+      wrap.hidden = false;
+      $('pastSummary').textContent = `Past reports on ${BOOT.run.ticker || 'ticker'} (${rows.length})`;
+      $('pastTable').innerHTML = `<table>
+        <thead><tr><th>When</th><th>Rating</th><th>Account</th><th>Status</th><th>Conclusion</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td><a href="/runs/${esc(r.id)}">${esc((r.created_at || '').replace('T',' ').slice(0,19))}</a></td>
+            <td><strong>${esc(r.rating || '—')}</strong></td>
+            <td>${esc(r.account || '—')}</td>
+            <td>${pill(r.status)}</td>
+            <td class="meta">${esc(r.conclusion || r.error || '')}</td>
+          </tr>`).join('')}</tbody></table>`;
+    }
+
+    function render(run) {
+      document.title = `TradingAgents · ${run.ticker || ''} · ${run.rating || run.status || 'run'}`;
+      $('subtitle').textContent = `${run.ticker || ''} · ${run.account || 'no account'} · ${run.id}`;
+      $('viewer').textContent = (BOOT.viewer && BOOT.viewer.email) || run.viewer || '';
+      $('statusLine').innerHTML = `${pill(run.status)} <span class="meta">date ${esc(run.date || '—')}</span>`;
+      $('rating').textContent = run.rating || (run.status === 'ok' ? 'REVIEW' : (run.status === 'failed' ? 'FAILED' : '…'));
+      $('conclusion').textContent = run.conclusion || run.error || (
+        run.status === 'queued' || run.status === 'running'
+          ? 'Research is running — this page will refresh when the agents finish.'
+          : 'No conclusion captured yet.'
+      );
+      $('conclusionMeta').textContent = run.finished_at
+        ? `Finished ${run.finished_at}`
+        : (run.started_at ? `Started ${run.started_at}` : `Queued ${run.created_at || ''}`);
+      $('decision').textContent = run.decision || run.log || '—';
+      $('log').textContent = [run.log, run.stderr, run.error].filter(Boolean).join('\n\n---\n\n') || '—';
+      $('meta').innerHTML = [
+        ['Ticker', run.ticker],
+        ['Account', run.account || '—'],
+        ['Analysts', run.analysts || '—'],
+        ['Viewer', run.viewer || '—'],
+        ['Created', run.created_at || '—'],
+        ['Finished', run.finished_at || '—'],
+        ['Exit', run.exit_code ?? '—'],
+      ].map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+      if (run.report_url || run.has_report) {
+        $('reportLink').innerHTML = `<a href="${esc(run.report_url || ('/runs/' + run.id + '/report'))}" target="_blank" rel="noopener">Open full saved HTML report</a>`;
+      } else {
+        $('reportLink').textContent = '';
+      }
+    }
+
+    render(BOOT.run);
+    renderPast(BOOT.past || []);
+
+    async function poll() {
+      const run = BOOT.run;
+      if (!run || !run.id) return;
+      if (run.status === 'ok' || run.status === 'failed') return;
+      try {
+        const res = await fetch('/api/runs/' + encodeURIComponent(run.id));
+        if (res.status === 401) {
+          const data = await res.json().catch(() => ({}));
+          if (data.login) location.href = data.login;
+          return;
+        }
+        const data = await res.json();
+        BOOT.run = data;
+        render(data);
+        if (data.status === 'ok' || data.status === 'failed') {
+          const pastRes = await fetch('/api/runs?ticker=' + encodeURIComponent(data.ticker || ''));
+          const pastData = await pastRes.json();
+          renderPast((pastData.runs || []).filter(r => r.id !== data.id));
+          return;
+        }
+      } catch (_) {}
+      setTimeout(poll, 4000);
+    }
+    poll();
+  </script>
+</body>
+</html>
