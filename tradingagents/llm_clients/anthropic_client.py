@@ -12,8 +12,8 @@ _PASSTHROUGH_KWARGS = (
 )
 
 # Anthropic's extended-thinking ``effort`` parameter is accepted by Opus 4.5+,
-# Sonnet 4.6+, and the Claude 5 family (Sonnet 5, Opus 5.5, Fable 5). Sonnet 4.5 and any
-# Haiku version 400 with ``"This model does not support the effort parameter"``
+# Sonnet 4.6+, Haiku 5.5+, and the Claude 5 family (Sonnet 5, Opus 5.5, Fable 5). Sonnet 4.5
+# and Haiku 4.x 400 with ``"This model does not support the effort parameter"``
 # (#831). Versions may be dotted (``opus-4-8``) or single-number (``sonnet-5``,
 # ``fable-5``), and a snapshot carries its date (``sonnet-4-20250514``), which is
 # not a minor version; the per-family minimum below is forward-compatible.
@@ -21,8 +21,8 @@ _EFFORT_EXACT = {
     "claude-mythos-preview",  # non-standard preview name; effort-capable
     "claude-mythos-5",        # Fable 5 twin (Project Glasswing); effort-capable
 }
-_EFFORT_MODEL = re.compile(r"^claude-(opus|sonnet|fable)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?$")
-_EFFORT_MIN_VERSION = {"opus": (4, 5), "sonnet": (4, 6), "fable": (5, 0)}
+_EFFORT_MODEL = re.compile(r"^claude-(opus|sonnet|fable|haiku)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?$")
+_EFFORT_MIN_VERSION = {"opus": (4, 5), "sonnet": (4, 6), "fable": (5, 0), "haiku": (5, 5)}
 
 
 def _supports_effort(model: str) -> bool:
