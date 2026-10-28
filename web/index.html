@@ -207,11 +207,30 @@
         $('runBtn').disabled = false;
       }
     };
+    function applyQueryParams() {
+      const qs = new URLSearchParams(location.search);
+      const ticker = (qs.get('ticker') || qs.get('symbol') || '').trim().toUpperCase();
+      if (ticker) $('ticker').value = ticker;
+      const account = (qs.get('account') || '').trim();
+      if (account) {
+        const sel = $('account');
+        const opt = [...sel.options].find(o => o.value === account);
+        if (opt) sel.value = account;
+      }
+      return {
+        ticker,
+        account,
+        analyze: qs.get('analyze') === '1' || qs.get('run') === '1'
+      };
+    }
     (async () => {
       const data = await api('/api/accounts');
       $('viewer').textContent = (data.viewer && data.viewer.email) || '';
       renderAccounts(data.accounts || []);
+      const q = applyQueryParams();
+      if (q.account) await loadPortfolio();
       await loadRuns();
+      if (q.analyze && q.ticker) $('runBtn').click();
     })().catch(e => {
       if (e.message !== 'login') $('viewer').textContent = e.message;
     });
