@@ -202,17 +202,29 @@ def report_or_absent(text: str, source: str) -> str:
 
 
 def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
-    """Return the caller's portfolio block, or a notice that none was given.
+    """Return the caller's portfolio block, or a notice that none was given,
+    followed by their investor profile when one is configured.
 
     A run without portfolio context must not read as a flat book: the agents
     would otherwise size as if the caller held nothing, which is a claim about
-    an account we were never told about.
+    an account we were never told about. The profile rides with it so it reaches
+    exactly the agents that see the caller's book, and the research team stays
+    blind to both.
     """
     context = state.get("portfolio_context")
     if isinstance(context, str) and context.strip():
-        return context
-    return (
-        "Portfolio context: not provided. You do not know the caller's current "
-        "holdings or cash, so do not assume a flat book; give direction and "
-        "sizing guidance in terms the caller can apply to their own position."
-    )
+        block = context
+    else:
+        block = (
+            "Portfolio context: not provided. You do not know the caller's current "
+            "holdings or cash, so do not assume a flat book; give direction and "
+            "sizing guidance in terms the caller can apply to their own position."
+        )
+    profile = state.get("investor_profile")
+    if isinstance(profile, str) and profile.strip():
+        block += (
+            "\n\nInvestor profile (the caller's mandate; frame the holding period, "
+            "entries, exits and risk levels to fit it, and say so where the evidence "
+            f"argues against it):\n{profile.strip()}"
+        )
+    return block

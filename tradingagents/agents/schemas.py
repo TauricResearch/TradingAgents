@@ -256,7 +256,10 @@ class PortfolioDecision(BaseModel):
     )
     time_horizon: str | None = Field(
         default=None,
-        description="Optional recommended holding period, e.g. '3-6 months'.",
+        description=(
+            "Optional recommended holding period, e.g. '1-3 months' or '2+ years'. "
+            "When an investor profile is given, it must fit that profile's horizon."
+        ),
     )
 
     @field_validator("price_target", mode="before")

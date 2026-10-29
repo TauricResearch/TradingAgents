@@ -73,6 +73,31 @@ def test_rendered_context_reaches_the_agents_from_state():
 
 
 @pytest.mark.unit
+def test_investor_profile_follows_the_portfolio_block():
+    block = get_portfolio_context_from_state({
+        "portfolio_context": "Portfolio: flat",
+        "investor_profile": "  Long-term investor; hold at least 12 months.  ",
+    })
+    assert block.startswith("Portfolio: flat")
+    assert "Investor profile" in block
+    assert block.endswith("Long-term investor; hold at least 12 months.")
+
+
+@pytest.mark.unit
+def test_investor_profile_is_given_even_without_a_portfolio():
+    block = get_portfolio_context_from_state({"investor_profile": "Hold 3+ years."})
+    assert "not provided" in block.lower()
+    assert block.endswith("Hold 3+ years.")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("profile", [None, "", "   "])
+def test_no_investor_profile_leaves_the_block_unchanged(profile):
+    state = {"portfolio_context": "Portfolio: flat", "investor_profile": profile}
+    assert get_portfolio_context_from_state(state) == "Portfolio: flat"
+
+
+@pytest.mark.unit
 def test_load_rejects_a_malformed_file_with_a_clear_error(tmp_path):
     bad = tmp_path / "p.json"
     bad.write_text(json.dumps({"positions": [{"quantity": 5}]}))
@@ -142,6 +167,22 @@ def test_create_run_state_renders_the_portfolio_once(tmp_path):
     state = graph.create_run_state("AAPL", "2026-08-14", portfolio=PortfolioContext.model_validate(HOLDING))
     assert "120" in state["portfolio_context"]
     assert graph.create_run_state("AAPL", "2026-08-14")["portfolio_context"] == ""
+
+
+@pytest.mark.unit
+def test_create_run_state_carries_the_configured_investor_profile(tmp_path):
+    graph = _bare_graph(tmp_path)
+    assert graph.create_run_state("AAPL", "2026-08-14")["investor_profile"] == ""
+    graph.config["investor_profile"] = " Long-term: hold 12+ months. "
+    assert graph.create_run_state("AAPL", "2026-08-14")["investor_profile"] == "Long-term: hold 12+ months."
+
+
+@pytest.mark.unit
+def test_checkpoint_signature_changes_with_the_investor_profile(tmp_path):
+    graph = _bare_graph(tmp_path)
+    before = graph._run_signature("stock")
+    graph.config["investor_profile"] = "Long-term: hold 12+ months."
+    assert graph._run_signature("stock") != before
 
 
 @pytest.mark.unit

@@ -56,6 +56,16 @@ def test_int_coercion(monkeypatch):
     assert isinstance(config["max_risk_discuss_rounds"], int)
 
 
+def test_investor_profile_and_holding_period_overrides(monkeypatch):
+    config = _config_with_env(
+        monkeypatch,
+        TRADINGAGENTS_INVESTOR_PROFILE="Long-term investor; hold at least 12 months.",
+        TRADINGAGENTS_HOLDING_PERIOD_DAYS="252",
+    )
+    assert config["investor_profile"] == "Long-term investor; hold at least 12 months."
+    assert config["holding_period_days"] == 252
+
+
 @pytest.mark.parametrize(
     "raw,expected",
     [

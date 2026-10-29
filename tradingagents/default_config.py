@@ -25,6 +25,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_INVESTOR_PROFILE":     "investor_profile",
+    "TRADINGAGENTS_HOLDING_PERIOD_DAYS":  "holding_period_days",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -178,6 +180,10 @@ def build_default_config() -> dict:
         # Trading days from the first close after the analysis date over which a
         # decision's outcome is measured, for reflection and for the backtest figures.
         "holding_period_days": 5,
+        # The caller's mandate in their own words, e.g. a long-term investor's
+        # minimum holding period. Shown to the trader, risk debaters and Portfolio
+        # Manager beside the portfolio context; None leaves the desk's defaults.
+        "investor_profile": None,
         "benchmark_ticker": None,
         "benchmark_map": {
             ".NS":  "^NSEI",       # NSE India (Nifty 50)
