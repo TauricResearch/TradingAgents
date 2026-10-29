@@ -215,6 +215,14 @@ export TRADINGAGENTS_LLM_PROVIDER=openai TRADINGAGENTS_QUICK_THINK_LLM=gpt-6-lun
 export TRADINGAGENTS_OUTPUT_LANGUAGE=English TRADINGAGENTS_MAX_DEBATE_ROUNDS=1 TRADINGAGENTS_MAX_RISK_ROUNDS=1
 tradingagents --ticker NVDA --date 2026-09-23 --analysts market,news,fundamentals --save --no-show
 ```
+
+Scan a watchlist for the latest available daily close, previous-bar change, and volume:
+
+```bash
+tradingagents scan BTCUSD,NVDA,RELIANCE.NS
+```
+
+Use `--date YYYY-MM-DD` to request data through a specific date. This is a daily-bar snapshot, not an intraday quote or continuous monitor, and it does not place trades.
 Each flag skips only its own question. Run without a terminal, a missing answer stops the run before it starts and names the flag or variable to set.
 
 At start-up the interactive CLI mentions a newer release and notices from Tauric Research. It checks at most once a day, in the background, and sends nothing about your runs; set `TRADINGAGENTS_NO_UPDATE_CHECK=1` to turn it off. Runs without a terminal never check.

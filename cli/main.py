@@ -1,15 +1,20 @@
 import sys
+from datetime import date as calendar_date, datetime
 from enum import StrEnum
 from typing import Annotated
 
 import typer
 from rich.markup import escape
+from rich.table import Table
 
 from cli.display import console
 from cli.models import AnalystType, AssetType
 from cli.prompts import filter_analysts_for_asset_type, parse_analysts
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.dataflows.errors import VendorError
+from tradingagents.dataflows.market_scan import scan_market_data
+from tradingagents.dataflows.vendors.yahoo.common import price_text
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
 from tradingagents.portfolio import load_portfolio
@@ -158,6 +163,61 @@ def backtest(
         console.print(f"[yellow]failed:[/yellow] {ticker} {date}: {reason}")
     for ticker, reason in result.settlement_failures:
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
+
+
+@app.command()
+def scan(
+    tickers: str = typer.Argument(..., help="Comma-separated symbols, e.g. BTCUSD,NVDA,RELIANCE.NS"),
+    as_of: str = typer.Option(
+        None, "--date", help="Latest daily data through YYYY-MM-DD (defaults to today)"
+    ),
+):
+    """Scan a watchlist using the latest available daily market data."""
+    requested_date = as_of or calendar_date.today().isoformat()
+    try:
+        datetime.strptime(requested_date, "%Y-%m-%d")
+    except ValueError:
+        console.print("[red]Date must use YYYY-MM-DD.[/red]")
+        raise typer.Exit(code=1) from None
+
+    symbols = list(dict.fromkeys(symbol.strip() for symbol in tickers.split(",") if symbol.strip()))
+    if not symbols:
+        console.print("[red]No ticker to scan; pass symbols comma-separated, e.g. BTCUSD,NVDA[/red]")
+        raise typer.Exit(code=1)
+
+    table = Table(title=f"Daily market scan through {requested_date}")
+    for column in ("Symbol", "Latest bar", "Close", "Daily change", "Volume"):
+        table.add_column(column, justify="right" if column != "Symbol" else "left")
+
+    failures = []
+    for symbol in symbols:
+        try:
+            result = scan_market_data(symbol, requested_date)
+        except (VendorError, ValueError) as exc:
+            failures.append((symbol, str(exc)))
+            continue
+        change = (
+            "N/A"
+            if result.change_percent is None
+            else f"{result.change_percent:+.2f}%"
+        )
+        table.add_row(
+            result.requested_symbol,
+            result.latest_date,
+            price_text(result.close),
+            change,
+            "N/A" if result.volume is None else f"{result.volume:,}",
+        )
+
+    if table.rows:
+        console.print(table)
+    for symbol, reason in failures:
+        console.print(f"[yellow]unavailable:[/yellow] {symbol}: {reason}")
+    console.print(
+        "[dim]Daily bars are not intraday/live quotes. This command does not place or automate trades.[/dim]"
+    )
+    if failures:
+        raise typer.Exit(code=1)
 
 
 # The plans `login` and `logout` take: the providers signed in to, not keyed.
