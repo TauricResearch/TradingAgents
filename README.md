@@ -332,6 +332,18 @@ The CLI takes the same content as a JSON file: `tradingagents --portfolio my_boo
 
 An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
 
+### Investor profile
+
+The desk's defaults suit an active trader. To have the same agents frame the holding period, entries, exits and risk levels around your own mandate, describe it in `investor_profile` (or `TRADINGAGENTS_INVESTOR_PROFILE`). Like the portfolio, it reaches the trader, the risk analysts and the portfolio manager, while the research team stays blind to it. A long-term investor may also want past decisions scored over a matching period through `holding_period_days` (`TRADINGAGENTS_HOLDING_PERIOD_DAYS`, in trading days):
+
+```python
+config["investor_profile"] = (
+    "Long-term investor: hold at least 12 months for capital-gains treatment, "
+    "longer with high conviction. Treat short-term technicals as entry timing only."
+)
+config["holding_period_days"] = 252  # about a year of trading days
+```
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.

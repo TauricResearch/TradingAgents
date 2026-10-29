@@ -304,6 +304,7 @@ class TradingAgentsGraph:
             asset_type=asset_type,
             instrument_context=self.resolve_instrument_context(company_name, asset_type, trade_date),
             portfolio_context=portfolio.render(company_name) if portfolio is not None else "",
+            investor_profile=(self.config.get("investor_profile") or "").strip(),
         )
 
     def _memory_step(self, state):
