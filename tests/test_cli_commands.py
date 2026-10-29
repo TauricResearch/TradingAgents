@@ -64,6 +64,56 @@ def test_help_lists_the_backtest_command(runner):
     assert "backtest" in runner.invoke(m.app, ["--help"]).output
 
 
+@pytest.mark.unit
+def test_scan_displays_daily_data_without_running_analysis(runner, monkeypatch):
+    from tradingagents.dataflows.market_scan import MarketScanResult
+
+    monkeypatch.setattr(
+        m,
+        "scan_market_data",
+        lambda symbol, date: MarketScanResult(symbol, "BTC-USD", date, 81000.0, 2.5, 1234),
+    )
+
+    result = runner.invoke(m.app, ["scan", "BTCUSD", "--date", "2026-10-28"])
+
+    assert result.exit_code == 0, result.output
+    assert "BTCUSD" in result.output
+    assert "81000.00" in result.output
+    assert "+2.50%" in result.output
+    assert "not intraday/live" in result.output
+    assert "place or automate trades" in " ".join(result.output.split())
+    assert calls == []
+
+
+@pytest.mark.unit
+def test_scan_rejects_bad_dates_and_empty_watchlists(runner):
+    bad_date = runner.invoke(m.app, ["scan", "BTCUSD", "--date", "tomorrow"])
+    empty = runner.invoke(m.app, ["scan", ",,"])
+
+    assert bad_date.exit_code == 1
+    assert "YYYY-MM-DD" in bad_date.output
+    assert empty.exit_code == 1
+    assert "No ticker to scan" in empty.output
+
+
+@pytest.mark.unit
+def test_scan_continues_after_one_symbol_fails(runner, monkeypatch):
+    from tradingagents.dataflows.errors import NoMarketDataError
+    from tradingagents.dataflows.market_scan import MarketScanResult
+
+    def scan(symbol, date):
+        if symbol == "BAD":
+            raise NoMarketDataError(symbol, symbol, "test failure")
+        return MarketScanResult(symbol, symbol, date, 12.0, None, None)
+
+    monkeypatch.setattr(m, "scan_market_data", scan)
+    result = runner.invoke(m.app, ["scan", "GOOD,BAD", "--date", "2026-10-28"])
+
+    assert result.exit_code == 1
+    assert "GOOD" in result.output
+    assert "unavailable: BAD" in result.output
+
+
 class _Result:
     def __init__(self, tmp_path):
         self.run_id = "20260916_000000"
