@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
+from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
-from tradingagents.agents.utils.agent_utils import (
-    get_instrument_context_from_state,
-    get_language_instruction,
-)
-from tradingagents.agents.utils.structured import (
+from tradingagents.agents.structured import (
+    NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,
 )
@@ -35,12 +33,22 @@ def create_research_manager(llm):
 - **Underweight**: Cautious view; recommend trimming exposure
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 
-Commit to a clear stance whenever the debate's strongest arguments warrant one; reserve Hold for situations where the evidence on both sides is genuinely balanced.
+The debate always contains conflicting arguments; deciding which side is stronger is the job, so conflict alone is not a reason to Hold. Commit to the side with the stronger case, sized by how decisively it wins. Choose Hold only when the evidence is still balanced after that weighing, or too thin to support a call; do not manufacture a direction to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
 
 ---
 
 **Debate History:**
-{history}""" + get_language_instruction()
+{history}
+
+## Output
+
+Write these sections, in this order, starting with the recommendation on its own line:
+
+- **Recommendation**: exactly one of Buy / Overweight / Hold / Underweight / Sell
+- **Rationale**: which arguments decided it
+- **Strategic Actions**: concrete steps for the trader, sized against a standard allocation
+
+{NO_EXTERNAL_TOOLS}""" + get_language_instruction()
 
         investment_plan = invoke_structured_or_freetext(
             structured_llm,
@@ -51,7 +59,6 @@ Commit to a clear stance whenever the debate's strongest arguments warrant one; 
         )
 
         new_investment_debate_state = {
-            "judge_decision": investment_plan,
             "history": investment_debate_state.get("history", ""),
             "bear_history": investment_debate_state.get("bear_history", ""),
             "bull_history": investment_debate_state.get("bull_history", ""),

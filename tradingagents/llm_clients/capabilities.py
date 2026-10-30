@@ -94,6 +94,7 @@ _DEFAULT = ModelCapabilities(
 _BY_ID: dict[str, ModelCapabilities] = {
     "deepseek-chat": _DEEPSEEK_CHAT,
     "deepseek-reasoner": _DEEPSEEK_THINKING,
+    "deepseek-flash": _DEEPSEEK_THINKING,
     "deepseek-v4-flash": _DEEPSEEK_THINKING,
     "deepseek-v4-pro": _DEEPSEEK_THINKING,
     # MiniMax — full official model lineup per
@@ -108,16 +109,29 @@ _BY_ID: dict[str, ModelCapabilities] = {
 }
 
 # Forward-compat patterns. New ``deepseek-v5-*`` / ``deepseek-reasoner-*``
-# or ``MiniMax-M3*`` variants inherit the thinking-mode quirks automatically.
+# / ``deepseek-flash-*`` or ``MiniMax-M3*`` variants inherit the thinking-mode
+# quirks automatically. ``deepseek-flash`` is the unversioned alias the model
+# picker offers for V4.1 Flash; it serves thinking mode and so rejects
+# ``tool_choice`` exactly like the versioned ``deepseek-v4-flash`` ID does.
 _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
+    (re.compile(r"^deepseek-flash"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
 ]
 
 
 def get_capabilities(model_name: str) -> ModelCapabilities:
     """Resolve capabilities by exact ID, then pattern, then default."""
+    # OpenRouter namespaces official DeepSeek models as ``deepseek/<id>``, so
+    # strip that prefix to reuse the same quirks as the native provider — e.g.
+    # ``deepseek/deepseek-v4-flash`` must suppress tool_choice like
+    # ``deepseek-v4-flash`` does, not fall through to _DEFAULT (#1199). Only the
+    # official namespace is stripped; third-party finetunes on other publishers
+    # (e.g. ``tngtech/deepseek-...``) keep _DEFAULT, since their quirks are unknown.
+    if model_name.startswith("deepseek/"):
+        model_name = model_name.removeprefix("deepseek/")
+
     if model_name in _BY_ID:
         return _BY_ID[model_name]
     for pattern, caps in _BY_PATTERN:

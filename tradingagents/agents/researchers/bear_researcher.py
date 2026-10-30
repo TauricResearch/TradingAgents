@@ -1,6 +1,8 @@
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
+    opponent_argument_or_opening,
+    report_or_absent,
 )
 
 
@@ -10,11 +12,13 @@ def create_bear_researcher(llm):
         history = investment_debate_state.get("history", "")
         bear_history = investment_debate_state.get("bear_history", "")
 
-        current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        current_response = opponent_argument_or_opening(
+            investment_debate_state.get("current_response", ""), "bull analyst"
+        )
+        market_research_report = report_or_absent(state["market_report"], "market")
+        sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
+        news_report = report_or_absent(state["news_report"], "news")
+        fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
         instrument_context = get_instrument_context_from_state(state)
         asset_type = state.get("asset_type", "stock")
         target_label = "stock" if asset_type == "stock" else "asset"

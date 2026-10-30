@@ -2,7 +2,7 @@
 
 A single source of truth for which environment variable holds the API
 key for each supported LLM provider. Used by the CLI's interactive key
-prompt (cli/utils.ensure_api_key) and by anything else that needs to
+prompt (cli/prompts.ensure_api_key) and by anything else that needs to
 ask "does this provider require a key, and which env var is it?".
 
 When adding a new provider, register its env var here so the CLI flow
@@ -35,6 +35,8 @@ PROVIDER_API_KEY_ENV: dict[str, str | None] = {
     "kimi":       "MOONSHOT_API_KEY",
     "groq":       "GROQ_API_KEY",
     "nvidia":     "NVIDIA_API_KEY",
+    # A ChatGPT plan authenticates with the person's sign-in, not a key.
+    "chatgpt":    None,
     # Local runtimes do not authenticate.
     "ollama":     None,
     # Generic OpenAI-compatible endpoint: the client reads this when set (keyed

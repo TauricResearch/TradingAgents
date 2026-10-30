@@ -10,7 +10,6 @@ from tradingagents.graph.checkpointer import (
     checkpoint_step,
     clear_checkpoint,
     get_checkpointer,
-    has_checkpoint,
     thread_id,
 )
 
@@ -63,7 +62,7 @@ class TestCheckpointResume(unittest.TestCase):
                 graph.invoke({"count": 0}, config=cfg)
 
         # Checkpoint should exist at step 1 (analyst completed)
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
         step = checkpoint_step(self.tmpdir, self.ticker, self.date)
         self.assertEqual(step, 1)
 
@@ -90,11 +89,11 @@ class TestCheckpointResume(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 graph.invoke({"count": 0}, config=cfg)
 
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
         # Clear it
         clear_checkpoint(self.tmpdir, self.ticker, self.date)
-        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
         # Fresh run succeeds from scratch
         _should_crash = False
@@ -103,7 +102,6 @@ class TestCheckpointResume(unittest.TestCase):
             result = graph.invoke({"count": 0}, config=cfg)
 
         self.assertEqual(result["count"], 11)
-
 
     def test_different_date_starts_fresh(self):
         """A different date must NOT resume from an existing checkpoint."""
@@ -119,10 +117,10 @@ class TestCheckpointResume(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid1}})
 
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
         # date2 should have no checkpoint
-        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, date2))
+        self.assertIsNone(checkpoint_step(self.tmpdir, self.ticker, date2))
 
         # Run with date2 — should start fresh and succeed
         _should_crash = False
@@ -137,7 +135,7 @@ class TestCheckpointResume(unittest.TestCase):
         self.assertEqual(result["count"], 11)
 
         # Original date checkpoint still exists (untouched)
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date))
 
 
 class TestCheckpointSignature(unittest.TestCase):
@@ -178,9 +176,9 @@ class TestCheckpointSignature(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid1}})
 
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig1))
         # A different graph shape has no checkpoint to resume from.
-        self.assertFalse(has_checkpoint(self.tmpdir, self.ticker, self.date, sig2))
+        self.assertIsNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig2))
 
         _should_crash = False
         tid2 = thread_id(self.ticker, self.date, sig2)
@@ -190,7 +188,35 @@ class TestCheckpointSignature(unittest.TestCase):
             result = graph.invoke({"count": 0}, config={"configurable": {"thread_id": tid2}})
         self.assertEqual(result["count"], 11)
         # sig1's checkpoint remains untouched.
-        self.assertTrue(has_checkpoint(self.tmpdir, self.ticker, self.date, sig1))
+        self.assertIsNotNone(checkpoint_step(self.tmpdir, self.ticker, self.date, sig1))
+
+    def test_a_resume_under_other_settings_starts_fresh(self):
+        """The report names one provider, model set, language and vendor chain;
+        a resume must not carry reports another of them produced."""
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+        g = object.__new__(TradingAgentsGraph)
+        g.selected_analysts = ("market", "news")
+        base_config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1, "llm_provider": "openai",
+                       "quick_think_llm": "q", "deep_think_llm": "d", "output_language": "English",
+                       "data_vendors": {"core_stock_apis": "yfinance"}, "tool_vendors": {}}
+        g.config = dict(base_config)
+        base = g._run_signature("stock")
+        for key, value in (("llm_provider", "google"), ("quick_think_llm", "q2"), ("deep_think_llm", "d2"),
+                           ("output_language", "Deutsch"),
+                           ("data_vendors", {"core_stock_apis": "alpha_vantage"}),
+                           ("tool_vendors", {"get_news": "alpha_vantage"}),
+                           ("backend_url", "http://other-endpoint/v1"), ("max_tool_rounds", 30),
+                           ("temperature", 0.2), ("openai_reasoning_effort", "high")):
+            g.config = {**base_config, key: value}
+            self.assertNotEqual(base, g._run_signature("stock"), key)
+        # Where a run keeps its files, and how it retries, do not change what it writes.
+        for key, value in (("results_dir", "/elsewhere"), ("data_cache_dir", "/cache"),
+                           ("memory_log_path", "/log.md"), ("checkpoint_enabled", True), ("llm_max_retries", 9)):
+            g.config = {**base_config, key: value}
+            self.assertEqual(base, g._run_signature("stock"), key)
+        g.config = dict(base_config)
+        self.assertEqual(base, g._run_signature("stock"))
 
     def test_run_signature_captures_graph_shape(self):
         from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -212,6 +238,10 @@ class TestCheckpointSignature(unittest.TestCase):
         # Stable for identical inputs.
         g.config = {"max_debate_rounds": 1, "max_risk_discuss_rounds": 1}
         self.assertEqual(base, g._run_signature("stock"))
+        # A checkpoint saved by the sequential layout is not resumed on the
+        # parallel one: its pending node no longer exists, and the join would
+        # never fire.
+        self.assertIn("analysts=parallel", base)
 
 
 if __name__ == "__main__":
