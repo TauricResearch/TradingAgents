@@ -41,6 +41,11 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+# Zerodha Pulse and NDTV Profit news vendors (crawl4ai drives a headless browser): pip install
+# "tradingagents[crawl4ai]" && crawl4ai-setup, then data_vendors news_data="zerodha_pulse" or "ndtv_profit".
+crawl4ai = [
+    "crawl4ai>=0.9.5",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
