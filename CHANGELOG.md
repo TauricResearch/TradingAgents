@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+## [Unreleased]
+
+### Added
+
+- **Required data.** `--data-policy prices=abort` (or `TRADINGAGENTS_DATA_POLICY`, or `data_policy` in config) checks the data a run needs through the configured vendors before any model call, and stops a run whose prices are missing instead of running every agent on nothing. The kinds are `prices`, `fundamentals`, `news` and `macro`, each at `abort`, `warn` or `off`; `tradingagents backtest` takes the flag too. Without a policy nothing is checked and runs behave as before.
+
 ## [0.7.1] — 2026-10-27
 
 Decisions are scored only on final closes and settle across long market holidays, a model's unpadded date no longer reads filings made after the run date, and fixes to portfolios, prices, SEC statements, reports, Azure and Claude settings.

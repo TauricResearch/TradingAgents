@@ -221,6 +221,24 @@ At start-up the interactive CLI mentions a newer release and notices from Tauric
 
 A saved report also includes `complete_report.html`, the report as one page with its sections listed beside the text, for reading in a browser, on a phone or in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` skips it, and so does `ta.save_reports(state, "NVDA", html=False)` from Python.
 
+### Required data
+
+When no vendor can serve some data, the run goes on and the analysts report it as unavailable, so one vendor error does not end a run. If a run is pointless without some data, say so with `--data-policy`. It is checked through the configured vendors before any model is called:
+
+```bash
+tradingagents --ticker DBK --date 2026-10-27 --data-policy prices=abort
+tradingagents backtest DBK.DE,SAP.DE --start 2026-06-01 --end 2026-08-01 --data-policy prices=abort,news=warn
+```
+
+| Kind | What is asked for |
+|------|-------------------|
+| `prices` | The 30 days of prices up to the analysis date |
+| `fundamentals` | The company overview |
+| `news` | The ticker's news from the week before the date |
+| `macro` | The Fed funds rate from FRED (needs `FRED_API_KEY`) |
+
+Each kind takes a level: `abort` stops the run, before any model call, naming what is missing and why (a backtest records the cell as failed and goes on), `warn` says what is missing and runs anyway, and `off` checks nothing. A mistyped ticker such as `DBK`, which Yahoo lists as `DBK.DE`, then stops in seconds instead of after a full run. Without the flag nothing is checked. Set `TRADINGAGENTS_DATA_POLICY=prices=abort` for every run, or `config["data_policy"] = {"prices": "abort"}` from Python, where `propagate()` raises `DataPolicyError`. A notice that data is withheld for a past date, such as the company overview in a backtest, counts as served.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.
