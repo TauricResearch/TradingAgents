@@ -164,10 +164,9 @@ def build_default_config() -> dict:
             # Statements come from SEC EDGAR as filed (US filers), then Yahoo; the
         # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
         "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
-            # ndtv_profit and zerodha_pulse serve get_news for .NS/.BO tickers only (they need
-            # the [crawl4ai] extra, else they are skipped); every other ticker, and any run
-            # where they raise, is served by yfinance.
-            "news_data": "ndtv_profit,zerodha_pulse,yfinance",  # Options: alpha_vantage, yfinance, zerodha_pulse, ndtv_profit
+            # For Indian tickers (.NS/.BO) set "ndtv_profit,zerodha_pulse,yfinance"; those two
+            # vendors need the [crawl4ai] extra and serve only .NS/.BO tickers.
+            "news_data": "yfinance",             # Options: alpha_vantage, yfinance, zerodha_pulse, ndtv_profit
             "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
         },
