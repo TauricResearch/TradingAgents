@@ -141,6 +141,7 @@ def build_default_config() -> dict:
         "news_article_limit": 20,             # max articles per ticker (ticker-news)
         "global_news_article_limit": 10,      # max articles for global/macro news
         "global_news_lookback_days": 7,       # macro news lookback window
+        "insider_transaction_limit": 50,      # most recent insider trades served (Alpha Vantage)
         # Search queries used by get_global_news for macro headlines. Extend or
         # replace to broaden geographic / sector coverage.
         "global_news_queries": [

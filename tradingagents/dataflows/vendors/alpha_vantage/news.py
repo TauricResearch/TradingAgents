@@ -1,4 +1,8 @@
 
+import json
+
+import pandas as pd
+
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.date_window import withhold_undisclosed_trades
 from tradingagents.dataflows.vendors.alpha_vantage.common import (
@@ -70,8 +74,8 @@ def get_global_news(as_of_date, look_back_days: int | None = None, limit: int | 
     return _make_api_request("NEWS_SENTIMENT", params)
 
 
-def get_insider_transactions(symbol: str, as_of_date: str | None = None) -> dict[str, str] | str:
-    """Returns latest and historical insider transactions by key stakeholders.
+def get_insider_transactions(symbol: str, as_of_date: str | None = None) -> str:
+    """Returns the most recent insider transactions by key stakeholders.
 
     Covers transactions by founders, executives, board members, etc.
 
@@ -80,10 +84,30 @@ def get_insider_transactions(symbol: str, as_of_date: str | None = None) -> dict
         as_of_date: The analysis date (yyyy-mm-dd); a past one withholds them.
 
     Returns:
-        Dictionary containing insider transaction data or JSON string.
+        CSV of up to ``insider_transaction_limit`` trades, newest first.
     """
 
     withheld = withhold_undisclosed_trades(as_of_date, symbol)
     if withheld:
         return withheld
-    return _make_api_request("INSIDER_TRANSACTIONS", {"symbol": symbol})
+    body = _make_api_request("INSIDER_TRANSACTIONS", {"symbol": symbol})
+
+    # The endpoint takes no limit and returns every trade on record as JSON, which
+    # for a long-listed company runs to hundreds of thousands of tokens (#1625).
+    # Keep the most recent trades and serve them as CSV, as the Yahoo path does.
+    try:
+        trades = json.loads(body).get("data")
+    except (json.JSONDecodeError, AttributeError):
+        return body
+    if not isinstance(trades, list):
+        return body
+    if not trades:
+        return f"No insider transactions reported for symbol '{symbol}'"
+
+    limit = get_config()["insider_transaction_limit"]
+    trades = sorted(trades, key=lambda t: t.get("transaction_date") or "", reverse=True)
+    kept = trades[:limit]
+    header = f"# Insider Transactions data for {symbol}\n"
+    if len(kept) < len(trades):
+        header += f"# The {len(kept)} most recent of {len(trades)} trades\n"
+    return header + pd.DataFrame(kept).to_csv(index=False)
