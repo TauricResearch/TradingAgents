@@ -46,11 +46,11 @@ def _by_day(closes):
 
     Yahoo stamps a daily bar at midnight in its market's time zone (UTC for a
     coin, New York for SPY), so two series meet on their dates, not their
-    instants. A missing or non-positive close is no price at all, not a bar to
-    score on. Today's bar, in its market's time zone, is the session still
-    trading: its close is the live price, so it is not scored.
+    instants. A missing, infinite, or non-positive close is no price at all,
+    not a bar to score on. Today's bar, in its market's time zone, is the
+    session still trading: its close is the live price, so it is not scored.
     """
-    closes = closes[closes > 0]
+    closes = closes[(closes > 0) & (closes < float("inf"))]
     tz = getattr(closes.index, "tz", None)
     if not closes.empty:
         closes = closes[closes.index.date < _now().tz_convert(tz).date()]
