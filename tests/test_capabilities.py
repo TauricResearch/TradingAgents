@@ -166,6 +166,47 @@ class TestOpenRouterDeepSeekNamespace:
 
 
 @pytest.mark.unit
+class TestOpenRouterClaudeForcedToolChoice:
+    """Some Claude models on OpenRouter 400 a forced tool_choice:
+    ``tool_choice: type "tool" and "any" are not supported for this model``.
+    They accept ``auto`` / no tool_choice and still call the schema tool, so the
+    structured-output binding must not force it. Observed live on OpenRouter
+    2026-10-31; the "accepts" list was probed the same day."""
+
+    @pytest.mark.parametrize("model", [
+        "anthropic/claude-sonnet-5.5",
+        "anthropic/claude-opus-5.5",
+        "anthropic/claude-fable-5.1",
+        "anthropic/claude-sonnet-5.5:batch",   # OpenRouter's batch variant, same model
+    ])
+    def test_rejecting_models_suppress_tool_choice(self, model):
+        caps = get_capabilities(model)
+        assert caps.supports_tool_choice is False
+        assert caps.preferred_structured_method == "function_calling"
+
+    @pytest.mark.parametrize("model", [
+        "anthropic/claude-haiku-5.5",
+        "anthropic/claude-sonnet-5",
+        "anthropic/claude-opus-5",
+        "anthropic/claude-fable-5",
+        "anthropic/claude-sonnet-4.6",
+        "anthropic/claude-opus-4.8",
+    ])
+    def test_accepting_models_keep_forced_tool_choice(self, model):
+        assert get_capabilities(model).supports_tool_choice is True
+
+    def test_structured_binding_sends_no_tool_choice(self):
+        """End to end through the client class the openrouter provider uses."""
+        from tradingagents.agents.schemas import PortfolioDecision
+        from tradingagents.llm_clients.openai_client import NormalizedChatOpenAI
+
+        llm = NormalizedChatOpenAI(model="anthropic/claude-sonnet-5.5", api_key="placeholder",
+                                   base_url="https://openrouter.ai/api/v1")
+        bound = llm.with_structured_output(PortfolioDecision)
+        assert bound.first.kwargs.get("tool_choice") is None
+
+
+@pytest.mark.unit
 def test_capabilities_dataclass_is_frozen():
     """Capability rows are immutable so they can be safely shared."""
     caps = get_capabilities("deepseek-chat")
