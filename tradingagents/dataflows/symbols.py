@@ -100,7 +100,7 @@ def _normalize_crypto(s: str) -> str | None:
     return f"{base}-USD" if base else None
 
 
-def normalize_symbol(raw: str) -> str:
+def normalize_symbol(raw: str, exchange: str | None = None) -> str:
     """Map a user/broker symbol to its canonical Yahoo Finance symbol.
 
     Resolution order (first match wins):
@@ -115,16 +115,20 @@ def normalize_symbol(raw: str) -> str:
          equities, ETFs, Yahoo-native symbols like ``GC=F`` or ``^GSPC``).
 
     A trailing ``+`` (broker CFD marker, e.g. ``XAUUSD+``) is stripped before
-    matching. The function is purely syntactic — it performs no network
+    matching. ``exchange`` may be ``NSE`` or ``BSE`` to qualify a bare Indian
+    ticker. Without it, bare tickers are never assigned an arbitrary exchange.
+    The function is purely syntactic — it performs no network
     calls — so it is safe to apply on every request.
     """
     if not isinstance(raw, str) or not raw.strip():
         return raw
 
-    s = raw.strip().upper()
-    # Broker CFD/qualifier suffixes Yahoo never uses.
-    s = s.rstrip("+")
+    s = raw.strip().upper().rstrip("+")
+    if exchange is not None:
+        from tradingagents.dataflows.india.symbols import normalize_indian_symbol
 
+        return normalize_indian_symbol(s, exchange)
+    # Broker CFD/qualifier suffixes Yahoo never uses.
     crypto = _normalize_crypto(s)
     if s in _ALIASES:
         canonical = _ALIASES[s]
@@ -144,12 +148,12 @@ def normalize_symbol(raw: str) -> str:
     return canonical
 
 
-# Tickers can contain letters, digits, dot, dash, underscore, caret
+# Tickers can contain letters, digits, dot, dash, underscore, ampersand, caret
 # (index symbols like ^GSPC), equals (futures like GC=F), and plus
 # (forex/CFD symbols like XAUUSD+). None of these enable directory
 # traversal, so the value never escapes a containing directory when
 # interpolated into a path. Anything else is rejected.
-_TICKER_PATH_RE = re.compile(r"^[A-Za-z0-9._\-\^=+]+$")
+_TICKER_PATH_RE = re.compile(r"^[A-Za-z0-9._\-&\^=+]+$")
 
 
 def safe_ticker_component(value: str, *, max_len: int = 32) -> str:

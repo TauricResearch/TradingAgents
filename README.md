@@ -231,6 +231,78 @@ TradingAgents works with any market Yahoo Finance covers, using the exchange-suf
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
 - Crypto: `BTC-USD`, `ETH-USD`
 
+### India Market Foundation (NEXUS QUANT)
+
+India-specific primitives live under `tradingagents.dataflows.india`; the
+upstream graph, data router, and US-market defaults are unchanged. NSE symbols
+use `.NS` and BSE symbols use `.BO`. A bare ticker is not assigned to an
+exchange by guesswork: pass `exchange="NSE"` or `exchange="BSE"` to
+`normalize_symbol`, or resolve it against a supplied universe. A suffix that
+conflicts with an explicitly supplied exchange is rejected. The universe
+resolver accepts ticker and ISIN identifiers, and reports ambiguous matches
+when more than one exchange listing is possible. Indian ticker syntax is
+restricted to letters, digits, ampersand and hyphen; a broker trailing `+` is
+removed before exchange normalization. CSV ISINs must use the Indian `IN`
+prefix and pass the ISIN check-digit validation.
+
+The Nifty 500 loader reads a caller-provided CSV and requires the source label
+and date on which that file was last updated. It does not ship, infer, or
+hardcode current constituents. CSV headers are `symbol` (required), plus
+`company_name`, `exchange`, `isin`, and `sector` when available. Exchange may be
+omitted only when the ticker already has an `.NS` or `.BO` suffix.
+
+```python
+from tradingagents.dataflows.india import load_nifty500_universe
+
+universe = load_nifty500_universe(
+  "verified-constituents.csv",
+  data_source="<publisher or source URL>",
+  last_updated="YYYY-MM-DD",
+)
+security = universe.resolve("<ticker or ISIN>", exchange="NSE")
+```
+
+`IndianExchangeCalendar` models weekday sessions in `Asia/Kolkata` (09:15 to
+15:30 local time) and accepts caller-supplied exchange holidays. No holiday list
+is currently bundled. For CSV files, use `exchange,date,source,verified_on,
+verified_by,verification_status,coverage_start,coverage_end` columns and mark
+every applicable row `verified`; `IndianExchangeCalendar.from_csv("NSE", path)`
+and the equivalent BSE call load each exchange separately and retain source,
+verification date, verifier and inclusive coverage bounds. Session queries
+outside those bounds raise `CalendarCoverageError`. An empty `date` row may
+attest to verified coverage with no holidays. This records the dataset's
+attestation; it does not independently validate the publisher or cover special
+sessions. Aware datetime inputs are converted to `Asia/Kolkata` before date
+selection.
+
+India quote adapters implement `IndianMarketDataProvider` and return a
+`MarketQuote` with provider, symbol, exchange, retrieval, market and optional
+publication timestamps, currency, and quality metadata. Timestamps must be
+timezone-aware; retrieval cannot be in the future, publication cannot precede
+market time or follow retrieval. Historical availability requires both market
+and publication timestamps. `MarketQuote.is_stale(max_age, as_of=...)` requires
+an explicit cutoff; date-only cutoffs mean the end of that date in India time.
+`select_single_provider_quote` continues to reject implicit multi-source
+selection.
+
+Register quote providers in an `IndiaProviderRegistry`, then select a provider
+explicitly with `get_quote(provider_name, symbol, exchange, as_of=..., max_age=...)`.
+Both as-of and max-age are required; the registry validates provider, symbol,
+exchange and historical/freshness provenance. It is intentionally separate
+from `dataflows/router.py`: that router dispatches fixed tool methods through
+`VENDOR_METHODS`, while this interface returns one India quote. Existing
+historical tool routes must continue using the shared `date_window` safeguards.
+
+Alpha Vantage has existing generic vendor methods in
+`tradingagents.dataflows.vendors.alpha_vantage`, but it is not registered as an
+India provider by this foundation and India instrument/endpoint coverage must
+be verified before an adapter is written. Trendlyne and Tickertape have no
+Python adapters here; their integration requires vendor-documented API access
+and any separately required credentials, or an explicitly implemented MCP
+bridge outside this Python runtime. No endpoints, credentials, or MCP
+availability are assumed. This foundation performs research data access only;
+it does not place orders or enable live trading.
+
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
