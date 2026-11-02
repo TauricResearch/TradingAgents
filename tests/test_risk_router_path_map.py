@@ -79,3 +79,11 @@ def test_debate_path_map_covers_full_router_range():
     }
     assert returns <= set(DEBATE_PATH_MAP)
     assert "Research Manager" in returns  # terminal reachable
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("rounds", [{"max_debate_rounds": 0}, {"max_risk_discuss_rounds": 0}])
+def test_zero_rounds_are_rejected(rounds):
+    """With 0 rounds the first speaker still argues once and its opponents never do."""
+    with pytest.raises(ValueError, match="at least 1"):
+        ConditionalLogic(**rounds)
