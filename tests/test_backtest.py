@@ -98,6 +98,20 @@ def test_a_cell_already_in_the_log_is_not_run_again(tmp_path):
 
 
 @pytest.mark.unit
+def test_a_review_cell_is_run_again(tmp_path):
+    config = _config(tmp_path)
+    first = run_backtest(["NVDA"], [], config)
+    first.log_path.parent.mkdir(parents=True, exist_ok=True)
+    TradingMemoryLog({"memory_log_path": str(first.log_path)}).store_decision(
+        "NVDA", "2026-01-05", "no call", rating="REVIEW")
+
+    again = run_backtest(["NVDA"], ["2026-01-05"], config, run_id=first.run_id)
+
+    assert again.cells_run == 1 and again.skipped == 0
+    assert [e["rating"] for e in TradingMemoryLog({"memory_log_path": str(first.log_path)}).load_entries()] == ["Buy"]
+
+
+@pytest.mark.unit
 def test_every_ticker_is_settled_after_the_grid(tmp_path):
     """Settlement runs at the start of the next same-ticker run, so the last
     date of each ticker would stay pending without an explicit pass."""
