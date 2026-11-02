@@ -200,6 +200,17 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+### DEBYKO crypto perpetual context
+
+Set `DEBYKO_API_KEY` in your environment; the key is sent in an authorization header.
+Select the fundamentals chain with `config["tool_vendors"] = {"get_fundamentals": "debyko,yfinance,alpha_vantage"}`.
+Both fundamentals and technical analysts also have the optional `get_crypto_perpetual_context` tool.
+`BTC-PERP`-style tickers select perpetuals; set `config["debyko_allow_crypto_pairs"] = True` to map known `BTC-USD`-style crypto to perpetual context explicitly.
+The vendor reads `POST /v2/snapshots` and `GET /v2/funding/settlements` at `https://api.debyko.com`; it supplies no candles or daily indicators.
+Context includes current funding, OI, mark/last, 24h stats, venue times/statuses/units and a present-only 8h funding comparison.
+Settlements cover a trailing UTC day, at most three 100-row pages, with missing/unrecorded/truncated coverage stated; past runs withhold live snapshots.
+Missing credentials, unsupported tickers and request failures use the existing typed vendor chain; only explicitly configured fallback vendors are tried.
+
 ### CLI Usage
 
 Launch the interactive CLI:

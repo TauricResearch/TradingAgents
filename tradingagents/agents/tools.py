@@ -95,6 +95,21 @@ def get_verified_market_snapshot(
 
 
 @tool
+def get_crypto_perpetual_context(
+    ticker: Annotated[str, InjectedState("company_of_interest")],
+    curr_date: Annotated[str, "Analysis date in YYYY-MM-DD format"],
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """Optional crypto perpetual context: per-venue current funding, open interest,
+    mark/last, 24h stats, cross-venue rates and trailing-day funding settlements.
+    Preserves venue times, statuses and units. Not candles or daily indicators.
+    For -PERP tickers; spot-style crypto requires explicit DEBYKO opt-in.
+    Past dates withhold live snapshots. Proceed without it if unavailable.
+    """
+    return route_to_vendor("get_crypto_perpetual_context", ticker, as_of(curr_date, trade_date))
+
+
+@tool
 def get_fundamentals(
     ticker: Annotated[str, InjectedState("company_of_interest")],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
