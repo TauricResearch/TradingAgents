@@ -18,6 +18,7 @@ so that:
 
 from __future__ import annotations
 
+import math
 from enum import StrEnum
 from typing import Literal
 
@@ -187,6 +188,12 @@ class TraderProposal(BaseModel):
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
 
+    @field_validator("entry_price", "stop_loss", mode="after")
+    @classmethod
+    def _non_finite_price_to_none(cls, v):
+        # Check the parsed float: even a valid JSON number can overflow to infinity.
+        return v if v is None or math.isfinite(v) else None
+
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
     """Render a TraderProposal to markdown.
@@ -263,6 +270,11 @@ class PortfolioDecision(BaseModel):
     @classmethod
     def _nullish_float_to_none(cls, v):
         return _coerce_optional_float(v)
+
+    @field_validator("price_target", mode="after")
+    @classmethod
+    def _non_finite_price_to_none(cls, v):
+        return v if v is None or math.isfinite(v) else None
 
 
 def render_pm_decision(decision: PortfolioDecision) -> str:

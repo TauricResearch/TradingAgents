@@ -8,6 +8,7 @@ so they share the same deterministic output shape.
 """
 
 import inspect
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
@@ -24,6 +25,7 @@ from tradingagents.agents.schemas import (
     SentimentReport,
     TraderAction,
     TraderProposal,
+    render_pm_decision,
     render_research_plan,
     render_sentiment_report,
     render_trader_proposal,
@@ -136,6 +138,96 @@ class TestNullishFloatCoercion:
         assert p.action is TraderAction.SELL
         assert p.entry_price == 612.40
         assert p.stop_loss is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("written", [
+    pytest.param(float("nan"), id="float-nan"),
+    pytest.param(float("inf"), id="float-inf"),
+    pytest.param(float("-inf"), id="float-negative-inf"),
+    pytest.param("NaN", id="string-nan"),
+    pytest.param(" Infinity ", id="string-inf"),
+    pytest.param("-INF", id="string-negative-inf"),
+    pytest.param("1e400", id="string-overflow"),
+    pytest.param(Decimal("1e400"), id="decimal-overflow"),
+])
+class TestNonFinitePriceCoercion:
+    @pytest.mark.parametrize("field, label, other", [
+        ("entry_price", "Entry Price", "stop_loss"),
+        ("stop_loss", "Stop Loss", "entry_price"),
+    ])
+    def test_trader_drops_only_the_unusable_price(self, written, field, label, other):
+        proposal = TraderProposal(
+            action=TraderAction.BUY,
+            reasoning="The thesis is preserved.",
+            position_sizing="5% of portfolio",
+            **{field: written, other: 100.0},
+        )
+
+        assert getattr(proposal, field) is None
+        assert getattr(proposal, other) == 100.0
+        assert proposal.action is TraderAction.BUY
+        assert proposal.reasoning == "The thesis is preserved."
+        assert proposal.position_sizing == "5% of portfolio"
+        assert f"**{label}**: not provided" in render_trader_proposal(proposal)
+
+    def test_pm_keeps_the_decision_without_an_unusable_target(self, written):
+        decision = PortfolioDecision(
+            rating=PortfolioRating.OVERWEIGHT,
+            executive_summary="The plan is preserved.",
+            investment_thesis="The thesis is preserved.",
+            price_target=written,
+            time_horizon="3 months",
+        )
+
+        assert decision.price_target is None
+        assert decision.rating is PortfolioRating.OVERWEIGHT
+        assert decision.executive_summary == "The plan is preserved."
+        assert decision.investment_thesis == "The thesis is preserved."
+        assert decision.time_horizon == "3 months"
+        assert "**Price Target**: not provided" in render_pm_decision(decision)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("price", [0.0, -37.63, 0.00000503, 1e308])
+def test_finite_prices_keep_their_existing_range_and_precision(price):
+    proposal = TraderProposal(action=TraderAction.HOLD, reasoning="r",
+                              entry_price=price, stop_loss=price)
+    decision = PortfolioDecision(rating=PortfolioRating.HOLD, executive_summary="s",
+                                 investment_thesis="t", price_target=price)
+    assert proposal.entry_price == proposal.stop_loss == decision.price_target == price
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("schema, render, payload, expected", [
+    pytest.param(
+        TraderProposal, render_trader_proposal,
+        '{"action":"Buy","reasoning":"Keep the thesis","entry_price":1e400,"stop_loss":95}',
+        ["**Action**: Buy", "**Reasoning**: Keep the thesis",
+         "**Entry Price**: not provided", "**Stop Loss**: 95.0"],
+        id="trader",
+    ),
+    pytest.param(
+        PortfolioDecision, render_pm_decision,
+        '{"rating":"Buy","executive_summary":"Keep the plan",'
+        '"investment_thesis":"Keep the thesis","price_target":-1e400}',
+        ["**Rating**: Buy", "**Executive Summary**: Keep the plan",
+         "**Investment Thesis**: Keep the thesis", "**Price Target**: not provided"],
+        id="portfolio-manager",
+    ),
+])
+def test_json_price_overflow_keeps_structured_output_without_a_retry(schema, render, payload, expected):
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured, plain = MagicMock(), MagicMock()
+    structured.invoke.side_effect = lambda prompt: schema.model_validate_json(payload)
+
+    report = invoke_structured_or_freetext(structured, plain, "prompt", render, "test")
+
+    for line in expected:
+        assert line in report
+    structured.invoke.assert_called_once_with("prompt")
+    plain.invoke.assert_not_called()
 
 
 @pytest.mark.unit
