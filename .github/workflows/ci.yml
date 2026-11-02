@@ -11,16 +11,21 @@ concurrency:
 
 jobs:
   test:
-    name: tests (py${{ matrix.python-version }}${{ matrix.tz && format(', {0}', matrix.tz) || '' }})
-    runs-on: ubuntu-latest
+    name: tests (py${{ matrix.python-version }}${{ matrix.tz && format(', {0}', matrix.tz) || '' }}${{ matrix.os == 'windows-latest' && ', Windows' || '' }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.11", "3.12", "3.13", "3.14"]
         # One run away from UTC, so a test that only passes in UTC fails here.
         include:
           - python-version: "3.12"
+            os: ubuntu-latest
             tz: America/New_York
+          # One Windows run catches filesystem, encoding and subprocess regressions.
+          - python-version: "3.12"
+            os: windows-latest
     env:
       TZ: ${{ matrix.tz }}
     steps:
