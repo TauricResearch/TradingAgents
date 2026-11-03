@@ -42,9 +42,10 @@ def _parse_json_list(value) -> list:
     if isinstance(value, list):
         return value
     try:
-        return json.loads(value)
+        parsed = json.loads(value)
     except (json.JSONDecodeError, TypeError):
         return []
+    return parsed if isinstance(parsed, list) else []
 
 
 def _is_forward_looking(market: dict, now: datetime) -> bool:
