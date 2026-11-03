@@ -96,7 +96,92 @@ _DIRECTION = {"Buy": 1, "Overweight": 1, "Hold": 0, "Underweight": -1, "Sell": -
 class RatingScore:
     count: int
     hit_rate: float | None
-    mean_alpha: float   @dataclass class ShuffleResult:     """Outcome of the rating-shuffle significance test for a backtest grid.      ``observed`` is the mean of ``direction(rating) * alpha`` over directional     cells. The null reassigns the ratings actually given within each analysis     date across that date's tickers, so a market-wide move on one date cannot     pass for skill; ``p_value`` uses the ``(1 + count) / (1 + n)`` form so it     never claims exactly zero on a finite number of shuffles.     """      cells: int     observed: float     null_median: float     null_p95: float     p_value: float     shuffles: int     shuffled_dates: int     scope: str      def render(self) -> str:         return (f"Rating-shuffle test: {self.cells} directional cells, "                 f"observed {self.observed:+.2%} per cell; shuffled ratings "                 f"median {self.null_median:+.2%}, 95th pct {self.null_p95:+.2%}; "                 f"p = {self.p_value:.3f} ({self.shuffles} shuffles, {self.scope})")   def rating_shuffle_test(     cells: Iterable[tuple[str, str, float | None]],     shuffles: int = 2000,     seed: int = 0, ) -> ShuffleResult | None:     """Test whether a grid's ratings beat randomly assigned ratings.      ``cells`` are ``(date, rating, alpha)`` triples. Ratings outside     ``_DIRECTION`` carry no claim and are ignored; Hold cells stay in the     shuffle pool (a shuffled Hold claims no direction) but never count as     directional cells. Returns None when no directional cell is scored.     """     if shuffles < 1:         raise ValueError("shuffles must be at least 1")     by_date: dict[str, list[tuple[str, float]]] = {}     for date, rating, alpha in cells:         if rating not in _DIRECTION or alpha is None:             continue         by_date.setdefault(str(date), []).append((rating, alpha))     pairs = [pair for group in by_date.values() for pair in group]     directional = sum(1 for rating, _ in pairs if _DIRECTION[rating])     if not directional:         return None      def _stat(assigned: list[tuple[str, float]]) -> float:         scored = [_DIRECTION[rating] * alpha for rating, alpha in assigned                   if _DIRECTION[rating]]         return sum(scored) / len(scored) if scored else 0.0      observed = _stat(pairs)     # A date with a single cell cannot be shuffled, so it only constrains the     # null when at least two dates can be; otherwise shuffle across all cells.     shuffled_dates = sum(1 for group in by_date.values() if len(group) >= 2)     groups = list(by_date.values()) if shuffled_dates >= 2 else [pairs]     scope = "within date" if shuffled_dates >= 2 else "across all cells"     rng = random.Random(seed)     nulls = []     for _ in range(shuffles):         shuffled: list[tuple[str, float]] = []         for group in groups:             ratings = [rating for rating, _ in group]             rng.shuffle(ratings)             shuffled.extend(zip(ratings, (alpha for _, alpha in group), strict=True))         nulls.append(_stat(shuffled))     nulls.sort()     at_least = sum(1 for value in nulls if value >= observed)     return ShuffleResult(         cells=directional,         observed=observed,         null_median=nulls[shuffles // 2],         null_p95=nulls[int(0.95 * shuffles)],         p_value=(1 + at_least) / (1 + shuffles),         shuffles=shuffles,         shuffled_dates=shuffled_dates,         scope=scope,     )
+    mean_alpha: float
+
+
+@dataclass
+class ShuffleResult:
+    """Outcome of the rating-shuffle significance test for a backtest grid.
+
+    ``observed`` is the mean of ``direction(rating) * alpha`` over directional
+    cells. The null reassigns the ratings actually given within each analysis
+    date across that date's tickers, so a market-wide move on one date cannot
+    pass for skill; ``p_value`` uses the ``(1 + count) / (1 + n)`` form so it
+    never claims exactly zero on a finite number of shuffles.
+    """
+
+    cells: int
+    observed: float
+    null_median: float
+    null_p95: float
+    p_value: float
+    shuffles: int
+    shuffled_dates: int
+    scope: str
+
+    def render(self) -> str:
+        return (f"Rating-shuffle test: {self.cells} directional cells, "
+                f"observed {self.observed:+.2%} per cell; shuffled ratings "
+                f"median {self.null_median:+.2%}, 95th pct {self.null_p95:+.2%}; "
+                f"p = {self.p_value:.3f} ({self.shuffles} shuffles, {self.scope})")
+
+
+def rating_shuffle_test(
+    cells: Iterable[tuple[str, str, float | None]],
+    shuffles: int = 2000,
+    seed: int = 0,
+) -> ShuffleResult | None:
+    """Test whether a grid's ratings beat randomly assigned ratings.
+
+    ``cells`` are ``(date, rating, alpha)`` triples. Ratings outside
+    ``_DIRECTION`` carry no claim and are ignored; Hold cells stay in the
+    shuffle pool (a shuffled Hold claims no direction) but never count as
+    directional cells. Returns None when no directional cell is scored.
+    """
+    if shuffles < 1:
+        raise ValueError("shuffles must be at least 1")
+    by_date: dict[str, list[tuple[str, float]]] = {}
+    for date, rating, alpha in cells:
+        if rating not in _DIRECTION or alpha is None:
+            continue
+        by_date.setdefault(str(date), []).append((rating, alpha))
+    pairs = [pair for group in by_date.values() for pair in group]
+    directional = sum(1 for rating, _ in pairs if _DIRECTION[rating])
+    if not directional:
+        return None
+
+    def _stat(assigned: list[tuple[str, float]]) -> float:
+        scored = [_DIRECTION[rating] * alpha for rating, alpha in assigned
+                  if _DIRECTION[rating]]
+        return sum(scored) / len(scored) if scored else 0.0
+
+    observed = _stat(pairs)
+    # A date with a single cell cannot be shuffled, so it only constrains the
+    # null when at least two dates can be; otherwise shuffle across all cells.
+    shuffled_dates = sum(1 for group in by_date.values() if len(group) >= 2)
+    groups = list(by_date.values()) if shuffled_dates >= 2 else [pairs]
+    scope = "within date" if shuffled_dates >= 2 else "across all cells"
+    rng = random.Random(seed)
+    nulls = []
+    for _ in range(shuffles):
+        shuffled: list[tuple[str, float]] = []
+        for group in groups:
+            ratings = [rating for rating, _ in group]
+            rng.shuffle(ratings)
+            shuffled.extend(zip(ratings, (alpha for _, alpha in group), strict=True))
+        nulls.append(_stat(shuffled))
+    nulls.sort()
+    at_least = sum(1 for value in nulls if value >= observed)
+    return ShuffleResult(
+        cells=directional,
+        observed=observed,
+        null_median=nulls[shuffles // 2],
+        null_p95=nulls[int(0.95 * shuffles)],
+        p_value=(1 + at_least) / (1 + shuffles),
+        shuffles=shuffles,
+        shuffled_dates=shuffled_dates,
+        scope=scope,
+    )
 
 
 @dataclass
@@ -105,7 +190,8 @@ class BacktestSummary:
     pending: int
     by_rating: dict[str, RatingScore]
     unscored: int = 0
-    holding: str = ""    shuffle: ShuffleResult | None = None
+    holding: str = ""
+    shuffle: ShuffleResult | None = None
 
     def render(self) -> str:
         lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"
@@ -118,7 +204,10 @@ class BacktestSummary:
                 f"mean alpha {score.mean_alpha:+.2%} vs the benchmark"
             )
         lines.append("")
-        if self.shuffle is not None:             lines.append(self.shuffle.render())         lines.append("")         if self.pending:
+        if self.shuffle is not None:
+            lines.append(self.shuffle.render())
+        lines.append("")
+        if self.pending:
             lines.append("Pending cells are not scored above; re-run to settle them.")
         lines.append(
             f"Alpha is measured over {self.holding} from the first close after each analysis date. "
