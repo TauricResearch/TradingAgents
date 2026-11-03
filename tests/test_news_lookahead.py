@@ -220,6 +220,24 @@ def test_a_quote_feed_with_articles_is_not_searched(monkeypatch):
 
 
 @pytest.mark.unit
+def test_a_failing_quote_feed_still_falls_back_to_search(monkeypatch):
+    # The quote feed can fail on its own ("Yahoo is down") while search still answers.
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    searched = _ticker_with([], monkeypatch, search_news=[_tagged("ABOUT AAPL", today, "AAPL")])
+
+    class DownTicker:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_news(self, count=20):
+            raise RuntimeError("YAHOO! FINANCE IS CURRENTLY DOWN")
+
+    monkeypatch.setattr(ynews.yf, "Ticker", DownTicker)
+    out = ynews.get_news_yfinance("AAPL", today, today)
+    assert searched == ["AAPL"] and "ABOUT AAPL" in out
+
+
+@pytest.mark.unit
 def test_news_neither_yahoo_source_answers_is_a_vendor_outage(monkeypatch):
     from tradingagents.dataflows.errors import VendorUnavailableError
 

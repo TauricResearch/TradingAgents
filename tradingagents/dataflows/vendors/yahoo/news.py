@@ -61,15 +61,20 @@ def _search_news(canonical: str, limit: int) -> tuple[list, bool]:
     relevance-picked sample, and some are tagged loosely; only those tagged with
     the symbol are about it.
     """
-    search = yf_retry(lambda: yf.Search(canonical, news_count=limit))
-    if search is None:  # Yahoo answered "not found": its search is down
+    def fetch():
+        search = yf.Search(canonical, news_count=limit)
+        return search.news or [], search.quotes or []
+
+    result = yf_retry(fetch)
+    if result is None:  # Yahoo answered "not found": its search is down
         return [], False
+    news, quotes = result
     tagged = [
-        a for a in (search.news or [])
+        a for a in news
         if canonical in (t.upper() for t in a.get("relatedTickers") or [])
     ]
-    knows = any((q.get("symbol") or "").upper() == canonical for q in search.quotes or [])
-    return tagged, knows or bool(search.news)
+    knows = any((q.get("symbol") or "").upper() == canonical for q in quotes)
+    return tagged, knows or bool(news)
 
 
 def _format_articles(articles: list[dict]) -> str:
@@ -104,7 +109,11 @@ def get_news_yfinance(
     canonical = normalize_symbol(ticker)
     resolved = "" if canonical == ticker else f" (resolved to {canonical})"
     subject = f"news for {ticker}{resolved}"
-    feed = yf_retry(lambda: yf.Ticker(canonical).get_news(count=article_limit)) or []
+    try:
+        feed = yf_retry(lambda: yf.Ticker(canonical).get_news(count=article_limit)) or []
+    except VendorUnavailableError:
+        # The quote feed fails on its own at times ("Yahoo is down") while search still answers.
+        feed = []
     articles = [_extract_article_data(a) for a in feed]
     if not feed:
         found, answered = _search_news(canonical, article_limit)
