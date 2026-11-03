@@ -10,6 +10,7 @@ the routing layer treats it as "unavailable" rather than a hard crash.
 """
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 
 import pytz
@@ -46,6 +47,7 @@ MACRO_SERIES = {
     "fed_funds_rate": "FEDFUNDS",
     "federal_funds_rate": "FEDFUNDS",
     "fed_funds": "FEDFUNDS",
+    "3m_treasury": "DGS3MO",
     "2y_treasury": "DGS2",
     "10y_treasury": "DGS10",
     "30y_treasury": "DGS30",
@@ -122,9 +124,10 @@ def _resolve_series_id(indicator: str) -> str:
     if key in MACRO_SERIES:
         return MACRO_SERIES[key]
     candidate = indicator.strip().upper()
-    # FRED series IDs never contain whitespace and are short; reject anything
-    # else (a descriptive phrase the LLM passed) rather than 400ing the API.
-    if not candidate or len(candidate) > 30 or any(c.isspace() for c in candidate):
+    # FRED series IDs are at most 25 letters and digits; reject anything else (a
+    # phrase or made-up alias the LLM passed, e.g. "3_month_treasury") rather
+    # than 400ing the API, which drops the macro data instead of guiding a retry.
+    if not re.fullmatch(r"[A-Z0-9]{1,25}", candidate):
         raise ValueError(
             f"'{indicator}' is not a known macro alias or a valid FRED series ID. "
             f"Use an alias (e.g. 'cpi', 'unemployment', '10y_treasury') or a raw "
