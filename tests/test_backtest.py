@@ -445,4 +445,4 @@ def test_summary_renders_the_shuffle_line_and_omits_it_when_nothing_is_direction
         ("NVDA", "2026-01-05", "Rating: Hold\n\nx", (0.10, 0.10)),
     ]))
     assert hold_only.shuffle is None
-    assert "Rating-shuffle test" not in hold_only.render() ["NVDA"]
+    assert "Rating-shuffle test" not in hold_only.render()
