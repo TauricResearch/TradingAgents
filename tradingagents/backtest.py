@@ -323,4 +323,6 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
     return BacktestSummary(resolved=len(resolved),
                            pending=len(entries) - len(resolved) - unscored,
                            by_rating=by_rating, unscored=unscored,
-                           holding=", ".join(sorted(windows)) or "the configured window",                            shuffle=rating_shuffle_test(                                (e["date"], e["rating"], a) for e, a in resolved))
+                           holding=", ".join(sorted(windows)) or "the configured window",
+                           shuffle=rating_shuffle_test(
+                               (e["date"], e["rating"], a) for e, a in resolved))
