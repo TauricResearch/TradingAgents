@@ -2,6 +2,7 @@
 
 import contextlib
 import re
+import uuid
 from pathlib import Path
 
 from tradingagents.agents.rating import parse_rating
@@ -198,7 +199,7 @@ class TradingMemoryLog:
 
             new_blocks = self._apply_rotation(new_blocks)
             new_text = self._SEPARATOR.join(new_blocks)
-            tmp_path = self._log_path.with_suffix(".tmp")
+            tmp_path = self._log_path.with_name(f"{self._log_path.name}.{uuid.uuid4().hex}.tmp")
             tmp_path.write_text(new_text, encoding="utf-8")
             tmp_path.replace(self._log_path)
             return True
@@ -252,7 +253,7 @@ class TradingMemoryLog:
 
             new_blocks = self._apply_rotation(new_blocks)
             new_text = self._SEPARATOR.join(new_blocks)
-            tmp_path = self._log_path.with_suffix(".tmp")
+            tmp_path = self._log_path.with_name(f"{self._log_path.name}.{uuid.uuid4().hex}.tmp")
             tmp_path.write_text(new_text, encoding="utf-8")
             tmp_path.replace(self._log_path)
 
