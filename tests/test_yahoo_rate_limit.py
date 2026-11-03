@@ -152,6 +152,13 @@ class _Unreachable:
         raise TimeoutError("read timed out")
 
 
+class _UnreachableSearch:
+    """yfinance's Search makes its request while it is built."""
+
+    def __init__(self, *args, **kwargs):
+        raise TimeoutError("read timed out")
+
+
 def _yahoo_calls():
     from tradingagents.dataflows.date_window import get_current_date
     from tradingagents.dataflows.vendors.yahoo import market, news
@@ -174,7 +181,7 @@ def _yahoo_calls():
 def test_a_yahoo_request_that_fails_is_unavailable_not_absent(yahoo, call):
     """An unknown symbol comes back empty, so a request that raised failed in transit."""
     yahoo.setattr(yf, "Ticker", _Unreachable)
-    yahoo.setattr(yf, "Search", _Unreachable)
+    yahoo.setattr(yf, "Search", _UnreachableSearch)
 
     with pytest.raises(VendorUnavailableError):
         call()

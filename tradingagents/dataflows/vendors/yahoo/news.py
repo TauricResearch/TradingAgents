@@ -104,7 +104,10 @@ def get_news_yfinance(
     canonical = normalize_symbol(ticker)
     resolved = "" if canonical == ticker else f" (resolved to {canonical})"
     subject = f"news for {ticker}{resolved}"
-    feed = yf_retry(lambda: yf.Ticker(canonical).get_news(count=article_limit)) or []
+    try:
+        feed = yf_retry(lambda: yf.Ticker(canonical).get_news(count=article_limit)) or []
+    except VendorUnavailableError:
+        feed = []  # the quote feed failing says nothing about Yahoo search, tried below
     articles = [_extract_article_data(a) for a in feed]
     if not feed:
         found, answered = _search_news(canonical, article_limit)

@@ -212,6 +212,26 @@ def test_an_empty_quote_feed_falls_back_to_the_articles_search_tags_with_the_sym
 
 
 @pytest.mark.unit
+def test_a_quote_feed_that_errors_falls_back_to_the_articles_search_tags_with_the_symbol(monkeypatch):
+    from yfinance.exceptions import YFDataException
+
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    searched = _ticker_with([], monkeypatch, search_news=[_tagged("ABOUT AAPL", today, "AAPL")])
+
+    class DownTicker:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_news(self, count=20):
+            raise YFDataException("*** YAHOO! FINANCE IS CURRENTLY DOWN! ***")
+
+    monkeypatch.setattr(ynews.yf, "Ticker", DownTicker)
+    out = ynews.get_news_yfinance("AAPL", today, today)
+    assert searched == ["AAPL"]
+    assert "ABOUT AAPL" in out
+
+
+@pytest.mark.unit
 def test_a_quote_feed_with_articles_is_not_searched(monkeypatch):
     today = datetime.now(UTC).strftime("%Y-%m-%d")
     searched = _ticker_with([_tagged("FEED", today)], monkeypatch)
