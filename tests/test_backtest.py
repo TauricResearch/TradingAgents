@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.backtest import iter_grid, rating_shuffle_test, run_backtest, summarize
 from tradingagents.memory import TradingMemoryLog
 from tradingagents.memory.settlement import Settlement
 
@@ -364,3 +364,85 @@ def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
     graph = _FakeGraph.instances[-1]
     assert graph.calls == [("NVDA", "2026-01-05")]
     assert graph.settled == ["NVDA"]
+
+
+# --- rating-shuffle significance test ----------------------------------------
+
+# Two dates, each with a Buy that rose and a Sell that fell: every directional
+# call was right, so the observed statistic is the maximum the grid can show.
+_SKILLED = [
+    ("2026-01-05", "Buy", 0.10), ("2026-01-05", "Sell", -0.10),
+    ("2026-01-12", "Buy", 0.10), ("2026-01-12", "Sell", -0.10),
+]
+
+
+@pytest.mark.unit
+def test_shuffle_test_scores_a_perfect_grid_within_each_date():
+    result = rating_shuffle_test(_SKILLED, shuffles=200, seed=0)
+
+    assert result.cells == 4 and result.scope == "within date"
+    assert result.shuffled_dates == 2 and result.observed == 0.10
+    # Within a date the ratings can only stay or swap: nulls are +10%, 0, -10%.
+    assert result.null_median == 0.0 and result.null_p95 == 0.10
+    assert 0 < result.p_value < 0.5
+
+
+@pytest.mark.unit
+def test_shuffle_test_falls_back_to_shuffling_across_all_cells():
+    result = rating_shuffle_test(
+        [("2026-01-05", "Buy", 0.10), ("2026-01-05", "Sell", -0.10)],
+        shuffles=200, seed=0)
+
+    assert result.scope == "across all cells" and result.shuffled_dates == 1
+    assert result.observed == 0.10 and 0 < result.p_value <= 1
+
+
+@pytest.mark.unit
+def test_shuffle_test_ignores_hold_and_unscored_cells():
+    result = rating_shuffle_test(
+        [("2026-01-05", "Hold", 0.50), ("2026-01-05", "Buy", 0.10),
+         ("2026-01-05", "Sell", -0.10), ("2026-01-05", "Buy", None)],
+        shuffles=100, seed=0)
+
+    assert result.cells == 2  # Hold claims no direction; None alpha is unscored
+    assert result.observed == 0.10
+
+
+@pytest.mark.unit
+def test_shuffle_test_is_none_without_a_directional_cell():
+    assert rating_shuffle_test([("2026-01-05", "Hold", 0.10)]) is None
+    assert rating_shuffle_test([]) is None
+
+
+@pytest.mark.unit
+def test_shuffle_test_is_deterministic_for_a_fixed_seed():
+    first = rating_shuffle_test(_SKILLED, shuffles=200, seed=7)
+    second = rating_shuffle_test(_SKILLED, shuffles=200, seed=7)
+
+    assert first == second
+
+
+@pytest.mark.unit
+def test_shuffle_test_rejects_a_non_positive_shuffle_count():
+    with pytest.raises(ValueError, match="shuffles"):
+        rating_shuffle_test(_SKILLED, shuffles=0)
+
+
+@pytest.mark.unit
+def test_summary_renders_the_shuffle_line_and_omits_it_when_nothing_is_directional(tmp_path):
+    skilled = summarize(_log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.10, 0.10)),
+        ("AAPL", "2026-01-05", "Rating: Sell\n\nx", (0.10, -0.10)),
+        ("NVDA", "2026-01-12", "Rating: Buy\n\nx", (0.10, 0.10)),
+        ("AAPL", "2026-01-12", "Rating: Sell\n\nx", (0.10, -0.10)),
+    ]))
+    assert skilled.shuffle is not None and skilled.shuffle.cells == 4
+    assert "Rating-shuffle test: 4 directional cells" in skilled.render()
+    assert "within date" in skilled.render()
+
+    (tmp_path / "hold").mkdir()
+    hold_only = summarize(_log_with(tmp_path / "hold", [
+        ("NVDA", "2026-01-05", "Rating: Hold\n\nx", (0.10, 0.10)),
+    ]))
+    assert hold_only.shuffle is None
+    assert "Rating-shuffle test" not in hold_only.render() ["NVDA"]
