@@ -203,7 +203,6 @@ class BacktestSummary:
                 f"- {rating}: n={score.count}, {called}, "
                 f"mean alpha {score.mean_alpha:+.2%} vs the benchmark"
             )
-        lines.append("")
         if self.shuffle is not None:
             lines.append(self.shuffle.render())
         lines.append("")
