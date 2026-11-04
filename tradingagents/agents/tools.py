@@ -66,6 +66,11 @@ def get_indicators(
             results.append(route_to_vendor("get_indicators", symbol, ind, curr_date, look_back_days))
         except ValueError as e:
             results.append(str(e))
+        except Exception as e:
+            # 路由的终局错误不是 ValueError（全链路真实失败时原样上抛，如网络闪断）。
+            # 一个指标失败不该连坐同批其余指标，更不该让 ToolNode 把整个 analyst
+            # turn 掀掉——和其他错误一样转成文本回传给模型（#1593 的同一哲学）。
+            results.append(f"{ind}: {e}")
     return "\n\n".join(results)
 
 

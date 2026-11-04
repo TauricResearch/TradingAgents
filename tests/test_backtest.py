@@ -364,3 +364,88 @@ def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
     graph = _FakeGraph.instances[-1]
     assert graph.calls == [("NVDA", "2026-01-05")]
     assert graph.settled == ["NVDA"]
+
+
+# --- the rating-shuffle test --------------------------------------------------
+
+@pytest.mark.unit
+def test_the_shuffle_test_scores_a_planted_edge_below_the_null(tmp_path):
+    """Buys that rose and Sells that fell, on two dates with four cells each, score
+    past the shuffled ratings: almost every shuffle hands a good alpha to the
+    losing direction."""
+    summary = summarize(_log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.10, 0.05)),
+        ("MSFT", "2026-01-05", "Rating: Buy\n\nx", (0.11, 0.06)),
+        ("AAPL", "2026-01-05", "Rating: Sell\n\nx", (-0.08, -0.04)),
+        ("TSLA", "2026-01-05", "Rating: Sell\n\nx", (-0.09, -0.05)),
+        ("NVDA", "2026-01-12", "Rating: Buy\n\nx", (0.10, 0.05)),
+        ("MSFT", "2026-01-12", "Rating: Buy\n\nx", (0.11, 0.06)),
+        ("AAPL", "2026-01-12", "Rating: Sell\n\nx", (-0.08, -0.04)),
+        ("TSLA", "2026-01-12", "Rating: Sell\n\nx", (-0.09, -0.05)),
+    ]))
+
+    assert summary.shuffle is not None
+    assert summary.shuffle.cells == 8
+    assert summary.shuffle.scope == "within date"
+    assert summary.shuffle.observed == pytest.approx(0.05)
+    assert summary.shuffle.null_p95 < summary.shuffle.observed
+    assert summary.shuffle.p_value < 0.1
+
+
+@pytest.mark.unit
+def test_a_market_wide_move_does_not_pass_for_skill(tmp_path):
+    """On both dates every cell beat the benchmark, so the record is what a market
+    rise looks like; shuffling within the date scores each Sell's alpha against its
+    own day, and the record cannot clear the null."""
+    summary = summarize(_log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.10, 0.09)),
+        ("AAPL", "2026-01-05", "Rating: Sell\n\nx", (0.08, 0.07)),
+        ("NVDA", "2026-01-12", "Rating: Buy\n\nx", (0.10, 0.08)),
+        ("AAPL", "2026-01-12", "Rating: Sell\n\nx", (0.06, 0.05)),
+    ]))
+
+    assert summary.shuffle is not None
+    assert summary.shuffle.observed == pytest.approx(0.0125)
+    assert summary.shuffle.p_value > 0.1
+
+
+@pytest.mark.unit
+def test_a_single_date_falls_back_to_shuffling_across_all_cells(tmp_path):
+    """One date with two cells has nothing to shuffle within, and with an identity
+    shuffle always matching the record, no significance can be claimed; the
+    summary says so."""
+    summary = summarize(_log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.10, 0.05)),
+        ("AAPL", "2026-01-05", "Rating: Sell\n\nx", (-0.08, -0.04)),
+    ]))
+
+    assert summary.shuffle is not None
+    assert summary.shuffle.scope == "across all cells"
+    assert summary.shuffle.p_value > 0.1
+
+
+@pytest.mark.unit
+def test_a_grid_without_directional_ratings_skips_the_shuffle_test(tmp_path):
+    summary = summarize(_log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Hold\n\nx", (0.01, 0.0)),
+    ]))
+
+    assert summary.shuffle is None
+    assert "Rating-shuffle test" not in summary.render()
+
+
+@pytest.mark.unit
+def test_the_summary_renders_the_shuffle_line(tmp_path):
+    text = summarize(_log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.10, 0.05)),
+        ("MSFT", "2026-01-05", "Rating: Buy\n\nx", (0.11, 0.06)),
+        ("AAPL", "2026-01-05", "Rating: Sell\n\nx", (-0.08, -0.04)),
+        ("TSLA", "2026-01-05", "Rating: Sell\n\nx", (-0.09, -0.05)),
+        ("NVDA", "2026-01-12", "Rating: Buy\n\nx", (0.10, 0.05)),
+        ("MSFT", "2026-01-12", "Rating: Buy\n\nx", (0.11, 0.06)),
+        ("AAPL", "2026-01-12", "Rating: Sell\n\nx", (-0.08, -0.04)),
+        ("TSLA", "2026-01-12", "Rating: Sell\n\nx", (-0.09, -0.05)),
+    ])).render()
+
+    assert "Rating-shuffle test: 8 directional cells, observed +5.00% per cell;" in text
+    assert "(2000 shuffles, within date)" in text
