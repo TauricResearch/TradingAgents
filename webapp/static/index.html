@@ -22,8 +22,14 @@
   </div>
 </header>
 
+<nav class="mode-tabs" role="tablist" aria-label="Console sections">
+  <button class="mode-tab is-active" role="tab" data-mode="analyze" aria-selected="true">Analyze</button>
+  <button class="mode-tab" role="tab" data-mode="backtest" aria-selected="false">Backtest</button>
+  <button class="mode-tab" role="tab" data-mode="memory" aria-selected="false">Decision log</button>
+</nav>
+
 <main class="layout">
-  <section class="panel form-panel" aria-labelledby="form-title">
+  <section class="panel form-panel" aria-labelledby="form-title" data-mode-panel="analyze">
     <h2 id="form-title">New analysis</h2>
 
     <form id="run-form" novalidate>
@@ -140,7 +146,7 @@
     </form>
   </section>
 
-  <section class="panel run-panel" aria-labelledby="run-title">
+  <section class="panel run-panel" aria-labelledby="run-title" data-mode-panel="analyze">
     <div class="run-head">
       <h2 id="run-title">Run</h2>
       <div class="run-meta">
@@ -176,7 +182,6 @@
         <button class="tab" role="tab" data-tab="report" aria-selected="false">Report</button>
         <button class="tab" role="tab" data-tab="history" aria-selected="false">History</button>
       </div>
-
       <div class="tab-body" data-panel="agents">
         <table class="agents-table">
           <thead><tr><th scope="col">Team</th><th scope="col">Agent</th><th scope="col">Status</th></tr></thead>
@@ -190,6 +195,7 @@
 
       <div class="tab-body" data-panel="report" hidden>
         <div id="report-links" class="report-links"></div>
+        <div id="report-chart" class="report-chart" hidden></div>
         <div id="report-content" class="report-body"></div>
       </div>
 
@@ -199,7 +205,120 @@
     </div>
   </section>
 
-  <section class="panel archive-panel" aria-labelledby="archive-title">
+  <section class="panel backtest-panel" aria-labelledby="backtest-title" data-mode-panel="backtest" hidden>
+    <div class="run-head">
+      <h2 id="backtest-title">Backtest</h2>
+      <div class="run-meta">
+        <span id="backtest-status" class="pill pill-idle">idle</span>
+      </div>
+    </div>
+    <p class="hint">Score past decisions over a grid of tickers and dates. Each cell is one analysis, settled against its benchmark when the holding window has traded. One sweep at a time.</p>
+
+    <form id="backtest-form" novalidate>
+      <div class="field">
+        <label for="bt-tickers">Tickers</label>
+        <input id="bt-tickers" type="text" value="NVDA,AAPL" autocomplete="off" placeholder="NVDA,AAPL,MSFT">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="bt-start">Start date</label>
+          <input id="bt-start" type="date" required>
+        </div>
+        <div class="field">
+          <label for="bt-end">End date</label>
+          <input id="bt-end" type="date" required>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="bt-every">Days between dates</label>
+          <input id="bt-every" type="number" min="1" value="7">
+        </div>
+        <div class="field">
+          <label for="bt-asset">Asset type</label>
+          <select id="bt-asset">
+            <option value="stock">stock</option>
+            <option value="crypto">crypto</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="bt-analysts">Analysts (comma-separated, empty = all)</label>
+        <input id="bt-analysts" type="text" placeholder="market,sentiment,news,fundamentals">
+      </div>
+      <div class="field">
+        <label for="bt-portfolio">Portfolio (optional JSON, same book for every cell)</label>
+        <textarea id="bt-portfolio" rows="2" spellcheck="false"
+                  placeholder='{"cash": 10000, "positions": [{"ticker": "NVDA", "quantity": 40, "average_price": 121.5}]}'></textarea>
+      </div>
+      <div id="backtest-error" class="alert" role="alert" hidden></div>
+      <div class="actions">
+        <button id="bt-start-btn" type="submit" class="primary">Run backtest</button>
+        <button id="bt-cancel" type="button" class="ghost" hidden>Stop sweep</button>
+      </div>
+    </form>
+
+    <div id="backtest-view" hidden>
+      <p id="backtest-phase" class="phase"></p>
+      <div class="meter">
+        <div class="meter-row">
+          <span>Cells</span><span id="bt-cells-count" class="mono"></span>
+        </div>
+        <div class="bar"><div id="bt-cells-bar" class="bar-fill"></div></div>
+      </div>
+      <div id="backtest-note" class="alert alert-warn" hidden></div>
+      <div id="backtest-error-view" class="alert alert-error" hidden></div>
+      <div id="backtest-summary" class="bt-summary" hidden></div>
+      <div id="backtest-failures" class="bt-failures" hidden></div>
+    </div>
+
+    <div class="archive-head">
+      <h3>Past sweeps</h3>
+      <button id="bt-refresh" type="button" class="ghost">Refresh</button>
+    </div>
+    <p id="bt-list-empty" class="empty" hidden>No sweeps yet.</p>
+    <ul id="bt-list" class="run-list"></ul>
+  </section>
+
+  <section class="panel memory-panel" aria-labelledby="memory-title" data-mode-panel="memory" hidden>
+    <div class="run-head">
+      <h2 id="memory-title">Decision log</h2>
+      <div class="run-meta">
+        <span id="settle-status" class="pill pill-idle">idle</span>
+        <button id="settle-btn" type="button" class="ghost">Settle pending</button>
+        <button id="memory-refresh" type="button" class="ghost">Refresh</button>
+      </div>
+    </div>
+    <p class="hint">Every decision the runs recorded, and once its holding window has traded, the realized and alpha return with the model's reflection. This is the log later runs read back as lessons.</p>
+    <p id="memory-path" class="mono subtle"></p>
+    <div id="settle-result" class="alert" hidden></div>
+    <p id="memory-empty" class="empty" hidden>The log is empty: no run has recorded a decision yet.</p>
+    <div class="memory-table-wrap">
+      <table class="memory-table">
+        <thead><tr>
+          <th scope="col">Date</th><th scope="col">Ticker</th><th scope="col">Rating</th>
+          <th scope="col">Raw</th><th scope="col">Alpha</th><th scope="col">Held</th><th scope="col">Outcome</th>
+        </tr></thead>
+        <tbody id="memory-body"></tbody>
+      </table>
+    </div>
+    <div id="memory-detail" class="memory-detail" hidden>
+      <div class="archive-head">
+        <h3 id="memory-detail-title"></h3>
+        <button id="memory-close" type="button" class="ghost">Close</button>
+      </div>
+      <div class="report-section">
+        <h3>Decision</h3>
+        <div id="memory-decision" class="markdown"></div>
+      </div>
+      <div class="report-section" id="memory-reflection-section">
+        <h3>Reflection</h3>
+        <div id="memory-reflection" class="markdown"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel archive-panel" aria-labelledby="archive-title" data-mode-panel="analyze">
     <div class="run-head">
       <h2 id="archive-title">Saved reports</h2>
       <button id="refresh-archive" type="button" class="ghost" title="Rescan the results directory">Refresh</button>
@@ -213,11 +332,21 @@
         <h3 id="archive-title-line"></h3>
         <div class="archive-head-right">
           <span id="archive-meta" class="mono subtle"></span>
+          <button id="archive-rerun" type="button" class="ghost" title="Pre-fill the form with this report's settings">Re-run</button>
+          <button id="archive-compare" type="button" class="ghost" title="Compare with another report of the same ticker">Compare…</button>
           <button id="archive-delete" type="button" class="ghost danger">Delete report</button>
         </div>
       </div>
       <div id="archive-links" class="report-links"></div>
       <div id="archive-content" class="report-body"></div>
+    </div>
+
+    <div id="compare-view" hidden>
+      <div class="archive-head">
+        <h3 id="compare-title"></h3>
+        <button id="compare-close" type="button" class="ghost">Close</button>
+      </div>
+      <div class="compare-grid" id="compare-grid"></div>
     </div>
   </section>
 

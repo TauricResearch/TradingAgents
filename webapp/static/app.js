@@ -59,7 +59,57 @@ const els = {
   archiveLinks: document.getElementById("archive-links"),
   archiveContent: document.getElementById("archive-content"),
   archiveDelete: document.getElementById("archive-delete"),
+  archiveRerun: document.getElementById("archive-rerun"),
+  archiveCompare: document.getElementById("archive-compare"),
+  compareView: document.getElementById("compare-view"),
+  compareTitle: document.getElementById("compare-title"),
+  compareGrid: document.getElementById("compare-grid"),
+  compareClose: document.getElementById("compare-close"),
   refreshArchive: document.getElementById("refresh-archive"),
+
+  reportChart: document.getElementById("report-chart"),
+
+  // Backtest panel
+  backtestPanel: document.querySelector('[data-mode-panel="backtest"]'),
+  backtestForm: document.getElementById("backtest-form"),
+  btTickers: document.getElementById("bt-tickers"),
+  btStart: document.getElementById("bt-start"),
+  btEnd: document.getElementById("bt-end"),
+  btEvery: document.getElementById("bt-every"),
+  btAsset: document.getElementById("bt-asset"),
+  btAnalysts: document.getElementById("bt-analysts"),
+  btPortfolio: document.getElementById("bt-portfolio"),
+  btError: document.getElementById("backtest-error"),
+  btStartBtn: document.getElementById("bt-start-btn"),
+  btCancel: document.getElementById("bt-cancel"),
+  btView: document.getElementById("backtest-view"),
+  btPhase: document.getElementById("backtest-phase"),
+  btCellsCount: document.getElementById("bt-cells-count"),
+  btCellsBar: document.getElementById("bt-cells-bar"),
+  btNote: document.getElementById("backtest-note"),
+  btErrorView: document.getElementById("backtest-error-view"),
+  btSummary: document.getElementById("backtest-summary"),
+  btFailures: document.getElementById("backtest-failures"),
+  btStatus: document.getElementById("backtest-status"),
+  btRefresh: document.getElementById("bt-refresh"),
+  btList: document.getElementById("bt-list"),
+  btListEmpty: document.getElementById("bt-list-empty"),
+
+  // Decision log panel
+  memoryPanel: document.querySelector('[data-mode-panel="memory"]'),
+  memoryRefresh: document.getElementById("memory-refresh"),
+  memoryPath: document.getElementById("memory-path"),
+  memoryEmpty: document.getElementById("memory-empty"),
+  memoryBody: document.getElementById("memory-body"),
+  memoryDetail: document.getElementById("memory-detail"),
+  memoryDetailTitle: document.getElementById("memory-detail-title"),
+  memoryDecision: document.getElementById("memory-decision"),
+  memoryReflection: document.getElementById("memory-reflection"),
+  memoryReflectionSection: document.getElementById("memory-reflection-section"),
+  memoryClose: document.getElementById("memory-close"),
+  settleBtn: document.getElementById("settle-btn"),
+  settleStatus: document.getElementById("settle-status"),
+  settleResult: document.getElementById("settle-result"),
 };
 
 const state = {
@@ -72,6 +122,11 @@ const state = {
   lastAgentKey: "",
   archiveId: null,
   archiveReport: null,
+  mode: "analyze",
+  backtestId: null,
+  backtestPolling: null,
+  settlePolling: null,
+  chartToken: 0,
 };
 
 const AGENT_TEAMS = [
@@ -144,6 +199,81 @@ function pNeedsKey(provider) {
 
 /* ------------------------------------------------------- options on load -- */
 
+const FORM_MEMORY_KEY = "tradingagents-web-form";
+
+/* The form answers worth offering again after a reload. Everything restored is
+   re-checked against what the server offers, so a stale value cannot select a
+   provider or model that no longer exists. */
+const REMEMBERED = ["research_depth", "output_language", "llm_provider", "quick_think_llm",
+  "deep_think_llm", "backend_url", "google_thinking_level", "openai_reasoning_effort",
+  "anthropic_effort", "checkpoint", "save_report", "save_html", "portfolio"];
+
+function saveFormMemory() {
+  try {
+    const memory = {};
+    for (const key of REMEMBERED) {
+      const node = els[key];
+      if (!node) continue;
+      memory[key] = node.type === "checkbox" ? node.checked : node.value;
+    }
+    localStorage.setItem(FORM_MEMORY_KEY, JSON.stringify(memory));
+  } catch { /* storage may be unavailable; the defaults still work */ }
+}
+
+function loadFormMemory() {
+  try {
+    return JSON.parse(localStorage.getItem(FORM_MEMORY_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function applyFormMemory() {
+  const memory = loadFormMemory();
+  if (memory.research_depth) {
+    const depth = String(memory.research_depth);
+    if ([...els.depth.options].some((o) => o.value === depth)) els.depth.value = depth;
+  }
+  if (memory.output_language) {
+    const lang = [...els.language.options].some((o) => o.value === memory.output_language);
+    if (lang) els.language.value = memory.output_language;
+  }
+  if (memory.llm_provider && state.providers.has(memory.llm_provider)) {
+    els.provider.value = memory.llm_provider;
+  }
+  for (const key of ["google_thinking_level", "openai_reasoning_effort", "anthropic_effort"]) {
+    if (memory[key]) els[key].value = memory[key];
+  }
+  for (const key of ["checkpoint", "save_report", "save_html"]) {
+    if (typeof memory[key] === "boolean") els[key].checked = memory[key];
+  }
+  if (typeof memory.portfolio === "string") els.portfolio.value = memory.portfolio;
+  els.saveHtml.disabled = !els.saveReport.checked;
+  // Models are filled per provider; restore after the menus exist.
+  restoreModels(memory);
+  updateDepthHint();
+}
+
+function restoreModels(memory) {
+  for (const [select, custom, key] of [
+    [els.quickModel, els.quickModelCustom, "quick_think_llm"],
+    [els.deepModel, els.deepModelCustom, "deep_think_llm"],
+  ]) {
+    const value = memory[key];
+    if (!value) continue;
+    const listed = [...select.options].some((o) => o.value === value);
+    if (listed) {
+      select.value = value;
+      syncCustomVisibility(select, custom);
+    } else if (value !== "custom") {
+      // A model the catalog no longer lists is still offered, as a custom ID.
+      select.hidden = true;
+      custom.hidden = false;
+      custom.value = value;
+    }
+  }
+}
+
 async function loadOptions() {
   els.serverState.textContent = "connecting";
   try {
@@ -179,6 +309,7 @@ async function loadOptions() {
     );
 
     renderAnalysts(data.analysts, new Set(data.default_analysts));
+    applyFormMemory();
     await updateProviderUi();
     els.serverState.textContent = "local";
     els.serverState.className = "pill pill-completed";
@@ -363,6 +494,7 @@ async function startRun(event) {
     showFormError(error.message);
     return;
   }
+  saveFormMemory();
 
   // Detach from whatever was being polled, so a request for a run that is
   // about to be replaced cannot report "lost the run" over this form's error.
@@ -373,14 +505,7 @@ async function startRun(event) {
   els.start.textContent = "Starting…";
   try {
     const run = await api("/api/runs", { method: "POST", body: JSON.stringify(payload) });
-    state.runId = run.id;
-    state.lastMessageKey = "";
-    state.lastAgentKey = "";
-    els.runEmpty.hidden = true;
-    els.runView.hidden = false;
-    els.cancel.hidden = false;
-    renderRun(run);
-    startPolling();
+    openRun(run);
     await refreshHistory();
   } catch (error) {
     showFormError(error.message);
@@ -403,6 +528,20 @@ async function cancelRun() {
 }
 
 /* -------------------------------------------------------------- polling -- */
+
+function openRun(run) {
+  /* One selected run at a time: the panel shows it, polling follows it. Other
+     runs keep going server-side and stay in History to switch back to. */
+  state.runId = run.id;
+  state.lastMessageKey = "";
+  state.lastAgentKey = "";
+  els.runEmpty.hidden = true;
+  els.runView.hidden = false;
+  els.cancel.hidden = run.status !== "running";
+  renderRun(run);
+  if (run.status === "running") startPolling();
+  else stopPolling();
+}
 
 function startPolling() {
   stopPolling();
@@ -531,6 +670,7 @@ function renderReport(run) {
     links.push(`<a href="/api/runs/${run.id}/report.md" target="_blank" rel="noopener">Markdown</a>`);
   }
   els.reportLinks.innerHTML = links.join("");
+  loadChart(run.ticker, run.analysis_date);
 
   // The server renders each section from the same markdown into safe HTML
   // (raw HTML escaped, images off), so the report reads as formatted text here
@@ -568,6 +708,72 @@ function renderReport(run) {
   }
 }
 
+/* ------------------------------------------------------------ price chart -- */
+
+/* The chart is drawn as inline SVG from the closes the server fetched through
+   the same vendor path the agents use — no external requests, no library. */
+async function loadChart(ticker, analysisDate) {
+  const token = ++state.chartToken;
+  if (!ticker || !analysisDate) {
+    els.reportChart.hidden = true;
+    return;
+  }
+  try {
+    const data = await api(`/api/chart/${encodeURIComponent(ticker)}?date=${encodeURIComponent(analysisDate)}`);
+    if (token !== state.chartToken) return;  // a slower load must not overwrite a newer run
+    drawChart(data);
+  } catch {
+    // A chart the server cannot price is not a failed report: show nothing.
+    if (token === state.chartToken) els.reportChart.hidden = true;
+  }
+}
+
+function drawChart(data) {
+  const closes = data.closes || [];
+  if (closes.length < 2) {
+    els.reportChart.hidden = true;
+    return;
+  }
+  const width = 640, height = 120, pad = 6;
+  const values = closes.map((c) => c.close);
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  const x = (i) => pad + (i * (width - 2 * pad)) / (closes.length - 1);
+  const y = (v) => pad + (1 - (v - min) / span) * (height - 2 * pad);
+  const line = closes.map((c, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(c.close).toFixed(1)}`).join("");
+
+  // The analysis date's bar, so the chart reads against the day the run priced.
+  const markIndex = closes.findIndex((c) => c.date >= data.analysis_date);
+  const mark = markIndex > 0 ? closes[markIndex] : null;
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("class", "chart");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `Daily closes for ${data.ticker} around ${data.analysis_date}`);
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", line);
+  path.setAttribute("class", "chart-line");
+  svg.append(path);
+
+  if (mark) {
+    const marker = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    marker.setAttribute("x1", x(markIndex)); marker.setAttribute("x2", x(markIndex));
+    marker.setAttribute("y1", pad); marker.setAttribute("y2", height - pad);
+    marker.setAttribute("class", "chart-mark");
+    svg.append(marker);
+  }
+
+  const caption = document.createElement("p");
+  caption.className = "chart-caption mono subtle";
+  caption.textContent = `${data.ticker} closes · ${closes[0].date} → ${closes[closes.length - 1].date}`
+    + (mark ? ` · analysis date ${mark.date}: ${mark.close}` : "");
+
+  els.reportChart.replaceChildren(svg, caption);
+  els.reportChart.hidden = false;
+}
+
 async function refreshHistory() {
   try {
     const data = await api("/api/runs");
@@ -578,23 +784,15 @@ async function refreshHistory() {
     els.runList.replaceChildren(...data.runs.map((run) => {
       const li = document.createElement("li");
       li.tabIndex = 0;
+      li.classList.toggle("is-active", run.id === state.runId);
       const left = document.createElement("span");
       left.className = "run-list-title";
       left.textContent = `${run.ticker} · ${run.analysis_date}`;
       const right = document.createElement("span");
+      right.className = "run-list-meta";
       setPill(right, run.status);
       li.append(left, right);
-      const open = () => {
-        state.runId = run.id;
-        state.lastMessageKey = "";
-        state.lastAgentKey = "";
-        els.runEmpty.hidden = true;
-        els.runView.hidden = false;
-        els.cancel.hidden = run.status !== "running";
-        renderRun(run);
-        if (run.status === "running") startPolling();
-        else stopPolling();
-      };
+      const open = () => openRun(run);
       li.addEventListener("click", open);
       li.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
@@ -702,6 +900,114 @@ async function deleteArchiveReport() {
   }
 }
 
+/* ------------------------------------------------- re-run from an archive -- */
+
+async function rerunFromArchive() {
+  const report = state.archiveReport;
+  if (!report) return;
+  els.archiveRerun.disabled = true;
+  try {
+    const settings = await api(`/api/archive/${encodeURI(report.id)}/rerun`);
+    setMode("analyze");
+    els.ticker.value = settings.ticker || "";
+    if (settings.analysis_date) els.date.value = settings.analysis_date;
+    if (settings.analysts && settings.analysts.length) {
+      for (const input of els.analysts.querySelectorAll("input[type=checkbox]")) {
+        input.checked = settings.analysts.includes(input.value);
+      }
+    }
+    if (settings.research_depth) {
+      const depth = String(settings.research_depth);
+      if ([...els.depth.options].some((o) => o.value === depth)) els.depth.value = depth;
+      updateDepthHint();
+    }
+    // The header names models as text; offer them as custom IDs to confirm or change.
+    for (const [select, custom, value] of [
+      [els.quickModel, els.quickModelCustom, settings.quick_think_llm],
+      [els.deepModel, els.deepModelCustom, settings.deep_think_llm],
+    ]) {
+      if (!value) continue;
+      const listed = [...select.options].some((o) => o.value === value);
+      if (listed) { select.value = value; select.hidden = false; custom.hidden = true; }
+      else { select.hidden = true; custom.hidden = false; custom.value = value; }
+    }
+    scheduleDetect();
+    els.ticker.focus();
+    showFormError("");
+  } catch (error) {
+    window.alert(`The report's settings could not be read: ${error.message}`);
+  } finally {
+    els.archiveRerun.disabled = false;
+  }
+}
+
+/* ------------------------------------------------------- compare reports -- */
+
+async function openCompare() {
+  const report = state.archiveReport;
+  if (!report) return;
+  // Only reports of the same ticker make a comparison worth reading.
+  const candidates = (await api("/api/archive")).reports
+    .filter((r) => r.ticker === report.ticker && r.id !== report.id);
+  if (!candidates.length) {
+    window.alert(`No other saved report for ${report.ticker} to compare with.`);
+    return;
+  }
+  const options = candidates
+    .map((r) => `${archiveLabel(r)} [${r.id}]`)
+    .join("\n");
+  const pick = window.prompt(
+    `Compare ${archiveLabel(report)} with which report of ${report.ticker}?\n\n${options}\n\n` +
+    "Paste the id in brackets:",
+  );
+  if (!pick) return;
+  const match = candidates.find((r) => pick.trim() === r.id || pick.includes(`[${r.id}]`));
+  if (!match) {
+    window.alert("That id does not name a listed report.");
+    return;
+  }
+  await renderCompare(report, match);
+}
+
+async function renderCompare(left, right) {
+  els.archiveView.hidden = true;
+  els.compareView.hidden = false;
+  els.compareTitle.textContent = `${archiveLabel(left)}  ↔  ${archiveLabel(right)}`;
+  const placeholder = document.createElement("p");
+  placeholder.className = "empty";
+  placeholder.textContent = "Loading…";
+  els.compareGrid.replaceChildren(placeholder);
+  try {
+    const data = await api(`/api/archive/compare?left=${encodeURI(left.id)}&right=${encodeURI(right.id)}`);
+    const blocks = data.sections.map((section) => {
+      const row = document.createElement("div");
+      row.className = "compare-row";
+      const title = document.createElement("h3");
+      title.textContent = section.title;
+      row.append(title);
+      for (const [side, html] of [["left", section.left_html], ["right", section.right_html]]) {
+        const cell = document.createElement("div");
+        cell.className = `compare-cell compare-${side} markdown`;
+        if (html) cell.innerHTML = html;  // server-rendered safe HTML, as the report panel
+        else {
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.textContent = "Not in this report.";
+          cell.append(empty);
+        }
+        row.append(cell);
+      }
+      return row;
+    });
+    els.compareGrid.replaceChildren(...blocks);
+  } catch (error) {
+    const failed = document.createElement("div");
+    failed.className = "alert alert-error";
+    failed.textContent = `The reports could not be compared: ${error.message}`;
+    els.compareGrid.replaceChildren(failed);
+  }
+}
+
 async function refreshArchive() {
   try {
     const data = await api("/api/archive");
@@ -755,6 +1061,298 @@ async function refreshArchive() {
 
 /* --------------------------------------------------------------- wiring -- */
 
+/* ---------------------------------------------------------- mode switching -- */
+
+function setMode(mode) {
+  state.mode = mode;
+  for (const tab of document.querySelectorAll(".mode-tab")) {
+    const active = tab.dataset.mode === mode;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+  }
+  for (const panel of document.querySelectorAll("[data-mode-panel]")) {
+    panel.hidden = panel.dataset.modePanel !== mode;
+  }
+  if (mode === "backtest") refreshBacktests();
+  if (mode === "memory") refreshMemory();
+}
+
+for (const tab of document.querySelectorAll(".mode-tab")) {
+  tab.addEventListener("click", () => setMode(tab.dataset.mode));
+}
+
+/* ------------------------------------------------------------- backtest -- */
+
+function showBacktestError(message) {
+  els.btError.textContent = message;
+  els.btError.hidden = !message;
+}
+
+function renderBacktest(sweep) {
+  setPill(els.btStatus, sweep.status);
+  els.btPhase.textContent = sweep.phase || "";
+  const total = sweep.cells_total || 0;
+  const done = sweep.cells_run || 0;
+  els.btCellsCount.textContent = `${done}/${total}` + (sweep.skipped ? ` · ${sweep.skipped} skipped` : "");
+  els.btCellsBar.style.width = total ? `${Math.round((100 * done) / total)}%` : "0";
+
+  els.btNote.textContent = sweep.note || "";
+  els.btNote.hidden = !sweep.note;
+  els.btErrorView.textContent = sweep.error || "";
+  els.btErrorView.hidden = !sweep.error;
+
+  const summary = sweep.summary;
+  if (summary) {
+    const parts = [];
+    parts.push(`<span>Resolved <b>${summary.resolved}</b></span>`);
+    parts.push(`<span>Pending <b>${summary.pending}</b></span>`);
+    if (summary.unscored) parts.push(`<span>Unscored <b>${summary.unscored}</b></span>`);
+    for (const row of summary.by_rating || []) {
+      const hit = row.hit_rate === null || row.hit_rate === undefined
+        ? "no direction" : `${Math.round(row.hit_rate * 100)}% hit`;
+      parts.push(`<span>${row.rating} <b>n=${row.count}</b> · ${hit} · alpha ${(row.mean_alpha * 100).toFixed(1)}%</span>`);
+    }
+    if (summary.holding) parts.push(`<span>Window <b>${summary.holding}</b></span>`);
+    els.btSummary.innerHTML = parts.join("");
+    els.btSummary.hidden = false;
+  } else {
+    els.btSummary.hidden = true;
+  }
+
+  const failures = [...(sweep.failures || []), ...(sweep.settlement_failures || [])];
+  if (failures.length) {
+    const list = document.createElement("ul");
+    for (const failure of failures.slice(0, 20)) {
+      const li = document.createElement("li");
+      li.textContent = failure.date
+        ? `${failure.ticker} ${failure.date}: ${failure.reason}`
+        : `${failure.ticker}: ${failure.reason}`;
+      list.append(li);
+    }
+    els.btFailures.replaceChildren(list);
+    els.btFailures.hidden = false;
+  } else {
+    els.btFailures.hidden = true;
+  }
+
+  els.btCancel.hidden = sweep.status !== "running";
+}
+
+function startBacktestPolling() {
+  stopBacktestPolling();
+  state.backtestPolling = setInterval(async () => {
+    if (!state.backtestId) return stopBacktestPolling();
+    try {
+      const sweep = await api(`/api/backtests/${state.backtestId}`);
+      renderBacktest(sweep);
+      if (sweep.status !== "running") {
+        stopBacktestPolling();
+        refreshBacktests();
+      }
+    } catch {
+      stopBacktestPolling();
+    }
+  }, 1500);
+}
+
+function stopBacktestPolling() {
+  if (state.backtestPolling) clearInterval(state.backtestPolling);
+  state.backtestPolling = null;
+}
+
+async function refreshBacktests() {
+  try {
+    const data = await api("/api/backtests");
+    els.btListEmpty.hidden = data.backtests.length > 0;
+    els.btList.replaceChildren(...data.backtests.map((sweep) => {
+      const li = document.createElement("li");
+      li.tabIndex = 0;
+      li.classList.toggle("is-active", sweep.id === state.backtestId);
+      const left = document.createElement("span");
+      left.className = "run-list-title";
+      left.textContent = `${sweep.tickers.join(", ")} · ${sweep.dates[0] || "?"} → ${sweep.dates[sweep.dates.length - 1] || "?"}`;
+      const right = document.createElement("span");
+      right.className = "run-list-meta";
+      setPill(right, sweep.status);
+      li.append(left, right);
+      const open = () => {
+        state.backtestId = sweep.id;
+        els.btView.hidden = false;
+        renderBacktest(sweep);
+        if (sweep.status === "running") startBacktestPolling();
+        else stopBacktestPolling();
+      };
+      li.addEventListener("click", open);
+      li.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
+      });
+      return li;
+    }));
+  } catch { /* the list is a convenience */ }
+}
+
+els.backtestForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  showBacktestError("");
+  let portfolio = null;
+  const raw = els.btPortfolio.value.trim();
+  if (raw) {
+    try { portfolio = JSON.parse(raw); }
+    catch (error) { showBacktestError(`The portfolio is not valid JSON: ${error.message}`); return; }
+  }
+  const tickers = els.btTickers.value.split(",").map((t) => t.trim()).filter(Boolean);
+  if (!tickers.length) { showBacktestError("Give at least one ticker."); return; }
+  const analysts = els.btAnalysts.value.split(",").map((a) => a.trim()).filter(Boolean);
+  els.btStartBtn.disabled = true;
+  els.btStartBtn.textContent = "Starting…";
+  try {
+    const sweep = await api("/api/backtests", {
+      method: "POST",
+      body: JSON.stringify({
+        tickers,
+        start_date: els.btStart.value,
+        end_date: els.btEnd.value,
+        every_n_days: Math.max(1, Number(els.btEvery.value) || 7),
+        analysts,
+        asset_type: els.btAsset.value,
+        portfolio,
+      }),
+    });
+    state.backtestId = sweep.id;
+    els.btView.hidden = false;
+    renderBacktest(sweep);
+    startBacktestPolling();
+    refreshBacktests();
+  } catch (error) {
+    showBacktestError(error.message);
+  } finally {
+    els.btStartBtn.disabled = false;
+    els.btStartBtn.textContent = "Run backtest";
+  }
+});
+
+els.btCancel.addEventListener("click", async () => {
+  if (!state.backtestId) return;
+  els.btCancel.disabled = true;
+  try {
+    await api(`/api/backtests/${state.backtestId}/cancel`, { method: "POST" });
+  } catch (error) {
+    showBacktestError(error.message);
+  } finally {
+    els.btCancel.disabled = false;
+  }
+});
+
+els.btRefresh.addEventListener("click", refreshBacktests);
+
+/* ---------------------------------------------------------- decision log -- */
+
+function renderMemory(data) {
+  els.memoryPath.textContent = data.path || "";
+  const entries = data.entries || [];
+  els.memoryEmpty.hidden = entries.length > 0;
+  els.memoryBody.replaceChildren(...entries.map((entry) => {
+    const tr = document.createElement("tr");
+    tr.tabIndex = 0;
+    const cells = [
+      entry.date, entry.ticker, entry.rating,
+      entry.pending ? "—" : (entry.raw || "—"),
+      entry.pending ? "—" : (entry.alpha || "—"),
+      entry.holding || "—",
+      entry.pending ? "pending" : "settled",
+    ];
+    cells.forEach((value, index) => {
+      const td = document.createElement("td");
+      td.textContent = value;
+      if (index === 6) td.className = entry.pending ? "memory-pending" : "memory-settled";
+      tr.append(td);
+    });
+    const open = () => openMemoryEntry(entry);
+    tr.addEventListener("click", open);
+    tr.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
+    });
+    return tr;
+  }));
+}
+
+function openMemoryEntry(entry) {
+  els.memoryDetail.hidden = false;
+  els.memoryDetailTitle.textContent = `${entry.ticker} · ${entry.date} · ${entry.rating}`;
+  els.memoryDecision.innerHTML = "";
+  els.memoryReflection.innerHTML = "";
+  // The server renders the same markdown the reports use, so the detail reads
+  // as formatted text; here the log's own text is shown as written.
+  const decision = document.createElement("pre");
+  decision.textContent = entry.decision || "(no decision text)";
+  els.memoryDecision.append(decision);
+  if (entry.reflection) {
+    const reflection = document.createElement("pre");
+    reflection.textContent = entry.reflection;
+    els.memoryReflection.append(reflection);
+    els.memoryReflectionSection.hidden = false;
+  } else {
+    els.memoryReflectionSection.hidden = true;
+  }
+  els.memoryDetail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+async function refreshMemory() {
+  try {
+    renderMemory(await api("/api/memory"));
+  } catch { /* the log is a convenience */ }
+  pollSettleStatus();
+}
+
+function pollSettleStatus() {
+  clearInterval(state.settlePolling);
+  state.settlePolling = setInterval(async () => {
+    try {
+      const status = await api("/api/memory/settle/status");
+      setPill(els.settleStatus, status.status === "running" ? "running" : "idle");
+      els.settleStatus.textContent = status.status;
+      if (status.status !== "running") {
+        clearInterval(state.settlePolling);
+        els.settleBtn.disabled = false;
+        if (status.status === "completed") {
+          const settled = status.settled || [];
+          const failed = status.failed || [];
+          els.settleResult.className = "alert alert-warn";
+          els.settleResult.textContent = settled.length || failed.length
+            ? `Settled ${settled.length} decision${settled.length === 1 ? "" : "s"}`
+              + (failed.length ? `, ${failed.length} could not be settled` : "") + "."
+            : "Nothing to settle: no pending decision's window has traded yet.";
+          els.settleResult.hidden = false;
+          refreshMemory();
+        } else if (status.status === "failed") {
+          els.settleResult.className = "alert alert-error";
+          els.settleResult.textContent = `Settlement failed: ${status.error || "unknown error"}`;
+          els.settleResult.hidden = false;
+        }
+      }
+    } catch { clearInterval(state.settlePolling); }
+  }, 1500);
+}
+
+els.settleBtn.addEventListener("click", async () => {
+  els.settleBtn.disabled = true;
+  els.settleResult.hidden = true;
+  try {
+    await api("/api/memory/settle", { method: "POST" });
+    setPill(els.settleStatus, "running");
+    els.settleStatus.textContent = "running";
+    pollSettleStatus();
+  } catch (error) {
+    els.settleBtn.disabled = false;
+    els.settleResult.className = "alert alert-error";
+    els.settleResult.textContent = error.message;
+    els.settleResult.hidden = false;
+  }
+});
+
+els.memoryRefresh.addEventListener("click", refreshMemory);
+els.memoryClose.addEventListener("click", () => { els.memoryDetail.hidden = true; });
+
 els.form.addEventListener("submit", startRun);
 els.cancel.addEventListener("click", cancelRun);
 els.refreshOptions.addEventListener("click", loadOptions);
@@ -775,6 +1373,20 @@ els.saveReport.addEventListener("change", () => {
 });
 els.refreshArchive.addEventListener("click", refreshArchive);
 els.archiveDelete.addEventListener("click", deleteArchiveReport);
+els.archiveRerun.addEventListener("click", rerunFromArchive);
+els.archiveCompare.addEventListener("click", openCompare);
+els.compareClose.addEventListener("click", () => {
+  els.compareView.hidden = true;
+  if (state.archiveId) els.archiveView.hidden = false;
+});
+
+// The form answers are remembered as they change, not only on submit, so a
+// reload mid-thought keeps what was chosen.
+for (const key of REMEMBERED) {
+  const node = els[key];
+  if (!node) continue;
+  node.addEventListener(node.type === "checkbox" ? "change" : "change", saveFormMemory);
+}
 
 for (const tab of document.querySelectorAll(".tab")) {
   tab.addEventListener("click", () => {
@@ -793,3 +1405,5 @@ loadOptions();
 scheduleDetect();
 refreshHistory();
 refreshArchive();
+refreshBacktests();
+setMode("analyze");
