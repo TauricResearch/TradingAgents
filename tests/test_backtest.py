@@ -364,3 +364,19 @@ def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
     graph = _FakeGraph.instances[-1]
     assert graph.calls == [("NVDA", "2026-01-05")]
     assert graph.settled == ["NVDA"]
+
+@pytest.mark.unit
+def test_summary_separates_pending_and_unscored_decisions(tmp_path):
+    log = _log_with(tmp_path, [
+        ("AAPL", "2026-01-05", "Unable to determine a rating.", None),
+        ("MSFT", "2026-01-05", "Rating: Buy", None),
+        ("TSLA", "2026-01-05", "Rating: Sell", (0.03, -0.01)),
+        ("NVDA", "2026-01-05", "Unable to determine a rating.", (0.10, 0.03)),
+    ])
+
+    summary = summarize(log)
+
+    assert summary.resolved == 1
+    assert summary.pending == 2
+    assert summary.unscored == 1
+    assert summary.by_rating["Sell"].count == 1
