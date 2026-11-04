@@ -12,6 +12,7 @@ header is not a local name (a DNS-rebinding guard).
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -32,6 +33,11 @@ from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
 from webapp import archive
+from webapp.backtest_service import (
+    BacktestManager,
+    BacktestOptions,
+    BacktestRequestError,
+)
 from webapp.rendering import render_markdown
 from webapp.service import RunManager, RunOptions, RunRequestError, today
 
@@ -66,6 +72,18 @@ class RunPayload(BaseModel):
     checkpoint: bool | None = None
     save: bool = True
     html: bool = True
+    portfolio: dict | None = None
+
+
+class BacktestPayload(BaseModel):
+    """The backtest form's answers, as posted by the page."""
+
+    tickers: list[str] = Field(default_factory=list)
+    start_date: str
+    end_date: str
+    every_n_days: int = 7
+    analysts: list[str] = Field(default_factory=list)
+    asset_type: str = "stock"
     portfolio: dict | None = None
 
 
@@ -104,7 +122,8 @@ def _models(provider: str) -> dict:
     return out
 
 
-def create_app(manager: RunManager | None = None, results_dir: Path | None = None) -> FastAPI:
+def create_app(manager: RunManager | None = None, results_dir: Path | None = None,
+               backtests: BacktestManager | None = None) -> FastAPI:
     """Build the app; a test passes its own ``RunManager`` to observe runs.
 
     ``results_dir`` is where the archive looks for reports already on disk; it
@@ -112,10 +131,12 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
     folder the CLI and the runs write to.
     """
     runs = manager or RunManager()
+    sweeps = backtests or BacktestManager()
     archive_root = Path(results_dir) if results_dir else Path(DEFAULT_CONFIG["results_dir"])
 
     app = FastAPI(title="TradingAgents Web", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.runs = runs
+    app.state.backtests = sweeps
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
@@ -237,6 +258,89 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
             raise HTTPException(status_code=409, detail="the run is not running")
         return {"cancelled": True}
 
+    # ------------------------------------------------------------- backtest --
+
+    @app.post("/api/backtests", status_code=202)
+    def start_backtest(payload: BacktestPayload) -> dict:
+        """Start one sweep over the ticker × date grid, in its own thread."""
+        options = BacktestOptions(
+            tickers=payload.tickers,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+            every_n_days=payload.every_n_days,
+            analysts=payload.analysts,
+            asset_type=payload.asset_type,
+            portfolio=payload.portfolio,
+        )
+        try:
+            sweep = sweeps.start(options, DEFAULT_CONFIG)
+        except BacktestRequestError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        return sweep.snapshot()
+
+    @app.get("/api/backtests")
+    def list_backtests() -> dict:
+        return {"backtests": sweeps.list()}
+
+    @app.get("/api/backtests/{run_id}")
+    def get_backtest(run_id: str) -> dict:
+        sweep = sweeps.get(run_id)
+        if sweep is None:
+            raise HTTPException(status_code=404, detail="no such backtest")
+        return sweep.snapshot()
+
+    @app.post("/api/backtests/{run_id}/cancel")
+    def cancel_backtest(run_id: str) -> dict:
+        if sweeps.get(run_id) is None:
+            raise HTTPException(status_code=404, detail="no such backtest")
+        if not sweeps.cancel(run_id):
+            raise HTTPException(status_code=409, detail="the backtest is not running")
+        return {"cancelled": True}
+
+    # ---------------------------------------------------------- decision log --
+
+    @app.get("/api/memory")
+    def memory_entries() -> dict:
+        """The decision log: every recorded decision and, once settled, its outcome."""
+        from webapp import memory_view
+
+        return memory_view.list_entries()
+
+    @app.post("/api/memory/settle", status_code=202)
+    def memory_settle() -> dict:
+        """Settle pending decisions whose holding window has now traded.
+
+        The pass fetches prices and asks the model for a reflection, so it runs
+        in its own thread; the page polls ``/api/memory/settle/status``.
+        """
+        from webapp import memory_view
+
+        with memory_view._SETTLE_LOCK:
+            if memory_view._settle_job["status"] == "running":
+                raise HTTPException(status_code=409, detail="a settlement pass is already running")
+        thread = threading.Thread(target=memory_view.settle, name="memory-settle", daemon=True)
+        thread.start()
+        return {"status": "running"}
+
+    @app.get("/api/memory/settle/status")
+    def memory_settle_status() -> dict:
+        from webapp import memory_view
+
+        return memory_view.settle_status()
+
+    # ----------------------------------------------------------------- chart --
+
+    @app.get("/api/chart/{ticker}")
+    def chart(ticker: str, date: str) -> dict:
+        """Daily closes around the analysis date, point-in-time, for the page's chart."""
+        from webapp import chart as chart_module
+
+        try:
+            canonical = normalize_ticker_symbol(ticker) if ticker.strip() else "SPY"
+            return chart_module.closes_for_chart(canonical, date)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+
     @app.get("/api/runs/{run_id}/report")
     def report_page(run_id: str):
         """The self-contained HTML report the run wrote, if it wrote one."""
@@ -303,6 +407,34 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
         except archive.ArchivePathError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
         return FileResponse(path, media_type="text/markdown")
+
+    @app.get("/api/archive/{entry_id:path}/rerun")
+    def archive_rerun(entry_id: str):
+        """The settings a report's header records, for pre-filling the form."""
+        try:
+            return archive.rerun_settings(archive_root, entry_id)
+        except archive.ArchivePathError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+
+    @app.get("/api/archive/compare")
+    def archive_compare(left: str, right: str) -> dict:
+        """Two reports' sections paired by agent, for reading them side by side."""
+        try:
+            rows = archive.compare_sections(archive_root, left, right)
+        except archive.ArchivePathError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        return {
+            "left": left,
+            "right": right,
+            "sections": [
+                {
+                    "title": row["title"],
+                    "left_html": render_markdown(row["left"]) if row["left"] else None,
+                    "right_html": render_markdown(row["right"]) if row["right"] else None,
+                }
+                for row in rows
+            ],
+        }
 
     @app.delete("/api/archive/{entry_id:path}")
     def delete_archive_report(entry_id: str, confirm: bool = False) -> dict:
