@@ -17,6 +17,7 @@ from tradingagents.dataflows.vendors.alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from tradingagents.dataflows.vendors.debyko import get_perpetual_context as get_debyko_context
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
 from tradingagents.dataflows.vendors.polymarket import (
     get_prediction_markets as get_polymarket_prediction_markets,
@@ -78,6 +79,10 @@ TOOLS_CATEGORIES = {
             "get_macro_indicators",
         ]
     },
+    "crypto_perpetuals": {
+        "description": "Per-venue crypto perpetual context, not OHLCV",
+        "tools": ["get_crypto_perpetual_context"],
+    },
     "prediction_markets": {
         "description": "Market-implied probabilities for forward-looking events",
         "tools": [
@@ -91,7 +96,7 @@ TOOLS_CATEGORIES = {
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "crypto_perpetuals"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
@@ -109,6 +114,7 @@ VENDOR_METHODS = {
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "debyko": get_debyko_context,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
@@ -141,6 +147,9 @@ VENDOR_METHODS = {
     # macro_data
     "get_macro_indicators": {
         "fred": get_fred_macro_data,
+    },
+    "get_crypto_perpetual_context": {
+        "debyko": get_debyko_context,
     },
     # prediction_markets
     "get_prediction_markets": {
