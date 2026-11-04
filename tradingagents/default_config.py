@@ -140,6 +140,9 @@ def build_default_config() -> dict:
         # decrease to reduce token usage in agent prompts.
         "news_article_limit": 20,             # max articles per ticker (ticker-news)
         "global_news_article_limit": 10,      # max articles for global/macro news
+        "pulse_follow_links": True,           # zerodha_pulse: also crawl each match's page (depth 1)
+        "pulse_fetch_limit": 5,               # zerodha_pulse: max matched articles to follow
+        "ndtv_peer_comparison": True,         # ndtv_profit: append the stock-vs-NIFTY 50 peer comparison
         "global_news_lookback_days": 7,       # macro news lookback window
         # Search queries used by get_global_news for macro headlines. Extend or
         # replace to broaden geographic / sector coverage.
@@ -161,7 +164,9 @@ def build_default_config() -> dict:
             # Statements come from SEC EDGAR as filed (US filers), then Yahoo; the
         # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
         "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
-            "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+            # For Indian tickers (.NS/.BO) set "ndtv_profit,zerodha_pulse,yfinance"; those two
+            # vendors need the [crawl4ai] extra and serve only .NS/.BO tickers.
+            "news_data": "yfinance",             # Options: alpha_vantage, yfinance, zerodha_pulse, ndtv_profit
             "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
         },
