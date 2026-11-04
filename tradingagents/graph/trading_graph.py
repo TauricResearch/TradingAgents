@@ -11,6 +11,7 @@ import tradingagents
 from tradingagents.agents.context import build_instrument_context, resolve_instrument_identity
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
+from tradingagents.dataflows.data_policy import check_data_policy
 from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -42,9 +43,11 @@ def _validate_trade_date(trade_date) -> str:
 
 
 # Config keys that do not change what a run writes: where it keeps its files,
-# whether it checkpoints, and how often it retries a provider.
+# whether it checkpoints, how often it retries a provider, and what data it
+# checks for before starting.
 _NOT_IN_SIGNATURE = frozenset({
     "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
+    "data_policy",
 })
 
 
@@ -179,8 +182,12 @@ class TradingAgentsGraph:
         when the decision had no parseable rating (#1170); guard with
         ``tradingagents.agents.rating.is_review`` before mapping it to the
         PortfolioRating enum.
+
+        With a ``data_policy`` in config, the data it requires is checked first,
+        and ``DataPolicyError`` is raised before any model call when it is missing.
         """
         trade_date = _validate_trade_date(trade_date)
+        self.check_data(company_name, trade_date)
 
         with run_config(self.config), \
                 self.checkpoint_scope(company_name, trade_date, asset_type, portfolio) as thread_id_value:
@@ -188,6 +195,14 @@ class TradingAgentsGraph:
                 company_name, trade_date, asset_type=asset_type,
                 checkpoint_thread_id=thread_id_value, portfolio=portfolio,
             )
+
+    def check_data(self, company_name, trade_date) -> list:
+        """Check the data this graph's ``data_policy`` requires, before any model call.
+
+        Returns what is missing at "warn"; raises ``DataPolicyError`` when
+        anything at "abort" is missing. Without a policy, checks nothing.
+        """
+        return check_data_policy(self.config, company_name, str(trade_date))
 
     def begin_checkpoint(self, company_name, trade_date, asset_type: str = "stock", portfolio=None) -> str | None:
         """Recompile the graph with a per-ticker checkpointer and return the

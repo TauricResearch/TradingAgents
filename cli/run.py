@@ -9,6 +9,7 @@ from pathlib import Path
 
 import typer
 from rich.live import Live
+from rich.markup import escape
 
 from cli.display import (
     ANALYST_ORDER,
@@ -25,6 +26,7 @@ from cli.display import (
 from cli.selections import depth_from_env, get_user_selections, unattended_gaps
 from cli.stats_handler import StatsCallbackHandler
 from tradingagents.agents.rating import is_review, run_rating
+from tradingagents.dataflows.data_policy import DataPolicyError, check_data_policy
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import (
@@ -96,7 +98,24 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
+def _check_required_data(config: dict, ticker: str, trade_date: str) -> None:
+    """Check the data the run's policy requires, before any model is built or called.
+
+    A gap at "warn" is printed and the run goes on; one at "abort" ends it here.
+    """
+    if not config.get("data_policy"):
+        return
+    console.print(f"[dim]Checking required data for {ticker} on {trade_date}...[/dim]")
+    try:
+        missing = check_data_policy(config, ticker, trade_date)
+    except (DataPolicyError, ValueError) as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+    for gap in missing:
+        console.print(f"[yellow]Missing {gap.kind}, continuing:[/yellow] {escape(gap.reason)}")
+
+
+def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None, data_policy=None):
     flags = flags or {}
     # With no terminal nothing can answer a prompt: name every question still
     # open before any model is called, rather than stopping at the first one.
@@ -111,6 +130,10 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     selections = get_user_selections(flags)
 
     config = _build_run_config(selections, checkpoint)
+    # --data-policy overrides only when given, like --checkpoint.
+    if data_policy is not None:
+        config["data_policy"] = data_policy
+    _check_required_data(config, selections["ticker"], selections["analysis_date"])
 
     stats_handler = StatsCallbackHandler()
 

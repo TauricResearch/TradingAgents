@@ -10,6 +10,7 @@ from cli.models import AnalystType, AssetType
 from cli.prompts import filter_analysts_for_asset_type, parse_analysts
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.dataflows.data_policy import KINDS, LEVELS, parse_data_policy
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
 from tradingagents.portfolio import load_portfolio
@@ -25,6 +26,25 @@ if sys.platform == "win32":  # pragma: no cover - platform dependent
     _NO_CONSOLE_ERRORS: tuple[type[BaseException], ...] = (NoConsoleScreenBufferError,)
 else:
     _NO_CONSOLE_ERRORS = ()
+
+DATA_POLICY_HELP = (
+    f"Data the run requires, as kind=level pairs, e.g. prices=abort,news=warn. Kinds: "
+    f"{', '.join(KINDS)}; levels: {', '.join(LEVELS)}. Checked before any model call: "
+    "abort stops the run when that data is missing, warn says so and goes on. "
+    "Omit to honor TRADINGAGENTS_DATA_POLICY."
+)
+
+
+def _data_policy_option(value: str | None) -> dict | None:
+    """The --data-policy flag as a policy, or None when it was not given."""
+    if value is None:
+        return None
+    try:
+        return parse_data_policy(value)
+    except ValueError as exc:
+        console.print(f"[red]--data-policy: {escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+
 
 app = typer.Typer(
     name="TradingAgents",
@@ -68,6 +88,7 @@ def analyze(
         None, "--html/--no-html",
         help="Save the report as one HTML page too, complete_report.html, without asking (default: yes)",
     ),
+    data_policy: str = typer.Option(None, "--data-policy", help=DATA_POLICY_HELP),
 ):
     """Run an analysis. This is what a bare `tradingagents` does.
 
@@ -76,6 +97,7 @@ def analyze(
     """
     if ctx.invoked_subcommand is not None:
         return
+    policy = _data_policy_option(data_policy)
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
@@ -90,7 +112,7 @@ def analyze(
 
     try:
         flags = {"ticker": ticker, "date": date, "analysts": analysts, "save": save, "show": show, "html": html}
-        run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags)
+        run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags, data_policy=policy)
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.
         # Emit one actionable line on stderr instead of a prompt_toolkit
@@ -120,9 +142,12 @@ def backtest(
     run_id: str = typer.Option(
         None, "--run-id", help="Continue an earlier sweep: its cells are skipped and its log reused"
     ),
+    data_policy: str = typer.Option(None, "--data-policy", help=DATA_POLICY_HELP),
 ):
     """Score past decisions over a grid of tickers and dates."""
 
+    policy = _data_policy_option(data_policy)
+    config = DEFAULT_CONFIG if policy is None else {**DEFAULT_CONFIG, "data_policy": policy}
     try:
         dates = iter_grid(start, end, every)
         book = load_portfolio(portfolio) if portfolio else None
@@ -147,7 +172,7 @@ def backtest(
               "selected_analysts": [a.value for a in chosen]}
 
     try:
-        result = run_backtest(names, dates, DEFAULT_CONFIG, **kwargs)
+        result = run_backtest(names, dates, config, **kwargs)
     except Exception as exc:  # a missing key or an unknown analyst is a setup error
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None

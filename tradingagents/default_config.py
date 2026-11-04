@@ -25,6 +25,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_DATA_POLICY":          "data_policy",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -169,6 +170,11 @@ def build_default_config() -> dict:
         "tool_vendors": {
             # Example: "get_stock_data": "alpha_vantage",  # Override category default
         },
+        # Data a run requires, checked through the vendors above before any model
+        # call: kind -> "off", "warn" or "abort", for the kinds prices, fundamentals,
+        # news and macro. Empty checks nothing, and a missing kind reaches the
+        # analysts as unavailable. Also "prices=abort,news=warn", as from the env.
+        "data_policy": {},
         # Benchmark for alpha calculation in the reflection layer.
         # ``benchmark_ticker`` (when set) overrides the suffix map for all
         # tickers; leave it None to use ``benchmark_map`` for auto-detection
