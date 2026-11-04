@@ -71,13 +71,13 @@ const AGENT_TEAMS = [
 ];
 
 const REPORT_TITLES = {
-  market_report: "Market Analysis",
-  sentiment_report: "Sentiment Analysis",
-  news_report: "News Analysis",
-  fundamentals_report: "Fundamentals Analysis",
-  investment_plan: "Research Team Decision",
-  trader_investment_plan: "Trading Team Plan",
-  final_trade_decision: "Portfolio Management Decision",
+  market_report: "Market Analyst",
+  sentiment_report: "Sentiment Analyst",
+  news_report: "News Analyst",
+  fundamentals_report: "Fundamentals Analyst",
+  investment_plan: "Research Manager",
+  trader_investment_plan: "Trader",
+  final_trade_decision: "Portfolio Manager",
 };
 
 /* ---------------------------------------------------------------- helpers -- */
@@ -518,7 +518,11 @@ function renderReport(run) {
   }
   els.reportLinks.innerHTML = links.join("");
 
+  // The server renders each section from the same markdown into safe HTML
+  // (raw HTML escaped, images off), so the report reads as formatted text here
+  // exactly as it does in the terminal and in the saved page.
   const sections = run.report_sections || {};
+  const rendered = run.report_sections_html || {};
   const blocks = Object.keys(REPORT_TITLES)
     .filter((key) => sections[key])
     .map((key) => {
@@ -526,9 +530,16 @@ function renderReport(run) {
       section.className = "report-section";
       const title = document.createElement("h3");
       title.textContent = REPORT_TITLES[key];
-      const body = document.createElement("pre");
-      const text = Array.isArray(sections[key]) ? sections[key].join("\n") : String(sections[key]);
-      body.textContent = text;
+      const body = document.createElement("div");
+      body.className = "markdown";
+      if (rendered[key]) {
+        body.innerHTML = rendered[key];
+      } else {
+        const plain = document.createElement("pre");
+        plain.textContent = Array.isArray(sections[key])
+          ? sections[key].join("\n") : String(sections[key]);
+        body.append(plain);
+      }
       section.append(title, body);
       return section;
     });

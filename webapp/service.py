@@ -41,6 +41,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.analyst_execution import build_analyst_execution_plan
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.portfolio import PortfolioContext
+from webapp.rendering import render_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +216,16 @@ class Run:
                 "tool_calls": list(self.tool_calls),
                 "agent_status": dict(self.agent_status),
                 "report_sections": dict(self.report_sections),
+                # The same sections as safe HTML, rendered once per text by
+                # `webapp.rendering`; the page inserts them, so the report reads
+                # as it does in the terminal and in the saved HTML page.
+                "report_sections_html": {
+                    section: render_markdown(
+                        "\n".join(str(item) for item in content) if isinstance(content, list) else content
+                    )
+                    for section, content in self.report_sections.items()
+                    if content
+                },
                 "current_report": self.current_report,
                 "stats": dict(self.stats),
                 "wall_time_summary": self.wall_time_summary,

@@ -124,6 +124,55 @@ class TestApi:
         assert response.status_code == 403
 
 
+# ------------------------------------------------------- the report markdown --
+
+
+@pytest.mark.unit
+class TestMarkdown:
+    def test_common_markdown_becomes_formatted_html(self):
+        from webapp.rendering import render_markdown
+
+        html = render_markdown("**bold**, *em*, `code`\n\n- one\n- two\n\n| a | b |\n|---|---|\n| 1 | 2 |")
+        assert "<strong>bold</strong>" in html
+        assert "<em>em</em>" in html
+        assert "<code>code</code>" in html
+        assert "<li>one</li>" in html
+        assert "<table>" in html and "<th>a</th>" in html
+        assert 'class="table-wrap"' in html
+
+    def test_raw_html_is_escaped_rather_than_executed(self):
+        from webapp.rendering import render_markdown
+
+        html = render_markdown("<script>alert('x')</script>\n\n<img src=x onerror=alert(1)>")
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+        assert "<img" not in html
+
+    def test_a_section_heading_sits_below_the_panel_heading(self):
+        from webapp.rendering import render_markdown
+
+        # The panel labels a section with the agent's name at h3, so the text's
+        # own headings start below it.
+        html = render_markdown("## Market Analysis\n\n### Key readings\n\nText.")
+        assert "<h4>Market Analysis</h4>" in html
+        assert "<h5>Key readings</h5>" in html
+        assert "<h2>" not in html and "<h3>" not in html
+
+    def test_empty_text_renders_nothing(self):
+        from webapp.rendering import render_markdown
+
+        assert render_markdown("") == ""
+        assert render_markdown(None) == ""
+
+    def test_the_same_text_is_rendered_once(self):
+        from webapp.rendering import _render_cached, render_markdown
+
+        _render_cached.cache_clear()
+        render_markdown("## Cached\n\nBody.")
+        render_markdown("## Cached\n\nBody.")
+        assert _render_cached.cache_info().hits == 1
+
+
 # ----------------------------------------------------------------- the run --
 
 
@@ -212,6 +261,13 @@ def test_a_run_reaches_the_page_and_writes_its_report(monkeypatch):
     assert snapshot["progress"]["agents_completed"] == snapshot["progress"]["agents_total"]
     assert snapshot["report_sections"]["market_report"]
     assert snapshot["report_sections"]["final_trade_decision"].endswith("Add on weakness.")
+    # The page renders the report, so the same sections come pre-rendered too,
+    # and only the ones with content.
+    assert "<h4>Market</h4>" in snapshot["report_sections_html"]["market_report"]
+    assert "<strong>Rating</strong>" in snapshot["report_sections_html"]["final_trade_decision"]
+    assert set(snapshot["report_sections_html"]) == {
+        key for key, value in snapshot["report_sections"].items() if value
+    }
     assert any("Market looks strong" in m["content"] for m in snapshot["messages"])
     assert snapshot["report_available"] is True
 

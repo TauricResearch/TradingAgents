@@ -244,8 +244,9 @@ button.ghost:hover:not(:disabled) { color: var(--ink); }
 
 .report-body { max-height: 34rem; overflow: auto; }
 .report-section { margin-bottom: 1rem; }
-.report-section h3 {
-  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+/* The panel's own label, not any heading the agent wrote inside the report. */
+.report-section > h3 {
+  font-size: 0.8rem; font-weight: 650; letter-spacing: 0.01em;
   color: var(--muted); margin-bottom: 0.35rem;
 }
 .report-section pre {
@@ -254,6 +255,61 @@ button.ghost:hover:not(:disabled) { color: var(--ink); }
   font-family: var(--mono); font-size: 0.78rem; line-height: 1.5;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
+
+/* The rendered report: the agents' markdown, read as formatted text. */
+.markdown {
+  padding: 0.2rem 0.85rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  font-size: 0.88rem;
+  line-height: 1.62;
+  overflow-wrap: anywhere;
+}
+.markdown > :first-child { margin-top: 0.6rem; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown h1, .markdown h2, .markdown h3,
+.markdown h4, .markdown h5, .markdown h6 {
+  margin: 1.3rem 0 0.5rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+}
+.markdown h1 { font-size: 1.18rem; }
+.markdown h2 { font-size: 1.06rem; }
+.markdown h3 { font-size: 0.98rem; }
+.markdown h4, .markdown h5, .markdown h6 { font-size: 0.9rem; color: var(--muted); }
+.markdown p, .markdown ul, .markdown ol { margin: 0 0 0.8rem; }
+.markdown li { margin: 0.2rem 0; }
+.markdown ul, .markdown ol { padding-left: 1.35rem; }
+.markdown strong { font-weight: 650; }
+.markdown a { color: var(--accent); text-underline-offset: 0.15em; }
+.markdown blockquote {
+  margin: 0.9rem 0; padding: 0.1rem 0 0.1rem 0.85rem;
+  border-left: 3px solid var(--rule); color: var(--muted);
+}
+.markdown code {
+  font-family: var(--mono); font-size: 0.84em;
+  background: var(--wash); padding: 0.1em 0.3em; border-radius: 3px;
+}
+.markdown pre {
+  margin: 0 0 0.9rem; padding: 0.65rem 0.8rem;
+  background: var(--wash); border-radius: 7px; overflow-x: auto;
+}
+.markdown pre code { background: none; padding: 0; font-size: 0.82rem; }
+.markdown hr { width: 3rem; margin: 1.4rem auto; border: 0; border-top: 1px solid var(--rule); }
+.markdown .table-wrap { overflow-x: auto; margin: 0 0 0.9rem; }
+.markdown table {
+  border-collapse: collapse; width: 100%;
+  font-size: 0.82rem; font-variant-numeric: tabular-nums;
+}
+.markdown th, .markdown td {
+  padding: 0.35rem 0.6rem; text-align: left; vertical-align: top;
+  border-bottom: 1px solid var(--rule);
+}
+.markdown th { font-weight: 600; border-bottom-color: var(--muted); }
+.markdown tbody tr:last-child td { border-bottom: 0; }
 
 .run-list { list-style: none; margin: 0; padding: 0; font-size: 0.84rem; }
 .run-list li {

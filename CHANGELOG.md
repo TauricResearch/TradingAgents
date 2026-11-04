@@ -10,6 +10,10 @@ Changes that need action when upgrading are listed under "Upgrading from" in the
 
 ### Added
 
+- The web console's report panel renders the agents' markdown as formatted text
+  — headings, tables, lists, quotes and code — instead of showing it raw. The
+  rendering reuses the safe `markdown-it` configuration of the saved HTML report
+  (raw HTML escaped, images off), so nothing a model wrote can inject markup.
 - Italian is offered in the output-language menu, in the CLI and the web console
   alike. Both now read one shared list (`cli.prompts.OUTPUT_LANGUAGES`), so a
   language added there appears in both and they cannot drift apart.
