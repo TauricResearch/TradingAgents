@@ -68,7 +68,11 @@ def sanitize(prefs: dict, asset_type) -> dict:
         kept["research_depth"] = prefs["research_depth"]
 
     known = {a.value for a in AnalystType}
-    analysts = [a for a in prefs.get("analysts") or [] if a in known]
+    saved_analysts = prefs.get("analysts")
+    analysts = (
+        [a for a in saved_analysts if isinstance(a, str) and a in known]
+        if isinstance(saved_analysts, list) else []
+    )
     allowed = filter_analysts_for_asset_type([AnalystType(a) for a in analysts], AssetType(asset_type))
     if allowed:
         kept["analysts"] = [a.value for a in allowed]
@@ -76,7 +80,7 @@ def sanitize(prefs: dict, asset_type) -> dict:
     provider = prefs.get("llm_provider")
     # Region-specific providers (qwen-cn) are picked in a second prompt, so the
     # base key is what the provider menu matches.
-    base = (provider or "").split("-cn")[0]
+    base = provider.split("-cn")[0] if isinstance(provider, str) else ""
     if base and base in {key for _, key, _ in _llm_provider_table()}:
         kept["llm_provider"] = provider
         if isinstance(prefs.get("backend_url"), str) and prefs["backend_url"]:
@@ -87,7 +91,8 @@ def sanitize(prefs: dict, asset_type) -> dict:
             except KeyError:
                 continue
             # Models listed live are not in the catalog, so any model ID is kept.
-            listed_live = base in LISTED_LIVE and isinstance(prefs.get(field), str)
-            if prefs.get(field) in offered or listed_live:
-                kept[field] = prefs[field]
+            model = prefs.get(field)
+            listed_live = base in LISTED_LIVE
+            if isinstance(model, str) and (model in offered or listed_live):
+                kept[field] = model
     return kept

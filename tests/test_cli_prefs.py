@@ -9,6 +9,7 @@ versions and a stale one must not be offered.
 
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
@@ -81,6 +82,26 @@ def test_analysts_are_narrowed_to_the_asset_type():
 def test_junk_values_are_dropped_rather_than_offered():
     kept = sanitize({"research_depth": 99, "analysts": ["astrology"], "output_language": 5}, "stock")
     assert kept == {}
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field, value, expected", [
+    ("analysts", 42, None),
+    ("analysts", "market", None),
+    ("analysts", [{}, "market", []], ["market"]),
+    ("llm_provider", 42, None),
+    ("llm_provider", ["openai"], None),
+    ("quick_think_llm", {}, None),
+    ("deep_think_llm", ["gpt-5.6"], None),
+])
+def test_malformed_saved_fields_do_not_block_valid_defaults(tmp_path, field, value, expected):
+    (tmp_path / "cli_prefs.json").write_text(json.dumps({**SAVED, field: value}), encoding="utf-8")
+    kept = sanitize(load_last_run(), "stock")
+    assert kept.get(field) == expected
+    assert kept["output_language"] == "English"
+    assert kept["research_depth"] == 3
+    if field == "quick_think_llm":
+        assert kept["deep_think_llm"] == SAVED["deep_think_llm"]
 
 
 @pytest.mark.unit
