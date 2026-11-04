@@ -82,6 +82,19 @@ _MINIMAX_THINKING = ModelCapabilities(
     requires_reasoning_split=True,
 )
 
+# Some Claude models served through OpenRouter's OpenAI-compatible API 400 a
+# forced tool_choice ("tool_choice: type \"tool\" and \"any\" are not supported
+# for this model"). They accept tool_choice "auto" / omitted and still call the
+# schema tool, so bind the schema without forcing it, as for DeepSeek thinking.
+# Probed on OpenRouter 2026-10-31: rejects sonnet-5.5, opus-5.5, fable-5.1;
+# accepts haiku-5.5, sonnet-5, opus-5, fable-5, sonnet-4.6, opus-4.8.
+_CLAUDE_NO_FORCED_TOOL = ModelCapabilities(
+    supports_tool_choice=False,
+    supports_json_mode=False,
+    supports_json_schema=False,
+    preferred_structured_method="function_calling",
+)
+
 _DEFAULT = ModelCapabilities(
     supports_tool_choice=True,
     supports_json_mode=True,
@@ -118,6 +131,14 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-flash"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
+    # OpenRouter Claude IDs that reject a forced tool_choice: Sonnet/Opus 5.5 and
+    # later, Fable 5.1 and later. Haiku is left out (Haiku 5.5 accepts forcing).
+    # "(?::|$)" requires the version to end the ID (an unprobed "-preview" ID
+    # keeps the default), while still allowing OpenRouter's ":batch" variants.
+    (re.compile(r"^anthropic/claude-(?:sonnet|opus)-(?:5\.(?:[5-9]|\d{2,})|[6-9]\d*(?:\.\d+)?)(?::|$)"),
+     _CLAUDE_NO_FORCED_TOOL),
+    (re.compile(r"^anthropic/claude-fable-(?:5\.(?:[1-9]|\d{2,})|[6-9]\d*(?:\.\d+)?)(?::|$)"),
+     _CLAUDE_NO_FORCED_TOOL),
 ]
 
 
