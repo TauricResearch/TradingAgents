@@ -87,6 +87,37 @@ MACRO_SERIES = {
     "germany_10y": "IRLTLT01DEM156N",
     "france_10y": "IRLTLT01FRM156N",
     "eur_usd": "DEXUSEU",
+    # UK, Japan, Canada and Australia (London .L, Tokyo .T, Toronto .TO, ASX
+    # .AX): OECD short-term interbank and 10-year government yields, OECD
+    # harmonised unemployment, IMF/Cabinet Office real GDP, and Fed H.10 spot FX.
+    # FRED's monthly OECD CPI mirrors for these markets stopped updating, so
+    # inflation uses the World Bank annual CPI series, which are still current.
+    # Those are stamped YYYY-01-01, so the default 1-year window can miss them;
+    # callers should pass a multi-year look_back_days (e.g. 1095).
+    "uk_interbank_rate": "IRSTCI01GBM156N",
+    "uk_10y": "IRLTLT01GBM156N",
+    "uk_inflation": "FPCPITOTLZGGBR",
+    "uk_unemployment": "LRHUTTTTGBM156S",
+    "uk_real_gdp": "NGDPRSAXDCGBQ",
+    "gbp_usd": "DEXUSUK",
+    "japan_call_rate": "IRSTCI01JPM156N",
+    "japan_10y": "IRLTLT01JPM156N",
+    "japan_inflation": "FPCPITOTLZGJPN",
+    "japan_unemployment": "LRHUTTTTJPM156S",
+    "japan_real_gdp": "JPNRGDPEXP",
+    "usd_jpy": "DEXJPUS",
+    "canada_interbank_rate": "IRSTCI01CAM156N",
+    "canada_10y": "IRLTLT01CAM156N",
+    "canada_inflation": "FPCPITOTLZGCAN",
+    "canada_unemployment": "LRHUTTTTCAM156S",
+    "canada_real_gdp": "NGDPRSAXDCCAQ",
+    "usd_cad": "DEXCAUS",
+    "australia_interbank_rate": "IRSTCI01AUM156N",
+    "australia_10y": "IRLTLT01AUM156N",
+    "australia_inflation": "FPCPITOTLZGAUS",
+    "australia_unemployment": "LRHUTTTTAUM156S",
+    "australia_real_gdp": "NGDPRSAXDCAUQ",
+    "aud_usd": "DEXUSAL",
 }
 
 

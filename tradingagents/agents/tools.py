@@ -237,7 +237,16 @@ def get_macro_indicators(
         "'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve', "
         "'real_gdp', 'vix', euro-area aliases such as 'ecb_deposit_rate', "
         "'euro_hicp', 'euro_core_hicp', 'euro_real_gdp', 'germany_10y', "
-        "'france_10y', 'eur_usd', or a raw FRED series ID such as 'CPIAUCSL'.",
+        "'france_10y', 'eur_usd', UK/Japan/Canada/Australia aliases such as "
+        "'uk_interbank_rate', 'uk_10y', 'uk_inflation', 'uk_unemployment', "
+        "'gbp_usd', 'japan_call_rate', 'japan_10y', 'japan_inflation', "
+        "'japan_unemployment', 'usd_jpy', 'canada_interbank_rate', "
+        "'canada_10y', 'canada_inflation', 'canada_unemployment', 'usd_cad', "
+        "'australia_interbank_rate', 'australia_10y', 'australia_inflation', "
+        "'australia_unemployment', 'aud_usd' (plus '<market>_real_gdp'), or a "
+        "raw FRED series ID such as 'CPIAUCSL'. The '<market>_inflation' "
+        "aliases are annual series: pass look_back_days=1095 to get a "
+        "multi-year comparison.",
     ],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format; the end of the window"],
     look_back_days: Annotated[
@@ -248,7 +257,8 @@ def get_macro_indicators(
     """
     Retrieve a macroeconomic indicator time series from FRED (Federal Reserve
     Economic Data): policy rates, Treasury yields, inflation, labor, and growth,
-    for the US and, through FRED's mirrored series, the euro area.
+    for the US and, through FRED's mirrored series, the euro area, the UK,
+    Japan, Canada, and Australia.
     Returns the series title, units, frequency, the latest value, the change
     over the window, and a recent observation table. Uses the configured
     macro_data vendor.

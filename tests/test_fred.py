@@ -77,6 +77,39 @@ class FredResolutionTests(unittest.TestCase):
         self.assertEqual(fred._resolve_series_id("ECB Deposit Rate"), "ECBDFR")
         self.assertEqual(fred._resolve_series_id("euro-hicp"), "CP0000EZ19M086NEST")
 
+    def test_uk_japan_canada_australia_aliases_map_to_series_ids(self):
+        # Context for London .L, Tokyo .T, Toronto .TO and ASX .AX tickers.
+        expected = {
+            "uk_interbank_rate": "IRSTCI01GBM156N",
+            "uk_10y": "IRLTLT01GBM156N",
+            "uk_inflation": "FPCPITOTLZGGBR",
+            "uk_unemployment": "LRHUTTTTGBM156S",
+            "uk_real_gdp": "NGDPRSAXDCGBQ",
+            "gbp_usd": "DEXUSUK",
+            "japan_call_rate": "IRSTCI01JPM156N",
+            "japan_10y": "IRLTLT01JPM156N",
+            "japan_inflation": "FPCPITOTLZGJPN",
+            "japan_unemployment": "LRHUTTTTJPM156S",
+            "japan_real_gdp": "JPNRGDPEXP",
+            "usd_jpy": "DEXJPUS",
+            "canada_interbank_rate": "IRSTCI01CAM156N",
+            "canada_10y": "IRLTLT01CAM156N",
+            "canada_inflation": "FPCPITOTLZGCAN",
+            "canada_unemployment": "LRHUTTTTCAM156S",
+            "canada_real_gdp": "NGDPRSAXDCCAQ",
+            "usd_cad": "DEXCAUS",
+            "australia_interbank_rate": "IRSTCI01AUM156N",
+            "australia_10y": "IRLTLT01AUM156N",
+            "australia_inflation": "FPCPITOTLZGAUS",
+            "australia_unemployment": "LRHUTTTTAUM156S",
+            "australia_real_gdp": "NGDPRSAXDCAUQ",
+            "aud_usd": "DEXUSAL",
+        }
+        for alias, series_id in expected.items():
+            with self.subTest(alias=alias):
+                self.assertEqual(fred._resolve_series_id(alias), series_id)
+        self.assertEqual(fred._resolve_series_id("Japan 10Y"), "IRLTLT01JPM156N")
+
     def test_unknown_alias_is_treated_as_raw_series_id(self):
         # Power users can pass any FRED series ID; we uppercase by convention.
         self.assertEqual(fred._resolve_series_id("dgs30"), "DGS30")
