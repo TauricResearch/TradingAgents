@@ -315,3 +315,119 @@ def test_history_keeps_recent_runs_only(monkeypatch):
     manager.start(RunOptions(ticker="NVDA", analysis_date="2026-09-23", analysts=["market"]))
     listed = manager.list()
     assert len(listed) <= 3
+
+
+# ------------------------------------------------------------------ archive --
+
+def _write_finished_report(root, folder, ticker, date, rating="Buy", html=True):
+    """A reports/<TICKER>_<stamp>/ tree, as save_reports writes one."""
+    directory = root / "reports" / folder
+    (directory / "1_analysts").mkdir(parents=True)
+    (directory / "5_portfolio").mkdir(parents=True)
+    (directory / "complete_report.md").write_text(
+        f"# Trading Analysis Report: {ticker}\n\n"
+        f"- Analysis date: {date}\n"
+        f"- Rating: {rating}\n\n"
+        "## I. Analyst Team Reports\n\n### Market Analyst\nA strong quarter.\n",
+        encoding="utf-8",
+    )
+    (directory / "1_analysts" / "market.md").write_text("## Market\nUptrend intact.", encoding="utf-8")
+    (directory / "5_portfolio" / "decision.md").write_text("**Rating**: Buy", encoding="utf-8")
+    if html:
+        (directory / "complete_report.html").write_text("<html>report</html>", encoding="utf-8")
+    return directory
+
+
+def _write_run_folder(root, ticker, date, sections=("market_report.md", "final_trade_decision.md")):
+    """A <TICKER>/<date>/reports/ folder, as a run writes one while it goes."""
+    directory = root / ticker / date / "reports"
+    directory.mkdir(parents=True)
+    for name in sections:
+        (directory / name).write_text("**Rating**: Hold\n\nKept as written.", encoding="utf-8")
+    return directory.parent
+
+
+@pytest.mark.unit
+class TestArchive:
+    def test_lists_a_finished_report_with_its_ticker_date_and_rating(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_20261104_124818", "AAPL", "2026-11-04", "Buy")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        reports = client.get("/api/archive").json()["reports"]
+
+        assert len(reports) == 1
+        entry = reports[0]
+        assert entry["id"] == "reports/AAPL_20261104_124818"
+        assert entry["ticker"] == "AAPL"
+        assert entry["analysis_date"] == "2026-11-04"
+        assert entry["rating"] == "Buy"
+        assert entry["source"] == "report"
+        assert entry["has_html"] is True
+        assert "Market Analyst" in entry["section_titles"]
+
+    def test_a_report_without_html_offers_no_html_link(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04", html=False)
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        assert client.get("/api/archive").json()["reports"][0]["has_html"] is False
+        assert client.get("/api/archive/reports/AAPL_1/report").status_code == 404
+        assert client.get("/api/archive/reports/AAPL_1/report.md").status_code == 200
+
+    def test_an_unknown_rating_is_not_reported_as_a_tier(self, tmp_path):
+        # A decision nobody could read is "REVIEW", which is not a position.
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04", rating="REVIEW")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        assert client.get("/api/archive").json()["reports"][0]["rating"] is None
+
+    def test_an_unfinished_run_is_listed_when_no_finished_report_covers_it(self, tmp_path):
+        _write_run_folder(tmp_path, "BTC-USD", "2026-11-04")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        reports = client.get("/api/archive").json()["reports"]
+
+        assert len(reports) == 1
+        assert reports[0]["id"] == "BTC-USD/2026-11-04"
+        assert reports[0]["source"] == "run"
+        assert reports[0]["rating"] == "Hold"
+        assert reports[0]["has_html"] is False
+        # Its sections live one level down, under the run's own reports folder.
+        sections = client.get("/api/archive/BTC-USD/2026-11-04/sections").json()["sections"]
+        assert [s["title"] for s in sections] == ["Market Analyst", "Portfolio Manager"]
+
+    def test_a_finished_report_hides_the_run_folder_it_covers(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04")
+        _write_run_folder(tmp_path, "AAPL", "2026-11-04")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        entries = client.get("/api/archive").json()["reports"]
+
+        assert [e["source"] for e in entries] == ["report"]
+
+    def test_sections_come_back_rendered_as_safe_html(self, tmp_path):
+        directory = _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04")
+        (directory / "1_analysts" / "market.md").write_text(
+            "## Market\n\n<script>alert(1)</script>\n\n**bold**", encoding="utf-8"
+        )
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        sections = client.get("/api/archive/reports/AAPL_1/sections").json()["sections"]
+
+        market = next(s for s in sections if s["title"] == "Market Analyst")
+        assert "<strong>bold</strong>" in market["html"]
+        assert "<script>" not in market["html"]
+
+    def test_no_report_is_served_from_outside_the_results_directory(self, tmp_path):
+        root = tmp_path / "results"
+        _write_finished_report(root, "AAPL_1", "AAPL", "2026-11-04")
+        (tmp_path / "secret.md").write_text("private", encoding="utf-8")
+        client = TestClient(create_app(RunManager(), results_dir=root))
+
+        for bad in ("../secret.md", "../../secret.md", "/etc/passwd", "reports/../../../secret.md"):
+            assert client.get(f"/api/archive/{bad}/sections").status_code == 404, bad
+            assert client.get(f"/api/archive/{bad}/report.md").status_code == 404, bad
+
+    def test_an_empty_results_directory_lists_nothing(self, tmp_path):
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path / "missing"))
+
+        assert client.get("/api/archive").json()["reports"] == []

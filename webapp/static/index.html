@@ -198,6 +198,26 @@
       </div>
     </div>
   </section>
+
+  <section class="panel archive-panel" aria-labelledby="archive-title">
+    <div class="run-head">
+      <h2 id="archive-title">Saved reports</h2>
+      <button id="refresh-archive" type="button" class="ghost" title="Rescan the results directory">Refresh</button>
+    </div>
+    <p class="hint">Every report already on disk, including ones from earlier sessions or the CLI. Pick one to read it here.</p>
+    <p id="archive-empty" class="empty" hidden>No saved reports yet.</p>
+    <ul id="archive-list" class="run-list"></ul>
+
+    <div id="archive-view" hidden>
+      <div class="archive-head">
+        <h3 id="archive-title-line"></h3>
+        <span id="archive-meta" class="mono subtle"></span>
+      </div>
+      <div id="archive-links" class="report-links"></div>
+      <div id="archive-content" class="report-body"></div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="foot">

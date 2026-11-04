@@ -232,6 +232,8 @@ Then open <http://127.0.0.1:8000/>. The page offers the same choices the CLI ask
 
 While a run progresses the page shows the agent table, the message and tool log, token and call counts, and each report section as it lands; the finished run links to the same `complete_report.html` and Markdown the CLI writes. Runs, reports and the memory log go to the usual places under `results_dir`, so a web run and a CLI run leave the same artifacts. Stopping a run lets the step in flight finish and then stops before the next one.
 
+Below the run panel, **Saved reports** lists every report already under `results_dir`, including ones written by earlier sessions or by the CLI, so restarting the server does not lose access to them. Pick one to read its agent sections in the page, or open its HTML page and Markdown. A report a run wrote and then left unfinished — cancelled, or failed partway — is listed too, marked as such, with the sections it had reached; once a completed report covers the same ticker and analysis date, that unfinished entry gives way to it rather than showing twice.
+
 Settings live in `TRADINGAGENTS_WEB_HOST`, `TRADINGAGENTS_WEB_PORT` and `TRADINGAGENTS_WEB_RELOAD`. The API starts paid model runs and serves files from this machine, so it binds to the loopback address and refuses to bind elsewhere unless `TRADINGAGENTS_WEB_ALLOW_REMOTE=1` is set; it also rejects requests whose `Host` header is not a local name.
 
 ### Markets and tickers
@@ -259,6 +261,16 @@ An interface will appear showing results as they load, letting you track the age
 </p>
 
 ## TradingAgents Package
+
+### Project layout
+
+| Path | What lives there |
+| --- | --- |
+| `tradingagents/` | The framework: the LangGraph pipeline (`graph/`), the agents (`agents/`), data vendors (`dataflows/`), LLM clients (`llm_clients/`) and the report writer (`reporting.py`, `report_html.py`). |
+| `cli/` | The terminal app: menus, live display, run loop and preference storage. |
+| `webapp/` | The local web console: the HTTP layer (`app.py`), the run thread (`service.py`), the report archive (`archive.py`), safe markdown rendering (`rendering.py`) and the page (`static/`). |
+| `tests/` | The pytest suite. |
+| `main.py` | A minimal programmatic entry point. |
 
 ### Implementation Details
 

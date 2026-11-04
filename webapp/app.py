@@ -31,6 +31,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS
+from webapp import archive
+from webapp.rendering import render_markdown
 from webapp.service import RunManager, RunOptions, RunRequestError, today
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -102,9 +104,15 @@ def _models(provider: str) -> dict:
     return out
 
 
-def create_app(manager: RunManager | None = None) -> FastAPI:
-    """Build the app; a test passes its own ``RunManager`` to observe runs."""
+def create_app(manager: RunManager | None = None, results_dir: Path | None = None) -> FastAPI:
+    """Build the app; a test passes its own ``RunManager`` to observe runs.
+
+    ``results_dir`` is where the archive looks for reports already on disk; it
+    defaults to the configured results directory, so the page reads the same
+    folder the CLI and the runs write to.
+    """
     runs = manager or RunManager()
+    archive_root = Path(results_dir) if results_dir else Path(DEFAULT_CONFIG["results_dir"])
 
     app = FastAPI(title="TradingAgents Web", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.runs = runs
@@ -252,6 +260,48 @@ def create_app(manager: RunManager | None = None) -> FastAPI:
         path = Path(run.report_markdown)
         if not path.is_file():
             raise HTTPException(status_code=404, detail="the report file is gone")
+        return FileResponse(path, media_type="text/markdown")
+
+    @app.get("/api/archive")
+    def list_archive() -> dict:
+        """The reports already on disk, so they outlive a server restart."""
+        return {"reports": [entry.summary() for entry in archive.list_reports(archive_root)]}
+
+    @app.get("/api/archive/{entry_id:path}/sections")
+    def archive_sections(entry_id: str) -> dict:
+        """One archived report's agent sections, rendered to safe HTML like a live run's."""
+        try:
+            sections = archive.read_sections(archive_root, entry_id)
+        except archive.ArchivePathError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        return {
+            "id": entry_id,
+            "sections": [
+                {
+                    "title": section["title"],
+                    "markdown": section["markdown"],
+                    "html": render_markdown(section["markdown"]),
+                }
+                for section in sections
+            ],
+        }
+
+    @app.get("/api/archive/{entry_id:path}/report")
+    def archive_report_page(entry_id: str):
+        """The archived one-page HTML report."""
+        try:
+            path = archive.report_file(archive_root, entry_id, html=True)
+        except archive.ArchivePathError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        return FileResponse(path, media_type="text/html")
+
+    @app.get("/api/archive/{entry_id:path}/report.md")
+    def archive_report_markdown(entry_id: str):
+        """The archived consolidated markdown report."""
+        try:
+            path = archive.report_file(archive_root, entry_id, html=False)
+        except archive.ArchivePathError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
         return FileResponse(path, media_type="text/markdown")
 
     @app.get("/")

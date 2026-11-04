@@ -325,3 +325,19 @@ button.ghost:hover:not(:disabled) { color: var(--ink); }
   color: var(--muted);
   font-size: 0.76rem;
 }
+
+/* Archive: the reports already on disk, below the two working panels. It spans
+   both columns, since a report is long-form text and reads badly in a narrow one. */
+.archive-panel { grid-column: 1 / -1; }
+@media (max-width: 62rem) { .archive-panel { grid-column: auto; } }
+
+.archive-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+  margin: 1rem 0 0.4rem; padding-top: 0.9rem; border-top: 1px solid var(--rule);
+}
+.archive-head h3 { margin: 0; font-size: 1rem; }
+
+.run-list li.is-active { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.run-list-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.run-list-date { color: var(--muted); font-size: 0.76rem; }

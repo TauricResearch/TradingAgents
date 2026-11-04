@@ -50,6 +50,15 @@ const els = {
   reportLinks: document.getElementById("report-links"),
   reportContent: document.getElementById("report-content"),
   runList: document.getElementById("run-list"),
+
+  archiveList: document.getElementById("archive-list"),
+  archiveEmpty: document.getElementById("archive-empty"),
+  archiveView: document.getElementById("archive-view"),
+  archiveTitleLine: document.getElementById("archive-title-line"),
+  archiveMeta: document.getElementById("archive-meta"),
+  archiveLinks: document.getElementById("archive-links"),
+  archiveContent: document.getElementById("archive-content"),
+  refreshArchive: document.getElementById("refresh-archive"),
 };
 
 const state = {
@@ -60,6 +69,7 @@ const state = {
   analystsByAsset: new Map(),
   lastMessageKey: "",
   lastAgentKey: "",
+  archiveId: null,
 };
 
 const AGENT_TEAMS = [
@@ -411,6 +421,8 @@ async function poll() {
       stopPolling();
       els.cancel.hidden = true;
       await refreshHistory();
+      // A finished run writes its report to disk, so the archive gained an entry.
+      refreshArchive();
     }
   } catch (error) {
     stopPolling();
@@ -592,6 +604,117 @@ async function refreshHistory() {
   }
 }
 
+/* --------------------------------------------------------------- archive -- */
+
+function archiveLabel(report) {
+  const parts = [report.ticker];
+  if (report.analysis_date) parts.push(report.analysis_date);
+  return parts.join(" · ");
+}
+
+async function openArchiveReport(report) {
+  state.archiveId = report.id;
+  for (const li of els.archiveList.querySelectorAll("li")) {
+    li.classList.toggle("is-active", li.dataset.id === report.id);
+  }
+  els.archiveView.hidden = false;
+  els.archiveTitleLine.textContent = archiveLabel(report);
+  els.archiveMeta.textContent = [
+    report.rating ? `rating ${report.rating}` : null,
+    report.source === "run" ? "unfinished run, kept as written" : null,
+  ].filter(Boolean).join(" · ");
+
+  // Only a finished report has a consolidated page and markdown file on disk.
+  const links = [];
+  if (report.has_html) {
+    links.push(`<a href="/api/archive/${report.id}/report" target="_blank" rel="noopener">Open HTML report</a>`);
+  }
+  if (report.source === "report") {
+    links.push(`<a href="/api/archive/${report.id}/report.md" target="_blank" rel="noopener">Markdown</a>`);
+  }
+  els.archiveLinks.innerHTML = links.join("");
+
+  const placeholder = document.createElement("p");
+  placeholder.className = "empty";
+  placeholder.textContent = "Loading…";
+  els.archiveContent.replaceChildren(placeholder);
+
+  try {
+    const data = await api(`/api/archive/${encodeURI(report.id)}/sections`);
+    if (state.archiveId !== report.id) return;  // a slower load must not overwrite a newer pick
+    const blocks = data.sections.map((section) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "report-section";
+      const title = document.createElement("h3");
+      title.textContent = section.title;
+      const body = document.createElement("div");
+      body.className = "markdown";
+      // The server escaped raw HTML and turned images off, so this is safe
+      // to insert, exactly like a live run's sections.
+      body.innerHTML = section.html;
+      wrapper.append(title, body);
+      return wrapper;
+    });
+    if (!blocks.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty";
+      empty.textContent = "This report has no readable sections.";
+      els.archiveContent.replaceChildren(empty);
+    } else {
+      els.archiveContent.replaceChildren(...blocks);
+    }
+  } catch (error) {
+    const failed = document.createElement("div");
+    failed.className = "alert alert-error";
+    failed.textContent = `This report could not be read: ${error.message}`;
+    els.archiveContent.replaceChildren(failed);
+  }
+}
+
+async function refreshArchive() {
+  try {
+    const data = await api("/api/archive");
+    els.archiveList.replaceChildren();
+    els.archiveEmpty.hidden = data.reports.length > 0;
+    if (!data.reports.length) {
+      els.archiveView.hidden = true;
+      return;
+    }
+    els.archiveList.replaceChildren(...data.reports.map((report) => {
+      const li = document.createElement("li");
+      li.tabIndex = 0;
+      li.dataset.id = report.id;
+
+      const left = document.createElement("span");
+      left.className = "run-list-title";
+      left.textContent = archiveLabel(report);
+
+      const right = document.createElement("span");
+      right.className = "run-list-meta";
+      if (report.rating) {
+        const rating = document.createElement("span");
+        rating.className = "pill pill-idle";
+        rating.textContent = report.rating;
+        right.append(rating);
+      }
+      const count = document.createElement("span");
+      count.className = "run-list-date";
+      count.textContent = `${report.section_titles.length} section${report.section_titles.length === 1 ? "" : "s"}`;
+      right.append(count);
+
+      li.append(left, right);
+      const open = () => { openArchiveReport(report); };
+      li.addEventListener("click", open);
+      li.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
+      });
+      return li;
+    }));
+  } catch (error) {
+    /* the archive is a convenience: its failure must not disturb the run view */
+  }
+}
+
 /* --------------------------------------------------------------- wiring -- */
 
 els.form.addEventListener("submit", startRun);
@@ -612,6 +735,7 @@ els.deepModel.addEventListener("change", () => syncCustomVisibility(els.deepMode
 els.saveReport.addEventListener("change", () => {
   els.saveHtml.disabled = !els.saveReport.checked;
 });
+els.refreshArchive.addEventListener("click", refreshArchive);
 
 for (const tab of document.querySelectorAll(".tab")) {
   tab.addEventListener("click", () => {
@@ -629,3 +753,4 @@ for (const tab of document.querySelectorAll(".tab")) {
 loadOptions();
 scheduleDetect();
 refreshHistory();
+refreshArchive();
