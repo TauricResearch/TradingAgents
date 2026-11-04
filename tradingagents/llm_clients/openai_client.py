@@ -1,6 +1,8 @@
+import asyncio
 import logging
 import os
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -8,6 +10,7 @@ from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
+from openai import APIConnectionError
 
 from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
@@ -200,6 +203,51 @@ class ChatGPTPlanChatOpenAI(NormalizedChatOpenAI):
             if isinstance(item, dict) and item.get("role") == "system":
                 item["role"] = "developer"
         return payload
+
+    def _stream_retry_delay(self, error: APIConnectionError, retries: int) -> float | None:
+        # SDK retries cover request establishment, not a body that breaks after
+        # streaming starts. Recognize this transport failure through the wrapped
+        # exception chain; do not multiply SDK retries for ordinary connect errors.
+        budget = self.max_retries if self.max_retries is not None else 2
+        cause: BaseException | None = error
+        seen = set()
+        while cause is not None and id(cause) not in seen:
+            seen.add(id(cause))
+            if "incomplete chunked read" in str(cause).lower():
+                if retries >= budget:
+                    return None
+                delay = min(2 ** retries, 8)
+                logger.warning(
+                    "ChatGPT response stream disconnected; retrying the complete request "
+                    "in %ss (%d/%d).", delay, retries + 1, budget,
+                )
+                return delay
+            cause = cause.__cause__ or cause.__context__
+        return None
+
+    def invoke(self, input, config=None, **kwargs):
+        retries = 0
+        while True:
+            try:
+                return super().invoke(input, config, **kwargs)
+            except APIConnectionError as error:
+                delay = self._stream_retry_delay(error, retries)
+                if delay is None:
+                    raise
+                retries += 1
+                time.sleep(delay)
+
+    async def ainvoke(self, input, config=None, **kwargs):
+        retries = 0
+        while True:
+            try:
+                return normalize_content(await super().ainvoke(input, config, **kwargs))
+            except APIConnectionError as error:
+                delay = self._stream_retry_delay(error, retries)
+                if delay is None:
+                    raise
+                retries += 1
+                await asyncio.sleep(delay)
 
 
 def _chatgpt_credential() -> Callable[[], str]:
