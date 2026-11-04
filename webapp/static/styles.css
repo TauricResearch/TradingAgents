@@ -326,9 +326,12 @@ button.ghost:hover:not(:disabled) { color: var(--ink); }
   font-size: 0.76rem;
 }
 
-/* Archive: the reports already on disk, below the two working panels. It spans
-   both columns, since a report is long-form text and reads badly in a narrow one. */
-.archive-panel { grid-column: 1 / -1; }
+/* Archive: the reports already on disk, below the run panel. It stays in the
+   reading column, like the run panel: spanning the first column too would put
+   its left edge under the sticky form panel, which is taller than the viewport
+   and opaque, hiding the first words of every line. Side by side is also how
+   the run's own report is read. */
+.archive-panel { grid-column: 2; }
 @media (max-width: 62rem) { .archive-panel { grid-column: auto; } }
 
 .archive-head {

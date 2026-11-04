@@ -8,6 +8,7 @@ config assembly, the live buffer, the snapshot the page polls, the report links
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -431,3 +432,21 @@ class TestArchive:
         client = TestClient(create_app(RunManager(), results_dir=tmp_path / "missing"))
 
         assert client.get("/api/archive").json()["reports"] == []
+
+
+@pytest.mark.unit
+def test_the_archive_does_not_sit_under_the_sticky_form_panel():
+    """The archive is long-form reading, and the form panel beside it is sticky
+    and taller than a laptop viewport, so it stays pinned while the page scrolls.
+
+    A panel spanning the form's column would scroll underneath that pinned,
+    opaque panel, which hid the first words of every line — reported as the
+    report text being cut off on the left. The archive must keep to the reading
+    column the run panel uses, and only drop out of the grid when the layout
+    collapses to a single column.
+    """
+    css = (Path(__file__).parent.parent / "webapp" / "static" / "styles.css").read_text(encoding="utf-8")
+
+    assert ".form-panel { position: sticky;" in css
+    assert ".archive-panel { grid-column: 2; }" in css
+    assert "grid-column: 1 / -1" not in css
