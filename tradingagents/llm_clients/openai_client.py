@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -35,7 +36,15 @@ class NormalizedChatOpenAI(ChatOpenAI):
     reasoning_content roundtrip) live in subclasses so this base class
     stays small.
     """
-
+    def __init__(self, **kwargs):
+        # OpenCode Go requirement: must provide an x-opencode-session header
+        headers = kwargs.get("default_headers") or {}
+        if not isinstance(headers, dict):
+            headers = dict(headers)
+        headers.setdefault("x-opencode-session", f"ses_{uuid.uuid4().hex[:12]}")
+        kwargs["default_headers"] = headers
+        super().__init__(**kwargs)
+        
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
 
