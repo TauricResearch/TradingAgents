@@ -141,3 +141,20 @@ class PolymarketRoutingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.parametrize("field", ["outcomes", "outcomePrices"])
+@pytest.mark.parametrize("value", ['{"0": "0.5"}', '"0.5"', "1", "true"])
+def test_non_array_market_values_are_skipped(field, value):
+    invalid = _market("Invalid shape?", 0.5, volume=100, end_date="2030-12-31T00:00:00Z")
+    invalid[field] = value
+    valid = _market("Valid neighbor?", 0.3, volume=10, end_date="2030-12-31T00:00:00Z")
+    with mock.patch.object(polymarket, "_request", return_value={"events": [{"markets": [invalid, valid]}]}):
+        report = polymarket.get_prediction_markets("topic")
+    assert "Invalid shape?" not in report
+    assert "Valid neighbor?" in report
+
+
+@pytest.mark.parametrize("value", ['["Yes", "No"]', ["Yes", "No"]])
+def test_market_values_accept_serialized_and_native_arrays(value):
+    assert polymarket._parse_json_list(value) == ["Yes", "No"]
