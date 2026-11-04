@@ -154,17 +154,22 @@ def test_cli_style_usage_saves_then_resumes():
 
 
 @pytest.mark.unit
-def test_clearing_removes_the_database_sidecars(tmp_path):
-    """SQLite writes -wal and -shm next to the database; leaving them behind
-    means a cleared checkpoint still has committed state on disk."""
+def test_clearing_removes_only_the_database_and_its_sidecars(tmp_path):
+    """Remove SQLite sidecars while preserving similarly named user files."""
     from tradingagents.graph.checkpointer import clear_all_checkpoints
 
     cp = tmp_path / "checkpoints"
     cp.mkdir(parents=True)
-    for suffix in (".db", ".db-wal", ".db-shm"):
+    for suffix in (".db", ".db-wal", ".db-shm", ".db-journal"):
         (cp / f"NVDA{suffix}").write_text("x")
+    backup = cp / "NVDA.db-backup"
+    backup.write_text("saved checkpoint copy")
+    note = cp / "NVDA.db-wal.notes"
+    note.write_text("user notes")
 
     cleared = clear_all_checkpoints(str(tmp_path))
 
     assert cleared == 1
-    assert list(cp.iterdir()) == []
+    assert set(cp.iterdir()) == {backup, note}
+    assert backup.read_text() == "saved checkpoint copy"
+    assert note.read_text() == "user notes"
