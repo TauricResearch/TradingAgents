@@ -217,6 +217,21 @@ At start-up the interactive CLI mentions a newer release and notices from Tauric
 
 A saved report also includes `complete_report.html`, the report as one page with its sections listed beside the text, for reading in a browser, on a phone or in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` skips it, and so does `ta.save_reports(state, "NVDA", html=False)` from Python.
 
+### Web console
+
+The same analysis is also available as a local web page, for when a browser is more convenient than a terminal. It is an extra layer over the CLI: it imports the CLI's own checks, live state and report writer, and changes none of them.
+
+```bash
+pip install ".[web]"        # FastAPI and Uvicorn, the only extra dependencies
+python -m webapp            # or: tradingagents-web
+```
+
+Then open <http://127.0.0.1:8000/>. The page offers the same choices the CLI asks for — ticker, analysis date, analysts, research depth, output language, LLM provider and the quick/deep thinking models — plus the advanced knobs (provider thinking level, checkpoint resume, report saving, and an optional portfolio JSON). The asset type and the analysts on offer follow the ticker as you type, exactly as the CLI detects them.
+
+While a run progresses the page shows the agent table, the message and tool log, token and call counts, and each report section as it lands; the finished run links to the same `complete_report.html` and Markdown the CLI writes. Runs, reports and the memory log go to the usual places under `results_dir`, so a web run and a CLI run leave the same artifacts. Stopping a run lets the step in flight finish and then stops before the next one.
+
+Settings live in `TRADINGAGENTS_WEB_HOST`, `TRADINGAGENTS_WEB_PORT` and `TRADINGAGENTS_WEB_RELOAD`. The API starts paid model runs and serves files from this machine, so it binds to the loopback address and refuses to bind elsewhere unless `TRADINGAGENTS_WEB_ALLOW_REMOTE=1` is set; it also rejects requests whose `Host` header is not a local name.
+
 ### Markets and tickers
 
 TradingAgents works with any market Yahoo Finance covers, using the exchange-suffixed ticker. Company identity and the alpha benchmark resolve automatically per market.

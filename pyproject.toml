@@ -41,18 +41,26 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+# The local web console. The terminal CLI needs none of this; the web layer
+# only adds the HTTP server: pip install "tradingagents[web]".
+web = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-web = "webapp.__main__:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "webapp*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+webapp = ["static/*"]
 tradingagents = ["assets/*.svg"]
 
 [tool.pytest.ini_options]
