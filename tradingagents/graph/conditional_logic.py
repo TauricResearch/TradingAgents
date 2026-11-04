@@ -6,6 +6,13 @@ class ConditionalLogic:
 
     def __init__(self, max_debate_rounds=1, max_risk_discuss_rounds=1):
         """Initialize with configuration parameters."""
+        # The first speaker of each debate always argues, so with 0 rounds one side
+        # speaks once and the others never do: a one-sided debate, not no debate.
+        if max_debate_rounds < 1 or max_risk_discuss_rounds < 1:
+            raise ValueError(
+                "max_debate_rounds and max_risk_discuss_rounds must be at least 1, got "
+                f"{max_debate_rounds} and {max_risk_discuss_rounds}"
+            )
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
 

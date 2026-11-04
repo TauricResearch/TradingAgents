@@ -153,7 +153,7 @@ def run_backtest(
     """Analyze every ticker on every date, into a memory log of this run's own.
 
     The live log stays untouched: a sweep would otherwise flood the context that
-    real runs read back. Cells already in this run's log are skipped, so an
+    real runs read back. Cells already in this run's log, REVIEW aside, are skipped, so an
     interrupted sweep resumes by being run again. ``progress(done, total,
     ticker, date)`` is called before each cell that runs.
     """
@@ -171,7 +171,8 @@ def run_backtest(
 
     graph = TradingAgentsGraph(selected_analysts, config=run_config)
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
-    done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}
+    # A REVIEW cell made no call, so a resumed sweep tries it again.
+    done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries() if e["rating"] != RATING_REVIEW}
 
     # A ticker or date given twice is one cell, run and settled once.
     tickers, dates = list(dict.fromkeys(tickers)), list(dict.fromkeys(dates))

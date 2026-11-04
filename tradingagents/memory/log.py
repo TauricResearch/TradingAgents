@@ -4,7 +4,7 @@ import contextlib
 import re
 from pathlib import Path
 
-from tradingagents.agents.rating import parse_rating
+from tradingagents.agents.rating import RATING_REVIEW, parse_rating
 from tradingagents.dataflows.files import locked
 
 
@@ -44,20 +44,28 @@ class TradingMemoryLog:
         if not self._log_path:
             return
         with locked(self._log_path):
-            # Idempotency guard: fast raw-text scan instead of full parse. Any entry
-            # for this ticker and date blocks another, pending or settled: a re-run
-            # after the outcome landed would otherwise count the same decision twice
-            # in past context and in every aggregate over the log.
-            if self._log_path.exists():
-                raw = self._log_path.read_text(encoding="utf-8")
-                for line in raw.splitlines():
-                    if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("]"):
-                        return
             rating = rating or parse_rating(final_trade_decision)
-            tag = f"[{trade_date} | {ticker} | {rating} | pending]"
-            entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
+            entry = f"[{trade_date} | {ticker} | {rating} | pending]\n\nDECISION:\n{final_trade_decision}"
+            # Idempotency guard: any entry for this ticker and date blocks another,
+            # pending or settled: a re-run after the outcome landed would otherwise
+            # count the same decision twice in past context and in every aggregate
+            # over the log. A REVIEW entry made no call to count and asks for a
+            # re-run, so a re-run that makes one takes its place, pending again.
+            if self._log_path.exists():
+                blocks = self._log_path.read_text(encoding="utf-8").split(self._SEPARATOR)
+                prefix = f"[{trade_date} | {ticker} |"
+                for i, block in enumerate(blocks):
+                    tag_line = block.strip().split("\n", 1)[0]
+                    if not (tag_line.startswith(prefix) and tag_line.endswith("]")):
+                        continue
+                    if tag_line.startswith(f"{prefix} {RATING_REVIEW} |") and rating != RATING_REVIEW:
+                        blocks[i] = entry
+                        tmp_path = self._log_path.with_suffix(".tmp")
+                        tmp_path.write_text(self._SEPARATOR.join(blocks), encoding="utf-8")
+                        tmp_path.replace(self._log_path)
+                    return
             with open(self._log_path, "a", encoding="utf-8") as f:
-                f.write(entry)
+                f.write(entry + self._SEPARATOR)
 
     def settling(self, wait: bool = True):
         """Hold the log for one settlement pass at a time, across threads and processes.

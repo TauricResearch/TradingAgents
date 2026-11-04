@@ -152,6 +152,24 @@ class TestTradingMemoryLogCore:
         assert len(entries) == 1
         assert entries[0]["pending"] is False  # the settled record is kept, not replaced
 
+    def test_a_rerun_with_a_rating_replaces_a_review_entry(self, tmp_path):
+        """REVIEW asks for a re-run, so the re-run's rating takes the entry's place,
+        pending again, rather than being dropped behind it. Once rated, a later
+        re-run is blocked as before."""
+        log = make_log(tmp_path)
+        log.store_decision("AAPL", "2026-01-11", DECISION_OVERWEIGHT)
+        log.store_decision("MSFT", "2026-01-12", DECISION_NO_RATING)
+        log.store_decision("NVDA", "2026-01-13", DECISION_BUY)
+        log.update_with_outcome("MSFT", "2026-01-12", 0.01, 0.0, 5, "unclear", "2026-01-20")
+
+        log.store_decision("MSFT", "2026-01-12", DECISION_BUY)
+        log.store_decision("MSFT", "2026-01-12", DECISION_SELL)
+
+        entries = log.load_entries()
+        assert [(e["ticker"], e["rating"], e["pending"]) for e in entries] == [
+            ("AAPL", "Overweight", True), ("MSFT", "Buy", True), ("NVDA", "Buy", True)]
+        assert entries[1]["reflection"] == ""
+
     def test_batch_update_resolves_multiple_entries(self, tmp_path):
         """batch_update_with_outcomes resolves multiple pending entries in one write."""
         log = make_log(tmp_path)

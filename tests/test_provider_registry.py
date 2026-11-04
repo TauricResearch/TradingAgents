@@ -10,6 +10,7 @@ from tradingagents.llm_clients.openai_client import (
     LocalCompatibleChatOpenAI,
     MinimaxChatOpenAI,
     NormalizedChatOpenAI,
+    OpenRouterChatOpenAI,
     is_openai_compatible,
 )
 
@@ -35,7 +36,7 @@ def test_registry_membership():
     ("glm-cn", "https://open.bigmodel.cn/api/paas/v4/", NormalizedChatOpenAI, False),
     ("minimax", "https://api.minimax.io/v1", MinimaxChatOpenAI, False),
     ("minimax-cn", "https://api.minimaxi.com/v1", MinimaxChatOpenAI, False),
-    ("openrouter", "https://openrouter.ai/api/v1", NormalizedChatOpenAI, False),
+    ("openrouter", "https://openrouter.ai/api/v1", OpenRouterChatOpenAI, False),
     ("mistral", "https://api.mistral.ai/v1", NormalizedChatOpenAI, False),
     ("kimi", "https://api.moonshot.ai/v1", NormalizedChatOpenAI, False),
     ("groq", "https://api.groq.com/openai/v1", NormalizedChatOpenAI, False),
@@ -47,6 +48,34 @@ def test_registry_spec(provider, base_url, chat_class, responses):
     assert spec.base_url == base_url
     assert spec.chat_class is chat_class
     assert spec.use_responses_api is responses
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("model,tool_choice", [
+    # DeepSeek's own API refuses the named form, and left out the model answers in prose.
+    ("deepseek/deepseek-v4.1-flash", "required"),
+    # A model with no such quirk keeps langchain's named form.
+    ("openai/gpt-5.4-mini", "named"),
+])
+def test_openrouter_structured_tool_choice(monkeypatch, model, tool_choice):
+    from langchain_openai import ChatOpenAI
+    from pydantic import BaseModel
+
+    from tradingagents.llm_clients import create_llm_client
+
+    class Schema(BaseModel):
+        x: int
+
+    captured = {}
+    monkeypatch.setattr(
+        ChatOpenAI, "with_structured_output",
+        lambda self, schema, method=None, **kw: captured.update(kw) or "BOUND",
+    )
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+
+    create_llm_client(provider="openrouter", model=model).get_llm().with_structured_output(Schema)
+
+    assert captured.get("tool_choice", "named") == tool_choice
 
 
 @pytest.mark.unit
