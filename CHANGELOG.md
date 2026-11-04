@@ -10,6 +10,26 @@ Changes that need action when upgrading are listed under "Upgrading from" in the
 
 ### Added
 
+- The web console runs backtests: a **Backtest** tab drives the CLI's `backtest`
+  command over a grid of tickers and dates, shows each cell as it runs and the
+  per-rating score once settled. One sweep at a time, into its own memory log
+  under `results_dir/backtest/`, so the live log real runs read back stays clean.
+- The web console shows the decision log: a **Decision log** tab lists every
+  recorded decision with its outcome and reflection, and **Settle pending**
+  runs the same settlement pass a run performs at its start, so decisions whose
+  holding window has traded get their outcome without waiting for the next run.
+- The web console keeps several analyses side by side: the History tab lists
+  every run this process has started, and picking one shows it while the others
+  keep going, instead of one run replacing the next.
+- The web console's report panel draws the ticker's daily closes around the
+  analysis date as a small chart, fetched through the same point-in-time vendor
+  path the agents use, so a historical run never sees a later bar.
+- The web console's archive gains **Re-run**, which pre-fills the form from the
+  open report's header (ticker, date, analysts, depth, models), and
+  **Compare**, which reads two reports of the same ticker side by side, agent
+  by agent.
+- The web console remembers the form's answers in the browser, so a reload
+  keeps the provider, models, depth and language that were chosen.
 - The web console's report panel renders the agents' markdown as formatted text
   — headings, tables, lists, quotes and code — instead of showing it raw. The
   rendering reuses the safe `markdown-it` configuration of the saved HTML report
