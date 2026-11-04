@@ -7,6 +7,7 @@ config assembly, the live buffer, the snapshot the page polls, the report links
 
 from __future__ import annotations
 
+import threading
 import time
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, HumanMessage
 
+from tradingagents.memory import TradingMemoryLog
 from webapp import service
 from webapp.app import create_app
 from webapp.service import RunManager, RunOptions, RunRequestError
@@ -527,3 +529,337 @@ class TestArchiveDelete:
         client = TestClient(create_app(RunManager(), results_dir=tmp_path))
 
         assert client.delete("/api/archive/reports/NOPE_1", params={"confirm": "true"}).status_code == 404
+
+
+# ----------------------------------------------------------------- backtest --
+
+
+class _FakeBacktestGraph:
+    """A graph whose propagate records the cell and whose settle settles nothing."""
+
+    last_instance: _FakeBacktestGraph | None = None
+
+    def __init__(self, selected_analysts, config=None):
+        self.selected_analysts = list(selected_analysts)
+        self.config = config
+        self.memory_log = TradingMemoryLog(config)
+        self.propagated: list[tuple[str, str]] = []
+        _FakeBacktestGraph.last_instance = self
+
+    def propagate(self, ticker, date, asset_type="stock", portfolio=None):
+        self.propagated.append((ticker, date))
+
+    def settle_pending(self, ticker):
+        from tradingagents.memory.settlement import Settlement
+
+        return Settlement()
+
+
+@pytest.mark.unit
+class TestBacktestApi:
+    def test_a_sweep_runs_its_grid_and_reports_the_summary(self, monkeypatch, tmp_path):
+        import tradingagents.backtest as backtest_module
+        import webapp.backtest_service as backtest_service
+
+        monkeypatch.setattr(backtest_module, "TradingAgentsGraph", _FakeBacktestGraph)
+        monkeypatch.setattr(backtest_service, "summarize",
+                            lambda result: _SummaryStub())
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        response = client.post("/api/backtests", json={
+            "tickers": ["NVDA"], "start_date": "2026-09-01", "end_date": "2026-09-08",
+            "every_n_days": 7,
+        })
+        assert response.status_code == 202
+        sweep = response.json()
+        assert sweep["cells_total"] == 2
+
+        deadline = time.time() + 5
+        while sweep["status"] == "running" and time.time() < deadline:
+            time.sleep(0.02)
+            sweep = client.get(f"/api/backtests/{sweep['id']}").json()
+        assert sweep["status"] == "completed", sweep["error"]
+        assert sweep["cells_run"] == 2
+        assert sweep["summary"]["resolved"] == 1
+        graph = _FakeBacktestGraph.last_instance
+        assert graph.propagated == [("NVDA", "2026-09-01"), ("NVDA", "2026-09-08")]
+        # The sweep's own log sits under the results directory's backtest folder.
+        assert sweep["log_path"] and "/backtest/" in sweep["log_path"]
+        assert sweep["log_path"].endswith("trading_memory.md")
+
+    def test_a_second_sweep_while_one_runs_is_refused(self, monkeypatch, tmp_path):
+        import tradingagents.backtest as backtest_module
+        import webapp.backtest_service as backtest_service
+
+        gate = threading.Event()
+
+        class GatedGraph(_FakeBacktestGraph):
+            def propagate(self, ticker, date, asset_type="stock", portfolio=None):
+                gate.wait(timeout=5)
+
+        monkeypatch.setattr(backtest_module, "TradingAgentsGraph", GatedGraph)
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        first = client.post("/api/backtests", json={
+            "tickers": ["NVDA"], "start_date": "2026-09-01", "end_date": "2026-09-01",
+        })
+        assert first.status_code == 202
+        second = client.post("/api/backtests", json={
+            "tickers": ["AAPL"], "start_date": "2026-09-01", "end_date": "2026-09-01",
+        })
+        assert second.status_code == 422
+        assert "already running" in second.json()["detail"]
+        gate.set()
+
+    def test_a_bad_grid_is_422_with_the_reason(self, tmp_path):
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        response = client.post("/api/backtests", json={
+            "tickers": ["NVDA"], "start_date": "2026-09-08", "end_date": "2026-09-01",
+        })
+        assert response.status_code == 422
+        assert "before" in response.json()["detail"]
+
+        empty = client.post("/api/backtests", json={
+            "tickers": [], "start_date": "2026-09-01", "end_date": "2026-09-01",
+        })
+        assert empty.status_code == 422
+
+    def test_an_unknown_sweep_is_404(self, tmp_path):
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        assert client.get("/api/backtests/nope").status_code == 404
+        assert client.post("/api/backtests/nope/cancel").status_code == 404
+
+    def test_cancelling_a_finished_sweep_is_refused(self, monkeypatch, tmp_path):
+        import tradingagents.backtest as backtest_module
+
+        monkeypatch.setattr(backtest_module, "TradingAgentsGraph", _FakeBacktestGraph)
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        sweep = client.post("/api/backtests", json={
+            "tickers": ["NVDA"], "start_date": "2026-09-01", "end_date": "2026-09-01",
+        }).json()
+        deadline = time.time() + 5
+        while sweep["status"] == "running" and time.time() < deadline:
+            time.sleep(0.02)
+            sweep = client.get(f"/api/backtests/{sweep['id']}").json()
+        assert client.post(f"/api/backtests/{sweep['id']}/cancel").status_code == 409
+
+
+class _SummaryStub:
+    """What summarize returns, shaped like BacktestSummary's fields."""
+
+    resolved = 1
+    pending = 1
+    unscored = 0
+    holding = "5 trading days"
+
+    by_rating = {"Buy": type("S", (), {"count": 1, "hit_rate": 1.0, "mean_alpha": 0.02})()}
+
+
+# ------------------------------------------------------------ decision log --
+
+
+@pytest.mark.unit
+class TestMemoryApi:
+    def test_the_log_lists_its_entries_with_their_outcomes(self, monkeypatch, tmp_path):
+        from webapp import memory_view
+
+        log_path = tmp_path / "memory.md"
+        log = TradingMemoryLog({"memory_log_path": str(log_path)})
+        log.store_decision("NVDA", "2026-09-01", "- **Rating**: Buy\n\nAdd on weakness.", rating="Buy")
+        log.update_with_outcome("NVDA", "2026-09-01", 0.03, 0.01, 5, "The call worked.", "2026-09-08")
+
+        monkeypatch.setattr(memory_view, "_log", lambda: log)
+        monkeypatch.setattr(memory_view, "log_path", lambda: str(log_path))
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        data = client.get("/api/memory").json()
+        assert data["path"] == str(log_path)
+        assert len(data["entries"]) == 1
+        entry = data["entries"][0]
+        assert entry["ticker"] == "NVDA"
+        assert entry["rating"] == "Buy"
+        assert entry["pending"] is False
+        assert entry["alpha"] == "+1.0%"
+        assert "Add on weakness" in entry["decision"]
+        assert "worked" in entry["reflection"]
+
+    def test_an_empty_log_lists_nothing(self, tmp_path):
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        data = client.get("/api/memory").json()
+        assert data["entries"] == []
+
+    def test_settlement_runs_off_the_request_and_reports_its_result(self, monkeypatch, tmp_path):
+        from webapp import memory_view
+
+        log = TradingMemoryLog({"memory_log_path": str(tmp_path / "memory.md")})
+        monkeypatch.setattr(memory_view, "_log", lambda: log)
+
+        class _Result:
+            settled = [("NVDA", "2026-09-01")]
+            failed = [("AAPL", "prices unavailable")]
+
+        monkeypatch.setattr(memory_view, "settle_all_pending", lambda *a, **k: _Result())
+        monkeypatch.setattr(memory_view, "create_tier_client",
+                            lambda *a, **k: type("C", (), {"get_llm": lambda self: "llm"})())
+        monkeypatch.setattr(memory_view, "Reflector", lambda *a: None)
+
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        assert client.post("/api/memory/settle").status_code == 202
+        deadline = time.time() + 5
+        status = {}
+        while time.time() < deadline:
+            status = client.get("/api/memory/settle/status").json()
+            if status["status"] != "running":
+                break
+            time.sleep(0.02)
+        assert status["status"] == "completed"
+        assert status["settled"] == [{"ticker": "NVDA", "date": "2026-09-01"}]
+        assert status["failed"] == [{"ticker": "AAPL", "reason": "prices unavailable"}]
+
+    def test_a_second_settlement_while_one_runs_is_refused(self, monkeypatch, tmp_path):
+        from webapp import memory_view
+
+        gate = threading.Event()
+
+        def slow_settle(*args, **kwargs):
+            gate.wait(timeout=5)
+            class _Result:
+                settled = []
+                failed = []
+            return _Result()
+
+        log = TradingMemoryLog({"memory_log_path": str(tmp_path / "memory.md")})
+        monkeypatch.setattr(memory_view, "_log", lambda: log)
+        monkeypatch.setattr(memory_view, "settle_all_pending", slow_settle)
+        monkeypatch.setattr(memory_view, "create_tier_client",
+                            lambda *a, **k: type("C", (), {"get_llm": lambda self: "llm"})())
+        monkeypatch.setattr(memory_view, "Reflector", lambda *a: None)
+
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        assert client.post("/api/memory/settle").status_code == 202
+        assert client.post("/api/memory/settle").status_code == 409
+        gate.set()
+
+
+# ------------------------------------------------------------------- chart --
+
+
+@pytest.mark.unit
+class TestChartApi:
+    def test_closes_come_back_as_dates_and_prices(self, monkeypatch, tmp_path):
+        import pandas as pd
+
+        from webapp import chart as chart_module
+
+        closes = pd.Series(
+            [100.0, 101.0, 102.0, 103.0],
+            index=pd.DatetimeIndex(["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06"]),
+        )
+        monkeypatch.setattr(chart_module, "get_closes", lambda *a, **k: closes)
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        data = client.get("/api/chart/NVDA", params={"date": "2026-08-06"}).json()
+        assert data["ticker"] == "NVDA"
+        assert [c["date"] for c in data["closes"]] == ["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06"]
+        assert data["closes"][-1]["close"] == 103.0
+
+    def test_a_historical_date_never_sees_later_bars(self, monkeypatch, tmp_path):
+        import pandas as pd
+
+        from webapp import chart as chart_module
+
+        closes = pd.Series(
+            [100.0, 101.0, 102.0],
+            index=pd.DatetimeIndex(["2026-08-03", "2026-08-04", "2026-08-05"]),
+        )
+        monkeypatch.setattr(chart_module, "get_closes", lambda *a, **k: closes)
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        data = client.get("/api/chart/NVDA", params={"date": "2026-08-04"}).json()
+        assert all(c["date"] <= "2026-08-04" for c in data["closes"])
+
+    def test_no_prices_is_an_empty_chart_not_an_error(self, monkeypatch, tmp_path):
+        import pandas as pd
+
+        from webapp import chart as chart_module
+
+        monkeypatch.setattr(chart_module, "get_closes", lambda *a, **k: pd.Series(dtype=float))
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        data = client.get("/api/chart/NVDA", params={"date": "2026-08-04"}).json()
+        assert data["closes"] == []
+
+
+# ----------------------------------------------------------------- compare --
+
+
+@pytest.mark.unit
+class TestCompare:
+    def test_two_reports_are_paired_by_agent(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-01")
+        _write_finished_report(tmp_path, "AAPL_2", "AAPL", "2026-11-03")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        data = client.get("/api/archive/compare",
+                          params={"left": "reports/AAPL_1", "right": "reports/AAPL_2"}).json()
+        titles = [s["title"] for s in data["sections"]]
+        assert "Market Analyst" in titles
+        market = next(s for s in data["sections"] if s["title"] == "Market Analyst")
+        assert "Uptrend intact." in market["left_html"]
+        assert "Uptrend intact." in market["right_html"]
+
+    def test_a_section_one_report_lacks_is_shown_as_missing(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-01")
+        # The second report has no sections at all: an empty tree still lists.
+        directory = tmp_path / "reports" / "AAPL_2"
+        directory.mkdir(parents=True)
+        (directory / "complete_report.md").write_text(
+            "# Trading Analysis Report: AAPL\n\n- Analysis date: 2026-11-03\n", encoding="utf-8")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        data = client.get("/api/archive/compare",
+                          params={"left": "reports/AAPL_1", "right": "reports/AAPL_2"}).json()
+        market = next(s for s in data["sections"] if s["title"] == "Market Analyst")
+        assert market["left_html"]
+        assert market["right_html"] is None
+
+    def test_an_unknown_report_is_404(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-01")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        response = client.get("/api/archive/compare",
+                              params={"left": "reports/AAPL_1", "right": "reports/NOPE"})
+        assert response.status_code == 404
+
+
+# ------------------------------------------------------------------- rerun --
+
+
+@pytest.mark.unit
+class TestRerun:
+    def test_the_header_records_what_the_form_needs(self, tmp_path):
+        directory = _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-01", "Buy")
+        (directory / "complete_report.md").write_text(
+            "# Trading Analysis Report: AAPL\n\n"
+            "- Analysis date: 2026-11-01\n"
+            "- Rating: Buy\n"
+            "- Generated: 2026-11-01 12:00:00\n"
+            "- TradingAgents 0.7.1: openai, deep gpt-6-sol, quick gpt-6-luna\n"
+            "- Analysts: market, sentiment, news; research debate rounds 3, risk debate rounds 3\n\n"
+            "## I. Analyst Team Reports\n\n### Market Analyst\nA strong quarter.\n",
+            encoding="utf-8")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        settings = client.get("/api/archive/reports/AAPL_1/rerun").json()
+        assert settings["ticker"] == "AAPL"
+        assert settings["analysis_date"] == "2026-11-01"
+        assert settings["analysts"] == ["market", "social", "news"]
+        assert settings["research_depth"] == 3
+        assert settings["quick_think_llm"] == "gpt-6-luna"
+        assert settings["deep_think_llm"] == "gpt-6-sol"
+
+    def test_a_report_without_settings_still_names_ticker_and_date(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-01")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        settings = client.get("/api/archive/reports/AAPL_1/rerun").json()
+        assert settings["ticker"] == "AAPL"
+        assert settings["analysis_date"] == "2026-11-01"
+        assert settings["analysts"] == []
+
+    def test_an_unknown_report_is_404(self, tmp_path):
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        assert client.get("/api/archive/reports/NOPE/rerun").status_code == 404
