@@ -156,8 +156,9 @@ def build_default_config() -> dict:
         # routed to vendors you didn't choose. For ordered fallback, list several,
         # e.g. "yfinance,alpha_vantage". "default" uses all available vendors.
         "data_vendors": {
-            "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-            "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
+            # realmarketapi serves forex, metals and crypto only (needs REALMARKETAPI_API_KEY).
+            "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, realmarketapi
+            "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance, realmarketapi
             # Statements come from SEC EDGAR as filed (US filers), then Yahoo; the
         # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
         "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
