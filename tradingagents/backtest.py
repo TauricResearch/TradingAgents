@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import itertools
 import logging
-from collections.abc import Callable
+import random
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -99,12 +100,32 @@ class RatingScore:
 
 
 @dataclass
+class RatingShuffle:
+    """What randomly reassigned ratings would have scored on the same settled cells."""
+
+    cells: int           # directional cells the test had to work with
+    observed: float      # mean direction x alpha of the record itself
+    null_median: float   # the shuffled ratings' middle score
+    null_p95: float      # the edge the record must clear to beat 95% of shuffles
+    p_value: float
+    shuffles: int
+    scope: str           # "within date", or "across all cells" when too few dates hold two cells
+
+    def render(self) -> str:
+        return (f"Rating-shuffle test: {self.cells} directional cells, observed {self.observed:+.2%} "
+                f"per cell; shuffled ratings median {self.null_median:+.2%}, "
+                f"95th pct {self.null_p95:+.2%}; p = {self.p_value:.3f} "
+                f"({self.shuffles} shuffles, {self.scope})")
+
+
+@dataclass
 class BacktestSummary:
     resolved: int
     pending: int
     by_rating: dict[str, RatingScore]
     unscored: int = 0
     holding: str = ""
+    shuffle: RatingShuffle | None = None
 
     def render(self) -> str:
         lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"
@@ -124,7 +145,62 @@ class BacktestSummary:
             "One model sampling per cell, and text feeds are not archived, so "
             "these figures are indicative rather than repeatable."
         )
+        if self.shuffle:
+            lines.append(self.shuffle.render())
         return "\n".join(lines)
+
+
+def _directional_stat(pairs: list[tuple[str, float]]) -> float:
+    """Mean direction x alpha over the cells whose rating claims a direction."""
+    vals = [_DIRECTION[rating] * alpha for rating, alpha in pairs if _DIRECTION.get(rating, 0)]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def rating_shuffle_test(
+    cells: Iterable[tuple[str, str, float]], n: int = 2000, seed: int = 0,
+) -> RatingShuffle | None:
+    """Whether the settled ratings beat randomly reassigned ones on the same cells.
+
+    Tens of cells score well by luck alone, so the summary also asks what the
+    same alphas would score if the ratings actually given on a date were shuffled
+    across that date's tickers. Shuffling within the date keeps each day's mix of
+    directions, so a market-wide move on one date cannot pass for skill. When
+    fewer than two dates hold two or more cells there is nothing to shuffle
+    within, so all cells are shuffled as one group and the summary says so. The
+    p-value counts the shuffles that scored at least the real record, with the
+    add-one correction a small grid needs. ``seed`` pins the shuffles so a
+    summary can be reproduced.
+    """
+    by_date: dict[str, list[tuple[str, float]]] = {}
+    for date, rating, alpha in cells:
+        by_date.setdefault(date, []).append((rating, alpha))
+    pairs = [pair for day in by_date.values() for pair in day]
+    if not any(_DIRECTION.get(rating, 0) for rating, _ in pairs):
+        return None
+    observed = _directional_stat(pairs)
+    shuffleable = sum(1 for day in by_date.values() if len(day) >= 2)
+    groups = list(by_date.values()) if shuffleable >= 2 else [pairs]
+    scope = "within date" if shuffleable >= 2 else "across all cells"
+    rng = random.Random(seed)
+    nulls = []
+    for _ in range(n):
+        shuffled = []
+        for day in groups:
+            ratings = [rating for rating, _ in day]
+            rng.shuffle(ratings)
+            shuffled.extend(zip(ratings, (alpha for _, alpha in day), strict=True))
+        nulls.append(_directional_stat(shuffled))
+    nulls.sort()
+    beat = sum(1 for score in nulls if score >= observed)
+    return RatingShuffle(
+        cells=sum(1 for rating, _ in pairs if _DIRECTION.get(rating, 0)),
+        observed=observed,
+        null_median=nulls[n // 2],
+        null_p95=nulls[int(0.95 * n)],
+        p_value=(1 + beat) / (1 + n),
+        shuffles=n,
+        scope=scope,
+    )
 
 
 def _new_run(runs: Path) -> str:
@@ -204,7 +280,11 @@ def run_backtest(
 
 
 def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
-    """Score the settled decisions of a backtest, or of a memory log at a path, by rating."""
+    """Score the settled decisions of a backtest, or of a memory log at a path, by rating.
+
+    Alongside the per-rating scores, a rating-shuffle test says whether they are
+    bigger than randomly reassigned ratings would score on the same cells.
+    """
     if isinstance(source, BacktestResult):
         path = source.log_path      # a run whose cells all failed wrote no log: nothing to score
     elif Path(source).is_file():
@@ -233,4 +313,5 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
     return BacktestSummary(resolved=len(resolved),
                            pending=len(entries) - len(resolved) - unscored,
                            by_rating=by_rating, unscored=unscored,
-                           holding=", ".join(sorted(windows)) or "the configured window")
+                           holding=", ".join(sorted(windows)) or "the configured window",
+                           shuffle=rating_shuffle_test((e["date"], e["rating"], a) for e, a in resolved))
