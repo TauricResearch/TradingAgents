@@ -210,8 +210,8 @@ def _chatgpt_credential() -> Callable[[], str]:
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
-    "timeout", "max_retries", "reasoning_effort", "temperature", "max_tokens",
-    "api_key", "callbacks", "http_client", "http_async_client",
+    "timeout", "max_retries", "reasoning_effort", "service_tier", "temperature",
+    "max_tokens", "api_key", "callbacks", "http_client", "http_async_client",
 )
 
 # OpenAI's ``reasoning_effort`` is only accepted by reasoning models — GPT-5 and
@@ -400,6 +400,12 @@ class OpenAIClient(BaseLLMClient):
             if key not in self.kwargs:
                 continue
             if key == "reasoning_effort" and not _supports_reasoning_effort(self.model):
+                continue
+            # Flex/priority tiers exist only on native OpenAI; proxies and
+            # compatible servers may 400 on the unknown parameter.
+            if key == "service_tier" and not (
+                self.provider == "openai" and _is_native_openai_base_url(llm_kwargs.get("base_url"))
+            ):
                 continue
             llm_kwargs[key] = self.kwargs[key]
 
