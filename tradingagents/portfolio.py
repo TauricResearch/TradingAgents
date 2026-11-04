@@ -73,9 +73,31 @@ class PortfolioContext(BaseModel):
 
 
 def load_portfolio(path: str | Path) -> PortfolioContext:
-    """Read a portfolio JSON file, failing before the run rather than mid-graph."""
+    """Read a portfolio JSON file, failing before the run rather than mid-graph.
+
+    The path is validated to prevent accidental reads outside the project
+    (e.g. a prompt-injected ``../../.env`` or ``/etc/passwd``) and to enforce
+    the ``.json`` extension so callers don't silently feed in a text file.
+    """
+    p = Path(path)
+    # Reject path traversal: resolved path must stay inside the working dir.
+    # Using Path.cwd().resolve() as the anchor catches "../../etc/passwd.json"
+    # regardless of what the path's own parent resolves to.
+    resolved = p.resolve()
+    cwd = Path.cwd().resolve()
     try:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        resolved.relative_to(cwd)
+    except ValueError:
+        raise ValueError(
+            f"portfolio path {path!r} escapes the working directory (path traversal)"
+        )
+    # Enforce .json extension
+    if p.suffix.lower() != ".json":
+        raise ValueError(
+            f"portfolio file must have a .json extension, got {p.suffix!r}"
+        )
+    try:
+        data = json.loads(resolved.read_text(encoding="utf-8"))
         return PortfolioContext.model_validate(data)
     except (OSError, json.JSONDecodeError, ValidationError) as exc:
         raise ValueError(f"portfolio file {path} is not usable: {exc}") from exc
