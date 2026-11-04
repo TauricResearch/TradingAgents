@@ -10,6 +10,9 @@ Changes that need action when upgrading are listed under "Upgrading from" in the
 
 ### Added
 
+- Italian is offered in the output-language menu, in the CLI and the web console
+  alike. Both now read one shared list (`cli.prompts.OUTPUT_LANGUAGES`), so a
+  language added there appears in both and they cannot drift apart.
 - A local web console (`python -m webapp`, or `pip install ".[web]"` and
   `tradingagents-web`) offering the CLI's analysis in a browser: the same
   ticker, date, analyst, depth, language, provider and model choices, a live

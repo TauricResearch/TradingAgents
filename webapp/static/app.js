@@ -148,7 +148,13 @@ async function loadOptions() {
     );
     updateDepthHint();
 
-    els.language.replaceChildren(...data.languages.map((l) => option(l, l)));
+    els.language.replaceChildren(
+      ...data.languages.map((l) => option(
+        l.value,
+        l.label,
+        l.value === data.defaults.output_language
+      ))
+    );
 
     els.provider.replaceChildren(
       ...data.providers.map((p) => option(

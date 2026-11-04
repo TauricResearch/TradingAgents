@@ -89,6 +89,13 @@ class TestApi:
         assert body["quick"] and body["deep"]
         assert any(m["value"] == "custom" for m in body["quick"])
 
+    def test_languages_match_the_cli_menu_and_include_italian(self, client):
+        from cli.prompts import OUTPUT_LANGUAGES
+
+        options = client.get("/api/options").json()
+        assert [(entry["label"], entry["value"]) for entry in options["languages"]] == OUTPUT_LANGUAGES
+        assert {"label": "Italian (Italiano)", "value": "Italian"} in options["languages"]
+
     def test_detect_reports_the_canonical_symbol_and_the_allowed_analysts(self, client):
         body = client.get("/api/detect", params={"ticker": "0700.hk"}).json()
         assert body["canonical"] == "0700.HK"

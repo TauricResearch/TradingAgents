@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from cli.models import AnalystType, AssetType
 from cli.prompts import (
+    OUTPUT_LANGUAGES,
     _llm_provider_table,
     detect_asset_type,
     filter_analysts_for_asset_type,
@@ -36,10 +37,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "testserver"}
 
 # The languages the CLI's menu offers, so the page and the terminal agree.
-LANGUAGES = [
-    "English", "Chinese", "Japanese", "Korean", "Hindi", "Spanish",
-    "Portuguese", "French", "German", "Arabic", "Russian",
-]
+LANGUAGES = [{"label": label, "value": value} for label, value in OUTPUT_LANGUAGES]
 DEPTHS = [
     {"value": 1, "label": "Shallow", "detail": "Quick research, few debate and strategy rounds"},
     {"value": 3, "label": "Medium", "detail": "Middle ground, moderate debate and strategy rounds"},

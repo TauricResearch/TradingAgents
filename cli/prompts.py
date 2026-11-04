@@ -746,6 +746,24 @@ def ensure_api_key(provider: str) -> str | None:
     return key
 
 
+# The languages the report can be written in: (menu label, value the agents get).
+# Shared with the web console so the two menus cannot list different languages.
+OUTPUT_LANGUAGES: list[tuple[str, str]] = [
+    ("English (default)", "English"),
+    ("Chinese (中文)", "Chinese"),
+    ("Japanese (日本語)", "Japanese"),
+    ("Korean (한국어)", "Korean"),
+    ("Hindi (हिन्दी)", "Hindi"),
+    ("Spanish (Español)", "Spanish"),
+    ("Portuguese (Português)", "Portuguese"),
+    ("French (Français)", "French"),
+    ("Italian (Italiano)", "Italian"),
+    ("German (Deutsch)", "German"),
+    ("Arabic (العربية)", "Arabic"),
+    ("Russian (Русский)", "Russian"),
+]
+
+
 def ask_output_language(default=None) -> str:
     """Ask for report output language.
 
@@ -753,17 +771,7 @@ def ask_output_language(default=None) -> str:
     one entered last time is free text, which the menu cannot preselect.
     """
     choices = [
-        questionary.Choice("English (default)", "English"),
-        questionary.Choice("Chinese (中文)", "Chinese"),
-        questionary.Choice("Japanese (日本語)", "Japanese"),
-        questionary.Choice("Korean (한국어)", "Korean"),
-        questionary.Choice("Hindi (हिन्दी)", "Hindi"),
-        questionary.Choice("Spanish (Español)", "Spanish"),
-        questionary.Choice("Portuguese (Português)", "Portuguese"),
-        questionary.Choice("French (Français)", "French"),
-        questionary.Choice("German (Deutsch)", "German"),
-        questionary.Choice("Arabic (العربية)", "Arabic"),
-        questionary.Choice("Russian (Русский)", "Russian"),
+        *(questionary.Choice(label, value) for label, value in OUTPUT_LANGUAGES),
         questionary.Choice("Custom language", "custom"),
     ]
     choice = questionary.select(
