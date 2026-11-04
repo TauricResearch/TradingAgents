@@ -380,7 +380,7 @@ class OpenAIClient(BaseLLMClient):
                 llm_kwargs["api_key"] = api_key
             elif spec.key_optional:
                 llm_kwargs["api_key"] = spec.placeholder_key
-            elif api_key_env:
+            elif api_key_env and not self.kwargs.get("api_key"):
                 raise ValueError(
                     f"API key for provider '{self.provider}' is not set. "
                     f"Please set the {api_key_env} environment variable "
