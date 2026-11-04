@@ -141,3 +141,23 @@ class PolymarketRoutingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@pytest.mark.parametrize("value", [None, "NaN", "Infinity", "-Infinity", -0.1, 1.1, True])
+def test_invalid_probabilities_do_not_enter_the_report(value):
+    invalid = _market("Invalid probability?", 0.5, volume=100, end_date="2030-12-31T00:00:00Z")
+    invalid["outcomePrices"] = [value, "0.5"]
+    valid = _market("Valid probability?", 0.3, volume=10, end_date="2030-12-31T00:00:00Z")
+    with mock.patch.object(polymarket, "_request", return_value={"events": [{"markets": [invalid, valid]}]}):
+        report = polymarket.get_prediction_markets("topic")
+    assert "Invalid probability?" not in report
+    assert "Valid probability?" in report
+
+
+@pytest.mark.parametrize("value, expected", [(0, "0%"), (1, "100%"), ("0.5", "50%")])
+def test_valid_probability_boundaries_are_preserved(value, expected):
+    market = _market("Boundary?", 0.5, volume=100, end_date="2030-12-31T00:00:00Z")
+    market["outcomePrices"] = [value, "0.5"]
+    with mock.patch.object(polymarket, "_request", return_value={"events": [{"markets": [market]}]}):
+        report = polymarket.get_prediction_markets("topic")
+    assert f"Yes {expected}" in report
