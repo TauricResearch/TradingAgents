@@ -1157,6 +1157,19 @@ class TestSettlementWindow:
         assert resolved == "2026-01-14"
         assert alpha == pytest.approx(raw - (spy["2026-01-14"] / spy["2026-01-07"] - 1))
 
+    def test_an_infinite_close_is_skipped_not_scored(self, monkeypatch):
+        idx = pd.bdate_range("2026-01-05", periods=8)
+        stock = pd.Series([100.0, float("inf"), 101.0, 102.0, 103.0, 104.0, 105.0, 106.0], index=idx)
+        spy = pd.Series([400.0 + i for i in range(8)], index=idx)
+        monkeypatch.setattr(settlement, "get_closes", _closes({"NVDA": stock, "SPY": spy}))
+
+        raw, alpha, _, resolved = settlement.fetch_returns("NVDA", "2026-01-05", 5, "SPY")
+
+        # Entered Wed 7, after skipping the infinite close on Tue 6.
+        assert raw == pytest.approx(106.0 / 101.0 - 1)
+        assert resolved == "2026-01-14"
+        assert alpha == pytest.approx(raw - (spy["2026-01-14"] / spy["2026-01-07"] - 1))
+
 
 @pytest.mark.unit
 class TestSettlementUsesFinalCloses:
