@@ -304,6 +304,26 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
             raise HTTPException(status_code=404, detail=str(exc)) from None
         return FileResponse(path, media_type="text/markdown")
 
+    @app.delete("/api/archive/{entry_id:path}")
+    def delete_archive_report(entry_id: str, confirm: bool = False) -> dict:
+        """Remove one archived report from disk.
+
+        Deleting is not undoable, so a caller must say so explicitly with
+        ``?confirm=true``; without it the request is refused rather than
+        silently obeyed, so a stray DELETE cannot destroy a report.
+        """
+        if not confirm:
+            raise HTTPException(
+                status_code=400,
+                detail="deleting a report is permanent; repeat the request with ?confirm=true",
+            )
+        try:
+            return archive.delete_report(archive_root, entry_id)
+        except archive.ArchivePathError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"could not delete the report: {exc}") from None
+
     @app.get("/")
     def index():
         return FileResponse(STATIC_DIR / "index.html")

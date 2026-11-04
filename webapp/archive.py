@@ -26,6 +26,7 @@ cannot read an arbitrary file.
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -278,3 +279,77 @@ def report_file(results_dir: Path, entry_id: str, *, html: bool) -> Path:
     if not path.is_file():
         raise ArchivePathError("the report file is gone")
     return path
+
+
+def _deletable_directory(results_dir: Path, entry: ArchivedReport) -> Path:
+    """The folder deleting ``entry`` removes, and nothing above it.
+
+    A finished report owns its whole stamped folder. A run folder only owns the
+    ``reports`` subfolder: the run's message log beside it is a separate record,
+    so it survives, and the ticker folder is never removed from under it.
+    """
+    directory = _entry_directory(results_dir, entry)
+    root = Path(results_dir).resolve()
+    if entry.source != "report":
+        return directory / "reports"
+    if directory == root or (directory.parent == root and directory.name == "reports"):
+        # `reports/` is the whole collection, not one report inside it.
+        raise ArchivePathError("refusing to delete the results directory itself")
+    return directory
+
+
+def delete_report(results_dir: Path, entry_id: str) -> dict:
+    """Remove one archived report from disk; return the ticker and what was removed.
+
+    Only a path this module listed can be deleted, and only the entry's own
+    folder inside the results directory, so a crafted id cannot reach anything
+    else. The ticker directory is pruned when it is left empty, but a directory
+    still holding other dates or logs is kept.
+    """
+    results_dir = Path(results_dir).resolve()
+    entry = get_report(results_dir, entry_id)
+    directory = _deletable_directory(results_dir, entry)
+
+    removed = []
+    # walk with followlinks=False: a symlink inside the tree is removed as a link,
+    # never traversed, so deleting a report cannot reach outside its own folder.
+    for current, dirnames, filenames in os.walk(directory, topdown=False, followlinks=False):
+        here = Path(current)
+        for name in filenames:
+            path = here / name
+            path.unlink(missing_ok=True)
+            removed.append(path)
+        for name in dirnames:
+            path = here / name
+            if path.is_symlink():
+                path.unlink(missing_ok=True)
+                removed.append(path)
+                continue
+            try:
+                path.rmdir()
+            except OSError:
+                # Not empty: something this module does not own lives there.
+                pass
+    try:
+        directory.rmdir()
+    except OSError:
+        pass
+
+    # A finished report's ticker folder only ever held stamped reports; once its
+    # last one is gone there is nothing to show, so prune it. A run folder's
+    # parent keeps the run's log and other dates, so it is left alone.
+    if entry.source == "report":
+        parent = directory.parent
+        if parent != results_dir and parent.name != "reports":
+            try:
+                parent.rmdir()
+            except OSError:
+                pass
+
+    return {
+        "id": entry.id,
+        "ticker": entry.ticker,
+        "analysis_date": entry.analysis_date,
+        "removed": [str(path.relative_to(results_dir)) for path in removed],
+        "directory_removed": not directory.exists(),
+    }

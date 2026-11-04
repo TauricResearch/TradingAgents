@@ -58,6 +58,7 @@ const els = {
   archiveMeta: document.getElementById("archive-meta"),
   archiveLinks: document.getElementById("archive-links"),
   archiveContent: document.getElementById("archive-content"),
+  archiveDelete: document.getElementById("archive-delete"),
   refreshArchive: document.getElementById("refresh-archive"),
 };
 
@@ -70,6 +71,7 @@ const state = {
   lastMessageKey: "",
   lastAgentKey: "",
   archiveId: null,
+  archiveReport: null,
 };
 
 const AGENT_TEAMS = [
@@ -614,6 +616,7 @@ function archiveLabel(report) {
 
 async function openArchiveReport(report) {
   state.archiveId = report.id;
+  state.archiveReport = report;
   for (const li of els.archiveList.querySelectorAll("li")) {
     li.classList.toggle("is-active", li.dataset.id === report.id);
   }
@@ -671,11 +674,46 @@ async function openArchiveReport(report) {
   }
 }
 
+async function deleteArchiveReport() {
+  const report = state.archiveReport;
+  if (!report) return;
+  const label = archiveLabel(report);
+  // Deleting is permanent and removes files from disk, so it is asked about
+  // plainly and the answer is not assumed.
+  const yes = window.confirm(
+    `Delete the saved report for ${label}?\n\n` +
+    "This permanently removes the report files from disk and cannot be undone."
+  );
+  if (!yes) return;
+
+  els.archiveDelete.disabled = true;
+  els.archiveDelete.textContent = "Deleting…";
+  try {
+    await api(`/api/archive/${encodeURI(report.id)}?confirm=true`, { method: "DELETE" });
+    state.archiveReport = null;
+    state.archiveId = null;
+    els.archiveView.hidden = true;
+    await refreshArchive();
+  } catch (error) {
+    window.alert(`The report could not be deleted: ${error.message}`);
+  } finally {
+    els.archiveDelete.disabled = false;
+    els.archiveDelete.textContent = "Delete report";
+  }
+}
+
 async function refreshArchive() {
   try {
     const data = await api("/api/archive");
     els.archiveList.replaceChildren();
     els.archiveEmpty.hidden = data.reports.length > 0;
+    // A report removed elsewhere (or just deleted here) must not stay open on
+    // screen showing content that no longer exists.
+    if (state.archiveId && !data.reports.some((r) => r.id === state.archiveId)) {
+      state.archiveId = null;
+      state.archiveReport = null;
+      els.archiveView.hidden = true;
+    }
     if (!data.reports.length) {
       els.archiveView.hidden = true;
       return;
@@ -736,6 +774,7 @@ els.saveReport.addEventListener("change", () => {
   els.saveHtml.disabled = !els.saveReport.checked;
 });
 els.refreshArchive.addEventListener("click", refreshArchive);
+els.archiveDelete.addEventListener("click", deleteArchiveReport);
 
 for (const tab of document.querySelectorAll(".tab")) {
   tab.addEventListener("click", () => {

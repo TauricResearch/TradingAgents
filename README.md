@@ -234,6 +234,8 @@ While a run progresses the page shows the agent table, the message and tool log,
 
 Below the run panel, **Saved reports** lists every report already under `results_dir`, including ones written by earlier sessions or by the CLI, so restarting the server does not lose access to them. Pick one to read its agent sections in the page, or open its HTML page and Markdown. A report a run wrote and then left unfinished — cancelled, or failed partway — is listed too, marked as such, with the sections it had reached; once a completed report covers the same ticker and analysis date, that unfinished entry gives way to it rather than showing twice.
 
+**Delete report** removes the open report from disk after asking to confirm, since the deletion cannot be undone. A finished report takes its whole stamped folder with it; an unfinished run loses only the sections it wrote, because the run's message log beside them is a separate record. Deleting is available over the API too, as `DELETE /api/archive/<id>?confirm=true`: without the explicit `confirm` the request is refused rather than obeyed, so nothing is destroyed by a stray call.
+
 Settings live in `TRADINGAGENTS_WEB_HOST`, `TRADINGAGENTS_WEB_PORT` and `TRADINGAGENTS_WEB_RELOAD`. The API starts paid model runs and serves files from this machine, so it binds to the loopback address and refuses to bind elsewhere unless `TRADINGAGENTS_WEB_ALLOW_REMOTE=1` is set; it also rejects requests whose `Host` header is not a local name.
 
 ### Markets and tickers

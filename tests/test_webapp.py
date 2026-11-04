@@ -450,3 +450,80 @@ def test_the_archive_does_not_sit_under_the_sticky_form_panel():
     assert ".form-panel { position: sticky;" in css
     assert ".archive-panel { grid-column: 2; }" in css
     assert "grid-column: 1 / -1" not in css
+
+
+@pytest.mark.unit
+class TestArchiveDelete:
+    def test_deleting_needs_an_explicit_confirmation(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        assert client.delete("/api/archive/reports/AAPL_1").status_code == 400
+        assert client.delete("/api/archive/reports/AAPL_1", params={"confirm": "false"}).status_code == 400
+        # Refused, not carried out silently: the report is still there.
+        assert (tmp_path / "reports" / "AAPL_1" / "complete_report.md").is_file()
+        assert [e["id"] for e in client.get("/api/archive").json()["reports"]] == ["reports/AAPL_1"]
+
+    def test_deleting_a_finished_report_removes_its_folder_only(self, tmp_path):
+        directory = _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04")
+        sibling = _write_finished_report(tmp_path, "AAPL_2", "AAPL", "2026-11-05")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        response = client.delete("/api/archive/reports/AAPL_1", params={"confirm": "true"})
+
+        assert response.status_code == 200
+        assert not directory.exists()
+        assert sibling.exists(), "another report under the same ticker must survive"
+        assert [e["id"] for e in client.get("/api/archive").json()["reports"]] == ["reports/AAPL_2"]
+
+    def test_deleting_a_run_folder_keeps_the_run_log_and_other_dates(self, tmp_path):
+        _write_run_folder(tmp_path, "BTC-USD", "2026-11-04")
+        log = tmp_path / "BTC-USD" / "2026-11-04" / "message_tool.log"
+        log.write_text("tool log", encoding="utf-8")
+        other = _write_run_folder(tmp_path, "BTC-USD", "2026-11-05")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        response = client.delete("/api/archive/BTC-USD/2026-11-04", params={"confirm": "true"})
+
+        assert response.status_code == 200
+        assert not (tmp_path / "BTC-USD" / "2026-11-04" / "reports").exists()
+        assert log.is_file(), "the run's message log is not the report and must not be deleted"
+        assert other.exists(), "the ticker's other analysis dates must survive"
+
+    def test_deleting_the_last_report_prunes_an_emptied_ticker_folder(self, tmp_path):
+        _write_finished_report(tmp_path, "ENI.MI_1", "ENI.MI", "2026-11-04")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        client.delete("/api/archive/reports/ENI.MI_1", params={"confirm": "true"})
+
+        assert not (tmp_path / "reports").exists() or not any((tmp_path / "reports").iterdir())
+
+    def test_nothing_outside_the_results_directory_can_be_deleted(self, tmp_path):
+        root = tmp_path / "results"
+        _write_finished_report(root, "AAPL_1", "AAPL", "2026-11-04")
+        secret = tmp_path / "secret.txt"
+        secret.write_text("private", encoding="utf-8")
+        client = TestClient(create_app(RunManager(), results_dir=root))
+
+        for bad in ("../secret.txt", "../../secret.txt", "/etc/passwd",
+                    "reports/../../../secret.txt", "reports", "AAPL"):
+            assert client.delete(f"/api/archive/{bad}", params={"confirm": "true"}).status_code == 404, bad
+
+        assert secret.is_file(), "a file outside the results directory must never be deleted"
+        assert (root / "reports" / "AAPL_1").exists()
+
+    def test_a_deleted_report_is_gone_from_the_list_and_the_disk(self, tmp_path):
+        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04")
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+        assert client.get("/api/archive/reports/AAPL_1/sections").status_code == 200
+
+        client.delete("/api/archive/reports/AAPL_1", params={"confirm": "true"})
+
+        assert client.get("/api/archive").json()["reports"] == []
+        assert client.get("/api/archive/reports/AAPL_1/sections").status_code == 404
+        assert client.get("/api/archive/reports/AAPL_1/report.md").status_code == 404
+
+    def test_deleting_an_unknown_report_is_404(self, tmp_path):
+        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
+
+        assert client.delete("/api/archive/reports/NOPE_1", params={"confirm": "true"}).status_code == 404

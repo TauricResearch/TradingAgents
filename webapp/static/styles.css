@@ -344,3 +344,9 @@ button.ghost:hover:not(:disabled) { color: var(--ink); }
 .run-list li.is-active { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .run-list-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .run-list-date { color: var(--muted); font-size: 0.76rem; }
+
+.archive-head-right { display: flex; align-items: center; gap: 0.7rem; }
+/* Destructive, so it never looks like the neutral controls beside it. */
+button.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--rule)); }
+button.danger:hover { border-color: var(--danger); }
+button.danger[disabled] { opacity: 0.55; cursor: progress; }
