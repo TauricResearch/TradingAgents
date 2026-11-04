@@ -1,0 +1,5 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        ".venv/bin/python": true
+    }
+}
