@@ -232,3 +232,61 @@ def test_ticker_news_asks_for_only_as_many_articles_as_configured(monkeypatch):
     alpha_vantage_news.get_news("AAPL", "2026-03-10", "2026-03-14")
 
     assert seen["limit"] == "8"
+
+
+def _insider_body(n):
+    """An INSIDER_TRANSACTIONS body of ``n`` trades, oldest first."""
+    trades = [
+        {"transaction_date": f"{2000 + i // 365}-{(i // 28) % 12 + 1:02d}-{i % 28 + 1:02d}",
+         "ticker": "LRCX", "executive": f"EXEC {i}", "executive_title": "Director",
+         "security_type": "Common Stock", "acquisition_or_disposal": "D",
+         "shares": "100.0", "share_price": "50.0"}
+        for i in range(n)
+    ]
+    return json.dumps({"data": trades})
+
+
+@pytest.mark.unit
+def test_insider_transactions_keep_only_the_most_recent_trades(monkeypatch):
+    """The endpoint returns every trade on record, which overflowed the context (#1625)."""
+    from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
+
+    body = _insider_body(5000)
+    monkeypatch.setattr(alpha_vantage_news, "get_config", lambda: {"insider_transaction_limit": 3})
+    monkeypatch.setattr(alpha_vantage_news, "_make_api_request", lambda fn, params: body)
+
+    out = alpha_vantage_news.get_insider_transactions("LRCX", None)
+
+    lines = out.splitlines()
+    assert lines[0] == "# Insider Transactions data for LRCX"
+    assert "3 most recent of 5000" in lines[1]
+    assert lines[2].startswith("transaction_date,")
+    rows = lines[3:]
+    newest = sorted(t["transaction_date"] for t in json.loads(body)["data"])[-3:][::-1]
+    assert [r.split(",")[0] for r in rows] == newest
+    assert len(out) < len(body) / 100
+
+
+@pytest.mark.unit
+def test_insider_transactions_under_the_limit_are_all_served(monkeypatch):
+    from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
+
+    monkeypatch.setattr(alpha_vantage_news, "get_config", lambda: {"insider_transaction_limit": 50})
+    monkeypatch.setattr(alpha_vantage_news, "_make_api_request", lambda fn, params: _insider_body(4))
+
+    out = alpha_vantage_news.get_insider_transactions("LRCX", None)
+
+    assert "most recent of" not in out
+    assert len(out.splitlines()) == 1 + 1 + 4
+
+
+@pytest.mark.unit
+def test_no_insider_transactions_is_reported_plainly(monkeypatch):
+    from tradingagents.dataflows.vendors.alpha_vantage import news as alpha_vantage_news
+
+    monkeypatch.setattr(alpha_vantage_news, "get_config", lambda: {"insider_transaction_limit": 50})
+    monkeypatch.setattr(alpha_vantage_news, "_make_api_request", lambda fn, params: '{"data": []}')
+
+    assert alpha_vantage_news.get_insider_transactions("LRCX", None) == (
+        "No insider transactions reported for symbol 'LRCX'"
+    )
