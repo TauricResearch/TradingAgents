@@ -17,6 +17,7 @@ from tradingagents.dataflows.vendors.alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from tradingagents.dataflows.vendors.asx import get_announcements as get_asx_announcements
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
 from tradingagents.dataflows.vendors.polymarket import (
     get_prediction_markets as get_polymarket_prediction_markets,
@@ -83,7 +84,13 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_prediction_markets",
         ]
-    }
+    },
+    "exchange_announcements": {
+        "description": "A listed company's disclosures to its exchange (ASX for .AX tickers)",
+        "tools": [
+            "get_company_announcements",
+        ]
+    },
 }
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -91,7 +98,7 @@ TOOLS_CATEGORIES = {
 # sentinel instead of aborting the run (a bad LLM-supplied indicator, a missing
 # key, or a network blip should not crash an analysis over flavour data). Core
 # categories (prices, fundamentals, news) still raise so a broken primary is loud.
-OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets"}
+OPTIONAL_CATEGORIES = {"macro_data", "prediction_markets", "exchange_announcements"}
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
@@ -145,6 +152,10 @@ VENDOR_METHODS = {
     # prediction_markets
     "get_prediction_markets": {
         "polymarket": get_polymarket_prediction_markets,
+    },
+    # exchange_announcements
+    "get_company_announcements": {
+        "asx": get_asx_announcements,
     },
 }
 

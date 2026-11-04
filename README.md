@@ -231,6 +231,18 @@ TradingAgents works with any market Yahoo Finance covers, using the exchange-suf
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
 - Crypto: `BTC-USD`, `ETH-USD`
 
+#### Australian (ASX) listings
+
+Write an ASX ticker as `BHP.AX`; the CLI also accepts `ASX:BHP` and `BHP.ASX`. A bare `BHP` is the US-listed line, not the ASX one. For an ASX ticker:
+
+- `get_news` is followed by the company's own ASX announcements over the same window, with price-sensitive ones flagged, read from the public feed the ASX website uses (no key). The feed lists only the latest few announcements, so a run dated well in the past is told they are unavailable rather than shown none. Dates are Sydney dates.
+- Global news runs Australian searches (RBA, ASX 200, iron ore and China demand, the AUD) ahead of the global ones; change them under `regional_news_queries` in the config.
+- The macro tool takes Australian aliases: `rba_cash_rate`, `australia_3m_rate`, `australia_10y`, `australia_cpi`, `australia_unemployment`, `australia_real_gdp`, `aud_usd`, and the commodity prices `iron_ore`, `australian_coal` and `copper`. They need `FRED_API_KEY`.
+- Reddit sentiment is read from r/ASX_Bets, r/ausstocks and r/AusFinance, searched by the bare ASX code.
+- Alpha is measured against the ASX 200 (`^AXJO`).
+
+Statements for ASX companies come from Yahoo, so a run dated in the past has no fundamentals (see [Fundamentals as filed](#fundamentals-as-filed)).
+
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>

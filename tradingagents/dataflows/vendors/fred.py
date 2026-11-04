@@ -87,6 +87,19 @@ MACRO_SERIES = {
     "germany_10y": "IRLTLT01DEM156N",
     "france_10y": "IRLTLT01FRM156N",
     "eur_usd": "DEXUSEU",
+    # Australia (for ASX .AX tickers): FRED mirrors the OECD's Australian rates,
+    # CPI and labour series, the IMF's real GDP, the Fed's AUD/USD rate, and the
+    # IMF commodity prices that drive the ASX's miners and energy names.
+    "rba_cash_rate": "IRSTCI01AUM156N",
+    "australia_3m_rate": "IR3TIB01AUM156N",
+    "australia_10y": "IRLTLT01AUM156N",
+    "australia_cpi": "AUSCPIALLQINMEI",
+    "australia_unemployment": "LRUNTTTTAUM156S",
+    "australia_real_gdp": "NGDPRSAXDCAUQ",
+    "aud_usd": "DEXUSAL",
+    "iron_ore": "PIORECRUSDM",
+    "australian_coal": "PCOALAUUSDM",
+    "copper": "PCOPPUSDM",
 }
 
 

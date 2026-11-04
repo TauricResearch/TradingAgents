@@ -150,6 +150,17 @@ def build_default_config() -> dict:
             "ECB Bank of England BOJ central bank policy",
             "oil commodities supply chain energy",
         ],
+        # Extra searches for a ticker on a regional exchange, keyed by the
+        # ticker's exchange suffix and run ahead of global_news_queries, so an
+        # ASX run reads the RBA and the commodity cycle and not only the Fed.
+        "regional_news_queries": {
+            ".AX": [
+                "RBA Reserve Bank of Australia cash rate decision",
+                "ASX 200 Australian shares market",
+                "iron ore price China steel demand",
+                "Australian dollar AUD economy inflation",
+            ],
+        },
         # Data vendor configuration
         # Category-level configuration (default for all tools in category).
         # The configured value is the exact vendor chain — requests are NOT silently
@@ -164,6 +175,8 @@ def build_default_config() -> dict:
             "news_data": "yfinance",             # Options: alpha_vantage, yfinance
             "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
+            # Appended to get_news for exchanges that have a source (keyless).
+            "exchange_announcements": "asx",     # Options: asx (.AX tickers only)
         },
         # Tool-level configuration (takes precedence over category-level)
         "tool_vendors": {

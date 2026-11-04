@@ -12,6 +12,7 @@ differ from the broker / TradingView / MT5 style symbols users often type:
     SPX500, US500     ^GSPC             index CFDs map to Yahoo index symbols
     09992.HK, 700.HK  9992.HK, 0700.HK  HK codes are zero-padded to 4 digits
     600519.SH         600519.SS         Yahoo spells Shanghai ``.SS``
+    ASX:BHP, BHP.ASX  BHP.AX            Yahoo spells the ASX ``.AX``
 
 Passing the raw broker symbol to Yahoo returns an empty result, which the
 agents previously received as free text and could hallucinate a price
@@ -70,6 +71,10 @@ _ALIASES = {
 # HKEX codes as Yahoo spells them: the number zero-padded to 4 digits (#957).
 _HK_CODE = re.compile(r"^(\d{1,5})\.HK$")
 _SHANGHAI_SH = re.compile(r"^(\d{6})\.SH$")
+# ASX codes as brokers and TradingView write them: ``ASX:BHP`` or ``BHP.ASX``.
+# ASX codes are 3-6 letters/digits, so ``ASX:`` cannot swallow another market.
+_ASX_PREFIXED = re.compile(r"^ASX:([A-Z0-9]{3,6})$")
+_ASX_SUFFIXED = re.compile(r"^([A-Z0-9]{3,6})\.ASX$")
 
 
 # Crypto quote currencies that all map to Yahoo's USD pair. Yahoo lists only
@@ -111,7 +116,8 @@ def normalize_symbol(raw: str) -> str:
       4. HK rule: a numeric ``.HK`` code -> Yahoo's 4-digit padding
          (``09992.HK`` -> ``9992.HK``, ``700.HK`` -> ``0700.HK``).
       5. Shanghai rule: ``600519.SH`` -> ``600519.SS``.
-      6. Otherwise the upper-cased symbol is returned unchanged (plain
+      6. ASX rule: ``ASX:BHP`` or ``BHP.ASX`` -> ``BHP.AX``.
+      7. Otherwise the upper-cased symbol is returned unchanged (plain
          equities, ETFs, Yahoo-native symbols like ``GC=F`` or ``^GSPC``).
 
     A trailing ``+`` (broker CFD marker, e.g. ``XAUUSD+``) is stripped before
@@ -136,6 +142,8 @@ def normalize_symbol(raw: str) -> str:
         canonical = f"{int(hk.group(1)):04d}.HK"
     elif sh := _SHANGHAI_SH.match(s):
         canonical = f"{sh.group(1)}.SS"
+    elif asx := (_ASX_PREFIXED.match(s) or _ASX_SUFFIXED.match(s)):
+        canonical = f"{asx.group(1)}.AX"
     else:
         canonical = s
 
@@ -150,6 +158,16 @@ def normalize_symbol(raw: str) -> str:
 # traversal, so the value never escapes a containing directory when
 # interpolated into a path. Anything else is rejected.
 _TICKER_PATH_RE = re.compile(r"^[A-Za-z0-9._\-\^=+]+$")
+
+
+def is_asx(symbol: str) -> bool:
+    """True for an ASX listing in any spelling ``normalize_symbol`` accepts."""
+    return isinstance(symbol, str) and normalize_symbol(symbol).endswith(".AX")
+
+
+def asx_code(symbol: str) -> str | None:
+    """The bare ASX code (``BHP``) for an ASX listing, else None."""
+    return normalize_symbol(symbol)[: -len(".AX")] if is_asx(symbol) else None
 
 
 def safe_ticker_component(value: str, *, max_len: int = 32) -> str:

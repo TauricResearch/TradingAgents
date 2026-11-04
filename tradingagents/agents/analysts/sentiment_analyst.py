@@ -32,6 +32,7 @@ from tradingagents.agents.structured import (
 )
 from tradingagents.agents.tools import get_news
 from tradingagents.dataflows.vendors.reddit import (
+    ASX_SUBREDDITS,
     CRYPTO_SUBREDDITS,
     DEFAULT_SUBREDDITS,
     fetch_reddit_posts,
@@ -140,6 +141,9 @@ def _build_system_message(
     """Assemble the sentiment-analyst system message with structured data blocks."""
     if subreddits == DEFAULT_SUBREDDITS:
         character = "r/wallstreetbets is often contrarian/exuberant; r/stocks more measured; r/investing longer-term"
+    elif subreddits == ASX_SUBREDDITS:
+        character = ("r/ASX_Bets is speculative and small-cap heavy; r/ausstocks more measured; "
+                     "r/AusFinance is mostly personal finance, so a mention there is often incidental")
     elif len(subreddits) > len(CRYPTO_SUBREDDITS):
         character = f"r/{subreddits[0]} leans toward the coin's holders; r/CryptoCurrency and r/CryptoMarkets are broader"
     else:

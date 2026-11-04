@@ -30,7 +30,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from tradingagents.dataflows.date_window import coverage_gap, in_window
-from tradingagents.dataflows.symbols import crypto_base
+from tradingagents.dataflows.symbols import asx_code, crypto_base
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +83,16 @@ DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 CRYPTO_SUBREDDITS = ("CryptoCurrency", "CryptoMarkets")
 _COIN_SUBREDDITS = {"BTC": "Bitcoin", "ETH": "ethereum", "SOL": "solana"}
 
+# ASX listings are discussed in Australian communities; the US stock subreddits
+# above rarely mention them, and a bare ASX code there matches US tickers instead.
+ASX_SUBREDDITS = ("ASX_Bets", "ausstocks", "AusFinance")
+
 
 def subreddits_for(ticker: str) -> tuple[str, ...]:
-    """The subreddits searched for ``ticker``: crypto communities for a crypto pair."""
+    """The subreddits searched for ``ticker``: crypto communities for a crypto
+    pair, Australian communities for an ASX listing."""
+    if asx_code(ticker):
+        return ASX_SUBREDDITS
     base = crypto_base(ticker)
     if not base:
         return DEFAULT_SUBREDDITS
@@ -275,7 +282,8 @@ def fetch_reddit_posts(
     subreddits = list(subreddits or subreddits_for(ticker))
     # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
     # ("BTC") so the query actually matches discussion instead of near-nothing.
-    ticker = crypto_base(ticker) or ticker
+    # Likewise an ASX listing (BHP.AX) is written as its bare code ("BHP").
+    ticker = crypto_base(ticker) or asx_code(ticker) or ticker
     label = ", ".join(f"r/{s}" for s in subreddits)
     fetched = _fetch_subreddit_rss(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
     if fetched is None:

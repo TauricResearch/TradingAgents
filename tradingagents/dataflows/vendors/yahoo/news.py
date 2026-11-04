@@ -134,10 +134,22 @@ def get_news_yfinance(
     return gap or f"No news found for {ticker}{resolved} between {start_date} and {end_date}"
 
 
+def regional_news_queries(config: dict, ticker: str | None) -> list[str]:
+    """The ``regional_news_queries`` for ``ticker``'s exchange suffix, or none."""
+    if not ticker:
+        return []
+    canonical = normalize_symbol(ticker)
+    for suffix, queries in (config.get("regional_news_queries") or {}).items():
+        if suffix and canonical.endswith(suffix):
+            return list(queries)
+    return []
+
+
 def get_global_news_yfinance(
     as_of_date: str,
     look_back_days: int | None = None,
     limit: int | None = None,
+    ticker: str | None = None,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
@@ -148,6 +160,9 @@ def get_global_news_yfinance(
             ``global_news_lookback_days`` from the active config.
         limit: Maximum number of articles to return. ``None`` falls back to
             ``global_news_article_limit`` from the active config.
+        ticker: The instrument under analysis. A ticker on an exchange listed in
+            ``regional_news_queries`` (e.g. ``.AX``) has that region's searches
+            run first, so local macro news is not crowded out by US headlines.
 
     Returns:
         Formatted string containing global news articles
@@ -157,7 +172,8 @@ def get_global_news_yfinance(
         look_back_days = config["global_news_lookback_days"]
     if limit is None:
         limit = config["global_news_article_limit"]
-    search_queries = config["global_news_queries"]
+    regional = regional_news_queries(config, ticker)
+    search_queries = regional + [q for q in config["global_news_queries"] if q not in regional]
 
     curr_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
     start_dt = curr_dt - relativedelta(days=look_back_days)
@@ -198,4 +214,5 @@ def get_global_news_yfinance(
         gap = coverage_gap((), start_date, as_of_date, "Yahoo Finance global news", "market news")
         return gap or f"No global news found between {start_date} and {as_of_date}"
 
-    return f"## Global Market News, from {start_date} to {as_of_date}:\n\n{news_str}"
+    scope = " (regional searches for the instrument's market run first)" if regional else ""
+    return f"## Global Market News{scope}, from {start_date} to {as_of_date}:\n\n{news_str}"

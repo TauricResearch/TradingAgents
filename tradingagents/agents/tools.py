@@ -12,6 +12,7 @@ from langgraph.prebuilt import InjectedState
 from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.router import no_data_available, route_to_vendor, vendor_unavailable
+from tradingagents.dataflows.symbols import is_asx
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 
@@ -177,7 +178,8 @@ def get_news(
 ) -> str:
     """
     Retrieve news data for the instrument under analysis.
-    Uses the configured news_data vendor.
+    Uses the configured news_data vendor; for an ASX-listed company the
+    company's own ASX announcements over the same window follow the news.
     Args:
         start_date (str): Start date in yyyy-mm-dd format
         end_date (str): End date in yyyy-mm-dd format
@@ -188,7 +190,11 @@ def get_news(
         start_date, end_date = as_of_window(start_date, end_date, trade_date)
     except ValueError as e:
         return str(e)
-    return route_to_vendor("get_news", ticker, start_date, end_date)
+    news = route_to_vendor("get_news", ticker, start_date, end_date)
+    if not is_asx(ticker):
+        return news
+    announcements = route_to_vendor("get_company_announcements", ticker, start_date, end_date)
+    return f"{news}\n\n{announcements}"
 
 
 @tool
@@ -197,6 +203,7 @@ def get_global_news(
     look_back_days: Annotated[int | None, "Days to look back; omit to use the configured default"] = None,
     limit: Annotated[int | None, "Max articles to return; omit to use the configured default"] = None,
     trade_date: Annotated[str, InjectedState("trade_date")] = "",
+    ticker: Annotated[str, InjectedState("company_of_interest")] = "",
 ) -> str:
     """
     Retrieve global news data.
@@ -212,7 +219,8 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
-    return route_to_vendor("get_global_news", as_of(curr_date, trade_date), look_back_days, limit)
+    return route_to_vendor("get_global_news", as_of(curr_date, trade_date), look_back_days, limit,
+                           ticker=ticker or None)
 
 
 @tool
@@ -237,7 +245,10 @@ def get_macro_indicators(
         "'unemployment', 'fed_funds_rate', '10y_treasury', 'yield_curve', "
         "'real_gdp', 'vix', euro-area aliases such as 'ecb_deposit_rate', "
         "'euro_hicp', 'euro_core_hicp', 'euro_real_gdp', 'germany_10y', "
-        "'france_10y', 'eur_usd', or a raw FRED series ID such as 'CPIAUCSL'.",
+        "'france_10y', 'eur_usd', Australian aliases such as 'rba_cash_rate', "
+        "'australia_10y', 'australia_cpi', 'australia_unemployment', "
+        "'australia_real_gdp', 'aud_usd', commodity aliases 'iron_ore', "
+        "'australian_coal', 'copper', or a raw FRED series ID such as 'CPIAUCSL'.",
     ],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format; the end of the window"],
     look_back_days: Annotated[
@@ -248,7 +259,8 @@ def get_macro_indicators(
     """
     Retrieve a macroeconomic indicator time series from FRED (Federal Reserve
     Economic Data): policy rates, Treasury yields, inflation, labor, and growth,
-    for the US and, through FRED's mirrored series, the euro area.
+    for the US and, through FRED's mirrored series, the euro area and Australia,
+    plus the commodity prices (iron ore, coal, copper) behind ASX resources names.
     Returns the series title, units, frequency, the latest value, the change
     over the window, and a recent observation table. Uses the configured
     macro_data vendor.
