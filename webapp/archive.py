@@ -120,6 +120,68 @@ def _header(path: Path) -> tuple[str | None, str | None, str | None]:
     )
 
 
+# The header lines that record how the run was made, parsed for "re-run with
+# these settings". Only what the page's form offers is read; anything else in
+# the header is display text, not configuration.
+_SETTINGS_RE = re.compile(r"^-\s+TradingAgents\s+\S+:\s*(.+)$", re.MULTILINE)
+_ANALYSTS_RE = re.compile(r"^-\s+Analysts:\s*(.+)$", re.MULTILINE)
+_ROUNDS_RE = re.compile(r"research debate rounds\s+(\d+)", re.IGNORECASE)
+_RISK_ROUNDS_RE = re.compile(r"risk debate rounds\s+(\d+)", re.IGNORECASE)
+
+
+def rerun_settings(results_dir: Path, entry_id: str) -> dict:
+    """The form answers a report's header records, for pre-filling a re-run.
+
+    The header names the models and the analyst selection as text, not as
+    fields, so what comes back is a best effort: the ticker, date and analysts
+    are exact, the models are read from the header's model line and offered as
+    custom IDs the page can show and change.
+    """
+    entry = get_report(results_dir, entry_id)
+    directory = _entry_directory(results_dir, entry)
+    markdown = directory / "complete_report.md"
+    try:
+        head = markdown.read_text(encoding="utf-8", errors="replace")[:_HEADER_BYTES]
+    except OSError:
+        head = ""
+
+    settings: dict = {
+        "ticker": entry.ticker,
+        "analysis_date": entry.analysis_date,
+        "analysts": [],
+        "quick_think_llm": None,
+        "deep_think_llm": None,
+        "research_depth": None,
+    }
+    analysts = _ANALYSTS_RE.search(head)
+    if analysts:
+        names = []
+        for name in analysts.group(1).split(";")[0].split(","):
+            name = name.strip().lower()
+            if name == "sentiment":
+                names.append("social")
+            elif name in {"market", "social", "news", "fundamentals"}:
+                names.append(name)
+        settings["analysts"] = names
+    rounds = _ROUNDS_RE.search(head)
+    if rounds:
+        settings["research_depth"] = int(rounds.group(1))
+    models = _SETTINGS_RE.search(head)
+    if models:
+        text = models.group(1)
+        # One provider for both tiers: "openai, deep gpt-6-sol, quick gpt-6-luna".
+        # A tier on its own provider: "deep openai gpt-6-sol, quick anthropic claude-5".
+        single = re.search(r"^\s*([^\s,]+),\s*deep\s+([^\s,]+),\s*quick\s+([^\s,]+)", text)
+        split = re.search(r"\bdeep\s+(\S+)\s+([^\s,]+),\s*quick\s+(\S+)\s+([^\s,]+)", text)
+        if single:
+            settings["deep_think_llm"] = single.group(2)
+            settings["quick_think_llm"] = single.group(3)
+        elif split:
+            settings["deep_think_llm"] = split.group(2)
+            settings["quick_think_llm"] = split.group(4)
+    return settings
+
+
 def _canonical_rating(value: str | None) -> str | None:
     """The 5-tier rating a header line names, or None for REVIEW and anything unknown."""
     if not value:
@@ -263,6 +325,21 @@ def read_sections(results_dir: Path, entry_id: str) -> list[dict]:
             continue
         sections.append({"title": title, "markdown": text})
     return sections
+
+
+def compare_sections(results_dir: Path, left_id: str, right_id: str) -> list[dict]:
+    """Two reports' sections paired by agent, for reading them side by side.
+
+    Both entries are read in their own reading order and zipped on the agent
+    title, so a section one report has and the other lacks is still shown —
+    with the missing side empty rather than silently dropped.
+    """
+    left_rows = read_sections(results_dir, left_id)
+    right_rows = read_sections(results_dir, right_id)
+    left = {s["title"]: s["markdown"] for s in left_rows}
+    right = {s["title"]: s["markdown"] for s in right_rows}
+    titles = list(dict.fromkeys([s["title"] for s in left_rows] + [s["title"] for s in right_rows]))
+    return [{"title": title, "left": left.get(title), "right": right.get(title)} for title in titles]
 
 
 def report_file(results_dir: Path, entry_id: str, *, html: bool) -> Path:
