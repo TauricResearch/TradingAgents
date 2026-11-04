@@ -18,8 +18,8 @@ import pytest
 import tradingagents.agents.analysts.sentiment_analyst as sentiment
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
+from tradingagents.agents.structured import NO_EXTERNAL_TOOLS
 from tradingagents.agents.trader.trader import create_trader
-from tradingagents.agents.utils.structured import NO_EXTERNAL_TOOLS
 
 
 def _capturing_llm(captured: dict, result):
@@ -72,7 +72,7 @@ def test_research_manager_prompt_states_constraint():
         "company_of_interest": "NVDA",
         "investment_debate_state": {
             "history": "h", "bull_history": "b", "bear_history": "r",
-            "current_response": "", "judge_decision": "", "count": 1,
+            "current_response": "", "count": 1,
         },
     })
     assert NO_EXTERNAL_TOOLS in _prompt_text(captured["prompt"])
@@ -146,3 +146,23 @@ def test_constraint_text_is_unambiguous():
     # No template braces: it is embedded in ChatPromptTemplate strings, where
     # braces would be parsed as input variables.
     assert "{" not in NO_EXTERNAL_TOOLS and "}" not in NO_EXTERNAL_TOOLS
+
+
+@pytest.mark.unit
+def test_the_sentiment_prompt_names_the_subreddits_searched(monkeypatch):
+    from tradingagents.agents.schemas import SentimentBand, SentimentReport
+
+    monkeypatch.setattr(sentiment, "fetch_stocktwits_messages", lambda *a, **k: "st")
+    monkeypatch.setattr(sentiment, "fetch_reddit_posts", lambda *a, **k: "rd")
+    monkeypatch.setattr(sentiment.get_news, "func", lambda *a, **k: "news", raising=False)
+    captured = {}
+    llm = _capturing_llm(captured, SentimentReport(
+        overall_band=SentimentBand.NEUTRAL, overall_score=5.0, confidence="low", narrative="n",
+    ))
+    sentiment.create_sentiment_analyst(llm)({
+        "company_of_interest": "BTC-USD", "trade_date": "2026-01-15",
+        "asset_type": "crypto", "messages": [],
+    })
+    text = _prompt_text(captured["prompt"])
+    assert "r/Bitcoin, r/CryptoCurrency, r/CryptoMarkets" in text
+    assert "wallstreetbets" not in text

@@ -10,7 +10,7 @@ FRED (#1275), social (#1220) and memory (#1251) leaks.
 
 Both vendors withhold on one shared rule (``date_window.withhold_live_profile``)
 so switching ``fundamental_data`` between them cannot reintroduce the leak. The
-statement tools stay point-in-time by filtering on ``curr_date``, and a live run
+statement tools stay point-in-time by filtering on ``as_of_date``, and a live run
 is unchanged. All API access is mocked.
 """
 from __future__ import annotations
@@ -19,7 +19,12 @@ from unittest import mock
 
 import pytest
 
-from tradingagents.dataflows import alpha_vantage_fundamentals as av, date_window, y_finance
+from tradingagents.dataflows import date_window
+from tradingagents.dataflows.vendors.alpha_vantage import fundamentals as av
+from tradingagents.dataflows.vendors.yahoo import (
+    fundamentals as yahoo_fundamentals,
+    market as yahoo_market,
+)
 
 _TODAY = "2026-09-07"
 _PAST = "2024-05-10"
@@ -40,19 +45,19 @@ _LEAKY = ("3500000000000", "34.2", "260.1", "391000000000",
           "Apple Inc.", "Technology", "Consumer Electronics")
 
 
-def _yf(curr_date, info=_INFO, today=_TODAY):
+def _yf(as_of_date, info=_INFO, today=_TODAY):
     with mock.patch.object(date_window, "get_current_date", return_value=today), \
-         mock.patch.object(y_finance, "yf_retry", lambda fn: info), \
-         mock.patch.object(y_finance.yf, "Ticker"):
-        return y_finance.get_fundamentals("AAPL", curr_date)
+         mock.patch.object(yahoo_fundamentals, "yf_retry", lambda fn: info), \
+         mock.patch.object(yahoo_market.yf, "Ticker"):
+        return yahoo_fundamentals.get_fundamentals("AAPL", as_of_date)
 
 
-def _av(curr_date, today=_TODAY):
+def _av(as_of_date, today=_TODAY):
     """Alpha Vantage path; the API call is mocked so a leak would be visible."""
     with mock.patch.object(date_window, "get_current_date", return_value=today), \
          mock.patch.object(av, "_make_api_request",
                            return_value="MarketCapitalization: 3500000000000") as req:
-        return av.get_fundamentals("AAPL", curr_date), req
+        return av.get_fundamentals("AAPL", as_of_date), req
 
 
 @pytest.mark.unit
@@ -68,7 +73,7 @@ class TestYFinanceHistoricalRun:
         out = _yf(_PAST)
         assert f"Point-in-time as of: {_PAST}" in out
         assert "withheld" in out
-        assert _PAST in out and _TODAY in out
+        assert _PAST in out and _TODAY not in out
 
     def test_no_wall_clock_retrieval_stamp(self):
         # The old header stamped datetime.now(), which is what surfaced the leak.
@@ -78,8 +83,8 @@ class TestYFinanceHistoricalRun:
         # The response would only be discarded; skipping it also avoids burning
         # vendor quota on a call whose result cannot be used.
         with mock.patch.object(date_window, "get_current_date", return_value=_TODAY), \
-             mock.patch.object(y_finance.yf, "Ticker") as tk:
-            y_finance.get_fundamentals("AAPL", _PAST)
+             mock.patch.object(yahoo_market.yf, "Ticker") as tk:
+            yahoo_fundamentals.get_fundamentals("AAPL", _PAST)
         tk.assert_not_called()
 
 
@@ -110,7 +115,6 @@ class TestLiveRunUnchanged:
         out = _yf(_TODAY)
         for value in _LEAKY:
             assert value in out
-        assert "Data retrieved on:" in out
         assert "withheld" not in out
 
     def test_yfinance_absent_curr_date_returns_the_full_profile(self):
@@ -121,10 +125,13 @@ class TestLiveRunUnchanged:
 
 @pytest.mark.unit
 class TestNoUsableFieldsStillRaises:
-    def test_stub_payload_raises_no_market_data(self):
+    def test_stub_payload_raises_no_market_data(self, monkeypatch):
         # yfinance returns {"trailingPegRatio": None} for unknown symbols; on a
         # live run that must stay a hard "no data", not a bare header.
-        from tradingagents.dataflows.symbol_utils import NoMarketDataError
+        from tradingagents.dataflows.errors import NoMarketDataError
+        from tradingagents.dataflows.vendors.yahoo import common
+
+        monkeypatch.setattr(common, "vendor_reachable", lambda url: True)
 
         with pytest.raises(NoMarketDataError):
             _yf(_TODAY, info={"trailingPegRatio": None})

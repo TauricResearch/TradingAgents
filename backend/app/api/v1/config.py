@@ -36,6 +36,8 @@ KEY_DEFINITIONS = [
     {"provider": "fmp", "env_var": "FINANCIAL_MODELING_PREP_API_KEY", "category": "data"},
     {"provider": "alpha_vantage", "env_var": "ALPHA_VANTAGE_API_KEY", "category": "data"},
     {"provider": "fred", "env_var": "FRED_API_KEY", "category": "data"},
+    {"provider": "sec_edgar", "env_var": "SEC_EDGAR_USER_AGENT", "category": "data"},
+    {"provider": "typesafe", "env_var": "TYPESAFE_API_KEY", "category": "sentiment"},
 ]
 
 ANALYSTS_METADATA = [

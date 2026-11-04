@@ -16,6 +16,8 @@ class JobCreateRequest(BaseModel):
     quick_think_llm: str | None = Field(None, description="Model for fast steps")
     max_debate_rounds: int | None = Field(None, ge=1, le=5, description="Number of bull/bear debate rounds")
     max_risk_discuss_rounds: int | None = Field(None, ge=1, le=5, description="Number of risk debate rounds")
+    max_tool_rounds: int | None = Field(None, ge=1, le=50, description="Max tool call rounds per analyst")
+    holding_period_days: int | None = Field(None, ge=1, le=60, description="Holding period days for reflection")
     output_language: str | None = Field(None, description="Target language for the reports")
 
 class JobResponse(BaseModel):

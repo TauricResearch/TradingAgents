@@ -16,8 +16,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from tradingagents.agents.utils.rating import extract_rating  # noqa: E402
-from tradingagents.dataflows.utils import safe_ticker_component  # noqa: E402
+from tradingagents.agents.rating import extract_rating  # noqa: E402
+from tradingagents.dataflows.symbols import safe_ticker_component  # noqa: E402
 from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 from tradingagents.graph.trading_graph import TradingAgentsGraph  # noqa: E402
 from tradingagents.reporting import write_report_tree  # noqa: E402
@@ -25,6 +25,30 @@ from tradingagents.reporting import write_report_tree  # noqa: E402
 from ..core.security import sanitize_sensitive_text
 
 logger = logging.getLogger(__name__)
+
+def resolve_rating_signal(state_or_chunk: dict, decision_text: str, default: str = "Hold") -> str:
+    """Robustly resolve 5-tier rating signal using upstream canonical parser and flexible fallbacks."""
+    if state_or_chunk.get("final_rating"):
+        return state_or_chunk["final_rating"]
+    parsed = extract_rating(decision_text)
+    if parsed:
+        return parsed
+    # Fallback heuristic for models that write 'Recommendation: Strong Buy' or similar
+    if decision_text:
+        m = re.search(r"(?:rating|recommendation|decision|action|stance)\s*[:\-—]\s*(\w+(?:\s+\w+)?)", decision_text, re.IGNORECASE)
+        if m:
+            val = m.group(1).lower()
+            if "buy" in val:
+                return "Buy"
+            elif "sell" in val:
+                return "Sell"
+            elif "overweight" in val:
+                return "Overweight"
+            elif "underweight" in val:
+                return "Underweight"
+            elif "hold" in val:
+                return "Hold"
+    return default
 
 def extract_price_level(text: str, label_keywords: list[str]) -> float | None:
     """Robustly extract the first monetary price level associated with given label keywords."""
@@ -89,6 +113,14 @@ def run_analysis_task(
         cfg["backend_url"] = job_dict.get("backend_url") or cfg.get("backend_url") or os.getenv("TRADINGAGENTS_LLM_BACKEND_URL")
         cfg["max_debate_rounds"] = int(job_dict.get("max_debate_rounds", 1))
         cfg["max_risk_discuss_rounds"] = int(job_dict.get("max_risk_discuss_rounds", 1))
+        if job_dict.get("max_tool_rounds"):
+            cfg["max_tool_rounds"] = int(job_dict["max_tool_rounds"])
+        if job_dict.get("holding_period_days"):
+            cfg["holding_period_days"] = int(job_dict["holding_period_days"])
+        if job_dict.get("deep_think_provider"):
+            cfg["deep_think_provider"] = job_dict["deep_think_provider"]
+        if job_dict.get("quick_think_provider"):
+            cfg["quick_think_provider"] = job_dict["quick_think_provider"]
         cfg["output_language"] = job_dict.get("output_language", "English")
         cfg["checkpoint_enabled"] = False # Scoped per-job to avoid lock conflicts
 
@@ -244,7 +276,7 @@ def run_analysis_task(
             # 5. Final Decision
             if chunk.get("final_trade_decision"):
                 decision = chunk["final_trade_decision"]
-                rating = extract_rating(decision) or "Hold"
+                rating = resolve_rating_signal(chunk, decision)
                 emit("final_decision", {
                     "rating": rating,
                     "decision": decision,
@@ -258,14 +290,15 @@ def run_analysis_task(
             final_state.update(chunk)
 
         final_decision_text = final_state.get("final_trade_decision", "")
-        rating_signal = extract_rating(final_decision_text) or "Hold"
+        rating_signal = resolve_rating_signal(final_state, final_decision_text)
 
         # Save to memory log
         try:
             graph.memory_log.store_decision(
                 ticker=ticker,
                 trade_date=trade_date,
-                final_trade_decision=final_decision_text
+                final_trade_decision=final_decision_text,
+                rating=rating_signal
             )
         except Exception as e:
             logger.warning(f"Failed to append to memory log for {ticker}: {e}")

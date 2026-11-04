@@ -1,7 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class AnalystType(str, Enum):
+class AnalystType(StrEnum):
     MARKET = "market"
     # Wire value stays "social" for saved-config and string-keyed-caller
     # back-compat; the user-facing label is "Sentiment Analyst".
@@ -10,6 +10,6 @@ class AnalystType(str, Enum):
     FUNDAMENTALS = "fundamentals"
 
 
-class AssetType(str, Enum):
+class AssetType(StrEnum):
     STOCK = "stock"
     CRYPTO = "crypto"

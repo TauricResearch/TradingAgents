@@ -1,1 +1,3 @@
+# The dependencies are declared in pyproject.toml. From the repository root this
+# installs TradingAgents with them, the same as `pip install .`
 .

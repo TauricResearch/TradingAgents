@@ -1,0 +1,52 @@
+name: Wrong or missing data
+description: A report shows a wrong price, figure, date or company, or data is missing for a symbol.
+labels: ["bug", "data"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Data is served as of the analysis date: a historical run does not see later prices, filings or news, and some sources (news, StockTwits, Reddit) only serve recent items. A report that says a source is unavailable for a past window is expected.
+  - type: input
+    id: symbol
+    attributes:
+      label: Ticker and market
+      placeholder: "0700.HK (Hong Kong)"
+    validations:
+      required: true
+  - type: input
+    id: date
+    attributes:
+      label: Analysis date
+      placeholder: "2026-09-23"
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Which data
+      multiple: true
+      options:
+        - Prices or indicators
+        - Fundamentals or statements
+        - News
+        - Social (StockTwits, Reddit)
+        - Macro (FRED)
+        - Insider transactions
+        - Prediction markets
+        - Company identity (wrong company or name)
+    validations:
+      required: true
+  - type: textarea
+    id: shown
+    attributes:
+      label: What the report shows, and what is correct
+      description: Quote the report line, and give the correct value with a public source (exchange page, filing, Yahoo Finance link).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "0.5.1"
+    validations:
+      required: true

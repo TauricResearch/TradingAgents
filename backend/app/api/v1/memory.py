@@ -7,7 +7,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from tradingagents.agents.utils.memory import TradingMemoryLog  # noqa: E402
+from tradingagents.memory.log import TradingMemoryLog  # noqa: E402
 from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 
 router = APIRouter(prefix="/memory", tags=["Memory"])
