@@ -26,6 +26,8 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert config["backend_url"] is None
     assert config["max_debate_rounds"] == 1
     assert config["checkpoint_enabled"] is False
+    assert config["cftc_cache_enabled"] is True
+    assert config["cftc_cache_max_age_days"] == 48
 
 
 def test_string_overrides(monkeypatch):
@@ -87,6 +89,16 @@ def test_reasoning_effort_defaults_to_none(monkeypatch):
     assert config["openai_reasoning_effort"] is None
     assert config["google_thinking_level"] is None
     assert config["anthropic_effort"] is None
+
+
+def test_cftc_cache_overrides(monkeypatch):
+    config = _config_with_env(
+        monkeypatch,
+        TRADINGAGENTS_CFTC_CACHE_ENABLED="off",
+        TRADINGAGENTS_CFTC_CACHE_MAX_AGE_DAYS="14",
+    )
+    assert config["cftc_cache_enabled"] is False
+    assert config["cftc_cache_max_age_days"] == 14
 
 
 def test_empty_env_value_is_passthrough(monkeypatch):

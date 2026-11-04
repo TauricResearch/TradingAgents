@@ -13,6 +13,7 @@ import tempfile
 from typing import TypedDict
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import END, StateGraph
 
 from tradingagents.graph.checkpointer import checkpoint_step
@@ -112,6 +113,42 @@ def test_checkpoint_input_is_none_only_when_resuming():
             assert g2.checkpoint_input(init) is None
         finally:
             g2.end_checkpoint()
+
+
+@pytest.mark.unit
+def test_checkpoint_input_adds_a_user_message_when_missing():
+    with tempfile.TemporaryDirectory() as tmp:
+        g = _bare_graph(tmp)
+        g._resuming = False
+        init = {
+            "messages": [AIMessage(content="assistant-only context")],
+            "company_of_interest": "AAPL",
+            "trade_date": "2026-05-08",
+            "instrument_context": "The instrument to analyze is `AAPL`.",
+        }
+
+        out = g.checkpoint_input(init)
+
+        assert out is init
+        assert any(getattr(m, "type", "") in {"human", "user"} for m in out["messages"])
+
+
+@pytest.mark.unit
+def test_checkpoint_input_keeps_an_existing_user_message():
+    with tempfile.TemporaryDirectory() as tmp:
+        g = _bare_graph(tmp)
+        g._resuming = False
+        init = {
+            "messages": [HumanMessage(content="Analyze AAPL")],
+            "company_of_interest": "AAPL",
+            "trade_date": "2026-05-08",
+        }
+
+        out = g.checkpoint_input(init)
+
+        assert out is init
+        human_count = sum(1 for m in out["messages"] if getattr(m, "type", "") in {"human", "user"})
+        assert human_count == 1
 
 
 @pytest.mark.unit
