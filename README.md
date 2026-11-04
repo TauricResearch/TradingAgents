@@ -293,6 +293,18 @@ A tier on its own provider uses that provider's key and default endpoint; set `q
 
 See `tradingagents/default_config.py` for all configuration options.
 
+### Data sources
+
+Choose a data source for each category through `.env` or the shell. These settings apply to both the CLI and Python runs:
+
+```bash
+ALPHA_VANTAGE_API_KEY=your_key
+TRADINGAGENTS_VENDOR_NEWS_DATA=alpha_vantage
+TRADINGAGENTS_VENDOR_CORE_STOCK_APIS=yfinance,alpha_vantage
+```
+
+The news setting selects Alpha Vantage; the stock-data chain tries Yahoo Finance first, then Alpha Vantage. Get a free Alpha Vantage key [here](https://www.alphavantage.co/support/#api-key). Use `TRADINGAGENTS_VENDOR_<CATEGORY>` for any category in `data_vendors`; all six variables and their defaults are listed in [`.env.example`](.env.example). Blank values keep the built-in defaults, and `default` uses all vendors available for the tool. An explicit `data_vendors` entry in a run's Python config overrides its environment default; `tool_vendors` takes precedence for individual tools.
+
 ### Fundamentals as filed
 
 US company statements come from SEC EDGAR, which records the date every figure was filed. A run dated in the past reads the statements exactly as they stood that day: a fiscal year that has ended but has not been filed yet is not served, and a figure restated later still reads as first reported. Apple's 2008 total assets were filed as $39.6B and restated to $36.2B in 2010, so a run dated in between reads $39.6B. EDGAR needs no account or API key.
