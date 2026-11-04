@@ -96,3 +96,47 @@ def test_structured_output_suppresses_object_tool_choice(monkeypatch):
     assert out == "BOUND"
     assert captured["method"] == "function_calling"
     assert captured["tool_choice"] is None  # not the object form
+
+
+@pytest.mark.unit
+def test_prefixed_model_id_is_forwarded_verbatim():
+    # A relay prefixes its model IDs (e.g. team.blue's "llmfactory:local:GLM-5.3").
+    # The ID must reach the API unchanged: shortening it to its last segment would
+    # request a model the endpoint does not serve.
+    llm = create_llm_client(
+        provider="openai_compatible",
+        model="llmfactory:local:GLM-5.3",
+        base_url="https://relay.example/v1",
+    ).get_llm()
+    assert llm.model_name == "llmfactory:local:GLM-5.3"
+
+
+@pytest.mark.unit
+def test_tiers_may_name_two_models_of_one_relay():
+    # Both tiers on the same custom endpoint but different models: the deep tier
+    # takes the stronger reasoner, the quick tier the faster one. Both must reach
+    # that one backend_url, since neither tier set an endpoint of its own.
+    from tradingagents.llm_clients.factory import create_tier_client
+
+    config = {
+        "llm_provider": "openai_compatible",
+        "backend_url": "https://relay.example/v1",
+        "deep_think_llm": "llmfactory:local:GLM-5.3",
+        "quick_think_llm": "llmfactory:local:DeepSeek-V4.1-Flash",
+        "quick_think_provider": None,
+        "deep_think_provider": None,
+        "quick_think_backend_url": None,
+        "deep_think_backend_url": None,
+        "temperature": None,
+        "max_tokens": None,
+        "llm_max_retries": None,
+        "google_thinking_level": None,
+        "openai_reasoning_effort": None,
+        "anthropic_effort": None,
+    }
+    deep = create_tier_client(config, "deep").get_llm()
+    quick = create_tier_client(config, "quick").get_llm()
+    assert deep.model_name == "llmfactory:local:GLM-5.3"
+    assert quick.model_name == "llmfactory:local:DeepSeek-V4.1-Flash"
+    assert str(deep.openai_api_base).rstrip("/") == "https://relay.example/v1"
+    assert str(quick.openai_api_base).rstrip("/") == "https://relay.example/v1"
