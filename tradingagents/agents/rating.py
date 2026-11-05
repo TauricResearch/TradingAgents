@@ -50,7 +50,40 @@ _RATING_LINE_RE = re.compile(
 )
 
 # A line presenting the scale rather than a decision ("Rating Scale: Buy, ...").
-_RATING_SCALE_RE = re.compile(r"rating\s*(scale|options|legend)", re.IGNORECASE)
+_RATING_SCALE_RE = re.compile(r"rating\\s*(scale|options|legend)", re.IGNORECASE)
+
+# Localized rating aliases: Chinese brokerage research conventions are
+# standardized and map one-to-one onto the 5-tier scale, so a fully-localized
+# decision still parses instead of silently falling to REVIEW when the model
+# ignores the keep-anchors-in-English instruction despite it.
+_LOCALIZED_RATING_ALIASES = {
+    "买入": "Buy",
+    "增持": "Overweight",
+    "持有": "Hold",
+    "减持": "Underweight",
+    "卖出": "Sell",
+}
+
+# A localized anchor line ("**评级**：买入", "最终评级：增持") gets the same
+# explicit-label precedence as "Rating: Buy": an optional qualifier before
+# "评级", a fullwidth-or-ASCII colon, then the tier word itself. NFKC folding
+# happens upstream in extract_rating, so the fullwidth colon arrives as ASCII.
+_LOCALIZED_RATING_LABEL_RE = re.compile(
+    r"(?:(?:最终|我们的|整体|推荐|更新|新的|当前)\s*)*评级[\s*]*[:\-][\s*]*(买入|增持|持有|减持|卖出)"
+)
+
+
+def _resolve_rating_word(word: str) -> str | None:
+    """An English tier word to its canonical form, else ``None``.
+
+    ``_RATING_LABEL_RE`` captures a single ``\\w+`` token, which a localized
+    value never is, so alias resolution is a separate lookup rather than a
+    wider regex.
+    """
+    lowered = word.strip().lower()
+    if lowered in _RATING_SET:
+        return lowered.capitalize()
+    return _LOCALIZED_RATING_ALIASES.get(word.strip())
 
 def extract_rating(text: str) -> str | None:
     """Extract a 5-tier rating from its label, or ``None`` if there is none.
@@ -75,17 +108,28 @@ def extract_rating(text: str) -> str | None:
     first = next((line for line in lines if not line.lstrip().startswith("#")
                   or _RATING_LINE_RE.match(line)), "")
     m = _RATING_LINE_RE.match(first)
-    opening = m if m and m.group("value").lower() in _RATING_SET else None
+    opening_resolved = _resolve_rating_word(m.group("value")) if m else None
+    opening = m if m and opening_resolved else None
     if opening and not opening.group("item"):
-        return opening.group("value").capitalize()
+        return opening_resolved
 
-    own = [opening.group("value").capitalize()] if opening else []
+    own = [opening_resolved] if opening else []
     labels = []
     for line in lines:
         m = _RATING_LINE_RE.match(line)
-        if m and not m.group("item") and m.group("value").lower() in _RATING_SET:
-            own.append(m.group("value").capitalize())
-        labels += [v.capitalize() for v in _RATING_LABEL_RE.findall(line) if v.lower() in _RATING_SET]
+        if m and not m.group("item"):
+            resolved = _resolve_rating_word(m.group("value"))
+            if resolved:
+                own.append(resolved)
+        labels += [r for r in map(_resolve_rating_word, _RATING_LABEL_RE.findall(line)) if r]
+    # A localized anchor line gets the same explicit-label precedence as the
+    # English one: the decision's opening line, else its own rating lines,
+    # when they agree.
+    localized = [_LOCALIZED_RATING_ALIASES[lm.group(1)]
+                 for lm in (_LOCALIZED_RATING_LABEL_RE.search(line) for line in lines)
+                 if lm]
+    if localized:
+        return localized[0] if len(set(localized)) == 1 else None
     # Without a label there is no call to read: a rating word in the prose may be
     # one the text argues against ("not a Sell"), and reading it reports a
     # direction nobody decided.
