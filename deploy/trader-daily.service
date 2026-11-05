@@ -1,0 +1,14 @@
+[Unit]
+Description=TradingAgents paper trader: daily research and trading
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# @RUN_USER@ and @REPO_DIR@ are filled in at deploy time.
+User=@RUN_USER@
+WorkingDirectory=@REPO_DIR@
+Environment=TZ=UTC
+ExecStart=@REPO_DIR@/.venv/bin/python -m trader daily
+# Research retries can take hours; give up after four.
+TimeoutStartSec=4h

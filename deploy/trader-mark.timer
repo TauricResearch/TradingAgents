@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the paper trader's mark job every hour
+
+[Timer]
+OnCalendar=*-*-* *:07:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the paper trader's daily job after each UTC midnight
+
+[Timer]
+# The second run catches up a first that crashed; on a finished day it does nothing.
+OnCalendar=*-*-* 00:05:00 UTC
+OnCalendar=*-*-* 03:05:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

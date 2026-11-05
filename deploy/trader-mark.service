@@ -1,0 +1,13 @@
+[Unit]
+Description=TradingAgents paper trader: replay closed minutes for stops, funding and the drawdown limit
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# @RUN_USER@ and @REPO_DIR@ are filled in at deploy time.
+User=@RUN_USER@
+WorkingDirectory=@REPO_DIR@
+Environment=TZ=UTC
+ExecStart=@REPO_DIR@/.venv/bin/python -m trader mark
+TimeoutStartSec=30min
