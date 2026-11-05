@@ -43,7 +43,6 @@ def test_prose_naming_several_ratings_without_a_label_needs_review():
 @pytest.mark.unit
 @pytest.mark.parametrize("prose", [
     "We would not Sell here; the dip is a chance to add.",
-    "**评级**：买入\n\n不建议卖出 (Sell)。",   # a label in another language, and a negated Sell
     "On balance we stay Underweight until margins recover.",
 ])
 def test_a_rating_word_without_a_label_is_not_read_as_the_call(prose):
@@ -56,6 +55,72 @@ def test_a_rating_word_without_a_label_is_not_read_as_the_call(prose):
 def test_a_refusal_has_no_rating_and_is_not_defaulted():
     assert extract_rating(REFUSAL) is None
     assert parse_rating(REFUSAL) == RATING_REVIEW
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "alias,expected",
+    [
+        ("买入", "Buy"),
+        ("增持", "Overweight"),
+        ("持有", "Hold"),
+        ("减持", "Underweight"),
+        ("卖出", "Sell"),
+    ],
+)
+def test_a_localized_labelled_rating_line_parses(alias, expected):
+    """A non-English decision may spell the anchor line in its own language.
+    The parser reads it rather than falling to REVIEW, which silently drops
+    the decision from backtest scoring."""
+    assert extract_rating(f"**评级**：{alias}") == expected
+
+
+@pytest.mark.unit
+def test_a_localized_label_takes_precedence_over_negated_english_prose():
+    """The localized anchor line gets the same explicit-label precedence as an
+    English one: the labelled call wins over a negated tier word in the prose
+    below it."""
+    assert extract_rating("**评级**：买入\n\n不建议卖出 (Sell)。") == "Buy"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("qualified", ["最终评级：买入", "**最终评级**: 卖出"])
+def test_a_localized_label_with_a_qualifier_parses(qualified):
+    """Qualifiers before 评级 ("最终评级：买入") mirror the English
+    "Final Rating:" shape and stay the decision's own line."""
+    expected = "Buy" if "买入" in qualified else "Sell"
+    assert extract_rating(qualified) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "mixed", ["Rating: 买入", "- **Rating**: 增持", "Final Rating: 卖出"]
+)
+def test_an_english_label_with_a_localized_value_parses(mixed):
+    """The model kept the label English (as the instruction asks) but
+    translated the value too; the label pass resolves the alias."""
+    expected = {"买入": "Buy", "增持": "Overweight", "卖出": "Sell"}[
+        next(w for w in ("买入", "增持", "卖出") if w in mixed)
+    ]
+    assert extract_rating(mixed) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "prose",
+    [
+        "建议不要买入，当前估值过高。",   # negated in a language without word boundaries
+        "不减持当前仓位。",            # negated 减持
+        "市场持续持有该仓位。",          # descriptive 持有, no label
+    ],
+)
+def test_localized_tier_words_in_prose_without_a_label_are_not_calls(prose):
+    """Chinese has no word boundaries: "不要买入" contains "买入", and
+    "机构持有" is ordinary prose. Without a label line, localized tier words
+    must not parse as positive calls — the direction-flip this parser exists
+    to prevent (#1435)."""
+    assert extract_rating(prose) is None
+    assert parse_rating(prose) == RATING_REVIEW
 
 
 @pytest.mark.unit
