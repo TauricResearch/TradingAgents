@@ -194,6 +194,20 @@ class Ledger:
         ).fetchone()
         return total, unknown > 0
 
+    def cost_of(self, trade_date: str) -> tuple[float, bool]:
+        """LLM cost of one trade date's attempts, and whether any cost is unknown."""
+        total, unknown = self.db.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0), COUNT(*) - COUNT(cost_usd) FROM attempts"
+            " WHERE trade_date = ?", (trade_date,),
+        ).fetchone()
+        return total, unknown > 0
+
+    def costs(self, since_ms: int) -> list[tuple[int, float | None]]:
+        """(ts, cost_usd) of each attempt since ``since_ms``, oldest first."""
+        return self.db.execute(
+            "SELECT ts, cost_usd FROM attempts WHERE ts >= ? ORDER BY ts", (since_ms,)
+        ).fetchall()
+
     def daily_costs(self, before_trade_date: str) -> list[tuple[str, float | None]]:
         """Cost per trade date before ``before_trade_date``, oldest first; None when any
         attempt of that day has an unknown cost."""

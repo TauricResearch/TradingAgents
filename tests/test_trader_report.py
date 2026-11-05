@@ -1,0 +1,56 @@
+import math
+
+import pytest
+
+from tests.test_trader_paper import BTC, DAY0, FakeOKX
+from trader import report
+from trader.ledger import Ledger
+from trader.okx import DAY_MS, Bar
+from trader.paper import Paper
+
+
+def test_metrics_of_known_series():
+    assert report.max_drawdown([100, 120, 90, 130, 117]) == pytest.approx(0.25)
+    assert report.annualized([100, 100]) == 0
+    assert report.sharpe([100, 101]) is None  # one return
+    assert report.sharpe([100, 100, 100]) is None  # no deviation
+    # Returns +2% and -1%: mean 0.5%, sample deviation 1.5% * sqrt(2).
+    expected = 0.005 / (0.015 * math.sqrt(2)) * math.sqrt(365)
+    assert report.sharpe([100, 102, 100.98]) == pytest.approx(expected)
+    assert report.performance_line("x", [1.0]) == "x：样本不足"
+
+
+def test_full_report_nets_llm_spend_and_sets_the_baselines(tmp_path):
+    ledger = Ledger(tmp_path / "ledger.sqlite")
+    ledger.initialize(10_000.0, DAY0)
+    ledger.commit(
+        positions={}, cash=10_000.0, meta={"validation_start": DAY0},
+        snapshots=[(DAY0, 10_000.0), (DAY0 + DAY_MS, 10_100.0), (DAY0 + 2 * DAY_MS, 10_200.0)],
+    )
+    # $100 spent after the second midnight comes off the third.
+    ledger.record_attempt(
+        "2026-01-10", BTC.research, DAY0 + DAY_MS + 1, rating="Hold", error=None, cost_usd=100.0
+    )
+    okx = FakeOKX()
+    okx.daily = [Bar(DAY0 + (i - 1) * DAY_MS, 0, 0, 0, c) for i, c in enumerate((80_000, 80_800, 81_600))]
+    text = report.full(Paper(ledger, okx, (BTC,)), tmp_path / "no_memory_log.md")
+    assert "共 2 天" in text
+    assert "策略（扣 LLM 费用）：累计 +1.00%" in text
+    assert "三币等权买入持有：累计 +2.00%" in text
+    assert "BTC 买入持有：累计 +2.00%" in text
+    assert "LLM 费用 $100.00" in text
+    assert "还没有结算的评级" in text
+
+
+def test_daily_report_shows_a_halt_and_the_learning_budget(tmp_path):
+    ledger = Ledger(tmp_path / "ledger.sqlite")
+    ledger.initialize(10_000.0, DAY0)
+    ledger.set("halted", True)
+    text = report.daily(
+        Paper(ledger, FakeOKX(), (BTC,)), "2026-01-09", {BTC.research: ("done", "Buy")},
+        DAY0, DAY0, None,
+    )
+    assert text.splitlines()[1].startswith("⚠ 熔断中")
+    assert "BTC：Buy → 不调仓；无持仓" in text
+    assert "净值 10,000.00 USDT，今日 +0.00%" in text
+    assert "上限未定（已观察 0/7 天）" in text
