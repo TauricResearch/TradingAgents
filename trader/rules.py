@@ -57,8 +57,8 @@ def apply_caps(targets: dict[str, float], currents: dict[str, float], equity: fl
     A target equal to its current notional is held as is. Every other target is
     clamped to +/- MAX_COIN_EXPOSURE * equity; then, if the gross notional (held
     plus changing) would exceed MAX_GROSS_EXPOSURE * equity, the changing targets
-    are scaled down by one common factor so the gross equals the cap. A key
-    missing from ``currents`` counts as 0.
+    are scaled down by one common factor so the gross equals the cap, or to zero
+    when the held targets alone exceed it. A key missing from ``currents`` counts as 0.
     """
     coin_cap = MAX_COIN_EXPOSURE * equity
     held = {k: t for k, t in targets.items() if t == currents.get(k, 0.0)}
