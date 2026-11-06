@@ -1,0 +1,166 @@
+import time
+
+import pytest
+
+from trader import okx
+from trader.okx import OKX, Bar, ContractSpec, FundingEvent, OKXError
+
+CANDLES = "/api/v5/market/history-candles"
+FUNDING = "/api/v5/public/funding-rate-history"
+T0 = 1_767_225_600_000  # 2026-01-01 00:00 UTC
+HOUR_MS = 3_600_000
+
+
+def minute(i):
+    return T0 + i * okx.MINUTE_MS
+
+
+def settlement(i):
+    return T0 + i * 8 * HOUR_MS
+
+
+def candle(i, confirm="1"):
+    """OKX candle row for minute i, with prices offset by i so the rows differ."""
+    prices = [str(p + i) for p in (100, 101, 99, 100.5)]
+    return [str(minute(i)), *prices, "1", "1", "1", confirm]
+
+
+def funding_row(ts, realized, rate="0.0001"):
+    return {"fundingTime": str(ts), "fundingRate": rate, "realizedRate": realized}
+
+
+class FakeResponse:
+    def __init__(self, body):
+        self.body = body
+
+    def json(self):
+        return self.body
+
+    def raise_for_status(self):
+        pass
+
+
+class FakeSession:
+    """Serves each page once, keyed by (path, after cursor): a list is the ``data``
+    of a successful answer, a dict the whole body. Records every call."""
+
+    def __init__(self, pages):
+        self.pages = dict(pages)
+        self.calls = []
+
+    def get(self, url, params, timeout):
+        assert timeout == 10
+        path = url.removeprefix(okx.BASE_URL)
+        self.calls.append((path, params))
+        page = self.pages.pop((path, params.get("after")))
+        body = page if isinstance(page, dict) else {"code": "0", "msg": "", "data": page}
+        return FakeResponse(body)
+
+
+@pytest.fixture
+def sleeps(monkeypatch):
+    """Records the pauses between pages instead of waiting them out."""
+    pauses = []
+    monkeypatch.setattr(okx.time, "sleep", pauses.append)
+    return pauses
+
+
+def test_bars_page_back_until_the_start_is_covered(sleeps):
+    session = FakeSession({
+        (CANDLES, minute(9)): [candle(i) for i in (8, 7, 6)],
+        (CANDLES, minute(6)): [candle(i) for i in (5, 4, 3)],
+        (CANDLES, minute(3)): [candle(i) for i in (2, 1, 0)],
+    })
+    bars = OKX(session).bars("BTC-USDT-SWAP", "1m", minute(0), minute(9))
+    # Each page's oldest row is the next page's exclusive cursor, so it comes back once.
+    assert [b.ts for b in bars] == [minute(i) for i in range(9)]
+    assert bars[0] == Bar(ts=minute(0), open=100.0, high=101.0, low=99.0, close=100.5)
+    assert [params["after"] for _, params in session.calls] == [minute(9), minute(6), minute(3)]
+    assert session.calls[0][1] == {
+        "instId": "BTC-USDT-SWAP", "bar": "1m", "limit": 300, "after": minute(9)
+    }
+    assert sleeps == [okx._PAGE_PAUSE] * 2
+
+
+def test_bars_keep_only_the_range_oldest_first_without_duplicates(sleeps):
+    session = FakeSession({
+        (CANDLES, minute(6)): [candle(i) for i in (6, 4, 5)],
+        (CANDLES, minute(4)): [candle(i) for i in (4, 3, 2, 1)],
+    })
+    bars = OKX(session).bars("BTC-USDT", "1m", minute(2), minute(6))
+    assert [b.ts for b in bars] == [minute(i) for i in (2, 3, 4, 5)]
+
+
+def test_bars_drop_the_candle_still_open():
+    session = FakeSession({(CANDLES, minute(5)): [candle(2, confirm="0"), candle(1), candle(0)]})
+    bars = OKX(session).bars("BTC-USDT-SWAP", "1m", minute(0), minute(5))
+    assert [b.ts for b in bars] == [minute(0), minute(1)]
+
+
+def test_bars_stop_at_an_empty_page(sleeps):
+    session = FakeSession({
+        (CANDLES, minute(10)): [candle(9), candle(8)],
+        (CANDLES, minute(8)): [],
+    })
+    bars = OKX(session).bars("SOL-USDT-SWAP", "1Dutc", minute(0), minute(10))
+    assert [b.ts for b in bars] == [minute(8), minute(9)]
+    assert len(session.calls) == 2
+
+
+def test_a_non_zero_code_raises_with_code_and_message():
+    msg = "Instrument ID, Instrument ID code, or Spread ID doesn't exist."
+    session = FakeSession({(CANDLES, minute(5)): {"code": "51001", "msg": msg, "data": []}})
+    with pytest.raises(OKXError, match=f"code 51001: {msg}"):
+        OKX(session).bars("FOO-USDT-SWAP", "1m", minute(0), minute(5))
+
+
+def test_funding_pages_back_by_funding_time(sleeps):
+    session = FakeSession({
+        (FUNDING, settlement(6)): [funding_row(settlement(i), "0.0001") for i in (5, 4, 3)],
+        (FUNDING, settlement(3)): [funding_row(settlement(i), "0.0001") for i in (2, 1, 0)],
+    })
+    events = OKX(session).funding("BTC-USDT-SWAP", settlement(1), settlement(6))
+    assert [e.ts for e in events] == [settlement(i) for i in range(1, 6)]
+    assert session.calls[0][1] == {"instId": "BTC-USDT-SWAP", "limit": 400, "after": settlement(6)}
+    assert sleeps == [okx._PAGE_PAUSE]
+
+
+def test_funding_takes_the_realized_rate_and_falls_back_to_the_funding_rate():
+    session = FakeSession({(FUNDING, settlement(2)): [
+        funding_row(settlement(1), "", rate="0.0003"),
+        funding_row(settlement(0), "-0.0002", rate="0.0001"),
+    ]})
+    events = OKX(session).funding("ETH-USDT-SWAP", settlement(0), settlement(2))
+    assert events == [FundingEvent(settlement(0), -0.0002), FundingEvent(settlement(1), 0.0003)]
+
+
+def test_contract_spec_reads_ctval_lotsz_and_minsz():
+    row = {"instId": "TEST-USDT-SWAP", "ctVal": "0.1", "lotSz": "0.01", "minSz": "0.05"}
+    session = FakeSession({("/api/v5/public/instruments", None): [row]})
+    spec = OKX(session).contract_spec("TEST-USDT-SWAP")
+    assert spec == ContractSpec(contract_value=0.1, lot_size=0.01, min_size=0.05)
+    assert session.calls[0][1] == {"instType": "SWAP", "instId": "TEST-USDT-SWAP"}
+
+
+def test_last_price_reads_last_from_the_ticker():
+    session = FakeSession({("/api/v5/market/ticker", None): [{"instId": "SOL-USDT", "last": "152.37"}]})
+    assert OKX(session).last_price("SOL-USDT") == 152.37
+    assert session.calls[0][1] == {"instId": "SOL-USDT"}
+
+
+@pytest.mark.integration
+def test_live_btc_minutes_and_funding():
+    client = OKX()
+    # 400 minutes that closed at least a minute ago, which takes two pages.
+    end = (int(time.time() * 1000) // okx.MINUTE_MS - 1) * okx.MINUTE_MS
+    start = end - 400 * okx.MINUTE_MS
+    bars = client.bars("BTC-USDT-SWAP", "1m", start, end)
+    assert [b.ts for b in bars] == list(range(start, end, okx.MINUTE_MS))
+    assert all(1_000 < b.low <= min(b.open, b.close) <= max(b.open, b.close) <= b.high < 1_000_000
+               for b in bars)
+    # The last three full UTC days settle at 00:00, 08:00 and 16:00.
+    day_end = int(time.time() * 1000) // okx.DAY_MS * okx.DAY_MS
+    day_start = day_end - 3 * okx.DAY_MS
+    events = client.funding("BTC-USDT-SWAP", day_start, day_end)
+    assert [e.ts for e in events] == list(range(day_start, day_end, 8 * HOUR_MS))
+    assert all(abs(e.rate) < 0.01 for e in events)

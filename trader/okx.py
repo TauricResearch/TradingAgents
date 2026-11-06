@@ -6,6 +6,7 @@ Public endpoints only, so no API key is needed. Requests go through
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 
 import requests
@@ -13,6 +14,11 @@ import requests
 BASE_URL = "https://www.okx.com"
 MINUTE_MS = 60_000
 DAY_MS = 86_400_000
+
+# Rows per page. OKX cuts a larger limit down to 300 on candles and 400 on funding.
+_CANDLE_PAGE = 300
+_FUNDING_PAGE = 400
+_PAGE_PAUSE = 0.1  # seconds between pages; history-candles allows about 20 requests per 2 s
 
 
 class OKXError(RuntimeError):
@@ -49,11 +55,16 @@ class OKX:
 
     def contract_spec(self, inst_id: str) -> ContractSpec:
         """Spec of a perpetual, from /api/v5/public/instruments?instType=SWAP."""
-        raise NotImplementedError
+        row = self._get("/api/v5/public/instruments", instType="SWAP", instId=inst_id)[0]
+        return ContractSpec(
+            contract_value=float(row["ctVal"]),
+            lot_size=float(row["lotSz"]),
+            min_size=float(row["minSz"]),
+        )
 
     def last_price(self, inst_id: str) -> float:
         """Last traded price of a swap or spot instrument, from /api/v5/market/ticker."""
-        raise NotImplementedError
+        return float(self._get("/api/v5/market/ticker", instId=inst_id)[0]["last"])
 
     def bars(self, inst_id: str, bar: str, start_ms: int, end_ms: int) -> list[Bar]:
         """Closed candles with ``start_ms <= ts < end_ms``, oldest first, no duplicates.
@@ -63,9 +74,58 @@ class OKX:
         reaching into the present stops at the last closed candle. Pages back
         through /api/v5/market/history-candles as far as ``start_ms`` needs.
         """
-        raise NotImplementedError
+        params = {"instId": inst_id, "bar": bar, "limit": _CANDLE_PAGE}
+        rows = self._history("/api/v5/market/history-candles", params, start_ms, end_ms, ts_key=0)
+        # A row is [ts, open, high, low, close, vol, volCcy, volCcyQuote, confirm].
+        return [
+            Bar(int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]))
+            for r in rows
+            if r[8] == "1"
+        ]
 
     def funding(self, inst_id: str, start_ms: int, end_ms: int) -> list[FundingEvent]:
         """Settled funding with ``start_ms <= ts < end_ms``, oldest first, from
         /api/v5/public/funding-rate-history."""
-        raise NotImplementedError
+        params = {"instId": inst_id, "limit": _FUNDING_PAGE}
+        rows = self._history(
+            "/api/v5/public/funding-rate-history", params, start_ms, end_ms, ts_key="fundingTime"
+        )
+        # realizedRate is what settled; fundingRate stands in when OKX leaves it empty.
+        return [
+            FundingEvent(int(r["fundingTime"]), float(r["realizedRate"] or r["fundingRate"]))
+            for r in rows
+        ]
+
+    def _get(self, path: str, **params) -> list:
+        """``data`` of a GET to ``path``; raises OKXError when OKX answers a non-zero code."""
+        response = self.session.get(BASE_URL + path, params=params, timeout=10)
+        response.raise_for_status()
+        body = response.json()
+        code = body.get("code")
+        if code != "0":
+            raise OKXError(f"{path} {params} failed with code {code}: {body.get('msg')}")
+        return body["data"]
+
+    def _history(
+        self, path: str, params: dict, start_ms: int, end_ms: int, ts_key: int | str
+    ) -> list:
+        """Rows of a newest-first endpoint with ``start_ms <= ts < end_ms``, oldest first,
+        one per timestamp; ``row[ts_key]`` is a row's timestamp.
+
+        ``after`` asks OKX for the rows strictly older than it, so each page picks up
+        just before the oldest row of the page before. Paging stops once a page
+        reaches ``start_ms`` or comes back empty.
+        """
+        rows = {}
+        after = end_ms
+        while True:
+            page = self._get(path, **params, after=after)
+            for row in page:
+                ts = int(row[ts_key])
+                if start_ms <= ts < end_ms:
+                    rows[ts] = row
+                after = min(after, ts)
+            if not page or after <= start_ms:
+                break
+            time.sleep(_PAGE_PAUSE)
+        return [rows[ts] for ts in sorted(rows)]
