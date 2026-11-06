@@ -8,8 +8,19 @@
 - [x] daily 第一次回放的告警立即发送；06:05 UTC 加第三个补跑时点
 - [x] 模型单价没配置时告警
 - [ ] 在 `.env` 里填 `TRADER_CAPITAL`、`TRADER_PRICE_DEEP`、`TRADER_PRICE_QUICK`、`TRADER_TELEGRAM_TOKEN`、`TRADER_TELEGRAM_CHAT_ID`（模板见 `deploy/trader.env.example`）
-- [ ] `python -m trader init`，然后在服务器上以 TZ=UTC 装 `deploy/` 下的 systemd 单元
-- [ ] 把分支备份到一个私有远程
+- [ ] `python -m trader init`，然后装 `deploy/` 下的两个 launchd agent（在仓库目录执行；systemd 单元留给 Linux 服务器）：
+
+  ```sh
+  mkdir -p ~/Library/Logs/trader ~/Library/LaunchAgents
+  for job in daily mark; do
+    sed -e "s|@REPO_DIR@|$PWD|g" -e "s|@HOME@|$HOME|g" \
+      deploy/com.tradingagents.trader.$job.plist > ~/Library/LaunchAgents/com.tradingagents.trader.$job.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.tradingagents.trader.$job.plist
+  done
+  ```
+
+  Mac 要保持开机并登录；睡眠时错过的触发会在唤醒后补跑一次。卸载用 `launchctl bootout gui/$(id -u)/com.tradingagents.trader.<job>`。
+- [ ] 把分支备份到一个私有 GitHub 仓库
 
 完成标准：连续 3 天收到日报，账本里有成交和每日净值快照。
 

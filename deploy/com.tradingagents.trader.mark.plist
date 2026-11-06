@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the hourly mark job on a Mac; the systemd units serve a Linux server.
+  @REPO_DIR@ and @HOME@ are filled in at install time (see docs/roadmap.md).
+
+  Runs at :07 every hour. Ticks missed while the Mac slept fire once on wake, and the
+  replay then catches up on the closed minutes, so the account stays right; only the
+  alerts come late.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tradingagents.trader.mark</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@REPO_DIR@/.venv/bin/python</string>
+    <string>-m</string>
+    <string>trader</string>
+    <string>mark</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@REPO_DIR@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key>
+    <string>UTC</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>7</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>@HOME@/Library/Logs/trader/mark.log</string>
+  <key>StandardErrorPath</key>
+  <string>@HOME@/Library/Logs/trader/mark.log</string>
+</dict>
+</plist>
