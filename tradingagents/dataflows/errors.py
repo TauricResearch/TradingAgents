@@ -7,7 +7,7 @@ these (or a thin vendor-named subclass) and needs no new ``except`` clause.
 
     VendorError
     ├── NoMarketDataError          no usable rows (empty result OR stale data)
-    ├── VendorRateLimitError       transient throttle -> skip to next vendor
+    ├── VendorUnavailableError     throttled or failed request -> skip to next vendor
     └── VendorNotConfiguredError   missing API key/config -> vendor unavailable
 
 The number of types is the number of distinct router reactions, not the number
@@ -43,8 +43,11 @@ class NoMarketDataError(VendorError):
         super().__init__(msg)
 
 
-class VendorRateLimitError(VendorError):
-    """A vendor throttled the request; the router skips to the next vendor."""
+class VendorUnavailableError(VendorError):
+    """A vendor could not answer: it throttled or failed the request.
+
+    Says nothing about the instrument; the router skips to the next vendor.
+    """
 
 
 class VendorNotConfiguredError(VendorError, ValueError):

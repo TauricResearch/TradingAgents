@@ -57,13 +57,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from langchain_core.callbacks import UsageMetadataCallbackHandler
 
-from tradingagents.agents.utils.rating import parse_holding_recommendation
+from tradingagents.agents.rating import parse_holding_recommendation
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.portfolio import PortfolioContext
 
 # Indian tickers get much better news coverage from the indian_news vendor than
 # the yfinance-only default (see default_config.py's data_vendors comment) —
@@ -109,6 +110,10 @@ def _compute_cost(usage_metadata: dict) -> tuple[float, list]:
 
 def _build_config(ticker: str) -> dict:
     config = DEFAULT_CONFIG.copy()
+    # Every decision here is a fresh entry closed at or shortly after the next
+    # open, so the memory log grades it over one trading day, not upstream's
+    # default five (holding_period_days, upstream #85d9137).
+    config["holding_period_days"] = 1
     if ticker.upper().endswith(_INDIAN_SUFFIXES):
         config["data_vendors"] = {
             **config["data_vendors"],
@@ -284,8 +289,12 @@ def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", contex
     usage_handler = UsageMetadataCallbackHandler()
     config = _build_config(ticker)
     ta = TradingAgentsGraph(debug=False, config=config, callbacks=[usage_handler])
+    # A flat book, stated through upstream's portfolio context so the Trader,
+    # risk debaters and Portfolio Manager all read "No current position"
+    # rather than "portfolio not provided; do not assume a flat book" -- every
+    # decision from this entrypoint is a fresh entry.
     final_state, rating = ta.propagate(
-        ticker, trade_date, asset_type=asset_type,
+        ticker, trade_date, asset_type=asset_type, portfolio=PortfolioContext(),
         external_signal_context=external_signal_context,
         external_signal_direction=external_signal_direction,
     )
@@ -319,7 +328,7 @@ def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", contex
         "rating": rating,
         "holding_recommendation": holding_recommendation,
         "final_trade_decision": final_decision,
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "cost_usd": cost_usd,
         "token_usage": usage_handler.usage_metadata,
         "debate_first_speaker": debate_first_speaker_used,

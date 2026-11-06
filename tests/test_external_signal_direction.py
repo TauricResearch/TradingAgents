@@ -28,6 +28,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tradingagents.agents.context import (
+    external_signal_prompt_block,
+    get_external_signal_direction_from_state,
+)
 from tradingagents.agents.managers.decision_model import (
     _EXTERNAL_SIGNAL_PRIOR_WEIGHT,
     compute_rating,
@@ -48,10 +52,6 @@ from tradingagents.agents.schemas import (
     render_pm_decision,
 )
 from tradingagents.agents.trader.trader import create_trader
-from tradingagents.agents.utils.agent_utils import (
-    external_signal_prompt_block,
-    get_external_signal_direction_from_state,
-)
 from tradingagents.graph.propagation import Propagator
 
 SECTOR_CONTEXT = "news-gap-ml's sector/theme leg flagged this stock today: GST rate cuts boost FMCG."

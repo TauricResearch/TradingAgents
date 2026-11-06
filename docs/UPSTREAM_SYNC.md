@@ -35,14 +35,22 @@ merges `upstream/main`, and either:
 | Tests | Keep both suites. |
 | `pyproject.toml` / README / CHANGELOG | Take upstream version/docs, keep our extra deps (`fastapi`, `uvicorn`). |
 
-Recurring overlap (resolve by combining, never by `-X ours` / `-X theirs`):
+Recurring overlap (resolve by combining, never by `-X ours` / `-X theirs`).
+Paths are as of the v0.7.1 sync (2026-11-07), after upstream reorganised the
+package (`agents/utils/*` → `agents/{context,state,structured,rating,tools}.py`,
+`dataflows/*` → `dataflows/vendors/*`, `interface.py` → `router.py`):
 
-- `tradingagents/agents/trader/trader.py` — 1-day horizon + debate ablation + external signal **and** technical-report grounding
-- `tradingagents/agents/managers/{research,portfolio}_manager.py` — gap prompts + external signal **and** "don't force a direction"
-- `tradingagents/agents/utils/rating.py` + `graph/signal_processing.py` — holding-recommendation parser **and** `REVIEW` sentinel
-- `tradingagents/graph/trading_graph.py` — `external_signal_*` kwargs **and** checkpoint lifecycle / `REVIEW`
-- `tradingagents/dataflows/stocktwits.py` — `.NS`→`.NSE` mapping **and** look-ahead window
-- `tradingagents/dataflows/yfinance_news.py` — use shared `date_window.in_window`; Indian RSS keeps `utils.in_news_window` (wrapper)
+- `agents/trader/trader.py` — 1-day horizon + debate ablation (`debate_enabled=False` branch) + external signal **and** upstream's absolute-price rule, portfolio context and `## Output` shape (applied to both branches)
+- `agents/managers/{research,portfolio}_manager.py` — fresh-entry prompts + external signal + holding recommendation **and** "conflict alone is not a reason to Hold", `{portfolio_context}`, `## Output` shape (keep our Holding lines in the PM's output list, or the label-only holding parser reads free-text fallbacks as Data-Dependent)
+- `agents/rating.py` — upstream's label-only rating parser; our `parse_holding_recommendation` lives at the bottom and follows the same rules (label only, NFKC, disagreeing labels → default)
+- `agents/context.py` — external-signal helpers + commodity label **and** upstream's point-in-time identity rules
+- `agents/state.py` / `graph/propagation.py` / `graph/trading_graph.py` — `external_signal_*` and structured-mode fields **and** upstream's `final_rating` / `portfolio_context` / `memory_note`; the external signal is part of the checkpoint run signature
+- `graph/setup.py` — `decision_mode` / `debate_first_speaker` node selection **and** upstream's parallel analysts; the analysts' fan-in edge goes to the decision layer's entry node, not hard-coded "Bull Researcher"
+- `dataflows/vendors/yahoo/fundamentals.py` — upstream withholds the live profile and period-dated statements from past runs; ours adds announcement-dated Yahoo statements (earnings calendar) on top, for NSE/BSE listings SEC EDGAR does not cover (#21)
+- `dataflows/vendors/{reddit,stocktwits}.py` — Indian subreddits via `subreddits_for()` / `.NS`→`.NSE` **and** upstream's combined feed and screening
+- `dataflows/vendors/indian_news.py` — follows upstream's vendor contract: `VendorUnavailableError` on outage or empty feed, `date_window.coverage_gap` for an unobserved past window
+- `dataflows/symbols.py` — `&` in `_TICKER_PATH_RE` (M&M.NS, TFR-215)
+- `agents/schemas.py` — `HoldingRecommendation` is required on `PortfolioDecision`, so upstream tests that build one need `holding_recommendation`/`holding_rationale` added
 
 After resolving: run `pytest -q` and open a PR. Do not push straight to `main`.
 

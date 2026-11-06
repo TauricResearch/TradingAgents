@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from tradingagents.agents.utils.agent_utils import get_external_signal_context_from_state
+from tradingagents.agents.context import get_external_signal_context_from_state
 from tradingagents.graph.propagation import Propagator
 
 

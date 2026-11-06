@@ -42,6 +42,24 @@ def client(service):
     return TestClient(service.app)
 
 
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    """Overrides conftest's guard for this module: loopback only. FastAPI's
+    TestClient runs the app in-process, and on Windows asyncio's Proactor loop
+    opens a 127.0.0.1 self-pipe socket that the blanket guard refuses."""
+    import socket
+
+    real_connect = socket.socket.connect
+
+    def loopback_only(sock, address, *args, **kwargs):
+        host = address[0] if isinstance(address, tuple) else address
+        if host not in ("127.0.0.1", "::1", "localhost"):
+            raise OSError(f"test tried to reach the network: {address}")
+        return real_connect(sock, address, *args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "connect", loopback_only)
+
 @pytest.mark.unit
 class TestRunDecisionExtraction:
     """run_decision() must behave identically to decide.py's old inline

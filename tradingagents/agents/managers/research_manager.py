@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from tradingagents.agents.schemas import ResearchPlan, render_research_plan
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.context import (
     external_signal_prompt_block,
     get_instrument_context_from_state,
     get_language_instruction,
 )
-from tradingagents.agents.utils.structured import (
+from tradingagents.agents.schemas import ResearchPlan, render_research_plan
+from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,
@@ -44,12 +44,20 @@ There is no existing position to manage. Every decision here is a fresh entry, t
 - **Underweight**: Cautious bear lean; a fresh short entry is worth taking, though conviction is not maximal
 - **Sell**: Strong conviction in the bear thesis; the case for a fresh short entry now is clear
 
-Commit to a directional stance only when the debate's strongest arguments clearly warrant one. Choose Hold when the evidence is balanced, materially conflicting, ambiguous, or insufficient to justify changing exposure; do not manufacture a direction merely to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
+The debate always contains conflicting arguments; deciding which side is stronger is the job, so conflict alone is not a reason to Hold. Commit to the side with the stronger case, sized by how decisively it wins. Choose Hold only when the evidence is still balanced after that weighing, or too thin to support a call; do not manufacture a direction to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.
 {external_section}
 ---
 
 **Debate History:**
 {history}
+
+## Output
+
+Write these sections, in this order, starting with the recommendation on its own line:
+
+- **Recommendation**: exactly one of Buy / Overweight / Hold / Underweight / Sell
+- **Rationale**: which arguments decided it
+- **Strategic Actions**: concrete steps for the trader, sized against a standard allocation
 
 {NO_EXTERNAL_TOOLS}""" + get_language_instruction()
 
@@ -62,7 +70,6 @@ Commit to a directional stance only when the debate's strongest arguments clearl
         )
 
         new_investment_debate_state = {
-            "judge_decision": investment_plan,
             "history": investment_debate_state.get("history", ""),
             "bear_history": investment_debate_state.get("bear_history", ""),
             "bull_history": investment_debate_state.get("bull_history", ""),

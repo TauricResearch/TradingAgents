@@ -1,0 +1,58 @@
+name: Bug report
+description: Something fails, crashes, or behaves differently from the docs.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search [existing issues](https://github.com/TauricResearch/TradingAgents/issues?q=is%3Aissue) first, and check that the bug reproduces on the latest release.
+        Remove API keys and other secrets from anything you paste.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `pip show tradingagents | grep Version`, or `git rev-parse --short HEAD` for a source checkout.
+      placeholder: "0.5.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: entry
+    attributes:
+      label: How you run it
+      options:
+        - CLI (tradingagents)
+        - Python package (TradingAgentsGraph)
+        - Backtest (run_backtest or tradingagents backtest)
+        - Docker
+    validations:
+      required: true
+  - type: input
+    id: models
+    attributes:
+      label: LLM provider and models
+      placeholder: "openai, gpt-6-sol / gpt-6-luna"
+    validations:
+      required: true
+  - type: input
+    id: run
+    attributes:
+      label: Ticker and analysis date
+      placeholder: "NVDA, 2026-09-23"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps or code to reproduce
+      description: The smallest steps or snippet that shows the problem.
+      render: python
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output
+      description: The full traceback or log lines, as text rather than a screenshot.
+      render: text
