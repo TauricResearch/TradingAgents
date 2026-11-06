@@ -140,10 +140,17 @@ def compute_rating(factors, external_direction: str | None = None) -> tuple[Port
     return rating, score, reason
 
 
-def score_factors(factors, company_name: str, external_direction: str | None = None) -> str:
-    """Maps FactorExtraction -> a rendered ResearchPlan string, the same
-    shape state["investment_plan"] already holds for the debate_enabled=True
-    path, so Trader/Portfolio Manager consume it unchanged."""
+def score_factors_detailed(
+    factors, company_name: str, external_direction: str | None = None
+) -> tuple[str, PortfolioRating, float, str]:
+    """`score_factors()` plus the numbers behind it: (plan, rating, score, reason).
+
+    The rendered plan is prose aimed at the Trader. The score and gate reason
+    are what threshold calibration actually needs (TradingAgents#19 step 4), and
+    reconstructing them from the prose afterwards is not reliable -- the Trader
+    only sometimes restates the score, so 27 of the 28 post-#21-fix retro
+    decisions have no recoverable score at all. Callers that want to persist the
+    decision use this; `score_factors()` stays the string-only path."""
     rating, score, reason = compute_rating(factors, external_direction)
 
     rationale_parts = [reason]
@@ -169,4 +176,11 @@ def score_factors(factors, company_name: str, external_direction: str | None = N
         rationale=" ".join(rationale_parts),
         strategic_actions=strategic_actions,
     )
-    return render_research_plan(plan)
+    return render_research_plan(plan), rating, score, reason
+
+
+def score_factors(factors, company_name: str, external_direction: str | None = None) -> str:
+    """Maps FactorExtraction -> a rendered ResearchPlan string, the same
+    shape state["investment_plan"] already holds for the debate_enabled=True
+    path, so Trader/Portfolio Manager consume it unchanged."""
+    return score_factors_detailed(factors, company_name, external_direction)[0]

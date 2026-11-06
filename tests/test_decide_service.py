@@ -167,3 +167,86 @@ class TestServiceDecideEndpoint:
             headers={"Authorization": "Bearer s"},
         )
         assert resp.status_code == 422
+
+
+@pytest.mark.unit
+class TestStructuredDecisionFields:
+    """TradingAgents#19 step 4: the structured scorer's number and gate reason
+    have to reach the persisted decision, or every calibration question costs
+    another billed batch (27 of 28 post-#21-fix retro rows have no score)."""
+
+    def _decide(self):
+        return _load_module("tradingagents_decide_under_test", "decide.py")
+
+    def _factors(self, **over):
+        from tradingagents.agents.schemas import FactorExtraction
+        base = {
+            "dated_catalyst_present": True, "catalyst_hours_to_resolution": 3.0,
+            "technical_direction": 0.4, "technical_confidence": 0.6,
+            "sentiment_direction": 0.2, "sentiment_confidence": 0.5,
+            "risk_flags": ["fii_outflows"],
+        }
+        base.update(over)
+        return FactorExtraction(**base)
+
+    def test_absent_for_debate_and_off_modes(self):
+        """Those modes have no scorer -- the persisted shape must not gain
+        null columns that look like a failed extraction."""
+        decide = self._decide()
+        assert decide.structured_decision_fields({"final_trade_decision": "x"}) == {}
+        assert decide.structured_decision_fields({"extracted_factors": None}) == {}
+
+    def test_carries_score_rating_reason_and_raw_factors(self):
+        decide = self._decide()
+        fields = decide.structured_decision_fields({
+            "extracted_factors": self._factors(),
+            "structured_rating": "Hold",
+            "structured_score": 0.18,
+            "structured_reason": "Combined confidence-weighted score +0.18 ...",
+        })
+
+        assert fields["structured_rating"] == "Hold"
+        assert fields["structured_score"] == 0.18
+        assert "confidence-weighted score" in fields["structured_reason"]
+        # The raw factors matter as much as the score: refitting thresholds
+        # means recomputing ratings from the inputs, not the output.
+        assert fields["structured_factors"]["technical_direction"] == 0.4
+        assert fields["structured_factors"]["catalyst_hours_to_resolution"] == 3.0
+        assert fields["structured_factors"]["risk_flags"] == ["fii_outflows"]
+
+    def test_factors_are_json_serialisable(self):
+        """These land in a .jsonl -- a bare pydantic object would blow up the
+        writer at the end of an hour-long billed batch."""
+        import json
+        decide = self._decide()
+        fields = decide.structured_decision_fields({
+            "extracted_factors": self._factors(),
+            "structured_rating": "Hold", "structured_score": 0.18, "structured_reason": "r",
+        })
+        assert json.loads(json.dumps(fields))["structured_factors"]["technical_confidence"] == 0.6
+
+    def test_run_decision_merges_them_into_the_result(self):
+        decide = self._decide()
+        fake_final_state = {
+            "final_trade_decision": "FINAL TRANSACTION PROPOSAL: **HOLD**",
+            "extracted_factors": self._factors(),
+            "structured_rating": "Hold",
+            "structured_score": 0.18,
+            "structured_reason": "Combined confidence-weighted score +0.18 ...",
+        }
+        with patch.object(decide, "TradingAgentsGraph") as MockGraph:
+            MockGraph.return_value.propagate.return_value = (fake_final_state, "Hold")
+            result = decide.run_decision("KOTAKBANK.NS", "2026-07-17")
+
+        assert result["structured_score"] == 0.18
+        assert result["structured_factors"]["risk_flags"] == ["fii_outflows"]
+        assert result["rating"] == "Hold"  # the existing shape is untouched
+
+    def test_run_decision_shape_unchanged_without_a_scorer(self):
+        decide = self._decide()
+        with patch.object(decide, "TradingAgentsGraph") as MockGraph:
+            MockGraph.return_value.propagate.return_value = (
+                {"final_trade_decision": "FINAL TRANSACTION PROPOSAL: **BUY**"}, "Buy")
+            result = decide.run_decision("WIPRO.NS", "2026-07-16")
+
+        assert not any(k.startswith("structured_") for k in result)

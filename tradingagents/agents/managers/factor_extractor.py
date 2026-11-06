@@ -31,7 +31,7 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.structured import NO_EXTERNAL_TOOLS, bind_structured
 
-from .decision_model import score_factors
+from .decision_model import score_factors_detailed
 
 logger = logging.getLogger(__name__)
 
@@ -96,14 +96,23 @@ Your ONLY job is to read the four reports below and extract the factors in the s
         if factors is None:
             factors = _NEUTRAL_FACTORS
 
-        investment_plan = score_factors(
+        investment_plan, rating, score, reason = score_factors_detailed(
             factors, company_name=company_name,
             external_direction=get_external_signal_direction_from_state(state) or None,
         )
 
+        # #19 step 4 (threshold calibration) needs the score and the gate
+        # reason, not the prose. They are stashed on the state here rather than
+        # left to be re-derived downstream: the Trader only sometimes restates
+        # the score in its write-up, so 27 of the 28 post-#21-fix retro
+        # decisions have no recoverable score, and answering "which gate
+        # stopped this one" costs a fresh billed batch every time.
         return {
             "extracted_factors": factors,
             "investment_plan": investment_plan,
+            "structured_rating": rating.value,
+            "structured_score": score,
+            "structured_reason": reason,
         }
 
     return factor_extractor_node

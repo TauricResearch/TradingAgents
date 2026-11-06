@@ -241,6 +241,32 @@ def agrees_with_external_signal(rating: str | None, direction: str) -> bool | No
     return rating in aligned
 
 
+def structured_decision_fields(final_state) -> dict:
+    """The structured scorer's own outputs, for callers that persist decisions
+    (TradingAgents#19 step 4 -- threshold calibration).
+
+    Returns {} for decision_mode "debate"/"off", which have no scorer, so the
+    persisted shape stays identical for those modes.
+
+    Why this exists: the retro batches persisted only the Trader's prose, and
+    the Trader restates the score only occasionally -- 27 of the 28 post-#21-fix
+    structured decisions have no recoverable score. "Which gate stopped this
+    one, the catalyst window or the risk-flag damping?" therefore cost a fresh
+    billed batch to answer, every time. `structured_score` is post-damping;
+    `structured_reason` names the gate that fired, or breaks the score down."""
+    factors = final_state.get("extracted_factors")
+    if factors is None:
+        return {}
+
+    dump = factors.model_dump() if hasattr(factors, "model_dump") else dict(factors)
+    return {
+        "structured_rating": final_state.get("structured_rating"),
+        "structured_score": final_state.get("structured_score"),
+        "structured_reason": final_state.get("structured_reason"),
+        "structured_factors": dump,
+    }
+
+
 def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", context: str | None = None) -> dict:
     """Run one propagate() decision and return the result dict (hermes#213).
 
@@ -286,7 +312,7 @@ def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", contex
         print(f"decide.py: external_signal_direction={external_signal_direction} rating={rating} "
               f"agrees={agrees} for {ticker}@{trade_date}", file=sys.stderr)
 
-    return {
+    result = {
         "ticker": ticker,
         "trade_date": trade_date,
         "asset_type": asset_type,
@@ -300,6 +326,8 @@ def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", contex
         "external_signal_direction": external_signal_direction or None,
         "agrees_with_external_signal": agrees,
     }
+    result.update(structured_decision_fields(final_state))
+    return result
 
 
 def main() -> int:
