@@ -2,9 +2,10 @@ from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
-from tests.test_trader_paper import BTC, T0, FakeOKX
+from tests.test_trader_paper import BTC, T0, FakeOKX, minutes as candles
 from trader import jobs
 from trader.ledger import BUDGET_ERROR, Ledger, Position
+from trader.okx import MINUTE_MS
 from trader.paper import Paper, ReplayStalled
 from trader.research import ResearchResult
 from trader.settings import Coin, Settings
@@ -154,6 +155,38 @@ def test_a_second_day_with_failures_alerts(env):
     assert not any("连续" in text for text in first.sent)
     _, second = run(env, researcher, now=NOW + timedelta(days=1))
     assert any("连续 2 天" in text for text in second.sent)
+
+
+def test_alerts_from_the_first_replay_are_sent_before_research(env):
+    settings, ledger = env
+    ledger.commit(positions={BTC.swap: Position(0.04, 80_000, 75_000)}, cash=10_000.0)
+    # The minute after T0 gaps through the stop; the research then crashes the run.
+    okx = FakeOKX(minute=candles(T0 - MINUTE_MS, [80_000, 74_000]))
+    paper, inbox = Paper(ledger, okx, (BTC,)), Inbox()
+
+    class Crashing:
+        def run(self, ticker, trade_date):
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        jobs.daily(settings, paper, inbox, Crashing, now_fn=lambda: NOW + timedelta(minutes=2))
+    assert ledger.positions() == {}
+    assert "止损" in inbox.sent[0]
+
+
+def test_unset_model_prices_alert_once_per_trade_date(env):
+    researcher = FakeResearcher({BTC.research: ["Buy"]})
+    _, first = run(env, researcher)
+    assert first.sent[0].startswith("TRADER_PRICE_DEEP / TRADER_PRICE_QUICK 没有配置")
+    _, rerun = run(env, researcher)
+    assert rerun.sent == []
+
+
+def test_configured_model_prices_do_not_alert(env):
+    settings, ledger = env
+    priced = Settings(home=settings.home, price_deep=(3.0, 15.0), price_quick=(0.15, 0.6))
+    _, inbox = run((priced, ledger), FakeResearcher({BTC.research: ["Buy"]}))
+    assert [text.splitlines()[0] for text in inbox.sent] == ["模拟盘日报 · 研判日 2026-01-09"]
 
 
 def test_a_new_model_or_version_restarts_validation_and_a_code_change_does_not(env):

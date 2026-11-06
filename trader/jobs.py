@@ -32,14 +32,19 @@ def daily(
 ) -> None:
     """Research every coin for the trade date, trade the account, send the report.
 
-    Safe to rerun for the same trade date: researched coins are skipped, a trade
-    date executes once, and the report goes out once per state of the day.
+    The alerts of the opening replay (stops, a kill) and of the checks go out before
+    the research, which can take hours and may fail. Safe to rerun for the same
+    trade date: researched coins are skipped, a trade date executes once, and the
+    report goes out once per state of the day.
     """
     ledger = paper.ledger
     trade_date = trade_date_for(now_fn())
     with locked(settings.lock_path):
         alerts = paper.replay(_ms(now_fn()))
     alerts += check_fingerprint(ledger, fingerprint(build_config(settings)), _ms(now_fn()))
+    alerts += _check_prices(settings, ledger, trade_date)
+    for text in alerts:
+        notifier.send(text)
 
     # Research runs unlocked, in rounds: each round tries every coin still
     # pending once, and a failed coin waits RETRY_WAIT_SECONDS for the next.
@@ -73,7 +78,7 @@ def daily(
             )
 
     states = {c.research: coin_state(ledger, trade_date, c.research) for c in paper.watchlist}
-    alerts += _count_failures(ledger, trade_date, states)
+    alerts = _count_failures(ledger, trade_date, states)
     ratings = {coin: detail if state == "done" else None for coin, (state, detail) in states.items()}
     with locked(settings.lock_path):
         now_ms = _ms(now_fn())
@@ -205,6 +210,20 @@ def _count_failures(
     if streak >= 2:
         return [f"研判已连续 {streak} 天有币失败，这次是 {'、'.join(failed)}。"]
     return []
+
+
+def _check_prices(settings: Settings, ledger: Ledger, trade_date: str) -> list[str]:
+    """Alert, once per trade date, while a model price is unset: every run's cost is
+    then unknown, so no budget cap gets set and the performance deducts nothing."""
+    if settings.price_deep is not None and settings.price_quick is not None:
+        return []
+    if ledger.get("prices_alerted") == trade_date:
+        return []
+    ledger.set("prices_alerted", trade_date)
+    return [
+        "TRADER_PRICE_DEEP / TRADER_PRICE_QUICK 没有配置，LLM 费用按未知计："
+        "月度预算上限定不下来，绩效也扣不到费用。"
+    ]
 
 
 def _ms(now: datetime) -> int:
