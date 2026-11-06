@@ -7,8 +7,8 @@
 - [x] OKX 行情客户端：K 线、资金费率、合约规格、最新价，带重试和翻页保护
 - [x] daily 第一次回放的告警立即发送；06:05 UTC 加第三个补跑时点
 - [x] 模型单价没配置时告警
-- [ ] 在 `.env` 里填 `TRADER_CAPITAL`、`TRADER_PRICE_DEEP`、`TRADER_PRICE_QUICK`、`TRADER_TELEGRAM_TOKEN`、`TRADER_TELEGRAM_CHAT_ID`（模板见 `deploy/trader.env.example`）
-- [ ] `python -m trader init`，然后装 `deploy/` 下的两个 launchd agent（在仓库目录执行；systemd 单元留给 Linux 服务器）：
+- [x] 在 `.env` 里填 `TRADER_CAPITAL`、`TRADER_PRICE_DEEP`、`TRADER_PRICE_QUICK`、`TRADER_TELEGRAM_TOKEN`、`TRADER_TELEGRAM_CHAT_ID`（模板见 `deploy/trader.env.example`）
+- [x] `python -m trader init`，然后装 `deploy/` 下的两个 launchd agent（在仓库目录执行；systemd 单元留给 Linux 服务器）：
 
   ```sh
   mkdir -p ~/Library/Logs/trader ~/Library/LaunchAgents
