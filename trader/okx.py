@@ -19,6 +19,7 @@ DAY_MS = 86_400_000
 _CANDLE_PAGE = 300
 _FUNDING_PAGE = 400
 _PAGE_PAUSE = 0.1  # seconds between pages; history-candles allows about 20 requests per 2 s
+_RETRY_PAUSES = (1, 2)  # seconds before the second and third try of a request that failed
 
 
 class OKXError(RuntimeError):
@@ -54,8 +55,12 @@ class OKX:
         self.session = session or requests.Session()
 
     def contract_spec(self, inst_id: str) -> ContractSpec:
-        """Spec of a perpetual, from /api/v5/public/instruments?instType=SWAP."""
-        row = self._get("/api/v5/public/instruments", instType="SWAP", instId=inst_id)[0]
+        """Spec of a perpetual, from /api/v5/public/instruments?instType=SWAP; OKXError
+        when OKX lists no such swap."""
+        rows = self._get("/api/v5/public/instruments", instType="SWAP", instId=inst_id)
+        if not rows:
+            raise OKXError(f"OKX lists no SWAP instrument {inst_id}")
+        row = rows[0]
         return ContractSpec(
             contract_value=float(row["ctVal"]),
             lot_size=float(row["lotSz"]),
@@ -63,8 +68,12 @@ class OKX:
         )
 
     def last_price(self, inst_id: str) -> float:
-        """Last traded price of a swap or spot instrument, from /api/v5/market/ticker."""
-        return float(self._get("/api/v5/market/ticker", instId=inst_id)[0]["last"])
+        """Last traded price of a swap or spot instrument, from /api/v5/market/ticker;
+        OKXError when OKX has no ticker for it."""
+        rows = self._get("/api/v5/market/ticker", instId=inst_id)
+        if not rows:
+            raise OKXError(f"OKX has no ticker for {inst_id}")
+        return float(rows[0]["last"])
 
     def bars(self, inst_id: str, bar: str, start_ms: int, end_ms: int) -> list[Bar]:
         """Closed candles with ``start_ms <= ts < end_ms``, oldest first, no duplicates.
@@ -97,10 +106,30 @@ class OKX:
         ]
 
     def _get(self, path: str, **params) -> list:
-        """``data`` of a GET to ``path``; raises OKXError when OKX answers a non-zero code."""
-        response = self.session.get(BASE_URL + path, params=params, timeout=10)
-        response.raise_for_status()
-        body = response.json()
+        """``data`` of a GET to ``path``.
+
+        A connection error, timeout, 429 or 5xx is retried after each pause in
+        ``_RETRY_PAUSES``; the last failure is raised as is. Any other answer is read as
+        JSON before its status is checked, because OKX reports e.g. an unknown instrument
+        as a 400 whose body still says why: a non-zero ``code`` raises OKXError with code
+        and msg. A body that is not JSON, such as the page behind a 403, raises through
+        ``raise_for_status``.
+        """
+        for pause in (*_RETRY_PAUSES, None):  # None: no try left, so the failure is raised
+            try:
+                response = self.session.get(BASE_URL + path, params=params, timeout=10)
+                if response.status_code == 429 or response.status_code >= 500:
+                    response.raise_for_status()
+                break
+            except (requests.ConnectionError, requests.Timeout, requests.HTTPError):
+                if pause is None:
+                    raise
+                time.sleep(pause)
+        try:
+            body = response.json()
+        except ValueError:  # not JSON, so not an OKX answer
+            response.raise_for_status()
+            raise
         code = body.get("code")
         if code != "0":
             raise OKXError(f"{path} {params} failed with code {code}: {body.get('msg')}")
@@ -114,12 +143,14 @@ class OKX:
 
         ``after`` asks OKX for the rows strictly older than it, so each page picks up
         just before the oldest row of the page before. Paging stops once a page
-        reaches ``start_ms`` or comes back empty.
+        reaches ``start_ms`` or comes back empty; a page with no row older than its
+        cursor would be requested forever, so it raises OKXError instead.
         """
         rows = {}
         after = end_ms
         while True:
-            page = self._get(path, **params, after=after)
+            cursor = after
+            page = self._get(path, **params, after=cursor)
             for row in page:
                 ts = int(row[ts_key])
                 if start_ms <= ts < end_ms:
@@ -127,5 +158,7 @@ class OKX:
                 after = min(after, ts)
             if not page or after <= start_ms:
                 break
+            if after == cursor:
+                raise OKXError(f"{path} {params} page after {cursor} has no older row")
             time.sleep(_PAGE_PAUSE)
         return [rows[ts] for ts in sorted(rows)]

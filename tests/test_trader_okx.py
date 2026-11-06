@@ -1,6 +1,7 @@
 import time
 
 import pytest
+import requests
 
 from trader import okx
 from trader.okx import OKX, Bar, ContractSpec, FundingEvent, OKXError
@@ -30,29 +31,43 @@ def funding_row(ts, realized, rate="0.0001"):
 
 
 class FakeResponse:
-    def __init__(self, body):
+    def __init__(self, body, status_code=200):
         self.body = body
+        self.status_code = status_code
 
     def json(self):
+        if isinstance(self.body, str):  # a page, not JSON
+            raise ValueError("not JSON")
         return self.body
 
     def raise_for_status(self):
-        pass
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code} error")
 
 
 class FakeSession:
     """Serves each page once, keyed by (path, after cursor): a list is the ``data``
-    of a successful answer, a dict the whole body. Records every call."""
+    of a successful answer, a dict the whole body, a FakeResponse the answer as is.
+    ``failures`` go out first instead, one per call whatever it asks for: an Exception
+    is raised, a FakeResponse returned. Records every call."""
 
-    def __init__(self, pages):
+    def __init__(self, pages, failures=()):
         self.pages = dict(pages)
+        self.failures = list(failures)
         self.calls = []
 
     def get(self, url, params, timeout):
         assert timeout == 10
         path = url.removeprefix(okx.BASE_URL)
         self.calls.append((path, params))
-        page = self.pages.pop((path, params.get("after")))
+        if self.failures:
+            page = self.failures.pop(0)
+        else:
+            page = self.pages.pop((path, params.get("after")))
+        if isinstance(page, Exception):
+            raise page
+        if isinstance(page, FakeResponse):
+            return page
         body = page if isinstance(page, dict) else {"code": "0", "msg": "", "data": page}
         return FakeResponse(body)
 
@@ -107,11 +122,57 @@ def test_bars_stop_at_an_empty_page(sleeps):
     assert len(session.calls) == 2
 
 
+def test_a_page_no_older_than_its_cursor_raises_instead_of_looping(sleeps):
+    session = FakeSession({(CANDLES, minute(5)): [candle(6), candle(5)]})
+    with pytest.raises(OKXError, match=f"{CANDLES} .* page after {minute(5)} has no older row"):
+        OKX(session).bars("BTC-USDT-SWAP", "1m", minute(0), minute(5))
+    assert len(session.calls) == 1
+    assert sleeps == []
+
+
 def test_a_non_zero_code_raises_with_code_and_message():
     msg = "Instrument ID, Instrument ID code, or Spread ID doesn't exist."
     session = FakeSession({(CANDLES, minute(5)): {"code": "51001", "msg": msg, "data": []}})
     with pytest.raises(OKXError, match=f"code 51001: {msg}"):
         OKX(session).bars("FOO-USDT-SWAP", "1m", minute(0), minute(5))
+
+
+def test_a_400_with_an_okx_code_raises_with_code_and_message(sleeps):
+    body = {"code": "51001", "msg": "Instrument ID does not exist", "data": []}
+    session = FakeSession({("/api/v5/market/ticker", None): FakeResponse(body, status_code=400)})
+    with pytest.raises(OKXError, match="code 51001: Instrument ID does not exist"):
+        OKX(session).last_price("FOO-USDT")
+    assert len(session.calls) == 1
+    assert sleeps == []
+
+
+def test_a_non_json_answer_raises_its_http_error():
+    page = FakeResponse("<html>403 Forbidden</html>", status_code=403)
+    session = FakeSession({("/api/v5/market/ticker", None): page})
+    with pytest.raises(requests.HTTPError, match="403"):
+        OKX(session).last_price("BTC-USDT")
+
+
+def test_a_timeout_and_a_429_are_retried_after_a_pause(sleeps):
+    session = FakeSession(
+        {(CANDLES, minute(2)): [candle(1), candle(0)]},
+        failures=[requests.Timeout(), FakeResponse("Too Many Requests", status_code=429)],
+    )
+    bars = OKX(session).bars("BTC-USDT-SWAP", "1m", minute(0), minute(2))
+    assert [b.ts for b in bars] == [minute(0), minute(1)]
+    assert [params["after"] for _, params in session.calls] == [minute(2)] * 3
+    assert sleeps == list(okx._RETRY_PAUSES)
+
+
+def test_the_third_failure_in_a_row_is_raised_as_is(sleeps):
+    last = requests.ConnectionError("still down")
+    failures = [requests.Timeout(), FakeResponse("Bad Gateway", status_code=502), last]
+    session = FakeSession({}, failures=failures)
+    with pytest.raises(requests.ConnectionError) as raised:
+        OKX(session).last_price("BTC-USDT")
+    assert raised.value is last
+    assert len(session.calls) == 3
+    assert sleeps == list(okx._RETRY_PAUSES)
 
 
 def test_funding_pages_back_by_funding_time(sleeps):
@@ -146,6 +207,18 @@ def test_last_price_reads_last_from_the_ticker():
     session = FakeSession({("/api/v5/market/ticker", None): [{"instId": "SOL-USDT", "last": "152.37"}]})
     assert OKX(session).last_price("SOL-USDT") == 152.37
     assert session.calls[0][1] == {"instId": "SOL-USDT"}
+
+
+def test_contract_spec_of_an_unlisted_swap_raises_with_its_name():
+    session = FakeSession({("/api/v5/public/instruments", None): []})
+    with pytest.raises(OKXError, match="FOO-USDT-SWAP"):
+        OKX(session).contract_spec("FOO-USDT-SWAP")
+
+
+def test_last_price_of_an_unlisted_instrument_raises_with_its_name():
+    session = FakeSession({("/api/v5/market/ticker", None): []})
+    with pytest.raises(OKXError, match="FOO-USDT"):
+        OKX(session).last_price("FOO-USDT")
 
 
 @pytest.mark.integration
