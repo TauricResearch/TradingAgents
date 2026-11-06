@@ -118,8 +118,40 @@ _FUNDAMENTALS_JSON = json.dumps({
 
 @pytest.mark.unit
 def test_fundamentals_no_curr_date_passes_through(monkeypatch):
+    # OVERVIEW is present-day data with no frequency: the live run still serves
+    # what the API sent, so a leak the run cannot date stays visible (#1300).
     monkeypatch.setattr(avf, "_make_api_request", lambda fn, params: _FUNDAMENTALS_JSON)
-    assert avf.get_income_statement("AAPL") == _FUNDAMENTALS_JSON
+    assert avf.get_fundamentals("AAPL") == _FUNDAMENTALS_JSON
+
+
+@pytest.mark.unit
+def test_a_statement_serves_only_the_asked_frequency_as_csv(monkeypatch):
+    """The endpoint always returns both annual and quarterly reports; served raw,
+    every field name repeated per period and both frequencies went to the prompt
+    at once, past small models' context (#1625)."""
+    monkeypatch.setattr(avf, "_make_api_request", lambda *a, **k: _FUNDAMENTALS_JSON)
+
+    quarterly = avf.get_income_statement("AAPL", "quarterly")
+    annual = avf.get_income_statement("AAPL", "annual")
+
+    assert quarterly.startswith("# Income Statement data for AAPL (quarterly)\n")
+    assert "fiscalDateEnding,totalAssets\n" in quarterly
+    # One row per period, figures beside their own fiscal date, oldest first.
+    rows = quarterly.splitlines()[2:]
+    assert rows[0].startswith("2023-09-30")
+    assert rows[-1].startswith("2024-06-30")
+
+    assert "2024-06-30" not in annual  # a quarterly period stays out of an annual serve
+    assert "2023-09-30" not in annual
+    assert "fiscalDateEnding,totalAssets\n" in annual
+
+
+@pytest.mark.unit
+def test_a_statement_frequency_only_testing_serves_neither_frequency(monkeypatch):
+    monkeypatch.setattr(avf, "_make_api_request", lambda *a, **k: _FUNDAMENTALS_JSON)
+    out = avf.get_balance_sheet("AAPL", "weekly")
+    assert "2025-12-31" not in out and "2024-06-30" not in out
+    assert "annual" in out and "quarterly" in out
 
 
 # ---------------------------------------------------------------------------
