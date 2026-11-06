@@ -61,7 +61,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from langchain_core.callbacks import UsageMetadataCallbackHandler  # noqa: E402
 
 from scripts.decide import _build_config, _compute_cost  # noqa: E402
-from tradingagents.agents.utils.rating import parse_holding_recommendation  # noqa: E402
+from tradingagents.agents.rating import parse_holding_recommendation  # noqa: E402
 from tradingagents.graph.trading_graph import TradingAgentsGraph  # noqa: E402
 
 # Most recent 15 distinct tickers from news-gap-ml's live `decisions` table

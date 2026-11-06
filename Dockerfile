@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -10,7 +10,7 @@ WORKDIR /build
 COPY . .
 RUN pip install --no-cache-dir .
 
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 # hermes#213: deploy.sh's tag-pinning/rollback logic (shared with
 # scanner/news-gap-ml's own deploy blocks) resolves :latest's real version
@@ -19,8 +19,10 @@ FROM python:3.12-slim
 # (confirmed live: first deploy attempt failed exactly this way, this
 # Dockerfile never declared APP_VERSION before).
 ARG APP_VERSION=dev
+# TRADINGAGENTS_IN_DOCKER lets an update notice name the rebuild command.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    TRADINGAGENTS_IN_DOCKER=1 \
     APP_VERSION=$APP_VERSION
 
 COPY --from=builder /opt/venv /opt/venv

@@ -22,14 +22,14 @@ from __future__ import annotations
 
 import logging
 
-from tradingagents.agents.schemas import FactorExtraction
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.context import (
     external_signal_prompt_block,
     get_external_signal_direction_from_state,
     get_instrument_context_from_state,
     get_language_instruction,
 )
-from tradingagents.agents.utils.structured import NO_EXTERNAL_TOOLS, bind_structured
+from tradingagents.agents.schemas import FactorExtraction
+from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured
 
 from .decision_model import score_factors_detailed
 

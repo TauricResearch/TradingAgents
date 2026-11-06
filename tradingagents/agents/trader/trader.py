@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import functools
-
 from langchain_core.messages import AIMessage
 
-from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.context import (
     external_signal_prompt_block,
     get_instrument_context_from_state,
     get_language_instruction,
+    get_portfolio_context_from_state,
+    report_or_absent,
 )
-from tradingagents.agents.utils.structured import (
+from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
+from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
     bind_structured,
     invoke_structured_or_freetext,
@@ -37,7 +37,7 @@ _DEBATE_SKIPPED_PLACEHOLDER = (
 def create_trader(llm, debate_enabled: bool = True):
     structured_llm = bind_structured(llm, TraderProposal, "Trader")
 
-    def trader_node(state, name):
+    def trader_node(state):
         company_name = state["company_of_interest"]
         instrument_context = get_instrument_context_from_state(state)
         # TradingAgents#30: the upstream signal (and its direction) is stated
@@ -52,6 +52,8 @@ def create_trader(llm, debate_enabled: bool = True):
         # report is empty when the user did not select the market analyst, so
         # only offer it (and the grounding instruction) when it has content.
         market_report = (state.get("market_report") or "").strip()
+        portfolio_context = get_portfolio_context_from_state(state)
+
         if market_report:
             grounding = (
                 "Ground concrete price levels (entry, stop-loss, position sizing) in the technical "
@@ -63,6 +65,25 @@ def create_trader(llm, debate_enabled: bool = True):
             grounding = ""
             report_section = ""
 
+        # Upstream #1288: entry/stop are numeric price fields; asking for
+        # concrete levels invites a percentage ("15%"), which is not a price
+        # and fails the structured parse.
+        price_levels = (
+            "State entry price and stop-loss as absolute price levels in the "
+            "instrument's quote currency (for example 189.5), never a percentage "
+            "or a range; convert a percentage distance to the price level it "
+            "implies, or omit the field if you cannot state a number. "
+        )
+        output_shape = (
+            "## Output\n\n"
+            "Write these sections, in this order, starting with the action "
+            "on its own line:\n\n"
+            "- **Action**: exactly one of Buy / Hold / Sell. A research "
+            "recommendation of Overweight is a Buy and Underweight is a Sell, "
+            "sized by how strong the case is; conflict alone is not a Hold.\n"
+            "- **Reasoning**: why, against the plan and the price structure\n"
+            "- **Entry Price**, **Stop Loss**, **Position Sizing**: when you can state them"
+        )
         if debate_enabled:
             investment_plan = state["investment_plan"]
             messages = [
@@ -72,6 +93,7 @@ def create_trader(llm, debate_enabled: bool = True):
                         _NO_POSITION_INSTRUCTION
                         + " Anchor your reasoning in the analysts' reports and the research plan. "
                         + grounding
+                        + price_levels
                         + NO_EXTERNAL_TOOLS
                         + get_language_instruction()
                     ),
@@ -79,15 +101,14 @@ def create_trader(llm, debate_enabled: bool = True):
                 {
                     "role": "user",
                     "content": (
-                        f"Based on a comprehensive analysis by a team of analysts, here is an investment "
-                        f"plan tailored for {company_name}. {instrument_context} This plan incorporates "
-                        f"insights from current technical market trends, macroeconomic indicators, and "
-                        f"social media sentiment. Use this plan as a foundation for evaluating your next "
-                        f"trading decision.\n\n"
+                        f"Here is the research team's investment plan for {company_name}. "
+                        f"{instrument_context}\n\n"
                         f"{report_section}"
-                        f"Proposed Investment Plan: {investment_plan}"
+                        f"{portfolio_context}\n\n"
+                        f"Proposed Investment Plan:\n{investment_plan}"
                         f"{external_section}\n\n"
-                        f"Leverage these insights to make an informed and strategic decision."
+                        "Make an informed, strategic trading decision.\n\n"
+                        + output_shape
                     ),
                 },
             ]
@@ -104,6 +125,7 @@ def create_trader(llm, debate_enabled: bool = True):
                         "run -- you are reading the raw analyst reports directly and forming "
                         "your own view from them. "
                         + grounding
+                        + price_levels
                         + NO_EXTERNAL_TOOLS
                         + get_language_instruction()
                     ),
@@ -113,12 +135,14 @@ def create_trader(llm, debate_enabled: bool = True):
                     "content": (
                         f"Here are four analysts' reports for {company_name}. {instrument_context}\n\n"
                         f"{report_section}"
-                        f"Market Report: {state.get('market_report', 'N/A')}\n\n"
-                        f"Sentiment Report: {state.get('sentiment_report', 'N/A')}\n\n"
-                        f"News Report: {state.get('news_report', 'N/A')}\n\n"
-                        f"Fundamentals Report: {state.get('fundamentals_report', 'N/A')}"
+                        f"{portfolio_context}\n\n"
+                        f"Market Report: {report_or_absent(state.get('market_report'), 'market')}\n\n"
+                        f"Sentiment Report: {report_or_absent(state.get('sentiment_report'), 'sentiment')}\n\n"
+                        f"News Report: {report_or_absent(state.get('news_report'), 'news')}\n\n"
+                        f"Fundamentals Report: {report_or_absent(state.get('fundamentals_report'), 'fundamentals')}"
                         f"{external_section}\n\n"
-                        f"Weigh these directly and make an informed, strategic trading decision."
+                        "Weigh these directly and make an informed, strategic trading decision.\n\n"
+                        + output_shape
                     ),
                 },
             ]
@@ -134,7 +158,6 @@ def create_trader(llm, debate_enabled: bool = True):
         result = {
             "messages": [AIMessage(content=trader_plan)],
             "trader_investment_plan": trader_plan,
-            "sender": name,
         }
         if not debate_enabled:
             # Portfolio Manager reads state["investment_plan"] unconditionally --
@@ -144,4 +167,4 @@ def create_trader(llm, debate_enabled: bool = True):
             result["investment_plan"] = _DEBATE_SKIPPED_PLACEHOLDER
         return result
 
-    return functools.partial(trader_node, name="Trader")
+    return trader_node

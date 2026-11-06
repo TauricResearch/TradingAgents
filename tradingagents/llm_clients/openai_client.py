@@ -1,5 +1,7 @@
+import logging
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -11,6 +13,8 @@ from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
 from .capabilities import get_capabilities
 from .validators import validate_model
+
+logger = logging.getLogger(__name__)
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -162,17 +166,59 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
         return payload
 
 
+# Settings a ChatGPT plan refuses.
+_PLAN_REFUSED = ("temperature", "top_p", "max_tokens")
+
+
+class ChatGPTPlanChatOpenAI(NormalizedChatOpenAI):
+    """The person's ChatGPT plan through OpenAI's Responses API.
+
+    Plan usage accepts no stored responses and no ``system`` role, and refuses
+    sampling and length settings. Responses stream and are not stored; system
+    instructions are sent as ``developer`` messages, OpenAI's name for the same
+    role; refused settings are dropped with a warning; no API organization or
+    project is sent.
+    """
+
+    def __init__(self, **kwargs):
+        for name in _PLAN_REFUSED:
+            if kwargs.pop(name, None) is not None:
+                logger.warning("A ChatGPT plan does not accept %s; it is not sent.", name)
+        kwargs.setdefault("streaming", True)
+        kwargs.setdefault("store", False)
+        super().__init__(**kwargs)
+        # The sign-in names the account; an organization or project set for API
+        # keys (OPENAI_ORG_ID, OPENAI_PROJECT_ID) must not travel with it.
+        self.openai_organization = None
+        for client in (self.root_client, self.root_async_client):
+            client.organization = None
+            client.project = None
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        for item in payload.get("input") or []:
+            if isinstance(item, dict) and item.get("role") == "system":
+                item["role"] = "developer"
+        return payload
+
+
+def _chatgpt_credential() -> Callable[[], str]:
+    from .chatgpt_auth import credential
+
+    return credential()
+
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort", "temperature", "max_tokens",
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
-# OpenAI's ``reasoning_effort`` is only accepted by reasoning models — the GPT-5
-# family and the o-series. Non-reasoning models (gpt-4.1, gpt-4o, ...) 400 with
+# OpenAI's ``reasoning_effort`` is only accepted by reasoning models — GPT-5 and
+# later, and the o-series. Non-reasoning models (gpt-4.1, gpt-4o, ...) 400 with
 # "Unsupported parameter: 'reasoning.effort' is not supported with this model".
 # Drop the kwarg for those rather than crash the run.
-_OPENAI_REASONING_MODEL = re.compile(r"^(gpt-5|o[1-9])")
+_OPENAI_REASONING_MODEL = re.compile(r"^(?:gpt-(?:[5-9]|[1-9]\d)|o[1-9])(?:[.-]|$)")
 
 
 def _supports_reasoning_effort(model: str) -> bool:
@@ -204,6 +250,11 @@ class ProviderSpec:
     placeholder_key: str = "EMPTY"            # sent when no key is available (keyless local servers)
     require_base_url: bool = False            # error if no base_url is resolved (generic endpoint)
     use_responses_api: bool = False           # native OpenAI Responses API
+    # A provider the user signs in to: ``credential()`` returns the api_key callable
+    # (a fresh token per request) or raises when nobody is signed in. Its token goes
+    # only to its pinned base_url, and never alongside an API key.
+    credential: Callable[[], Callable[[], str]] | None = None
+    pinned_base_url: bool = False             # refuse any other endpoint for this provider
 
 
 # Single source of truth for the OpenAI-compatible provider family. Dual-region
@@ -225,12 +276,29 @@ OPENAI_COMPATIBLE_PROVIDERS: dict[str, ProviderSpec] = {
     "groq":       ProviderSpec(base_url="https://api.groq.com/openai/v1"),
     "nvidia":     ProviderSpec(base_url="https://integrate.api.nvidia.com/v1"),
     "ollama":     ProviderSpec(base_url="http://localhost:11434/v1", base_url_env="OLLAMA_BASE_URL",
-                               key_optional=True, placeholder_key="ollama"),
+                               key_optional=True, placeholder_key="ollama",
+                               chat_class=LocalCompatibleChatOpenAI),
+    # The person's ChatGPT plan, through their own sign-in.
+    "chatgpt":    ProviderSpec(base_url="https://api.openai.com/v1", chat_class=ChatGPTPlanChatOpenAI,
+                               use_responses_api=True, credential=_chatgpt_credential,
+                               pinned_base_url=True),
     # Generic endpoint: user supplies base_url; key optional (keyless local).
     "openai_compatible": ProviderSpec(
         require_base_url=True, key_optional=True, chat_class=LocalCompatibleChatOpenAI
     ),
 }
+
+
+# Providers the user signs in to instead of setting an API key.
+SIGNED_IN_PROVIDERS = tuple(key for key, spec in OPENAI_COMPATIBLE_PROVIDERS.items() if spec.credential)
+
+
+def check_endpoint(provider: str, base_url: str | None) -> None:
+    """Raise ValueError when a provider pinned to its own endpoint is pointed elsewhere."""
+    spec = OPENAI_COMPATIBLE_PROVIDERS.get(provider.lower())
+    if spec is not None and spec.pinned_base_url and base_url and base_url != spec.base_url:
+        raise ValueError(f"Provider '{provider}' only connects to {spec.base_url}; "
+                         "unset backend_url / TRADINGAGENTS_LLM_BACKEND_URL for it.")
 
 
 def is_openai_compatible(provider: str) -> bool:
@@ -288,6 +356,7 @@ class OpenAIClient(BaseLLMClient):
             # OLLAMA_BASE_URL) > provider default. None means use the SDK default.
             env_base_url = os.environ.get(spec.base_url_env) if spec.base_url_env else None
             base_url = self.base_url or env_base_url or spec.base_url
+            check_endpoint(self.provider, base_url)
             if spec.require_base_url and not base_url:
                 raise ValueError(
                     f"Provider '{self.provider}' requires a base_url. Set it via "
@@ -300,9 +369,14 @@ class OpenAIClient(BaseLLMClient):
 
             # API key: required unless key_optional; keyless local servers get a
             # placeholder. The env-var name is the single source in api_key_env.
+            # A signed-in provider sends its own credential, and only that.
             api_key_env = get_api_key_env(self.provider)
             api_key = os.environ.get(api_key_env) if api_key_env else None
-            if api_key:
+            if spec.credential is not None:
+                if "api_key" in self.kwargs:
+                    raise ValueError(f"Provider '{self.provider}' uses its sign-in, not an api_key.")
+                llm_kwargs["api_key"] = spec.credential()
+            elif api_key:
                 llm_kwargs["api_key"] = api_key
             elif spec.key_optional:
                 llm_kwargs["api_key"] = spec.placeholder_key

@@ -29,9 +29,8 @@ def _build_graph(decision_mode: str):
     *factories* like create_bull_researcher(llm) just build closures, they
     never call the LLM, so this is free and needs no API key."""
     cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
-    tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
     llm = MagicMock()
-    gs = GraphSetup(llm, llm, tool_nodes, cl, decision_mode=decision_mode)
+    gs = GraphSetup(llm, llm, cl, 20, decision_mode=decision_mode)
     workflow = gs.setup_graph(("market",))
     return workflow.compile()
 
@@ -56,9 +55,8 @@ class TestDebateAblationGraphStructure:
         """decision_mode's default ("debate") must not silently change existing
         callers that don't pass it at all."""
         cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
-        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
         llm = MagicMock()
-        gs = GraphSetup(llm, llm, tool_nodes, cl)  # no decision_mode kwarg
+        gs = GraphSetup(llm, llm, cl, 20)  # no decision_mode kwarg
         graph = gs.setup_graph(("market",)).compile()
         assert set(graph.get_graph().nodes.keys()) >= _DEBATE_NODES
 
@@ -79,10 +77,9 @@ class TestStructuredDecisionModeGraphStructure:
 
     def test_unknown_decision_mode_raises(self):
         cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
-        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
         llm = MagicMock()
         with pytest.raises(ValueError, match="Unknown decision_mode"):
-            GraphSetup(llm, llm, tool_nodes, cl, decision_mode="bogus")
+            GraphSetup(llm, llm, cl, 20, decision_mode="bogus")
 
 
 @pytest.mark.unit
@@ -95,12 +92,11 @@ class TestDebateFirstSpeaker:
 
     def _entry_node(self, debate_first_speaker):
         cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
-        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
         llm = MagicMock()
-        gs = GraphSetup(llm, llm, tool_nodes, cl, decision_mode="debate",
+        gs = GraphSetup(llm, llm, cl, 20, decision_mode="debate",
                          debate_first_speaker=debate_first_speaker)
         graph = gs.setup_graph(("market",)).compile()
-        targets = [e.target for e in graph.get_graph().edges if e.source == "Msg Clear Market"]
+        targets = [e.target for e in graph.get_graph().edges if e.source == "Market Analyst"]
         assert len(targets) == 1
         return targets[0], gs.debate_first_speaker
 
@@ -132,17 +128,15 @@ class TestDebateFirstSpeaker:
         test callers -- only DEFAULT_CONFIG's default is "random" (that's a
         trading_graph.py-level choice, not this constructor's)."""
         cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
-        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
         llm = MagicMock()
-        gs = GraphSetup(llm, llm, tool_nodes, cl, decision_mode="debate")  # no debate_first_speaker kwarg
+        gs = GraphSetup(llm, llm, cl, 20, decision_mode="debate")  # no debate_first_speaker kwarg
         assert gs.debate_first_speaker == "bull"
 
     def test_unknown_debate_first_speaker_raises(self):
         cl = ConditionalLogic(max_debate_rounds=1, max_risk_discuss_rounds=1)
-        tool_nodes = {k: MagicMock() for k in ("market", "social", "news", "fundamentals")}
         llm = MagicMock()
         with pytest.raises(ValueError, match="Unknown debate_first_speaker"):
-            GraphSetup(llm, llm, tool_nodes, cl, decision_mode="debate", debate_first_speaker="bogus")
+            GraphSetup(llm, llm, cl, 20, decision_mode="debate", debate_first_speaker="bogus")
 
 
 def _structured_trader_llm(captured: dict, proposal: TraderProposal | None = None):

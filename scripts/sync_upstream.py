@@ -24,7 +24,7 @@ UPSTREAM_REF = "upstream/main"
 FORK_ONLY_HINTS = (
     "scripts/decide.py",
     "scripts/service.py",
-    "tradingagents/dataflows/indian_news.py",
+    "tradingagents/dataflows/vendors/indian_news.py",
     "tradingagents/agents/managers/decision_model.py",
     "tradingagents/agents/managers/factor_extractor.py",
     "docker-compose.yml",
