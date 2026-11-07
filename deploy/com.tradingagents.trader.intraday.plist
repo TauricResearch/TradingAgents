@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the hourly job of the intraday account (ADR 0006) on a Mac.
+  @REPO_DIR@ and @HOME@ are filled in at install time, as for the mark and daily
+  agents (see docs/roadmap.md). The account must exist: python -m trader intraday init.
+
+  Runs at :03 every hour, after the hour's candles have closed and before mark's :07.
+  Each run replays the closed minutes of the intraday account, asks the signal model
+  once per coin, trades, and sends the alerts, the hour's fills and, on the first run
+  of a UTC day, the summary of the day before. A tick missed while the Mac slept fires
+  once on wake: the hour is then decided late, and the replay catches up on the
+  minutes in between.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tradingagents.trader.intraday</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@REPO_DIR@/.venv/bin/python</string>
+    <string>-m</string>
+    <string>trader</string>
+    <string>intraday</string>
+    <string>run</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@REPO_DIR@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key>
+    <string>UTC</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>3</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>@HOME@/Library/Logs/trader/intraday.log</string>
+  <key>StandardErrorPath</key>
+  <string>@HOME@/Library/Logs/trader/intraday.log</string>
+</dict>
+</plist>

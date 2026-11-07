@@ -38,16 +38,23 @@ def atr(highs: list[float], lows: list[float], closes: list[float], days: int = 
     return sum(ranges) / days
 
 
-def unit_notional(equity: float, atr_value: float, price: float) -> float:
-    """USDT notional of a full position unit: the size that loses RISK_PER_UNIT
-    of equity when price moves STOP_ATR_MULT * atr_value against it."""
-    return RISK_PER_UNIT * equity * price / (STOP_ATR_MULT * atr_value)
+def unit_notional(
+    equity: float, atr_value: float, price: float, *,
+    risk: float = RISK_PER_UNIT, stop_mult: float = STOP_ATR_MULT,
+) -> float:
+    """USDT notional of a full position unit: the size that loses ``risk`` of equity
+    when price moves ``stop_mult`` * atr_value against it. The defaults are the daily
+    account's constants; another account passes its own."""
+    return risk * equity * price / (stop_mult * atr_value)
 
 
-def target_notional(rating: str | None, unit: float, current: float) -> float:
-    """Signed target notional: RATING_WEIGHTS[rating] * unit. A rating missing from
-    RATING_WEIGHTS (Hold, REVIEW, None) keeps ``current``."""
-    weight = RATING_WEIGHTS.get(rating)
+def target_notional(
+    rating: str | None, unit: float, current: float, *, weights: dict = RATING_WEIGHTS
+) -> float:
+    """Signed target notional: ``weights[rating]`` * unit. A rating missing from
+    ``weights`` (Hold, REVIEW, None) keeps ``current``. The default weights are the
+    daily account's RATING_WEIGHTS."""
+    weight = weights.get(rating)
     return current if weight is None else weight * unit
 
 
@@ -72,9 +79,12 @@ def apply_caps(targets: dict[str, float], currents: dict[str, float], equity: fl
     return {k: held[k] if k in held else changing[k] for k in targets}
 
 
-def needs_trade(target: float, current: float, unit: float) -> bool:
-    """Whether target and current notionals differ by at least REBALANCE_THRESHOLD units."""
-    return abs(target - current) >= REBALANCE_THRESHOLD * unit
+def needs_trade(
+    target: float, current: float, unit: float, *, threshold: float = REBALANCE_THRESHOLD
+) -> bool:
+    """Whether target and current notionals differ by at least ``threshold`` units;
+    the default threshold is the daily account's REBALANCE_THRESHOLD."""
+    return abs(target - current) >= threshold * unit
 
 
 def to_quantity(
@@ -94,9 +104,12 @@ def to_quantity(
     return math.copysign(round(contracts * contract_value, 12), notional)
 
 
-def initial_stop(entry: float, qty: float, atr_value: float) -> float:
-    """Stop STOP_ATR_MULT * atr_value from entry: below a long, above a short."""
-    distance = STOP_ATR_MULT * atr_value
+def initial_stop(
+    entry: float, qty: float, atr_value: float, *, stop_mult: float = STOP_ATR_MULT
+) -> float:
+    """Stop ``stop_mult`` * atr_value from entry: below a long, above a short. The
+    default multiple is the daily account's STOP_ATR_MULT."""
+    distance = stop_mult * atr_value
     return entry - distance if qty > 0 else entry + distance
 
 
@@ -106,17 +119,19 @@ def tighten(stop: float, candidate: float, qty: float) -> float:
 
 
 def stop_after_trade(
-    old_qty: float, new_qty: float, old_stop: float | None, fill_price: float, atr_value: float
+    old_qty: float, new_qty: float, old_stop: float | None, fill_price: float, atr_value: float,
+    *, stop_mult: float = STOP_ATR_MULT,
 ) -> float | None:
     """Stop for the position a trade leaves.
 
     None when it leaves the position flat; a fresh initial stop at ``fill_price``
     when it opens a position or flips its side; the tighter of the old stop and a
-    fresh one when it adds on the same side; the old stop when it reduces.
+    fresh one when it adds on the same side; the old stop when it reduces. The
+    fresh stop is ``stop_mult`` ATRs from the fill, the daily multiple by default.
     """
     if new_qty == 0:
         return None
-    fresh = initial_stop(fill_price, new_qty, atr_value)
+    fresh = initial_stop(fill_price, new_qty, atr_value, stop_mult=stop_mult)
     if old_qty == 0 or (old_qty > 0) != (new_qty > 0):
         return fresh
     if abs(new_qty) > abs(old_qty):

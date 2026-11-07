@@ -12,7 +12,7 @@ from __future__ import annotations
 from trader import rules
 from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS, MINUTE_MS, OKX
-from trader.settings import ATR_DAYS, KILL_DRAWDOWN, WATCHLIST, Coin
+from trader.settings import ATR_DAYS, KILL_DRAWDOWN, STOP_ATR_MULT, WATCHLIST, Coin
 
 STALL_MS = 10 * MINUTE_MS
 
@@ -201,9 +201,12 @@ class Paper:
 def _move(
     positions: dict[str, Position], inst: str, new_qty: float, price: float, atr_value: float,
     ts: int, reason: str, fills: list[Fill], trade_date: str | None = None,
+    *, stop_mult: float = STOP_ATR_MULT,
 ) -> float:
     """Move ``inst`` to ``new_qty`` coins at ``price`` (slippage included) and record
-    the fill; return the cash it adds, realized PnL less the fee."""
+    the fill; return the cash it adds, realized PnL less the fee. The stop of the
+    position left is ``stop_mult`` ATRs from the fill (``rules.stop_after_trade``),
+    the daily account's multiple by default."""
     pos = positions.get(inst)
     old_qty = pos.qty if pos else 0.0
     if old_qty and (new_qty == 0 or (new_qty > 0) != (old_qty > 0)):  # close or flip
@@ -214,7 +217,9 @@ def _move(
     else:                                                               # reduce
         realized, entry = (old_qty - new_qty) * (price - pos.entry), pos.entry
     cost = rules.fee((new_qty - old_qty) * price)
-    stop = rules.stop_after_trade(old_qty, new_qty, pos.stop if pos else None, price, atr_value)
+    stop = rules.stop_after_trade(
+        old_qty, new_qty, pos.stop if pos else None, price, atr_value, stop_mult=stop_mult
+    )
     if new_qty:
         positions[inst] = Position(new_qty, entry, stop)
     else:
