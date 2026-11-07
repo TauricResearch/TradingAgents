@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from trader.intraday.paper import HOUR_MS
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS, MINUTE_MS, Bar, ContractSpec, FundingEvent
@@ -15,7 +16,8 @@ DAY0 = T0 - T0 % DAY_MS
 
 
 class FakeOKX:
-    """Twenty daily candles with a true range of 2,000 (ATR 2,000), close 80,000."""
+    """Twenty daily candles with a true range of 2,000 (ATR 2,000), close 80,000; hourly
+    candles ("1H") with a true range of 400 (ATR 400), close 80,000, for any range."""
 
     def __init__(self, minute=(), funding=(), last=80_000.0):
         self.minute = list(minute)
@@ -26,6 +28,8 @@ class FakeOKX:
         ]
 
     def bars(self, inst, bar, start_ms, end_ms):
+        if bar == "1H":
+            return [Bar(ts, 80_000, 80_200, 79_800, 80_000) for ts in range(start_ms, end_ms, HOUR_MS)]
         series = self.minute if bar == "1m" else self.daily
         return [b for b in series if start_ms <= b.ts < end_ms]
 
