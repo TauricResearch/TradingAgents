@@ -570,9 +570,9 @@ SIGNALS = [
 ]
 
 
-def build_intraday(tmp_path, okx=None, validated=True):
+def build_intraday(tmp_path, okx=None, validated=True, signals=SIGNALS):
     """build() with the intraday account beside the paper one: a long BTC, the paper
-    account's three midnights and SIGNALS; validated=False: a ledger only initialized."""
+    account's three midnights and ``signals``; validated=False: a ledger only initialized."""
     client = build(tmp_path, okx)
     ledger = Ledger(Settings(home=tmp_path).intraday_ledger_path)
     ledger.initialize(10_000.0, T0)
@@ -582,7 +582,7 @@ def build_intraday(tmp_path, okx=None, validated=True):
             snapshots=[(DAY0, 10_000.0), (DAY0 + DAY_MS, 10_100.0), (DAY0 + 2 * DAY_MS, 10_050.0)],
             meta={"validation_start": DAY0, "peak": 10_100.0},
         )
-        for ts, coin, result in SIGNALS:
+        for ts, coin, result in signals:
             ledger.record_signal(ts, coin, result)
     ledger.db.close()
     return client
@@ -703,6 +703,17 @@ def test_intraday_overview_takes_the_llm_spend_from_the_signals(tmp_path):
     assert position["notional"] == pytest.approx(2_370.0)
     assert position["unrealized"] == pytest.approx(30.0)
     assert position["stop_distance"] == pytest.approx(5_000 / 79_000)
+
+
+def test_intraday_spend_of_unknown_cost_earlier_in_the_month_is_flagged(tmp_path):
+    # Today's one signal is priced; the call of unknown cost is of an earlier day of the month.
+    signals = [
+        (MONTH0 + HOUR, "BTC-USD", SignalResult("Long", 3, "breakout", None, 1_000, 200, None)),
+        (DAY0, "BTC-USD", SignalResult("Flat", 2, "range", None, 800, 100, 0.5)),
+    ]
+    body = build_intraday(tmp_path, signals=signals).get("/api/accounts/intraday/overview").json()
+    assert body["llm"]["today"] == 0.5 and body["llm"]["month"] == 0.5
+    assert body["llm"]["unknown"] is True
 
 
 def test_intraday_overview_before_the_validation_period(tmp_path):
