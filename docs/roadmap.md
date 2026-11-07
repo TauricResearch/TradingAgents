@@ -68,6 +68,8 @@
 | T3 | 看板接入第二账户：账户切换、`/api/accounts/{id}/signals`、信号页 | B | 等指南页合并后派 |
 | T4 | 部署到 mini：init 日内账户、装 plist、核对首小时运行 | — | 合并后由指挥会话做 |
 
+第 1 轮（2026-11-07，起点 `8c39826`）：T1 → 分支 `t1-intraday-engine`，worktree `../TradingAgents.worktrees/t1-intraday-engine`；T2 → 分支 `t2-intraday-signal`，worktree `../TradingAgents.worktrees/t2-intraday-signal`。报告目录 `~/.commander/TradingAgents/`。
+
 ## 阶段 2：按证据扩展
 
 优先级在验证期结束后再定。候选项：
