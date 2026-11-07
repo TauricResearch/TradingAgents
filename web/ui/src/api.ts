@@ -242,9 +242,15 @@ export interface TierSelection {
   price: Price | null
 }
 
+/** A tier in effect, with the price table's remark on its price. */
+export interface CurrentTier extends TierSelection {
+  /** E.g. "促销价至 2026-11-30" or "提示词≤100K 档"; null when the table has none. */
+  price_note: string | null
+}
+
 export interface CurrentModels {
-  deep: TierSelection
-  quick: TierSelection
+  deep: CurrentTier
+  quick: CurrentTier
   /** Where the selection comes from: `.env`, or the settings.json the dashboard writes. */
   source: 'env' | 'settings'
   /** Last write of settings.json. */
@@ -261,6 +267,8 @@ export interface ModelInfo {
   /** URL of the official price page. */
   price_source: string | null
   price_as_of: string | null
+  /** The price table's remark on the price, e.g. the tier it is or when a promotion ends. */
+  price_note: string | null
   /** Listed by the upstream catalog; false for a configured model the catalog lacks. */
   in_catalog: boolean
 }

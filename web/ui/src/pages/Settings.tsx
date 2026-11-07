@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type {
   CurrentModels,
+  CurrentTier,
   LlmSettingsRequest,
   ModelChange,
   ModelsResponse,
@@ -69,7 +70,7 @@ function failureText(e: unknown): string {
   return `保存失败，连不上后端：${e instanceof Error ? e.message : String(e)}`
 }
 
-function CurrentCard({ label, selection, providers }: { label: string; selection: TierSelection; providers: ProviderInfo[] }) {
+function CurrentCard({ label, selection, providers }: { label: string; selection: CurrentTier; providers: ProviderInfo[] }) {
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-sm border border-border bg-panel-2 px-3 py-2">
       <div className="flex items-baseline justify-between gap-3 text-[11px] text-muted">
@@ -95,6 +96,7 @@ function CurrentCard({ label, selection, providers }: { label: string; selection
           </>
         )}
       </div>
+      {selection.price_note && <div className="text-[11px] text-muted">备注：{selection.price_note}</div>}
     </div>
   )
 }
