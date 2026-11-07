@@ -29,7 +29,8 @@ class FakeOKX:
 
     def bars(self, inst, bar, start_ms, end_ms):
         if bar == "1H":
-            return [Bar(ts, 80_000, 80_200, 79_800, 80_000) for ts in range(start_ms, end_ms, HOUR_MS)]
+            hours = range(start_ms, end_ms, HOUR_MS)
+            return [Bar(ts, 80_000, 80_200, 79_800, 80_000) for ts in hours]
         series = self.minute if bar == "1m" else self.daily
         return [b for b in series if start_ms <= b.ts < end_ms]
 
@@ -100,7 +101,7 @@ def test_signals_are_recorded_newest_first_and_costed(ledger):
         (T0, "ETH-USD", None, None, "", "RuntimeError: boom", 0, 0, None),
         (T0, "BTC-USD", "Long", 2, "up", None, 100, 20, 0.01),
     ]
-    assert ledger.signals(since_ms=T0 + 1) == [(T0 + hour, "BTC-USD", "Flat", 1, "", None, 90, 10, 0.02)]
+    assert ledger.signals(since_ms=T0 + 1) == ledger.signals()[:1]
     assert [row[1] for row in ledger.signals(limit=2)] == ["BTC-USD", "ETH-USD"]
     assert ledger.latest_signals() == {"BTC-USD": (T0 + hour, "Flat"), "ETH-USD": (T0, None)}
     assert ledger.signal_cost_since(0) == (pytest.approx(0.03), True)
