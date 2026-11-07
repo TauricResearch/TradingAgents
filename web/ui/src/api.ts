@@ -13,6 +13,8 @@ export interface Account {
   validation_start: string | null
   halted: boolean
   watchlist: WatchlistEntry[]
+  /** The hourly-signal account (ADR 0006): no rating settlement, no monthly budget cap. */
+  intraday: boolean
 }
 
 export interface Perf {
@@ -85,7 +87,8 @@ export interface Overview {
   performance: Performance
   llm: LlmUsage
   positions: Position[]
-  latest: Latest
+  /** Null for the intraday account, which has signals instead of daily research. */
+  latest: Latest | null
 }
 
 export interface EquityPoint {
@@ -133,6 +136,22 @@ export interface Attempt {
   coin: string
   ts: string
   rating: string | null
+  error: string | null
+  tokens_in: number
+  tokens_out: number
+  cost_usd: number | null
+}
+
+export type SignalName = 'Long' | 'Short' | 'Flat'
+
+/** One hourly LLM signal of the intraday account; `signal` is null when the call failed or gave no usable signal. */
+export interface Signal {
+  ts: string
+  coin: string
+  signal: SignalName | null
+  /** 1 (weak) to 3 (strong); null when unknown. */
+  conviction: number | null
+  reason: string
   error: string | null
   tokens_in: number
   tokens_out: number

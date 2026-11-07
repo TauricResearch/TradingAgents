@@ -2,9 +2,13 @@ import type { LlmUsage } from '../api'
 import { fmtUsd } from '../format'
 import { Help } from './Help'
 
-export function LlmCard({ llm }: { llm: LlmUsage }) {
-  const capText =
-    llm.cap === null ? `上限未定（已观察 ${llm.learned_days}/${llm.learning_days} 天）` : fmtUsd(llm.cap)
+export function LlmCard({ llm, intraday = false }: { llm: LlmUsage; intraday?: boolean }) {
+  // The intraday account has no monthly cap: its signal costs are already taken off its performance.
+  const capText = intraday
+    ? '无上限，已从绩效扣除'
+    : llm.cap === null
+      ? `上限未定（已观察 ${llm.learned_days}/${llm.learning_days} 天）`
+      : fmtUsd(llm.cap)
   const used = llm.cap !== null && llm.cap > 0 ? Math.min(1, llm.month / llm.cap) : null
 
   return (
@@ -23,7 +27,7 @@ export function LlmCard({ llm }: { llm: LlmUsage }) {
             上限
             <Help k="budget_cap" align="end" />
           </dt>
-          <dd className={`num ${llm.cap === null ? 'text-[12px] leading-6 text-muted' : 'text-[16px]'}`}>
+          <dd className={`num ${intraday || llm.cap === null ? 'text-[12px] leading-6 text-muted' : 'text-[16px]'}`}>
             {capText}
           </dd>
         </div>
@@ -37,7 +41,9 @@ export function LlmCard({ llm }: { llm: LlmUsage }) {
         </div>
       )}
       {llm.unknown && <div className="text-[11px] text-accent">有调用费用未知，没算进去</div>}
-      <div className="num text-[11px] text-muted">研判日 {llm.trade_date}</div>
+      <div className="num text-[11px] text-muted">
+        {intraday ? 'UTC 日' : '研判日'} {llm.trade_date}
+      </div>
     </div>
   )
 }

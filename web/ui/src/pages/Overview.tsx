@@ -5,6 +5,7 @@ import { AccuracyCard } from '../components/AccuracyCard'
 import { EquityChart } from '../components/EquityChart'
 import { Kpi, KpiStrip } from '../components/Kpi'
 import { LatestCards } from '../components/LatestCards'
+import { LatestSignals } from '../components/LatestSignals'
 import { LlmCard } from '../components/LlmCard'
 import { Num } from '../components/Num'
 import { Panel } from '../components/Panel'
@@ -21,7 +22,8 @@ const INSUFFICIENT = '样本不足'
 export function Overview() {
   const { account, overview } = useAccount()
   const equity = useFetch<Equity>(accountPath(account.id, 'equity'), REFRESH_MS)
-  const accuracy = useFetch<Accuracy>(accountPath(account.id, 'accuracy'), REFRESH_MS * 5)
+  // The intraday account settles no ratings, so there is no accuracy to fetch.
+  const accuracy = useFetch<Accuracy>(account.intraday ? null : accountPath(account.id, 'accuracy'), REFRESH_MS * 5)
 
   if (overview.error && !overview.data) return <ErrorBox error={overview.error} onRetry={overview.refresh} />
   if (!overview.data) return <Loading />
@@ -97,16 +99,22 @@ export function Overview() {
         </Panel>
 
         <div className="flex flex-col gap-3">
-          <Panel
-            title={`最近研判 · 研判日 ${ov.latest.trade_date}`}
-            help="latest_research"
-            aside={ov.latest.executed ? '已执行调仓' : <span className="text-accent">尚未执行</span>}
-            flush
-          >
-            <LatestCards latest={ov.latest} />
-          </Panel>
+          {account.intraday ? (
+            <LatestSignals />
+          ) : (
+            ov.latest && (
+              <Panel
+                title={`最近研判 · 研判日 ${ov.latest.trade_date}`}
+                help="latest_research"
+                aside={ov.latest.executed ? '已执行调仓' : <span className="text-accent">尚未执行</span>}
+                flush
+              >
+                <LatestCards latest={ov.latest} />
+              </Panel>
+            )
+          )}
           <Panel title="LLM 费用" help="llm_cost" className="flex-1">
-            <LlmCard llm={ov.llm} />
+            <LlmCard llm={ov.llm} intraday={account.intraday} />
           </Panel>
         </div>
       </div>
@@ -115,7 +123,7 @@ export function Overview() {
         <Panel
           title="持仓"
           help="positions"
-          className="xl:col-span-2"
+          className={account.intraday ? 'xl:col-span-3' : 'xl:col-span-2'}
           flush
           aside={
             ov.positions.length > 0 && (
@@ -128,15 +136,17 @@ export function Overview() {
           <PositionsTable positions={ov.positions} />
         </Panel>
 
-        <Panel title="评级准确度" help="accuracy" aside={<StaleNote error={accuracy.error} />}>
-          {accuracy.error && !accuracy.data ? (
-            <ErrorBox error={accuracy.error} onRetry={accuracy.refresh} />
-          ) : !accuracy.data ? (
-            <Loading />
-          ) : (
-            <AccuracyCard accuracy={accuracy.data} />
-          )}
-        </Panel>
+        {!account.intraday && (
+          <Panel title="评级准确度" help="accuracy" aside={<StaleNote error={accuracy.error} />}>
+            {accuracy.error && !accuracy.data ? (
+              <ErrorBox error={accuracy.error} onRetry={accuracy.refresh} />
+            ) : !accuracy.data ? (
+              <Loading />
+            ) : (
+              <AccuracyCard accuracy={accuracy.data} />
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   )

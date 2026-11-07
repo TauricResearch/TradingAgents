@@ -2,17 +2,18 @@ import { useSearchParams } from 'react-router-dom'
 import { useAccount } from '../account'
 import type { Attempt, Fill, FillReason, Funding, LedgerEvent } from '../api'
 import { accountPath } from '../api'
-import { DataTable, type Column } from '../components/DataTable'
+import type { Column } from '../components/DataTable'
 import { Num } from '../components/Num'
 import { Panel } from '../components/Panel'
 import { RatingChip } from '../components/RatingChip'
-import { ErrorBox, Loading, StaleNote } from '../components/Status'
+import { StaleNote } from '../components/Status'
+import { Table } from '../components/Table'
 import { Tabs } from '../components/Tabs'
-import { fmtInt, fmtPct, fmtQty, fmtSigned, fmtTime, fmtTimeFull, fmtUsd, fmtUsdt } from '../format'
-import { useFetch, type FetchState } from '../hooks'
+import { Time } from '../components/Time'
+import { fmtInt, fmtPct, fmtQty, fmtSigned, fmtUsd, fmtUsdt } from '../format'
+import { useFetch } from '../hooks'
 
 type TabKey = 'fills' | 'funding' | 'attempts' | 'events'
-const TAB_KEYS: TabKey[] = ['fills', 'funding', 'attempts', 'events']
 
 const REASON: Record<FillReason, { label: string; cls: string }> = {
   trade: { label: '调仓', cls: 'border-border bg-panel-2 text-muted' },
@@ -23,14 +24,6 @@ const REASON: Record<FillReason, { label: string; cls: string }> = {
 function ReasonChip({ reason }: { reason: FillReason }) {
   const r = REASON[reason] ?? { label: reason, cls: 'border-border bg-panel-2 text-muted' }
   return <span className={`inline-block rounded-sm border px-1.5 text-[11px] leading-4 ${r.cls}`}>{r.label}</span>
-}
-
-function Time({ ts }: { ts: string }) {
-  return (
-    <span className="num" title={fmtTimeFull(ts)}>
-      {fmtTime(ts)}
-    </span>
-  )
 }
 
 const fillColumns: Column<Fill>[] = [
@@ -91,21 +84,15 @@ const eventColumns: Column<LedgerEvent>[] = [
   { key: 'text', header: '内容', className: 'whitespace-normal', render: (e) => e.text },
 ]
 
-function Table<T>({ state, columns, rowKey }: { state: FetchState<T[]>; columns: Column<T>[]; rowKey: (row: T, i: number) => string }) {
-  if (state.error && !state.data) return <ErrorBox error={state.error} onRetry={state.refresh} />
-  if (!state.data) return <Loading />
-  return <DataTable columns={columns} rows={state.data} rowKey={rowKey} />
-}
-
 export function History() {
   const { account } = useAccount()
   const [params, setParams] = useSearchParams()
   const raw = params.get('tab')
-  const active: TabKey = TAB_KEYS.find((k) => k === raw) ?? 'fills'
 
   const fills = useFetch<Fill[]>(accountPath(account.id, 'fills?limit=500'))
   const funding = useFetch<Funding[]>(accountPath(account.id, 'funding?limit=500'))
-  const attempts = useFetch<Attempt[]>(accountPath(account.id, 'attempts'))
+  // The intraday account has no daily research, so nothing to fetch for the attempts tab.
+  const attempts = useFetch<Attempt[]>(account.intraday ? null : accountPath(account.id, 'attempts'))
   const events = useFetch<LedgerEvent[]>(accountPath(account.id, 'events'))
 
   const tabs = [
@@ -113,7 +100,9 @@ export function History() {
     { key: 'funding' as const, label: '资金费', count: funding.data?.length },
     { key: 'attempts' as const, label: '研判记录', count: attempts.data?.length },
     { key: 'events' as const, label: '事件', count: events.data?.length },
-  ]
+  ].filter((t) => !(account.intraday && t.key === 'attempts'))
+  // A tab in the URL that is not among this account's tabs falls back to the fills.
+  const active: TabKey = tabs.find((t) => t.key === raw)?.key ?? 'fills'
   const current = { fills, funding, attempts, events }[active]
 
   return (

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAccount } from '../account'
 import { fmtDrawdown, fmtTime, fmtUsdt } from '../format'
+import { ACCOUNT_LABEL } from '../llmSettings'
 import { Help } from './Help'
 import { StaleNote } from './Status'
 
@@ -13,8 +14,12 @@ const NAV = [
   { to: '/settings', label: '设置', end: false },
 ]
 
+/** The intraday account's page of hourly signals, listed right after the research. */
+const SIGNALS_NAV = { to: '/signals', label: '信号', end: false }
+
 export function TopBar() {
-  const { account, overview } = useAccount()
+  const { account, accounts, select, overview } = useAccount()
+  const nav = account.intraday ? NAV.flatMap((n) => (n.to === '/research' ? [n, SIGNALS_NAV] : [n])) : NAV
   const ov = overview.data
   const halted = ov?.halted ?? account.halted
   const bar = useRef<HTMLElement>(null)
@@ -37,13 +42,34 @@ export function TopBar() {
       <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-4 gap-y-1 px-3 py-1.5">
         <div className="flex items-center gap-2">
           <span className="font-semibold tracking-wide">TradingAgents 模拟盘</span>
-          <span className="num rounded-sm border border-border bg-panel px-1.5 text-[11px] text-muted" title={account.kind}>
-            {account.id}
-          </span>
+          {accounts.length > 1 ? (
+            <div role="group" aria-label="账户" className="flex items-center gap-1">
+              {accounts.map((a) => {
+                const on = a.id === account.id
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => select(a.id)}
+                    className={`rounded-sm border px-1.5 text-[11px] ${
+                      on ? 'border-accent bg-accent/15 text-accent' : 'border-border bg-panel text-muted hover:text-fg'
+                    }`}
+                  >
+                    {ACCOUNT_LABEL[a.id] ?? a.id}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <span className="num rounded-sm border border-border bg-panel px-1.5 text-[11px] text-muted" title={account.kind}>
+              {account.id}
+            </span>
+          )}
         </div>
 
         <nav className="flex items-center gap-1 text-[13px]">
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}

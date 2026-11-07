@@ -4,6 +4,10 @@ import type { FetchState } from './hooks'
 
 export interface AccountScope {
   account: Account
+  /** Every account the backend lists, for the top bar's switch. */
+  accounts: Account[]
+  /** Switch to the account with this id; the choice is remembered by this browser. */
+  select: (id: string) => void
   overview: FetchState<Overview>
 }
 
