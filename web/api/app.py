@@ -117,6 +117,10 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     def funding(account: AccountDep, ledger: LedgerDep, since: Since = None, limit: Limit = 500):
         return data.funding(account, ledger, _since_ms(since), limit)
 
+    @app.get("/api/accounts/{account_id}/signals")
+    def signals(account: AccountDep, ledger: LedgerDep, since: Since = None, limit: Limit = 500):
+        return data.signals(account, ledger, _since_ms(since), limit)
+
     @app.get("/api/accounts/{account_id}/events")
     def events(ledger: LedgerDep):
         return data.events(ledger)

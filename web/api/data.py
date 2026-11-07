@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from trader import jobs, overrides, prices, report, rules, settings as strategy_constants
+from trader.intraday import report as intraday_report
 from trader.ledger import Ledger
 from trader.okx import DAY_MS, OKX, Bar
 from trader.paper import Paper
@@ -44,6 +45,7 @@ class Account:
     results_dir: Path      # research records: <coin>/.../full_states_log_<trade_date>.json
     memory_log_path: Path  # the settled ratings, scored by tradingagents.backtest
     watchlist: tuple[Coin, ...]
+    intraday: bool = False  # the hourly account (ADR 0006): its LLM spend is in the signals table
 
     def coin_of(self, inst: str) -> str | None:
         """The research ticker traded through swap ``inst``; None for an unknown contract."""
@@ -61,7 +63,7 @@ def accounts(settings: Settings) -> dict[str, Account]:
         ),
         "intraday": Account(
             "intraday", "paper", settings.intraday_ledger_path, settings.home / "logs",
-            settings.home / "intraday" / "none.md", WATCHLIST,
+            settings.home / "intraday" / "none.md", WATCHLIST, intraday=True,
         ),
     }
 
@@ -272,7 +274,7 @@ def summary(account: Account) -> dict:
             capital, halted = ledger.get("capital"), ledger.get("halted")
             start = _iso(ledger.get("validation_start"))
     return {
-        "id": account.id, "kind": account.kind, "capital": capital,
+        "id": account.id, "kind": account.kind, "intraday": account.intraday, "capital": capital,
         "validation_start": start, "halted": halted,
         "watchlist": [
             {"research": c.research, "swap": c.swap, "spot": c.spot} for c in account.watchlist
@@ -287,11 +289,25 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
     positions = ledger.positions()
     prices = {inst: market.last_price(inst) for inst in positions}
     equity, peak = paper.equity(prices), ledger.get("peak")
-    series = report.net_equity(ledger)
+    series = _net_equity(account, ledger)
     values = [v for _, v in series]
     equal, btc = report.baselines(paper, [t for t, _ in series], values[0]) if series else ([], [])
-    today, unknown_today = ledger.cost_of(trade_date)
-    month, unknown_month = ledger.cost_since(jobs.month_start_ms(now))
+    if account.intraday:  # spend in the signals table, no budget and no ratings (ADR 0006)
+        llm, latest = _intraday_llm(ledger, now), None
+    else:
+        today, unknown_today = ledger.cost_of(trade_date)
+        month, unknown_month = ledger.cost_since(jobs.month_start_ms(now))
+        llm = {
+            "trade_date": trade_date,
+            "today": today,
+            "month": month,
+            # budget_cap() would set the cap on a ledger it finds ready; a reader only looks.
+            "cap": ledger.get("budget_cap"),
+            "learned_days": sum(1 for _, c in ledger.daily_costs(trade_date) if c is not None),
+            "learning_days": BUDGET_LEARNING_DAYS,
+            "unknown": unknown_today or unknown_month,
+        }
+        latest = _latest(account, ledger, trade_date)
     return {
         "equity": equity,
         "cash": ledger.get("cash"),
@@ -306,20 +322,36 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
             "equal_weight": _performance(equal),
             "btc": _performance(btc),
         },
-        "llm": {
-            "trade_date": trade_date,
-            "today": today,
-            "month": month,
-            # budget_cap() would set the cap on a ledger it finds ready; a reader only looks.
-            "cap": ledger.get("budget_cap"),
-            "learned_days": sum(1 for _, c in ledger.daily_costs(trade_date) if c is not None),
-            "learning_days": BUDGET_LEARNING_DAYS,
-            "unknown": unknown_today or unknown_month,
-        },
+        "llm": llm,
         "positions": [
             _position(account, inst, pos, prices[inst]) for inst, pos in positions.items()
         ],
-        "latest": _latest(account, ledger, trade_date),
+        "latest": latest,
+    }
+
+
+def _net_equity(account: Account, ledger: Ledger) -> list[tuple[int, float]]:
+    """The midnight equity less the LLM spend: the attempts' for the daily account, the
+    signals' for the intraday one."""
+    if account.intraday:
+        return intraday_report.net_equity(ledger)
+    return report.net_equity(ledger)
+
+
+def _intraday_llm(ledger: Ledger, now: datetime) -> dict:
+    """The intraday account's ``llm``: the signals' spend since UTC midnight and since the
+    month began. No budget cap and no learning days: the spend comes off the performance."""
+    day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today, unknown_today = ledger.signal_cost_since(_ms(day))
+    month, unknown_month = ledger.signal_cost_since(jobs.month_start_ms(now))
+    return {
+        "trade_date": day.date().isoformat(),
+        "today": today,
+        "month": month,
+        "cap": None,
+        "learned_days": 0,
+        "learning_days": 0,
+        "unknown": unknown_today or unknown_month,
     }
 
 
@@ -399,7 +431,7 @@ def equity(account: Account, ledger: Ledger, market: Market) -> dict:
     raw = ledger.equity_series(start) if start is not None else []
     points = []
     if raw:
-        net = report.net_equity(ledger)  # the same midnights, less the LLM spend
+        net = _net_equity(account, ledger)  # the same midnights, less the LLM spend
         baselines = _baselines(market, account.watchlist, [t for t, _ in raw], net[0][1])
         points = [
             {"ts": _iso(ts), "strategy": value, "strategy_net": net_value,
@@ -469,6 +501,23 @@ def attempts(ledger: Ledger) -> list[dict]:
             "error": error, "tokens_in": tokens_in, "tokens_out": tokens_out, "cost_usd": cost,
         }
         for trade_date, coin, ts, rating, error, tokens_in, tokens_out, cost in rows
+    ]
+
+
+def signals(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
+    """The intraday account's hourly signals, newest first. The daily account has none:
+    []. Its ledger is not asked, as a reader does not create the signals table and a
+    ledger from before it lacks it."""
+    if not account.intraday:
+        return []
+    return [
+        {
+            "ts": _iso(ts), "coin": coin, "signal": signal, "conviction": conviction,
+            "reason": reason, "error": error, "tokens_in": tokens_in, "tokens_out": tokens_out,
+            "cost_usd": cost,
+        }
+        for ts, coin, signal, conviction, reason, error, tokens_in, tokens_out, cost
+        in ledger.signals(since_ms, limit)
     ]
 
 

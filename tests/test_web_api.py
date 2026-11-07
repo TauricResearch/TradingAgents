@@ -1,11 +1,13 @@
 import json
 import re
+import sqlite3
 from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
+from trader.intraday.types import SignalResult
 from trader.ledger import BUDGET_ERROR, Fill, Ledger, Position
 from trader.okx import DAY_MS, Bar
 from trader.prices import OFFICIAL
@@ -551,3 +553,180 @@ def test_a_misshapen_switch_is_422(tmp_path, llm_env, body):
     client = build(tmp_path)
     assert client.post("/api/settings/llm", json=body).status_code == 422
     assert not (tmp_path / "settings.json").exists()
+
+
+# -- the intraday account (ADR 0006) --------------------------------------------
+
+MONTH0 = int(datetime(2026, 1, 1, tzinfo=UTC).timestamp() * 1000)
+# (ts, coin, result) in the order recorded. The first is of last month; the first three are
+# before the validation period (DAY0); the last two are today's. The third failed and the
+# fifth ran on a model with no price: the cost of both is unknown.
+SIGNALS = [
+    (MONTH0 - HOUR, "BTC-USD", SignalResult("Short", 1, "last month", None, 10, 1, 9.0)),
+    (MONTH0 + HOUR, "BTC-USD", SignalResult("Long", 3, "breakout", None, 1_000, 200, 2.0)),
+    (DAY0 - HOUR, "ETH-USD", SignalResult(None, None, "", "RuntimeError: boom")),
+    (DAY0, "BTC-USD", SignalResult("Flat", 2, "range", None, 800, 100, 0.5)),
+    (DAY0, "ETH-USD", SignalResult("Long", 1, "unpriced", None, 700, 90, None)),
+]
+
+
+def build_intraday(tmp_path, okx=None, validated=True):
+    """build() with the intraday account beside the paper one: a long BTC, the paper
+    account's three midnights and SIGNALS; validated=False: a ledger only initialized."""
+    client = build(tmp_path, okx)
+    ledger = Ledger(Settings(home=tmp_path).intraday_ledger_path)
+    ledger.initialize(10_000.0, T0)
+    if validated:
+        ledger.commit(
+            positions={BTC.swap: Position(0.03, 78_000.0, 74_000.0)}, cash=10_000.0,
+            snapshots=[(DAY0, 10_000.0), (DAY0 + DAY_MS, 10_100.0), (DAY0 + 2 * DAY_MS, 10_050.0)],
+            meta={"validation_start": DAY0, "peak": 10_100.0},
+        )
+        for ts, coin, result in SIGNALS:
+            ledger.record_signal(ts, coin, result)
+    ledger.db.close()
+    return client
+
+
+def test_accounts_flags_the_intraday_account(tmp_path):
+    accounts = build(tmp_path).get("/api/accounts").json()
+    assert [(a["id"], a["kind"], a["intraday"]) for a in accounts] == [
+        ("paper", "paper", False), ("intraday", "paper", True)
+    ]
+
+
+def test_signals_newest_first_in_the_shape_of_the_contract(tmp_path):
+    signals = build_intraday(tmp_path).get("/api/accounts/intraday/signals").json()
+    # Of the two of the same hour, the one recorded later comes first.
+    assert signals == [
+        {"ts": "2026-01-10T00:00:00Z", "coin": "ETH-USD", "signal": "Long", "conviction": 1,
+         "reason": "unpriced", "error": None, "tokens_in": 700, "tokens_out": 90,
+         "cost_usd": None},  # it ran: the cost is unknown, the signal is not a failure
+        {"ts": "2026-01-10T00:00:00Z", "coin": "BTC-USD", "signal": "Flat", "conviction": 2,
+         "reason": "range", "error": None, "tokens_in": 800, "tokens_out": 100, "cost_usd": 0.5},
+        {"ts": "2026-01-09T23:00:00Z", "coin": "ETH-USD", "signal": None, "conviction": None,
+         "reason": "", "error": "RuntimeError: boom", "tokens_in": 0, "tokens_out": 0,
+         "cost_usd": None},  # failed: no signal, the error, no cost
+        {"ts": "2026-01-01T01:00:00Z", "coin": "BTC-USD", "signal": "Long", "conviction": 3,
+         "reason": "breakout", "error": None, "tokens_in": 1000, "tokens_out": 200,
+         "cost_usd": 2.0},
+        {"ts": "2025-12-31T23:00:00Z", "coin": "BTC-USD", "signal": "Short", "conviction": 1,
+         "reason": "last month", "error": None, "tokens_in": 10, "tokens_out": 1, "cost_usd": 9.0},
+    ]
+
+
+def test_signals_since_and_limit(tmp_path):
+    client = build_intraday(tmp_path)
+
+    def asked(**params):
+        response = client.get("/api/accounts/intraday/signals", params=params)
+        assert response.status_code == 200
+        return [(s["ts"], s["coin"]) for s in response.json()]
+
+    # ``since`` keeps the signals at or after it, as the fills route does.
+    assert asked(since="2026-01-10T00:00:00Z") == [
+        ("2026-01-10T00:00:00Z", "ETH-USD"), ("2026-01-10T00:00:00Z", "BTC-USD")
+    ]
+    assert asked(since="2026-01-09T23:00:00Z")[-1] == ("2026-01-09T23:00:00Z", "ETH-USD")
+    assert len(asked(since="2026-01-09T23:00:00Z")) == 3
+    assert asked(since="2026-01-10T00:00:01Z") == []
+    assert asked(since="2026-01-10T00:00:00") == asked(since="2026-01-10T00:00:00Z")  # UTC
+    # ``limit`` keeps the newest, of those since.
+    assert asked(limit=1) == [("2026-01-10T00:00:00Z", "ETH-USD")]
+    assert asked(limit=2, since="2026-01-09T23:00:00Z") == [
+        ("2026-01-10T00:00:00Z", "ETH-USD"), ("2026-01-10T00:00:00Z", "BTC-USD")
+    ]
+    assert len(asked(limit=3, since="2026-01-01T00:00:00Z")) == 3
+    assert len(asked()) == 5
+    for bad in ({"limit": 0}, {"since": "yesterday"}):
+        assert client.get("/api/accounts/intraday/signals", params=bad).status_code == 422
+
+
+def test_the_daily_account_has_no_signals_even_without_the_table(tmp_path):
+    client = build_intraday(tmp_path)
+    assert client.get("/api/accounts/paper/signals").json() == []
+    # A ledger from before the signals table lacks it, and a reader does not create it.
+    ledger = Ledger(Settings(home=tmp_path).ledger_path)
+    ledger.db.execute("DROP TABLE signals")
+    ledger.db.close()
+    reader = Ledger(Settings(home=tmp_path).ledger_path, readonly=True)
+    with pytest.raises(sqlite3.OperationalError):
+        reader.signals()
+    reader.db.close()
+    response = client.get("/api/accounts/paper/signals")
+    assert response.status_code == 200 and response.json() == []
+
+
+def test_signals_without_a_ledger_is_404(tmp_path):
+    response = build(tmp_path).get("/api/accounts/intraday/signals")  # only the paper ledger exists
+    assert response.status_code == 404 and "ledger" in response.json()["detail"]
+    empty = TestClient(create_app(Settings(home=tmp_path / "empty"), CountingOKX()))
+    for account in ("paper", "intraday"):
+        response = empty.get(f"/api/accounts/{account}/signals")
+        assert response.status_code == 404 and "ledger" in response.json()["detail"]
+    assert empty.get("/api/accounts/live/signals").status_code == 404
+
+
+def test_intraday_overview_takes_the_llm_spend_from_the_signals(tmp_path):
+    body = build_intraday(tmp_path).get("/api/accounts/intraday/overview").json()
+    assert body["equity"] == pytest.approx(10_030.0)  # long 0.03 from 78,000, marked at 79,000
+    assert body["cash"] == 10_000.0 and body["peak"] == 10_100.0
+    assert body["drawdown"] == pytest.approx(70 / 10_100) and body["halted"] is False
+    assert body["processed_to"] == "2026-01-10T00:30:00Z"
+    assert body["validation_start"] == "2026-01-10T00:00:00Z"
+    assert body["days"] == 2
+
+    # Today (UTC 2026-01-10) spent 0.5 and a call of unknown cost; the month adds 2.0 and a
+    # failed call; the 9.0 is of last month. Only the 0.5 is before the second and third
+    # midnights, so the curve is 10,000 / 10,099.5 / 10,049.5, against 10,000 / 10,100 / 10,050
+    # gross.
+    assert body["llm"] == {
+        "trade_date": "2026-01-10", "today": 0.5, "month": 2.5, "cap": None,
+        "learned_days": 0, "learning_days": 0, "unknown": True,
+    }
+    assert body["latest"] is None
+    strategy = body["performance"]["strategy"]
+    assert strategy["cumulative"] == pytest.approx(0.00495)
+    assert strategy["annualized"] == pytest.approx(1.00495 ** (365 / 2) - 1)
+    assert strategy["max_drawdown"] == pytest.approx(1 - 10_049.5 / 10_099.5)
+    assert strategy["calmar"] == pytest.approx(strategy["annualized"] / strategy["max_drawdown"])
+    assert strategy["cumulative"] < 10_050.0 / 10_000.0 - 1  # less the signals' spend
+    # The baselines are the daily account's: the same two closes, +1%, no drawdown.
+    for name in ("equal_weight", "btc"):
+        assert body["performance"][name]["cumulative"] == pytest.approx(0.01)
+        assert body["performance"][name]["calmar"] is None
+
+    [position] = body["positions"]
+    assert position["inst"] == "BTC-USDT-SWAP" and position["coin"] == "BTC-USD"
+    assert position["qty"] == 0.03 and position["entry"] == 78_000.0
+    assert position["stop"] == 74_000.0 and position["price"] == 79_000.0
+    assert position["notional"] == pytest.approx(2_370.0)
+    assert position["unrealized"] == pytest.approx(30.0)
+    assert position["stop_distance"] == pytest.approx(5_000 / 79_000)
+
+
+def test_intraday_overview_before_the_validation_period(tmp_path):
+    body = build_intraday(tmp_path, validated=False).get("/api/accounts/intraday/overview").json()
+    assert body["equity"] == 10_000.0 and body["positions"] == []
+    assert body["validation_start"] is None and body["days"] == 0
+    assert body["performance"] == {"strategy": None, "equal_weight": None, "btc": None}
+    assert body["llm"] == {
+        "trade_date": "2026-01-10", "today": 0, "month": 0, "cap": None,
+        "learned_days": 0, "learning_days": 0, "unknown": False,
+    }
+    assert body["latest"] is None
+
+
+def test_intraday_equity_nets_the_signals_spend(tmp_path):
+    body = build_intraday(tmp_path).get("/api/accounts/intraday/equity").json()
+    assert body["live"] == {"ts": "2026-01-10T00:30:00Z", "equity": pytest.approx(10_030.0)}
+    assert [p["ts"] for p in body["points"]] == [
+        "2026-01-10T00:00:00Z", "2026-01-11T00:00:00Z", "2026-01-12T00:00:00Z"
+    ]
+    assert [p["strategy"] for p in body["points"]] == [10_000.0, 10_100.0, 10_050.0]
+    # The 0.5 of the signals from the first midnight on comes off the midnights after it; a
+    # call of unknown cost comes off as nothing, and the signals before the validation period
+    # do not count. The attempts (none in this ledger) are not asked.
+    assert [p["strategy_net"] for p in body["points"]] == [10_000.0, 10_099.5, 10_049.5]
+    assert [p["equal_weight"] for p in body["points"]] == [10_000.0, pytest.approx(10_100.0), None]
+    assert [p["btc"] for p in body["points"]] == [10_000.0, pytest.approx(10_100.0), None]
