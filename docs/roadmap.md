@@ -20,7 +20,7 @@
   ```
 
   Mac 要保持开机并登录；睡眠时错过的触发会在唤醒后补跑一次。卸载用 `launchctl bootout gui/$(id -u)/com.tradingagents.trader.<job>`。
-- [ ] 把分支备份到一个私有 GitHub 仓库
+- [x] 把分支备份到私有仓库 `kissman911/tradingagents-crypto-trader`（远程名 `backup`；`origin` 仍指向上游，用来拉更新）
 
 完成标准：连续 3 天收到日报，账本里有成交和每日净值快照。
 
