@@ -212,6 +212,18 @@ def build_default_config() -> dict:
             ".SS":  "000001.SS",   # Shanghai (SSE Composite)
             ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
             ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
+            # Gulf markets. Yahoo lists the local indices (^TASI.SR, DFMGI.AE, ^GNRI.QA,
+            # ^BKA.KW) but serves only their latest quote, never a history, so alpha and
+            # beta cannot be computed from them and a decision would stay pending for good.
+            # The USD-listed MSCI country ETFs have full daily history and stand in:
+            # their returns are in USD, which the riyal, dirham and riyal pegs make
+            # close to local returns (the dinar is a managed basket peg). Bahrain has
+            # no ETF and Yahoo lists no Abu Dhabi suffix, so those fall to the "" default
+            # or ``benchmark_ticker``.
+            ".SR":  "KSA",         # Saudi Tadawul (iShares MSCI Saudi Arabia ETF)
+            ".AE":  "UAE",         # Dubai Financial Market (iShares MSCI UAE ETF)
+            ".QA":  "QAT",         # Qatar Exchange (iShares MSCI Qatar ETF)
+            ".KW":  "KWT",         # Boursa Kuwait (iShares MSCI Kuwait ETF)
             "":     "SPY",         # default for US-listed tickers (no suffix)
         },
 

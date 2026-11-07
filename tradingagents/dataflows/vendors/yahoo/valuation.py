@@ -19,9 +19,6 @@ from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.common import raise_for_empty, yf_retry
 
-# Quote currencies Yahoo gives in a minor unit, and the main unit of each.
-MINOR_UNITS = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
-
 # Yahoo industries whose cash flows a free-cash-flow DCF cannot value.
 _FINANCIAL_INDUSTRY_WORDS = ("bank", "insurance", "thrift", "mortgage finance", "credit services",
                              "financial conglomerates")

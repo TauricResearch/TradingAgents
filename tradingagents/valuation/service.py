@@ -14,12 +14,12 @@ from datetime import datetime
 import pandas as pd
 
 from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.currencies import MINOR_UNITS, currency_for_symbol, to_main_unit
 from tradingagents.dataflows.errors import VendorError
 from tradingagents.dataflows.router import route_to_vendor
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.fred import get_latest_observation
 from tradingagents.dataflows.vendors.yahoo.market import get_final_closes
-from tradingagents.dataflows.vendors.yahoo.valuation import MINOR_UNITS
 from tradingagents.memory.settlement import resolve_benchmark
 from tradingagents.valuation import dcf as dcf_math, multiples as mult, wacc as wacc_math
 from tradingagents.valuation.wacc import ValuationError
@@ -111,7 +111,9 @@ def _price_in_main_unit(closes: pd.Series, quote_currency: str | None) -> tuple[
     """(price, currency, note): the last close, with a minor unit (pence) converted to its main unit."""
     price = float(closes.iloc[-1])
     if quote_currency in MINOR_UNITS:
-        return price / 100, MINOR_UNITS[quote_currency], f"price quoted in {quote_currency}, divided by 100 to {MINOR_UNITS[quote_currency]}"
+        converted, main = to_main_unit(price, quote_currency)
+        divisor = MINOR_UNITS[quote_currency][1]
+        return converted, main, f"price quoted in {quote_currency}, divided by {divisor} to {main}"
     return price, quote_currency or "", ""
 
 
@@ -147,7 +149,8 @@ def _dcf_report(ticker: str, as_of: str, cfg: dict, title: str) -> str:
         raise ValuationError(f"no company inputs could be read: {reason}")
 
     closes = _history(ticker, as_of, cfg)
-    quote_ccy = data.get("quote_currency") or ("USD" if data["source"] == "sec_edgar" else None)
+    quote_ccy = data.get("quote_currency") or (
+        "USD" if data["source"] == "sec_edgar" else currency_for_symbol(ticker))
     price, ccy, price_note = _price_in_main_unit(closes, quote_ccy)
     price_date = f"{closes.index[-1]:%Y-%m-%d}"
     reporting = data.get("currency")
@@ -320,7 +323,8 @@ def _peer_report(ticker: str, as_of: str, cfg: dict, title: str) -> str:
         raise ValuationError(f"no peer data could be read: {reason}")
     closes = _history(ticker, as_of, cfg)
     target = data["target"]
-    price, ccy, price_note = _price_in_main_unit(closes, target.get("quote_currency"))
+    price, ccy, price_note = _price_in_main_unit(
+        closes, target.get("quote_currency") or currency_for_symbol(ticker))
     peers = data["peers"]
     if not peers:
         raise ValuationError(f"no peers were found ({data['peer_source']}). Set valuation_peer_map to name them")
