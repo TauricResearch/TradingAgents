@@ -57,6 +57,17 @@
 - [x] 常驻运行：`deploy/com.tradingagents.trader.web.plist`，安装方式同另外两个 agent，服务在 http://127.0.0.1:8000；手机经 Tailscale 访问，不暴露公网
 - [ ] 评级结算后核对准确度卡和净值曲线（11-11 前后）
 
+## 日内账户（第二个模拟盘，与日频并行）
+
+设计见 ADR 0006。共享骨架已在起点分支：`trader/intraday/{__init__,settings,types}.py`。票按轮派给独立 worktree 的执行会话，由指挥会话验收合并。
+
+| 票 | 内容 | 档 | 状态 |
+|---|---|---|---|
+| T1 | 日内引擎与任务：`rules.py` 加可选参数、`ledger.py` 加 `signals` 表、`Settings` 加日内路径、`trader/intraday/{paper,job,report}.py`、CLI `python -m trader intraday init\|run\|report\|resume`、launchd plist、测试 | A | 第 1 轮派出 |
+| T2 | 日内信号：`trader/intraday/signal.py`（深度模型单次调用，输入当天研判 + OKX 日内数据，输出 SignalResult）、`okx.py` 加 `funding_rate`/`open_interest`、测试 | A | 第 1 轮派出 |
+| T3 | 看板接入第二账户：账户切换、`/api/accounts/{id}/signals`、信号页 | B | 等指南页合并后派 |
+| T4 | 部署到 mini：init 日内账户、装 plist、核对首小时运行 | — | 合并后由指挥会话做 |
+
 ## 阶段 2：按证据扩展
 
 优先级在验证期结束后再定。候选项：
