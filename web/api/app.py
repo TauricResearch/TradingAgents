@@ -66,6 +66,10 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     def list_accounts():
         return [data.summary(account) for account in accounts.values()]
 
+    @app.get("/api/strategy")
+    def strategy():
+        return data.strategy(settings)
+
     @app.get("/api/accounts/{account_id}/overview")
     def overview(account: AccountDep, ledger: LedgerDep):
         return data.overview(account, ledger, market)

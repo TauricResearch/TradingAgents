@@ -103,6 +103,19 @@ def test_accounts_lists_the_paper_account(tmp_path):
     }
 
 
+def test_strategy_quotes_the_constants_the_trader_runs_on(tmp_path):
+    body = build(tmp_path).get("/api/strategy").json()
+    assert body["risk_per_unit"] == 0.02 and body["stop_atr_mult"] == 2.5
+    assert body["rating_weights"] == {
+        "Buy": 1.0, "Overweight": 0.5, "Underweight": -0.25, "Sell": -0.5
+    }
+    assert body["kill_drawdown"] == 0.2 and body["benchmark"] == "USDC-USD"
+    assert body["analysts"] == ["market", "social", "news"]
+    assert body["watchlist"] == ["BTC-USD", "ETH-USD", "SOL-USD"]
+    assert body["holding_period_days"] == 5
+    assert isinstance(body["deep_model"], str) and isinstance(body["quick_model"], str)
+
+
 def test_overview_marks_the_account_and_sums_up_the_day(tmp_path):
     body = build(tmp_path).get("/api/accounts/paper/overview").json()
     assert body["equity"] == pytest.approx(10_020.0)  # short 0.02 from 80,000, marked at 79,000

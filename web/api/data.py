@@ -16,10 +16,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from trader import jobs, report, rules
+from trader import jobs, report, rules, settings as strategy_constants
 from trader.ledger import Ledger
 from trader.okx import DAY_MS, OKX, Bar
 from trader.paper import Paper
+from trader.research import build_config
 from trader.settings import BENCHMARK, BUDGET_LEARNING_DAYS, WATCHLIST, Coin, Settings
 from tradingagents.backtest import BacktestSummary, summarize
 
@@ -85,6 +86,31 @@ class Market:
         value = fetch()
         self._cache[key] = (time.monotonic() + ttl, value)
         return value
+
+
+# -- strategy -----------------------------------------------------------------
+
+# The constants of trader.settings the guide quotes, by their names there.
+_CONSTANTS = (
+    "RISK_PER_UNIT", "STOP_ATR_MULT", "ATR_DAYS", "RATING_WEIGHTS", "MAX_COIN_EXPOSURE",
+    "MAX_GROSS_EXPOSURE", "REBALANCE_THRESHOLD", "TAKER_FEE", "SLIPPAGE", "KILL_DRAWDOWN",
+    "MAX_ATTEMPTS", "RETRY_WAIT_SECONDS", "BUDGET_LEARNING_DAYS", "BUDGET_HEADROOM",
+    "ANALYSTS", "BENCHMARK",
+)
+
+
+def strategy(settings: Settings) -> dict:
+    """GET /api/strategy: the rules the trader runs on, so the guide quotes the code.
+    Lower-cased constant names, plus the models and the settlement window of the config."""
+    config = build_config(settings)
+    out = {name.lower(): getattr(strategy_constants, name) for name in _CONSTANTS}
+    out.update(
+        watchlist=[c.research for c in WATCHLIST],
+        holding_period_days=config["holding_period_days"],
+        deep_model=config["deep_think_llm"],
+        quick_model=config["quick_think_llm"],
+    )
+    return out
 
 
 # -- account ------------------------------------------------------------------
