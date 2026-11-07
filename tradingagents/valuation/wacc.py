@@ -47,8 +47,10 @@ def beta_from_closes(stock: pd.Series, benchmark: pd.Series, min_weeks: int = 52
     return BetaResult(
         beta=float(paired["s"].cov(paired["b"]) / variance),
         weeks=len(paired),
+        # The weekly label is the Friday ending the week; report the last day actually priced,
+        # so a run dated mid-week does not show a date after its own.
         start=paired.index[0].strftime("%Y-%m-%d"),
-        end=paired.index[-1].strftime("%Y-%m-%d"),
+        end=min(paired.index[-1], stock.index.max(), benchmark.index.max()).strftime("%Y-%m-%d"),
     )
 
 

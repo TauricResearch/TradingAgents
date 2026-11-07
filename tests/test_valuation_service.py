@@ -187,6 +187,38 @@ def test_peer_report_gives_medians_and_implied_prices(market):
 
 
 @pytest.mark.unit
+def test_peer_report_warns_when_the_company_dwarfs_its_peers(market):
+    peers = _peers()
+    peers["target"]["market_cap"] = 1e12
+    for p in peers["peers"]:
+        p.update(market_cap=2e9, currency="USD")
+    market.peers = peers
+    report = service.peer_report("ACME", AS_OF)
+    assert "Warning: the company's market cap (1.00T USD) is 500x" in report and "valuation_peer_map" in report
+    assert "| P0 | Peer 0 | 2.00B USD |" in report
+
+
+@pytest.mark.unit
+def test_peer_report_does_not_compare_sizes_across_currencies(market):
+    peers = _peers()
+    peers["target"]["market_cap"] = 1e12
+    for p in peers["peers"]:
+        p.update(market_cap=2e9, currency="EUR")
+    market.peers = peers
+    assert "could not be compared" in service.peer_report("ACME", AS_OF)
+
+
+@pytest.mark.unit
+def test_peer_report_is_quiet_when_peers_are_the_same_size(market):
+    peers = _peers()
+    peers["target"]["market_cap"] = 3e9
+    for p in peers["peers"]:
+        p.update(market_cap=2e9, currency="USD")
+    market.peers = peers
+    assert "Warning" not in service.peer_report("ACME", AS_OF)
+
+
+@pytest.mark.unit
 def test_peer_report_skips_enterprise_multiples_across_currencies(market):
     peers = _peers()
     peers["target"]["reporting_currency"] = "TWD"

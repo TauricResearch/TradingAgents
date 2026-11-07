@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+## [Unreleased]
+
+A valuation analyst, quantitative risk metrics before the risk debate, and Gulf market support. How each formula works, with worked examples, is in [docs/ANALYST_UPGRADES.md](docs/ANALYST_UPGRADES.md).
+
+### Added
+
+- **Valuation analyst.** `--analysts valuation` adds an analyst whose figures are computed in code: a five-year discounted cash flow (fading growth, Gordon terminal value, CAPM and market-weighted WACC, a 5×5 WACC × terminal-growth sensitivity table, every assumption listed) and peer-median P/E, EV/EBITDA, P/S and P/B with the price each implies. Banks and insurers get P/B, P/E, ROE and a justified P/B instead of a DCF. The Bull and Bear researchers, Research Manager and Portfolio Manager receive its report, and it is saved in the Markdown and HTML reports. US figures come from SEC EDGAR as filed; Yahoo-sourced figures and peer multiples are withheld from a run dated in the past. Opt-in: it is not part of an unspecified analyst list.
+- **Quantitative risk metrics.** A graph step before the risk debate computes annualised volatility, beta, maximum drawdown, historical and parametric 1-day VaR and CVaR, Sharpe and Sortino, a 14-day ATR with an ATR stop, and a volatility-scaled position size (risk per position defaults to 1% of the book). The Trader, the three risk debators and the Portfolio Manager are told to anchor sizing and stops to it, and the block is saved in the reports. It makes no model call; `risk_metrics_enabled = False` removes it.
+- **Gulf markets.** Benchmarks for `.SR`, `.AE`, `.QA` and `.KW` tickers (USD-listed MSCI country ETFs, because Yahoo serves the Gulf indices' latest quote but no history), Kuwaiti prices in fils read as dinars, and Bahrain's missing quote currency filled from its suffix. Bahrain and Abu Dhabi have no working benchmark on Yahoo and no Abu Dhabi suffix was found; their risk and valuation reports say so.
+- Config keys `valuation_*` and `risk_metrics_*` with `TRADINGAGENTS_*` overrides for the main ones, and a `valuation_data` vendor category.
+
+### Upgrading from 0.7.1
+
+- Runs now include a Quantitative Risk Metrics block in the trader's, risk debators' and portfolio manager's prompts and in the saved reports. Set `risk_metrics_enabled = False` (or `TRADINGAGENTS_RISK_METRICS_ENABLED=false`) to keep them as before.
+- A checkpoint saved by 0.7.1 does not resume into a graph with the risk step; the run starts fresh.
+
 ## [0.7.1] — 2026-10-27
 
 Decisions are scored only on final closes and settle across long market holidays, a model's unpadded date no longer reads filings made after the run date, and fixes to portfolios, prices, SEC statements, reports, Azure and Claude settings.

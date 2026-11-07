@@ -44,6 +44,53 @@ def test_a_gulf_market_without_a_working_benchmark_falls_to_the_default_not_a_wr
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("ticker, fragment", [
+    ("2222.SR", "USD-listed ETF standing in for the local index"),
+    ("NBK.KW", "daily beta against it is understated"),
+    ("BBK.BH", "no regional benchmark is configured for the .BH market"),
+])
+def test_gulf_betas_carry_a_caveat_about_their_benchmark(ticker, fragment):
+    from tradingagents.dataflows.benchmarks import benchmark_caveat
+
+    benchmark = resolve_benchmark(ticker, DEFAULT_CONFIG)
+    assert fragment in benchmark_caveat(ticker, benchmark, DEFAULT_CONFIG)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("ticker", ["AAPL", "BRK.B", "0700.HK", "AZN.L", "BTC-USD"])
+def test_markets_with_a_real_benchmark_get_no_caveat(ticker):
+    from tradingagents.dataflows.benchmarks import benchmark_caveat
+
+    assert benchmark_caveat(ticker, resolve_benchmark(ticker, DEFAULT_CONFIG), DEFAULT_CONFIG) is None
+
+
+@pytest.mark.unit
+def test_an_explicit_benchmark_is_not_second_guessed():
+    from tradingagents.dataflows.benchmarks import benchmark_caveat
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["benchmark_ticker"] = "KSA"
+    assert benchmark_caveat("BBK.BH", "KSA", config) is None
+
+
+@pytest.mark.unit
+def test_the_risk_block_carries_the_benchmark_caution_for_a_saudi_ticker():
+    import numpy as np
+    import pandas as pd
+
+    from tradingagents.risk_metrics import service
+
+    dates = pd.bdate_range(end="2026-09-25", periods=300)
+    close = 26 * np.cumprod(1 + np.random.default_rng(1).normal(0, 0.01, 300))
+    bars = pd.DataFrame({"High": close * 1.01, "Low": close * 0.99, "Close": close}, index=dates)
+    with mock.patch.object(service, "get_final_bars", return_value=bars), \
+            mock.patch.object(service, "get_final_closes", return_value=pd.Series(close, index=dates)), \
+            mock.patch.object(service, "get_latest_observation", side_effect=OSError("off")):
+        block = service.risk_block("2222.SR", "2026-09-26", "stock", copy.deepcopy(DEFAULT_CONFIG))
+    assert "benchmark: KSA" in block and "caution: KSA is a USD-listed ETF" in block
+
+
+@pytest.mark.unit
 def test_the_map_uses_no_gulf_index_symbol_whose_history_yahoo_does_not_serve():
     benchmarks = set(DEFAULT_CONFIG["benchmark_map"].values())
     assert not benchmarks & {"^TASI.SR", "DFMGI.AE", "^GNRI.QA", "^BKA.KW", "^BKP.KW", "^BKM.KW"}

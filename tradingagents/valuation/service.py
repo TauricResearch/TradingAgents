@@ -9,13 +9,15 @@ in ``wacc``, ``dcf`` and ``multiples``; the model only reads the text.
 from __future__ import annotations
 
 import logging
+import statistics
 from datetime import datetime
 
 import pandas as pd
 
+from tradingagents.dataflows.benchmarks import benchmark_caveat
 from tradingagents.dataflows.config import get_config
 from tradingagents.dataflows.currencies import MINOR_UNITS, currency_for_symbol, to_main_unit
-from tradingagents.dataflows.errors import VendorError
+from tradingagents.dataflows.errors import VendorError, VendorNotConfiguredError
 from tradingagents.dataflows.router import route_to_vendor
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.fred import get_latest_observation
@@ -91,7 +93,8 @@ def risk_free_rate(as_of: str, cfg: dict) -> tuple[float, str]:
             value, date = get_latest_observation("DGS10", as_of)
             return value / 100, f"FRED 10y Treasury (DGS10) {value:.2f}% on {date}"
         except Exception as exc:  # noqa: BLE001 - no key, outage or no observation: use the default
-            reason = f"{type(exc).__name__}: {exc}"
+            reason = ("FRED_API_KEY is not set" if isinstance(exc, VendorNotConfiguredError)
+                      else f"{type(exc).__name__}: {exc}")
     rate = cfg["valuation_risk_free_rate"]
     return rate, f"config default {rate:.2%} (FRED not used: {reason})"
 
@@ -220,6 +223,9 @@ def _dcf_report(ticker: str, as_of: str, cfg: dict, title: str) -> str:
     if kd is not None and not 0.01 <= kd / (1 - tax) <= 0.15:
         warnings.append(f"Implied pre-tax cost of debt {kd / (1 - tax):.1%} (interest expense / total debt) is outside "
                         "1%-15%; the interest figure may not match the debt figure's period.")
+    caveat = benchmark_caveat(ticker, benchmark, cfg)
+    if caveat:
+        warnings.append(f"Beta: {caveat}.")
     if not 0.3 <= beta.beta <= 2.5:
         warnings.append(f"Beta {beta.beta:.2f} is unusual; the weekly sample is noisy.")
     if dropped:
@@ -316,6 +322,30 @@ def _configured_peers(ticker: str, cfg: dict) -> list[str] | None:
     return None
 
 
+SIZE_MISMATCH = 10   # a market cap this many times the peer median (or its inverse) skews the multiples
+
+
+def _size_warning(own_cap: float | None, currency: str, peers: list[dict]) -> str:
+    """A warning when the company is far larger or smaller than its peers, or "".
+
+    Only peers quoted in the company's currency are compared: no FX rate is applied.
+    """
+    caps = [p["market_cap"] for p in peers if p.get("market_cap") and p.get("currency") == currency]
+    if not own_cap or not currency:
+        return ""
+    if len(caps) < 2:
+        return ("Warning: peer sizes could not be compared with the company's (fewer than two peers share its "
+                f"currency, {currency}); check that these are comparable businesses, or name peers with "
+                "valuation_peer_map.")
+    median = statistics.median(caps)
+    ratio = own_cap / median
+    if ratio > SIZE_MISMATCH or ratio < 1 / SIZE_MISMATCH:
+        return (f"Warning: the company's market cap ({_money(own_cap, currency)}) is {ratio:.3g}x the median of "
+                f"{len(caps)} comparable-currency peers ({_money(median, currency)}). A size gap this wide skews "
+                "multiples; name closer peers with valuation_peer_map.")
+    return ""
+
+
 def _peer_report(ticker: str, as_of: str, cfg: dict, title: str) -> str:
     data, reason = _fetch("get_peer_snapshot", ticker, as_of, _configured_peers(ticker, cfg),
                           int(cfg["valuation_max_peers"]))
@@ -338,8 +368,10 @@ def _peer_report(ticker: str, as_of: str, cfg: dict, title: str) -> str:
              _price(i.implied_price, ccy) if i.implied_price is not None else f"n/a ({i.reason})"] for i in shown]
     table = _table(["Multiple", "Company", "Peer median", "Peers used", "Implied price"], rows)
     prices = [i.implied_price for i in shown if i.implied_price is not None]
-    peers_table = _table(["Peer", "Name", "P/E", "EV/EBITDA", "P/S", "P/B"], [
-        [p["symbol"], p.get("name") or "", *(_x(p.get(k)) for k in mult.MULTIPLES)] for p in peers])
+    peers_table = _table(["Peer", "Name", "Market cap", "P/E", "EV/EBITDA", "P/S", "P/B"], [
+        [p["symbol"], p.get("name") or "", _money(p.get("market_cap"), p.get("currency") or ""),
+         *(_x(p.get(k)) for k in mult.MULTIPLES)] for p in peers])
+    size_warning = _size_warning(target.get("market_cap"), ccy, peers)
 
     out = [
         f"# Peer multiples for {ticker} as of {as_of}",
@@ -360,6 +392,8 @@ def _peer_report(ticker: str, as_of: str, cfg: dict, title: str) -> str:
         median_roe = mult.peer_median(roes)[0]
         out.append(f"This is a bank or insurer, so only P/B and P/E apply. ROE: company {_pct(target.get('roe'))} "
                    f"vs peer median {_pct(median_roe)} ({len(roes)} peers).")
+    if size_warning:
+        out.append(size_warning)
     if len(peers) < mult.MIN_PEERS:
         out.append(f"Warning: only {len(peers)} peer(s); a median of fewer than {mult.MIN_PEERS} is weak evidence.")
     if not same_currency:

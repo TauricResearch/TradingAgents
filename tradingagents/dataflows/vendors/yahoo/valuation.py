@@ -14,6 +14,7 @@ import math
 import pandas as pd
 import yfinance as yf
 
+from tradingagents.dataflows.currencies import main_unit
 from tradingagents.dataflows.date_window import is_historical
 from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.symbols import normalize_symbol
@@ -133,6 +134,8 @@ def _peer_row(symbol: str) -> dict:
         "ps": _number(info.get("priceToSalesTrailing12Months")),
         "pb": _number(info.get("priceToBook")),
         "roe": _number(info.get("returnOnEquity")),
+        "market_cap": _number(info.get("marketCap")),
+        "currency": main_unit(info.get("currency")),
     }
 
 
@@ -189,6 +192,7 @@ def get_peer_snapshot(ticker: str, as_of_date: str | None = None,
             "total_cash": _number(info.get("totalCash")),
             "shares": _number(info.get("sharesOutstanding")),
             "roe": _number(info.get("returnOnEquity")),
+            "market_cap": _number(info.get("marketCap")),
         },
         "notes": notes,
     }

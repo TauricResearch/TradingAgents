@@ -10,8 +10,9 @@ import logging
 from datetime import datetime
 from statistics import NormalDist
 
+from tradingagents.dataflows.benchmarks import benchmark_caveat
 from tradingagents.dataflows.config import get_config
-from tradingagents.dataflows.errors import VendorError
+from tradingagents.dataflows.errors import VendorError, VendorNotConfiguredError
 from tradingagents.dataflows.vendors.fred import get_latest_observation
 from tradingagents.dataflows.vendors.yahoo.market import get_final_bars, get_final_closes
 from tradingagents.memory.settlement import resolve_benchmark
@@ -33,7 +34,8 @@ def risk_free_rate(as_of: str, cfg: dict) -> tuple[float, str]:
             value, date = get_latest_observation(series, as_of)
             return value / 100, f"FRED {series} {value:.2f}% on {date}"
         except Exception as exc:  # noqa: BLE001 - no key, outage or no observation: use the default
-            reason = f"{type(exc).__name__}: {exc}"
+            reason = ("FRED_API_KEY is not set" if isinstance(exc, VendorNotConfiguredError)
+                      else f"{type(exc).__name__}: {exc}")
     rate = cfg["risk_metrics_risk_free_rate"]
     return rate, f"config default {rate:.2%} (FRED not used: {reason})"
 
@@ -78,6 +80,9 @@ def _compute(ticker: str, as_of: str, asset_type: str, cfg: dict):
 
     benchmark = resolve_benchmark(ticker, cfg)
     notes = [f"benchmark: {benchmark}"]
+    caveat = benchmark_caveat(ticker, benchmark, cfg)
+    if caveat:
+        notes.append(f"caution: {caveat}")
     try:
         bench = get_final_closes(benchmark, as_of, days)
     except VendorError as exc:
