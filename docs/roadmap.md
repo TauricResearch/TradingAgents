@@ -68,6 +68,14 @@
 | T3 | 看板接入第二账户：账户切换、`/api/accounts/{id}/signals`、信号页 | B | 等指南页合并后派 |
 | T4 | 部署到 mini：init 日内账户、装 plist、核对首小时运行 | — | 合并后由指挥会话做 |
 
+## 看板设置：LLM 模型切换（ADR 0007）
+
+| 票 | 内容 | 档 | 状态 |
+|---|---|---|---|
+| T5 | 官方定价表 `trader/prices.py`：上游目录里各 provider 模型的官方单价（输入/输出，美元每百万 token），带来源 URL 和日期；测试 | B | 第 2 轮派出 |
+| T6 | 设置页 `/settings`：当前两档模型与单价、按 provider 分组的模型列表（只列有密钥的）、手填模型 ID 与单价、切换确认（提示验证期重算）、生效状态；对着 API 契约用 mock 开发 | B | 第 2 轮派出 |
+| T7 | 后端写入面：`trader/overrides.py`（settings.json 读写与历史）、`Settings.from_env` 和 `build_config` 读取覆盖、`GET /api/models`、`POST /api/settings/llm`；测试 | A | 等 T1 合并后派（撞 `trader/settings.py`） |
+
 第 1 轮（2026-11-07，起点 `8c39826`）：T1 → 分支 `t1-intraday-engine`，worktree `../TradingAgents.worktrees/t1-intraday-engine`；T2 → 分支 `t2-intraday-signal`，worktree `../TradingAgents.worktrees/t2-intraday-signal`。报告目录 `~/.commander/TradingAgents/`。
 
 ## 阶段 2：按证据扩展
