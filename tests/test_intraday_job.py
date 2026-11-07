@@ -7,14 +7,17 @@ hourly ATR of 400, bought at 80,040 with a stop at 79,040.
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import typer
 
 from tests.test_trader_jobs import Inbox
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX, minutes
+from trader import __main__ as cli
 from trader.intraday import job, report
 from trader.intraday.paper import HOUR_MS, IntradayPaper
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS, MINUTE_MS, Bar
+from trader.paper import ReplayStalled
 from trader.settings import Coin, Settings
 
 ETH = Coin("ETH-USD", "ETH-USDT-SWAP", "ETH-USDT")
@@ -50,10 +53,15 @@ def env(tmp_path):
     return settings, ledger
 
 
+def clock(now):
+    """A ``now_fn`` stuck at ``now``."""
+    return lambda: now
+
+
 def run(env, signaler, now=NOW, okx=None, watchlist=(BTC,)):
     settings, ledger = env
     paper, inbox = IntradayPaper(ledger, okx or FakeOKX(), watchlist), Inbox()
-    job.run(settings, paper, inbox, signaler, now_fn=lambda: now)
+    job.run(settings, paper, inbox, signaler, now_fn=clock(now))
     return paper, inbox
 
 
@@ -210,6 +218,45 @@ def test_the_daily_summary_goes_out_once_on_the_first_run_of_a_day(env):
         env, FakeSignaler({BTC.research: ["Flat"]}), now=NOW + timedelta(days=1, hours=1)
     )
     assert summaries(again) == []
+
+
+def test_no_summary_goes_out_on_a_day_already_summarized(env):
+    env[1].set("summarized_day", "2026-01-10")
+    _, inbox = run(env, FakeSignaler({BTC.research: ["Flat"]}))
+    assert summaries(inbox) == []
+    _, next_day = run(env, FakeSignaler({BTC.research: ["Flat"]}), now=NOW + timedelta(days=1))
+    assert [t.splitlines()[0] for t in summaries(next_day)] == ["日内盘日报 · 2026-01-10"]
+
+
+def test_init_opens_the_account_with_its_day_already_summarized(tmp_path, monkeypatch):
+    # python -m trader intraday init, without the command line: the settings and the
+    # clock are patched, so the first run of that day sends no summary of an empty day.
+    settings = Settings(home=tmp_path, capital=1_000.0)
+    monkeypatch.setattr(Settings, "from_env", classmethod(lambda cls: settings))
+    monkeypatch.setattr(cli, "_now_ms", lambda: T0)
+    cli.intraday_init()
+    ledger = Ledger(settings.intraday_ledger_path)
+    assert ledger.get("capital") == 1_000.0
+    assert ledger.get("summarized_day") == "2026-01-10"
+    with pytest.raises(typer.Exit):  # an account exists already
+        cli.intraday_init()
+    _, inbox = run((settings, ledger), FakeSignaler({BTC.research: ["Flat"]}))
+    assert summaries(inbox) == []
+
+
+def test_a_failing_run_alerts_at_most_every_six_hours(env):
+    settings, ledger = env
+    ledger.commit(positions={BTC.swap: Position(0.1, 80_000, 79_000)}, cash=10_000.0)
+    # No 1-minute candles for the held contract: every replay stalls and raises.
+    paper, inbox = IntradayPaper(ledger, FakeOKX(), (BTC,)), Inbox()
+    signaler = FakeSignaler({BTC.research: ["Long"] * 3})
+    for later in (30, 60, 400):
+        with pytest.raises(ReplayStalled):
+            job.run(settings, paper, inbox, signaler, now_fn=clock(NOW + timedelta(minutes=later)))
+    assert [t.split("：")[0] for t in inbox.sent] == ["intraday 运行失败", "intraday 运行失败"]
+    assert "ReplayStalled" in inbox.sent[0]
+    assert ledger.get("intraday_alerted_at") == T0 + 400 * MINUTE_MS
+    assert signaler.calls == []
 
 
 def test_the_daily_summary_notes_unknown_costs_and_counts_failures(env):

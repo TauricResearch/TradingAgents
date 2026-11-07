@@ -12,7 +12,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from trader import jobs, report
 from trader.intraday import job as intraday_job, report as intraday_report
-from trader.intraday.paper import IntradayPaper
+from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
 from trader.notify import Notifier
 from trader.okx import OKX
@@ -97,7 +97,11 @@ def intraday_init() -> None:
         _fail(f"{settings.intraday_ledger_path} 里已经有账户了")
     if not settings.capital:
         _fail("先在 .env 里设 TRADER_CAPITAL（模拟本金，单位 USDT）")
-    ledger.initialize(settings.capital, _now_ms())
+    now_ms = _now_ms()
+    ledger.initialize(settings.capital, now_ms)
+    # The day before the account existed has nothing to summarize: without this the
+    # first run would send a summary of zero fills and zero signals.
+    ledger.set("summarized_day", utc_date(now_ms))
     typer.echo(
         f"日内模拟账户已建立：{settings.capital:,.2f} USDT，账本在 {settings.intraday_ledger_path}"
     )
@@ -111,11 +115,7 @@ def intraday_run() -> None:
     from trader.intraday.signal import Signaler
 
     settings, paper, notifier = _open_intraday(require_utc=True)
-    try:
-        intraday_job.run(settings, paper, notifier, Signaler(settings, paper.okx))
-    except Exception as exc:
-        notifier.send(f"intraday 运行失败：{jobs.error_text(exc)}")
-        raise
+    intraday_job.run(settings, paper, notifier, Signaler(settings, paper.okx))
 
 
 @intraday_app.command("report")

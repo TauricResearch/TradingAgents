@@ -18,6 +18,8 @@ from trader.settings import Coin, Settings
 
 logger = logging.getLogger(__name__)
 
+ALERT_INTERVAL_MS = 6 * HOUR_MS  # a failing run alerts at most this often
+
 
 def run(
     settings: Settings,
@@ -34,8 +36,26 @@ def run(
     ``decided_hour``): a rerun within it only replays. While halted no signal is
     requested, to save its cost. A message goes out for an hour that had fills, and
     the summary of the UTC day before goes out on the first run of each day (meta
-    ``summarized_day``).
+    ``summarized_day``). A failure alerts at most every ALERT_INTERVAL_MS (meta
+    ``intraday_alerted_at``), then raises so the scheduler records it.
     """
+    try:
+        _run(settings, paper, notifier, signaler, now_fn)
+    except Exception as exc:
+        now_ms = _ms(now_fn())
+        if now_ms - paper.ledger.get("intraday_alerted_at", 0) >= ALERT_INTERVAL_MS:
+            notifier.send(f"intraday 运行失败：{error_text(exc)}")
+            paper.ledger.set("intraday_alerted_at", now_ms)
+        raise
+
+
+def _run(
+    settings: Settings,
+    paper: IntradayPaper,
+    notifier: Notifier,
+    signaler,
+    now_fn: Callable[[], datetime],
+) -> None:
     ledger = paper.ledger
     now_ms = _ms(now_fn())
     hour = now_ms - now_ms % HOUR_MS
