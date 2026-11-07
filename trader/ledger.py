@@ -57,9 +57,12 @@ class Ledger:
         self.path = path
         if readonly:
             # A reader (the web API) opens the file as it is: no directory, no
-            # schema, and sqlite raises when there is no ledger at ``path``.
+            # schema, and sqlite raises when there is no ledger at ``path``. The
+            # connection may be used from another thread than the one that opened
+            # it (FastAPI runs a request's steps on worker threads), one at a time.
             self.db = sqlite3.connect(
-                f"file:{path}?mode=ro", uri=True, timeout=30, isolation_level=None
+                f"file:{path}?mode=ro", uri=True, timeout=30, isolation_level=None,
+                check_same_thread=False,
             )
             return
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -35,8 +35,10 @@ class CountingOKX(FakeOKX):
 
 
 @pytest.fixture(autouse=True)
-def _clock(monkeypatch):
+def _isolate(monkeypatch, tmp_path):
     monkeypatch.setattr(data, "_now", lambda: NOW)
+    # Whether web/ui/dist is built on this machine must not change the API's answers.
+    monkeypatch.setattr(app_module, "UI_DIST", tmp_path / "no_dist")
 
 
 def record(home, coin, trade_date, **fields):

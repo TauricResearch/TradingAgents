@@ -72,6 +72,18 @@ def test_a_readonly_ledger_reads_but_cannot_write(ledger):
         Ledger(ledger.path.with_name("missing.sqlite"), readonly=True)
 
 
+def test_a_readonly_ledger_can_be_read_from_another_thread(ledger):
+    # The web API opens, reads and closes a request's ledger on different worker threads.
+    import threading
+
+    reader, seen = Ledger(ledger.path, readonly=True), []
+    worker = threading.Thread(target=lambda: seen.append(reader.get("cash")))
+    worker.start()
+    worker.join()
+    assert seen == [10_000.0]
+    reader.db.close()
+
+
 def test_buy_opens_a_full_unit_long(ledger):
     paper = Paper(ledger, FakeOKX(), (BTC,))
     assert paper.execute("2026-01-09", {BTC.research: "Buy"}, T0) == []
