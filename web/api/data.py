@@ -1,13 +1,15 @@
-"""Read the paper account and the research records and shape them for the API.
+"""Read the accounts and the research records and shape them for the API.
 
-Everything here reads: the ledger is opened read-only, the research records are
-the files the trader wrote, and OKX is asked only for prices and daily closes,
-through a small cache so a dashboard refresh does not hit OKX every time.
+Everything here reads: the ledgers are opened read-only, the research records are
+the files the trader wrote, settings.json is read as the trader reads it, and OKX
+is asked only for prices and daily closes, through a small cache so a dashboard
+refresh does not hit OKX every time.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from collections.abc import Callable, Iterator
@@ -16,13 +18,16 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from trader import jobs, report, rules, settings as strategy_constants
+from trader import jobs, overrides, prices, report, rules, settings as strategy_constants
 from trader.ledger import Ledger
 from trader.okx import DAY_MS, OKX, Bar
 from trader.paper import Paper
 from trader.research import build_config
 from trader.settings import BENCHMARK, BUDGET_LEARNING_DAYS, WATCHLIST, Coin, Settings
 from tradingagents.backtest import BacktestSummary, summarize
+from tradingagents.llm_clients.api_key_env import PROVIDER_API_KEY_ENV
+from tradingagents.llm_clients.factory import tier_provider
+from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 
 PRICE_TTL = 30       # seconds a last price is reused
 BARS_TTL = 10 * 60   # seconds a daily candle series is reused
@@ -46,12 +51,18 @@ class Account:
 
 
 def accounts(settings: Settings) -> dict[str, Account]:
-    """The accounts the API serves, by id: the one paper account for now."""
+    """The accounts the API serves, by id, the daily paper account first: the dashboard
+    opens the first one. The intraday account (ADR 0006) reads the daily research records
+    and keeps no memory log, so its path names a file that never exists."""
     return {
         "paper": Account(
             "paper", "paper", settings.ledger_path, settings.home / "logs",
             settings.memory_log_path, WATCHLIST,
-        )
+        ),
+        "intraday": Account(
+            "intraday", "paper", settings.intraday_ledger_path, settings.home / "logs",
+            settings.home / "intraday" / "none.md", WATCHLIST,
+        ),
     }
 
 
@@ -111,6 +122,130 @@ def strategy(settings: Settings) -> dict:
         quick_model=config["quick_think_llm"],
     )
     return out
+
+
+# -- models -------------------------------------------------------------------
+
+TIERS = ("quick", "deep")  # the catalog's modes, in the order a model's ``modes`` lists them
+HISTORY_SHOWN = 20
+# Display names of the catalog's providers; a provider missing here shows its id.
+PROVIDER_NAMES = {
+    "anthropic": "Anthropic", "openai": "OpenAI", "google": "Google", "xai": "xAI",
+    "deepseek": "DeepSeek", "qwen": "通义千问", "qwen-cn": "通义千问（中国站）",
+    "glm": "智谱 GLM", "glm-cn": "智谱 GLM（中国站）", "kimi": "Kimi", "minimax": "MiniMax",
+    "minimax-cn": "MiniMax（中国站）", "mistral": "Mistral", "groq": "Groq", "nvidia": "NVIDIA",
+    "ollama": "Ollama（本地）", "azure": "Azure", "bedrock": "Bedrock", "chatgpt": "ChatGPT",
+    "openai_compatible": "OpenAI 兼容",
+}
+
+
+def models(settings: Settings, accounts: dict[str, Account]) -> dict:
+    """GET /api/models: the models the research runs on, the catalog to choose from, and
+    the switches made so far.
+
+    ``settings`` must be read for this request (``Settings.with_overrides``), so
+    ``current`` is what the accounts' next run uses: the models and providers of
+    ``build_config``, the prices of the settings, ``source`` "settings" when settings.json
+    names the models, else "env", and per account with a research fingerprint whether it
+    names the current models (``applied``). ``providers`` is the upstream catalog, less the
+    "custom" sentinel, each model with its official price and the modes it is offered
+    for; a current model the catalog lacks is appended to its provider, ``in_catalog``
+    false. ``history`` is settings.json's, newest first, HISTORY_SHOWN entries at most.
+    """
+    config = build_config(settings)
+    current = {
+        tier: (config[f"{tier}_think_llm"], tier_provider(config, tier)) for tier in TIERS
+    }
+    saved = overrides.load(settings.home)
+    return {
+        "current": {
+            "deep": _tier(current["deep"], settings.price_deep),
+            "quick": _tier(current["quick"], settings.price_quick),
+            "source": "settings" if saved else "env",
+            "updated_at": saved.get("updated_at") if saved else None,
+            "applied": _applied(accounts, current["deep"][0], current["quick"][0]),
+        },
+        "providers": _providers(current),
+        "history": (saved or {}).get("history", [])[:HISTORY_SHOWN],
+    }
+
+
+def has_key(provider: str) -> bool:
+    """Whether the provider's API key is in the environment; a provider that needs no key
+    (its env var is None: ollama, bedrock, chatgpt) has one. Unknown providers do not."""
+    key_env = PROVIDER_API_KEY_ENV.get(provider, "")
+    return key_env is None or bool(os.getenv(key_env, "").strip())
+
+
+def _tier(model_and_provider: tuple[str, str], price: tuple[float, float] | None) -> dict:
+    model, provider = model_and_provider
+    return {"model": model, "provider": provider, "price": list(price) if price else None}
+
+
+def _applied(accounts: dict[str, Account], deep: str, quick: str) -> dict[str, bool]:
+    """Per account whose ledger holds a research fingerprint: whether it names the current
+    models. The daily account's is jobs.fingerprint's {version, deep, quick, code}; the
+    intraday account's is the signaler's {model, prompt}, its model the deep one."""
+    out = {}
+    for account in accounts.values():
+        if not account.ledger_path.is_file():
+            continue
+        with open_ledger(account) as ledger:
+            stored = ledger.get("fingerprint")
+        if not stored:
+            continue
+        if "model" in stored:
+            out[account.id] = stored["model"] == deep
+        else:
+            out[account.id] = (stored.get("deep"), stored.get("quick")) == (deep, quick)
+    return out
+
+
+def _providers(current: dict[str, tuple[str, str]]) -> list[dict]:
+    """The catalog's providers, then any provider only a current model names."""
+    out: dict[str, dict] = {}
+    for provider, modes in MODEL_OPTIONS.items():
+        listed: dict[str, dict] = {}
+        for mode in TIERS:
+            for label, model_id in modes.get(mode, []):
+                if model_id == "custom":
+                    continue
+                entry = listed.setdefault(model_id, _model(model_id, label, in_catalog=True))
+                entry["modes"].append(mode)
+        out[provider] = _provider(provider, list(listed.values()))
+    for tier in TIERS:
+        model_id, provider = current[tier]
+        entry = out.setdefault(provider, _provider(provider, []))
+        model = next((m for m in entry["models"] if m["id"] == model_id), None)
+        if model is None:
+            model = _model(model_id, model_id, in_catalog=False)
+            entry["models"].append(model)
+        if not model["in_catalog"] and tier not in model["modes"]:
+            model["modes"].append(tier)
+    return list(out.values())
+
+
+def _provider(provider: str, listed: list[dict]) -> dict:
+    return {
+        "id": provider,
+        "name": PROVIDER_NAMES.get(provider, provider),
+        "has_key": has_key(provider),
+        "key_env": PROVIDER_API_KEY_ENV.get(provider),
+        "models": listed,
+    }
+
+
+def _model(model_id: str, label: str, in_catalog: bool) -> dict:
+    price = prices.lookup(model_id)
+    return {
+        "id": model_id,
+        "label": label,
+        "modes": [],
+        "price": [price.input, price.output] if price else None,
+        "price_source": price.source if price else None,
+        "price_as_of": price.as_of if price else None,
+        "in_catalog": in_catalog,
+    }
 
 
 # -- account ------------------------------------------------------------------

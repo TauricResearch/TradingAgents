@@ -92,8 +92,10 @@ def build(tmp_path, okx=None, validated=True):
     return TestClient(create_app(settings, okx or CountingOKX()))
 
 
-def test_accounts_lists_the_paper_account(tmp_path):
-    [account] = build(tmp_path).get("/api/accounts").json()
+def test_accounts_lists_the_paper_account_first(tmp_path):
+    accounts = build(tmp_path).get("/api/accounts").json()
+    assert [a["id"] for a in accounts] == ["paper", "intraday"]
+    account = accounts[0]
     assert account["id"] == "paper" and account["kind"] == "paper"
     assert account["capital"] == 10_000.0
     assert account["validation_start"] == "2026-01-10T00:00:00Z"
@@ -292,7 +294,7 @@ def test_unknown_account_and_missing_ledger_are_404(tmp_path):
     response = client.get("/api/accounts/live/overview")
     assert response.status_code == 404 and "live" in response.json()["detail"]
     empty = TestClient(create_app(Settings(home=tmp_path / "empty"), CountingOKX()))
-    [account] = empty.get("/api/accounts").json()
+    [account] = [a for a in empty.get("/api/accounts").json() if a["id"] == "paper"]
     assert account["capital"] is None and account["validation_start"] is None
     response = empty.get("/api/accounts/paper/overview")
     assert response.status_code == 404 and "ledger" in response.json()["detail"]

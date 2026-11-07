@@ -1,9 +1,11 @@
-"""The read-only HTTP API over the paper account: the app factory and its routes.
+"""The HTTP API over the paper accounts: the app factory and its routes.
 
 ``create_app`` wires the settings and an OKX client into the routes; ``python -m
-web.api`` serves it on this machine. Every route reads: nothing here writes the
-ledger or runs the research. The built UI, when ``web/ui/dist`` exists, is served
-at ``/`` with the client-side routes falling back to its index.html.
+web.api`` serves it on this machine. Every route reads, but one: nothing here
+writes a ledger or runs the research; ``POST /api/settings/llm`` writes the models
+and prices to ``TRADER_HOME/settings.json`` (ADR 0007), which the accounts read at
+their next run. The built UI, when ``web/ui/dist`` exists, is served at ``/`` with
+the client-side routes falling back to its index.html.
 """
 
 # No ``from __future__ import annotations``: FastAPI reads the route signatures at
@@ -17,9 +19,11 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
+from trader import overrides, prices
 from trader.ledger import Ledger
 from trader.okx import OKX
 from trader.settings import Settings
@@ -36,11 +40,26 @@ Since = Annotated[datetime | None, Query(description="ISO 8601; UTC when it has 
 Limit = Annotated[int, Query(ge=1)]
 
 
+class TierChoice(BaseModel):
+    """One tier of POST /api/settings/llm: the model, its provider and its price in USD
+    per million tokens (input, output); a null price asks for the official one."""
+
+    model: str
+    provider: str
+    price: tuple[float, float] | None = None
+
+
+class LLMChoice(BaseModel):
+    deep: TierChoice
+    quick: TierChoice
+    confirm: bool = False
+
+
 def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     accounts = data.accounts(settings)
     market = data.Market(okx or OKX())
     app = FastAPI(title="TradingAgents trader")
-    app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["GET"])
+    app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["GET", "POST"])
 
     def _account(account_id: str) -> data.Account:
         if account_id not in accounts:
@@ -69,6 +88,18 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     @app.get("/api/strategy")
     def strategy():
         return data.strategy(settings)
+
+    # The settings are read again per request: a switch shows without a restart, and
+    # the accounts' next run reads the same file.
+    @app.get("/api/models")
+    def models():
+        return data.models(Settings.with_overrides(settings.home), accounts)
+
+    @app.post("/api/settings/llm")
+    def set_llm(choice: LLMChoice):
+        llm, chosen = _validated(choice)
+        overrides.save(settings.home, llm, chosen, note="web", now=datetime.now(UTC))
+        return data.models(Settings.with_overrides(settings.home), accounts)
 
     @app.get("/api/accounts/{account_id}/overview")
     def overview(account: AccountDep, ledger: LedgerDep):
@@ -145,3 +176,34 @@ def _since_ms(since: datetime | None) -> int:
     if since.tzinfo is None:
         since = since.replace(tzinfo=UTC)
     return int(since.timestamp() * 1000)
+
+
+def _validated(choice: LLMChoice) -> tuple[dict, dict[str, tuple[float, float]]]:
+    """The ``llm`` and ``prices`` of a confirmed choice, as overrides.save takes them.
+
+    400 when the choice is not confirmed, a model id is empty, a provider has no API key
+    in the environment, or a price is negative or missing: a null price takes the
+    official one and a model the table lacks must be priced by hand.
+    """
+    if not choice.confirm:
+        raise HTTPException(400, "切换需要确认（confirm: true）")
+    llm: dict = {}
+    chosen: dict[str, tuple[float, float]] = {}
+    for tier in ("deep", "quick"):
+        pick: TierChoice = getattr(choice, tier)
+        model, provider = pick.model.strip(), pick.provider.strip().lower()
+        if not model:
+            raise HTTPException(400, f"{tier} 档的模型 ID 为空")
+        if not data.has_key(provider):
+            raise HTTPException(400, f"provider {provider or '(空)'} 没有配置 API 密钥")
+        price = pick.price
+        if price is None:
+            official = prices.lookup(model)
+            price = (official.input, official.output) if official else None
+        if price is None:
+            raise HTTPException(400, f"{model} 缺少单价：定价表里没有，需要手填")
+        if min(price) < 0:
+            raise HTTPException(400, f"{model} 的单价不能为负")
+        llm[f"{tier}_think_llm"], llm[f"{tier}_think_provider"] = model, provider
+        chosen[model] = price
+    return llm, chosen

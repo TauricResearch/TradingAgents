@@ -76,7 +76,7 @@ def save(
     file = path(home)
     file.parent.mkdir(parents=True, exist_ok=True)
     temporary = file.with_name(file.name + ".tmp")
-    temporary.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    temporary.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     os.replace(temporary, file)
     return data
 
