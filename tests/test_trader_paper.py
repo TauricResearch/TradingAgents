@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from trader.intraday.types import SignalResult
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS, MINUTE_MS, Bar, ContractSpec, FundingEvent
 from trader.paper import Paper, ReplayStalled
@@ -82,6 +83,28 @@ def test_a_readonly_ledger_can_be_read_from_another_thread(ledger):
     worker.join()
     assert seen == [10_000.0]
     reader.db.close()
+
+
+def test_signals_are_recorded_newest_first_and_costed(ledger):
+    hour = 3_600_000
+    assert ledger.signals() == []  # the daily account's ledger has the table, empty
+    ledger.record_signal(T0, BTC.research, SignalResult("Long", 2, "up", None, 100, 20, 0.01))
+    ledger.record_signal(T0, "ETH-USD", SignalResult(None, None, "", "RuntimeError: boom"))
+    ledger.record_signal(T0 + hour, BTC.research, SignalResult("Flat", 1, "", None, 90, 10, 0.02))
+    assert ledger.signals() == [
+        (T0 + hour, "BTC-USD", "Flat", 1, "", None, 90, 10, 0.02),
+        (T0, "ETH-USD", None, None, "", "RuntimeError: boom", 0, 0, None),
+        (T0, "BTC-USD", "Long", 2, "up", None, 100, 20, 0.01),
+    ]
+    assert ledger.signals(since_ms=T0 + 1) == [(T0 + hour, "BTC-USD", "Flat", 1, "", None, 90, 10, 0.02)]
+    assert [row[1] for row in ledger.signals(limit=2)] == ["BTC-USD", "ETH-USD"]
+    assert ledger.latest_signals() == {"BTC-USD": (T0 + hour, "Flat"), "ETH-USD": (T0, None)}
+    assert ledger.signal_cost_since(0) == (pytest.approx(0.03), True)
+    assert ledger.signal_cost_since(T0 + 1) == (pytest.approx(0.02), False)
+    assert ledger.signal_costs(0) == [(T0, 0.01), (T0, None), (T0 + hour, 0.02)]
+    assert ledger.signal_costs(T0 + 1) == [(T0 + hour, 0.02)]
+    # A reader sees them too.
+    assert len(Ledger(ledger.path, readonly=True).signals()) == 3
 
 
 def test_buy_opens_a_full_unit_long(ledger):

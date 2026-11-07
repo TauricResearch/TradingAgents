@@ -2,6 +2,9 @@
 
 A replay or an execution writes everything it changed in one transaction, so a
 run that fails part way leaves the account as it was and the next run redoes it.
+
+The ``signals`` table holds the intraday account's hourly decisions (ADR 0006);
+the daily account's ledger has it too, empty.
 """
 
 from __future__ import annotations
@@ -11,6 +14,8 @@ import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+
+from trader.intraday.types import SignalResult
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -29,6 +34,10 @@ CREATE TABLE IF NOT EXISTS attempts (
 CREATE TABLE IF NOT EXISTS executions (trade_date TEXT PRIMARY KEY, ts INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS signals (
+    id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, coin TEXT NOT NULL, signal TEXT,
+    conviction INTEGER, reason TEXT, error TEXT, tokens_in INTEGER, tokens_out INTEGER,
+    cost_usd REAL);
 """
 
 BUDGET_ERROR = "budget: monthly LLM cap reached"
@@ -225,6 +234,49 @@ class Ledger:
             "SELECT trade_date, CASE WHEN COUNT(*) = COUNT(cost_usd) THEN SUM(cost_usd) END"
             " FROM attempts WHERE trade_date < ? AND error IS NOT ? GROUP BY trade_date"
             " ORDER BY trade_date", (before_trade_date, BUDGET_ERROR),
+        ).fetchall()
+
+    # -- intraday signals ---------------------------------------------------
+
+    def record_signal(self, ts: int, coin: str, result: SignalResult) -> None:
+        self.db.execute(
+            "INSERT INTO signals (ts, coin, signal, conviction, reason, error, tokens_in,"
+            " tokens_out, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                ts, coin, result.signal, result.conviction, result.reason, result.error,
+                result.tokens_in, result.tokens_out, result.cost_usd,
+            ),
+        )
+
+    def signals(self, since_ms: int = 0, limit: int = 500) -> list[tuple]:
+        """(ts, coin, signal, conviction, reason, error, tokens_in, tokens_out, cost_usd)
+        of the signals recorded since ``since_ms``, newest first, at most ``limit``."""
+        return self.db.execute(
+            "SELECT ts, coin, signal, conviction, reason, error, tokens_in, tokens_out,"
+            " cost_usd FROM signals WHERE ts >= ? ORDER BY ts DESC, id DESC LIMIT ?",
+            (since_ms, limit),
+        ).fetchall()
+
+    def latest_signals(self) -> dict[str, tuple[int, str | None]]:
+        """Each coin's most recent (ts, signal)."""
+        rows = self.db.execute(
+            "SELECT coin, ts, signal FROM signals"
+            " WHERE id IN (SELECT MAX(id) FROM signals GROUP BY coin)"
+        )
+        return {coin: (ts, signal) for coin, ts, signal in rows}
+
+    def signal_cost_since(self, since_ms: int) -> tuple[float, bool]:
+        """LLM cost of the signals since ``since_ms``, and whether any cost is unknown."""
+        total, unknown = self.db.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0), COUNT(*) - COUNT(cost_usd) FROM signals"
+            " WHERE ts >= ?", (since_ms,),
+        ).fetchone()
+        return total, unknown > 0
+
+    def signal_costs(self, since_ms: int) -> list[tuple[int, float | None]]:
+        """(ts, cost_usd) of each signal since ``since_ms``, oldest first."""
+        return self.db.execute(
+            "SELECT ts, cost_usd FROM signals WHERE ts >= ? ORDER BY ts, id", (since_ms,)
         ).fetchall()
 
 
