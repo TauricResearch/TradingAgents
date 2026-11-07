@@ -3,12 +3,14 @@ import { Link, useParams } from 'react-router-dom'
 import type { ResearchDetail as Detail, ResearchSummary, RunSettings } from '../api'
 import { researchPath } from '../api'
 import { Debate } from '../components/Debate'
+import { Help } from '../components/Help'
 import { Markdown } from '../components/Markdown'
 import { Panel } from '../components/Panel'
 import { RatingChip } from '../components/RatingChip'
 import { ResearchList } from '../components/ResearchList'
 import { Section } from '../components/Section'
 import { ErrorBox, Loading } from '../components/Status'
+import type { HelpKey } from '../content/help'
 import { useFetch } from '../hooks'
 import { researchKey } from '../routes'
 
@@ -16,6 +18,7 @@ interface Step {
   id: string
   title: string
   field: string
+  help: HelpKey
   /** Text of the section; hidden entirely when `hideIfEmpty` and blank. */
   text: (d: Detail) => string
   kind: 'report' | 'debate'
@@ -25,13 +28,28 @@ interface Step {
 
 // The research pipeline in running order.
 const STEPS: Step[] = [
-  { id: 'market', title: '市场分析', field: 'market_report', text: (d) => d.market_report, kind: 'report' },
-  { id: 'sentiment', title: '社媒情绪', field: 'sentiment_report', text: (d) => d.sentiment_report, kind: 'report' },
-  { id: 'news', title: '新闻与宏观', field: 'news_report', text: (d) => d.news_report, kind: 'report' },
+  {
+    id: 'market',
+    title: '市场分析',
+    field: 'market_report',
+    help: 's_market',
+    text: (d) => d.market_report,
+    kind: 'report',
+  },
+  {
+    id: 'sentiment',
+    title: '社媒情绪',
+    field: 'sentiment_report',
+    help: 's_sentiment',
+    text: (d) => d.sentiment_report,
+    kind: 'report',
+  },
+  { id: 'news', title: '新闻与宏观', field: 'news_report', help: 's_news', text: (d) => d.news_report, kind: 'report' },
   {
     id: 'fundamentals',
     title: '基本面',
     field: 'fundamentals_report',
+    help: 's_fundamentals',
     text: (d) => d.fundamentals_report,
     kind: 'report',
     hideIfEmpty: true,
@@ -40,15 +58,24 @@ const STEPS: Step[] = [
     id: 'debate',
     title: '多空辩论',
     field: 'investment_debate_state.history',
+    help: 's_debate',
     text: (d) => d.investment_debate_state.history,
     kind: 'debate',
     defaultOpen: true,
   },
-  { id: 'plan', title: '研究经理结论', field: 'investment_plan', text: (d) => d.investment_plan, kind: 'report' },
+  {
+    id: 'plan',
+    title: '研究经理结论',
+    field: 'investment_plan',
+    help: 's_plan',
+    text: (d) => d.investment_plan,
+    kind: 'report',
+  },
   {
     id: 'trader',
     title: '交易员方案',
     field: 'trader_investment_plan',
+    help: 's_trader',
     text: (d) => d.trader_investment_plan,
     kind: 'report',
   },
@@ -56,6 +83,7 @@ const STEPS: Step[] = [
     id: 'risk',
     title: '风险辩论',
     field: 'risk_debate_state.history',
+    help: 's_risk',
     text: (d) => d.risk_debate_state.history,
     kind: 'debate',
   },
@@ -63,6 +91,7 @@ const STEPS: Step[] = [
     id: 'final',
     title: '组合经理决定',
     field: 'final_trade_decision',
+    help: 's_decision',
     text: (d) => d.final_trade_decision,
     kind: 'report',
     defaultOpen: true,
@@ -103,7 +132,10 @@ function Body({ detail, coin, date }: { detail: Detail; coin: string; date: stri
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="num text-[22px] leading-7 font-semibold">{coin}</h1>
           <span className="num text-muted">研判日 {date}</span>
-          <RatingChip rating={detail.final_rating} size="lg" />
+          <span className="flex items-center gap-1.5">
+            <RatingChip rating={detail.final_rating} size="lg" />
+            <Help k="rating" />
+          </span>
           <span className="num text-[11px] text-muted">{detail.company_of_interest}</span>
           <div className="ml-auto flex gap-1 text-[11px]">
             <button type="button" onClick={() => setAll(true)} className="rounded-sm border border-border px-2 py-px text-muted hover:text-fg">
@@ -125,6 +157,7 @@ function Body({ detail, coin, date }: { detail: Detail; coin: string; date: stri
             index={i + 1}
             title={s.title}
             field={s.field}
+            help={s.help}
             open={open[s.id] ?? false}
             onToggle={() => setOpen((o) => ({ ...o, [s.id]: !(o[s.id] ?? false) }))}
             meta={`${text.length.toLocaleString('en-US')} 字`}

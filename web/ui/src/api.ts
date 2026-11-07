@@ -205,6 +205,30 @@ export interface ResearchDetail {
   run_settings: RunSettings
 }
 
+/** GET /api/strategy: the constants the trader runs on, quoted by the guide and the `?` marks. */
+export interface Strategy {
+  risk_per_unit: number
+  stop_atr_mult: number
+  atr_days: number
+  rating_weights: Record<string, number>
+  max_coin_exposure: number
+  max_gross_exposure: number
+  rebalance_threshold: number
+  taker_fee: number
+  slippage: number
+  kill_drawdown: number
+  max_attempts: number
+  retry_wait_seconds: number
+  budget_learning_days: number
+  budget_headroom: number
+  analysts: string[]
+  benchmark: string
+  watchlist: string[]
+  holding_period_days: number
+  deep_model: string
+  quick_model: string
+}
+
 export class ApiError extends Error {
   readonly status: number
 

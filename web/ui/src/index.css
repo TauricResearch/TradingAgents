@@ -39,6 +39,8 @@
     font-size: 13px;
     line-height: 1.45;
     color-scheme: dark;
+    /* Height of the sticky top bar; TopBar keeps it current as the bar wraps. */
+    --topbar-h: 38px;
   }
   body {
     margin: 0;

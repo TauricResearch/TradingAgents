@@ -1,6 +1,7 @@
 import type { Accuracy, RatingStats } from '../api'
 import { fmtHolding, fmtInt, fmtPct } from '../format'
 import { DataTable, type Column } from './DataTable'
+import { Help } from './Help'
 import { Num } from './Num'
 import { RatingChip } from './RatingChip'
 
@@ -14,12 +15,14 @@ const columns: Column<Row>[] = [
   {
     key: 'hit_rate',
     header: '命中率',
+    help: 'hit_rate',
     align: 'right',
     render: (r) => (r.hit_rate === null ? <span className="text-muted">—</span> : fmtPct(r.hit_rate)),
   },
   {
     key: 'mean_alpha',
     header: '平均 alpha',
+    help: 'mean_alpha',
     align: 'right',
     render: (r) => <Num value={r.mean_alpha} fmt={fmtPct} />,
   },
@@ -47,6 +50,7 @@ export function AccuracyCard({ accuracy }: { accuracy: Accuracy }) {
         <span className="text-muted">
           未评分 <span className="text-fg">{fmtInt(accuracy.unscored)}</span>
         </span>
+        <Help k="settled" />
       </div>
       {accuracy.resolved === 0 ? (
         <div className="py-3 text-center text-muted">还没有结算的评级</div>

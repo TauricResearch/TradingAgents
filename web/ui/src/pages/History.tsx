@@ -45,7 +45,7 @@ const fillColumns: Column<Fill>[] = [
   { key: 'qty', header: '数量', align: 'right', render: (f) => <Num value={f.qty} fmt={fmtQty} /> },
   { key: 'price', header: '价格', align: 'right', render: (f) => fmtUsdt(f.price) },
   { key: 'fee', header: '手续费', align: 'right', render: (f) => fmtUsdt(f.fee, 4) },
-  { key: 'reason', header: '原因', render: (f) => <ReasonChip reason={f.reason} /> },
+  { key: 'reason', header: '原因', help: 'fill_reason', render: (f) => <ReasonChip reason={f.reason} /> },
   {
     key: 'trade_date',
     header: '研判日',
@@ -72,8 +72,8 @@ const attemptColumns: Column<Attempt>[] = [
     render: (a) =>
       a.rating !== null ? <RatingChip rating={a.rating} /> : <RatingChip rating={null} state="failed" error={a.error} />,
   },
-  { key: 'tokens_in', header: 'tokens 进', align: 'right', render: (a) => fmtInt(a.tokens_in) },
-  { key: 'tokens_out', header: 'tokens 出', align: 'right', render: (a) => fmtInt(a.tokens_out) },
+  { key: 'tokens_in', header: 'tokens 进', help: 'tokens', align: 'right', render: (a) => fmtInt(a.tokens_in) },
+  { key: 'tokens_out', header: 'tokens 出', help: 'tokens', align: 'right', render: (a) => fmtInt(a.tokens_out) },
   { key: 'cost', header: '费用', align: 'right', render: (a) => fmtUsd(a.cost_usd) },
 ]
 
@@ -119,7 +119,8 @@ export function History() {
   return (
     <div className="flex flex-col gap-3">
       <Tabs tabs={tabs} active={active} onChange={(k) => setParams(k === 'fills' ? {} : { tab: k })} />
-      <Panel flush aside={<StaleNote error={current.error} />} title={tabs.find((t) => t.key === active)?.label}>
+      {/* Tab keys double as help keys. */}
+      <Panel flush aside={<StaleNote error={current.error} />} title={tabs.find((t) => t.key === active)?.label} help={active}>
         {active === 'fills' && <Table state={fills} columns={fillColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />}
         {active === 'funding' && (
           <Table state={funding} columns={fundingColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />

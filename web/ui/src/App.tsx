@@ -1,14 +1,18 @@
+import { useMemo } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AccountContext } from './account'
-import type { Account, Overview } from './api'
+import type { Account, Overview, Strategy } from './api'
 import { accountPath } from './api'
 import { TopBar } from './components/TopBar'
 import { ErrorBox, Loading } from './components/Status'
+import { strategyVars } from './content/vars'
 import { useFetch } from './hooks'
+import { Guide } from './pages/Guide'
 import { History } from './pages/History'
 import { Overview as OverviewPage } from './pages/Overview'
 import { Research } from './pages/Research'
 import { ResearchDetail } from './pages/ResearchDetail'
+import { StrategyContext } from './strategy'
 
 const OVERVIEW_REFRESH_MS = 60_000
 
@@ -24,6 +28,7 @@ function Shell({ account }: { account: Account }) {
           <Route path="/research" element={<Research />} />
           <Route path="/research/:coin/:date" element={<ResearchDetail />} />
           <Route path="/history" element={<History />} />
+          <Route path="/guide" element={<Guide />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -33,11 +38,19 @@ function Shell({ account }: { account: Account }) {
 
 export default function App() {
   const accounts = useFetch<Account[]>('/api/accounts')
+  // The strategy constants quoted by the guide and the `?` marks; placeholders show raw until loaded.
+  const strategy = useFetch<Strategy>('/api/strategy')
+  const vars = useMemo(() => (strategy.data ? strategyVars(strategy.data) : {}), [strategy.data])
+
   if (accounts.error && !accounts.data) {
     return <ErrorBox error={accounts.error} onRetry={accounts.refresh} />
   }
   if (!accounts.data) return <Loading />
   const account = accounts.data[0]
   if (!account) return <div className="px-3 py-6 text-muted">后端没有返回任何账户</div>
-  return <Shell account={account} />
+  return (
+    <StrategyContext value={vars}>
+      <Shell account={account} />
+    </StrategyContext>
+  )
 }

@@ -1,5 +1,6 @@
 import type { LlmUsage } from '../api'
 import { fmtUsd } from '../format'
+import { Help } from './Help'
 
 export function LlmCard({ llm }: { llm: LlmUsage }) {
   const capText =
@@ -18,7 +19,10 @@ export function LlmCard({ llm }: { llm: LlmUsage }) {
           <dd className="num text-[16px]">{fmtUsd(llm.month)}</dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-[11px] text-muted">上限</dt>
+          <dt className="flex items-center gap-1 text-[11px] text-muted">
+            上限
+            <Help k="budget_cap" align="end" />
+          </dt>
           <dd className={`num ${llm.cap === null ? 'text-[12px] leading-6 text-muted' : 'text-[16px]'}`}>
             {capText}
           </dd>

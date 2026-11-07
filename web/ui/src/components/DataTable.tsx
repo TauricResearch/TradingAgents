@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import type { HelpKey } from '../content/help'
+import { Help } from './Help'
 import { Empty } from './Status'
 
 export interface Column<T> {
@@ -9,6 +11,8 @@ export interface Column<T> {
   align?: 'left' | 'right'
   /** Extra classes for both header and body cells, e.g. a width. */
   className?: string
+  /** `?` mark after the header text. */
+  help?: HelpKey
 }
 
 interface Props<T> {
@@ -37,6 +41,9 @@ export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', st
                 } ${c.className ?? ''}`}
               >
                 {c.header}
+                {c.help && (
+                  <Help k={c.help} size="xs" align={c.align === 'right' ? 'end' : 'start'} className="ml-1" />
+                )}
               </th>
             ))}
           </tr>

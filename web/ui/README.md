@@ -26,5 +26,6 @@ npm run lint       # oxlint
 - `src/hooks.ts` — `useFetch<T>(path, refreshMs?)`
 - `src/format.ts` — 数字 / 百分比 / 数量 / UTC 时间格式化
 - `src/debate.ts` — 按说话人前缀切分辩论记录
-- `src/pages/` — 总览 `/`、研判 `/research`、研判详情 `/research/:coin/:date`、历史 `/history`
-- `src/components/` — Panel、DataTable、RatingChip、EquityChart、Markdown、Debate 等
+- `src/content/` — 指南章节 `guide.ts`、`?` 提示文案 `help.ts`，以及把 `{{name}}` 占位符换成 `/api/strategy` 常数的 `vars.ts`
+- `src/pages/` — 总览 `/`、研判 `/research`、研判详情 `/research/:coin/:date`、历史 `/history`、指南 `/guide`
+- `src/components/` — Panel、DataTable、RatingChip、EquityChart、Markdown、Debate、Help（`?` 提示）、Welcome 等

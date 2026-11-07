@@ -1,5 +1,6 @@
 import type { Perf, Performance } from '../api'
 import { fmtDrawdown, fmtNum, fmtPct } from '../format'
+import { Help } from './Help'
 import { Num } from './Num'
 
 const ROWS: { key: keyof Performance; label: string; color: string }[] = [
@@ -40,7 +41,10 @@ export function PerfTable({ performance }: { performance: Performance }) {
       <table className="w-full border-collapse whitespace-nowrap text-[12px]">
         <thead>
           <tr className="text-[11px] text-muted">
-            <th className="px-2 py-1 text-left font-medium">策略表现</th>
+            <th className="px-2 py-1 text-left font-medium">
+              策略表现
+              <Help k="performance" size="xs" className="ml-1" />
+            </th>
             {HEAD.map((h) => (
               <th key={h} className="px-2 py-1 text-right font-medium">
                 {h}
