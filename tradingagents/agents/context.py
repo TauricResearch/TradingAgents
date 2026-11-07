@@ -201,6 +201,18 @@ def report_or_absent(text: str, source: str) -> str:
     return f"(No {source} report in this run: it is not available, not an empty finding.)"
 
 
+def valuation_block(state: Mapping[str, Any]) -> str:
+    """The Valuation Analyst's report as a prompt line, or "" when none was produced.
+
+    Unlike the other reports it is optional: with no valuation analyst in the run,
+    nothing is added to the prompt, so a run without it reads exactly as before.
+    """
+    text = (state.get("valuation_report") or "").strip()
+    if not text:
+        return ""
+    return f"Valuation report (DCF and peer multiples; every figure computed in code, not by a model): {text}\n"
+
+
 def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
     """Return the caller's portfolio block, or a notice that none was given.
 

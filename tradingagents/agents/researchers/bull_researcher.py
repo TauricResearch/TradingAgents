@@ -3,6 +3,7 @@ from tradingagents.agents.context import (
     get_language_instruction,
     opponent_argument_or_opening,
     report_or_absent,
+    valuation_block,
 )
 
 
@@ -43,7 +44,7 @@ Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
-Conversation history of the debate: {history}
+{valuation_block(state)}Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
 """ + get_language_instruction()

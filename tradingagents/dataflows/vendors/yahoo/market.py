@@ -270,6 +270,32 @@ def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     return history["Close"] if history is not None and "Close" in history else pd.Series(dtype=float)
 
 
+def get_final_closes(symbol: str, end_date: str, lookback_days: int) -> pd.Series:
+    """Final daily closes for the ``lookback_days`` up to and including ``end_date``.
+
+    The index is the calendar day of each bar (timezone dropped). Missing or
+    non-positive closes are removed, and so is today's bar in its market's time
+    zone: a session still trading has a live price, not a close. Rows after
+    ``end_date`` are never requested, so a past run reads no later price.
+    """
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    start = end - relativedelta(days=lookback_days)
+    closes = get_closes(
+        symbol, start.strftime("%Y-%m-%d"), (end + relativedelta(days=1)).strftime("%Y-%m-%d")
+    )
+    closes = closes.dropna()
+    closes = closes[closes > 0]
+    if closes.empty:
+        return closes
+    tz = getattr(closes.index, "tz", None)
+    now = pd.Timestamp.now(tz="UTC")
+    today = (now.tz_convert(tz) if tz is not None else now).date()
+    closes = closes[closes.index.date < today]
+    if tz is not None:
+        closes.index = closes.index.tz_localize(None)
+    return closes
+
+
 def get_stock_stats(
     symbol: Annotated[str, "ticker symbol for the company"],
     indicator: Annotated[

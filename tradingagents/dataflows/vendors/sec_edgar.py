@@ -268,3 +268,112 @@ def get_income_statement(ticker: str, freq: str = "quarterly", as_of_date: str |
 def get_cashflow(ticker: str, freq: str = "quarterly", as_of_date: str | None = None) -> str:
     """Cash flow statement as filed on or before ``as_of_date``."""
     return _statement("cashflow", ticker, freq, as_of_date, "Cash Flow Statement")
+
+
+# --- Raw inputs for the valuation analyst ----------------------------------------
+# Statement tags the valuation reads beyond the three statement tables above. Each
+# group is tried in order; the first tag a filer reports wins and values are never
+# added across tags.
+_VALUATION_ANNUAL = {
+    "cfo": _STATEMENTS["cashflow"][0][1],
+    "capex": _STATEMENTS["cashflow"][3][1],
+    "interest_expense": ("InterestExpense", "InterestExpenseDebt", "InterestExpenseNonoperating"),
+    "income_tax": ("IncomeTaxExpenseBenefit",),
+    "pretax_income": (
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+    ),
+    "net_income": _STATEMENTS["income_statement"][4][1],
+    "revenue": _STATEMENTS["income_statement"][0][1],
+}
+# Balance items are read from the latest filing of any form (a 10-Q is newer than
+# the 10-K), as instants.
+_VALUATION_BALANCE = {
+    "long_term_debt": ("LongTermDebtNoncurrent", "LongTermDebt"),
+    "short_term_debt": ("DebtCurrent", "LongTermDebtCurrent", "ShortTermBorrowings"),
+    "cash": _STATEMENTS["balance_sheet"][2][1],
+    "equity": _STATEMENTS["balance_sheet"][5][1],
+}
+# A filer reporting any of these is a bank or an insurer.
+_FINANCIAL_TAGS = ("Deposits", "PremiumsEarnedNet", "PolicyholderBenefitsAndClaimsIncurredNet",
+                   "LiabilityForFuturePolicyBenefits")
+
+
+def _latest(values: dict) -> tuple[str, float] | None:
+    """(period end, value) of the newest period in an ``_as_of`` result, or None."""
+    if not values:
+        return None
+    end = max(end for end, _ in values)
+    return end, next(v for (e, _), v in values.items() if e == end)
+
+
+def _shares_outstanding(facts: dict, us_gaap: dict, as_of_date: str) -> tuple[float, str, str] | None:
+    """(shares, date, source) as known on ``as_of_date``: the cover-page count, else diluted weighted."""
+    cover = ((facts.get("facts") or {}).get("dei", {}).get("EntityCommonStockSharesOutstanding") or {}).get("units", {})
+    known = [f for f in cover.get("shares", []) if f["filed"] <= as_of_date]
+    if known:
+        latest = max(known, key=lambda f: (f["end"], f["filed"]))
+        return float(latest["val"]), latest["end"], "cover page (dei)"
+    values, _ = _as_of(us_gaap, ("WeightedAverageNumberOfDilutedSharesOutstanding",), as_of_date,
+                       (_SPANS["annual"],), _ANNUAL_FORMS)
+    got = _latest(values)
+    return (got[1], got[0], "diluted weighted average, latest fiscal year") if got else None
+
+
+def get_valuation_inputs(ticker: str, as_of_date: str | None = None) -> dict:
+    """The raw figures a DCF needs for a US filer, as filed on or before ``as_of_date``.
+
+    Money is in USD, unscaled. A figure the filer does not tag is None, never an
+    estimate. ``periods`` lists up to five fiscal years of operating cash flow and
+    capital expenditure, oldest first.
+    """
+    as_of_date = as_of_date or datetime.now().strftime("%Y-%m-%d")
+    cik = cik_for(ticker)
+    if cik is None:
+        raise NoMarketDataError(ticker, ticker, "not a US SEC filer")
+    facts = _cached_json(_FACTS_URL.format(cik=cik), f"CIK{cik}.json")
+    us_gaap = (facts.get("facts") or {}).get("us-gaap")
+    if not us_gaap:
+        raise NoMarketDataError(ticker, ticker, "US filer with no us-gaap facts")
+
+    annual = {name: _as_of(us_gaap, tags, as_of_date, (_SPANS["annual"],), _ANNUAL_FORMS)[0]
+              for name, tags in _VALUATION_ANNUAL.items()}
+    cfo = {end: v for (end, _), v in annual["cfo"].items()}
+    capex = {end: v for (end, _), v in annual["capex"].items()}
+    if not cfo:
+        raise NoMarketDataError(ticker, ticker, f"no annual operating cash flow filed by {as_of_date}")
+    periods = [{"end": end, "cfo": cfo[end], "capex": capex.get(end)} for end in sorted(cfo)][-5:]
+
+    def latest_annual(name):
+        got = _latest(annual[name])
+        return got[1] if got else None
+
+    balance = {name: _latest(_as_of(us_gaap, tags, as_of_date, (_SPANS["annual"],))[0])
+               for name, tags in _VALUATION_BALANCE.items()}
+    debts = [balance[k][1] for k in ("long_term_debt", "short_term_debt") if balance[k]]
+    shares = _shares_outstanding(facts, us_gaap, as_of_date)
+    notes = [f"SEC EDGAR facts filed on or before {as_of_date}, at the values filed then; USD, unscaled."]
+    if balance["long_term_debt"] is None and balance["short_term_debt"] is None:
+        notes.append("The filer tags no debt, so total debt is unavailable (not assumed zero).")
+    if shares:
+        notes.append(f"Shares outstanding: {shares[1]}, {shares[2]}.")
+    return {
+        "source": "sec_edgar",
+        "as_of": as_of_date,
+        "currency": "USD",
+        "periods": periods,
+        "interest_expense": latest_annual("interest_expense"),
+        "income_tax": latest_annual("income_tax"),
+        "pretax_income": latest_annual("pretax_income"),
+        "net_income": latest_annual("net_income"),
+        "revenue": latest_annual("revenue"),
+        "total_debt": sum(debts) if debts else None,
+        "cash": balance["cash"][1] if balance["cash"] else None,
+        "equity": balance["equity"][1] if balance["equity"] else None,
+        "shares": shares[0] if shares else None,
+        "is_financial": any(tag in us_gaap for tag in _FINANCIAL_TAGS),
+        "financial_reason": "the filer reports bank or insurance line items" if any(
+            tag in us_gaap for tag in _FINANCIAL_TAGS) else "",
+        "industry": None,
+        "notes": notes,
+    }

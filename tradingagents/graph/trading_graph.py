@@ -72,6 +72,9 @@ class TradingAgentsGraph:
 
         set_config(self.config)
 
+        if "valuation" in selected_analysts and not self.config.get("valuation_enabled", True):
+            raise ValueError("the valuation analyst is selected but valuation_enabled is false in the config")
+
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
@@ -444,6 +447,8 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            **({"valuation_report": final_state["valuation_report"]}
+               if final_state.get("valuation_report") else {}),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

@@ -23,6 +23,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    # Valuation analyst (DCF + peer multiples); see docs/ANALYST_UPGRADES.md.
+    "TRADINGAGENTS_VALUATION_ENABLED":            "valuation_enabled",
+    "TRADINGAGENTS_VALUATION_RISK_FREE_RATE":     "valuation_risk_free_rate",
+    "TRADINGAGENTS_VALUATION_EQUITY_RISK_PREMIUM": "valuation_equity_risk_premium",
+    "TRADINGAGENTS_VALUATION_TERMINAL_GROWTH":    "valuation_terminal_growth",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
@@ -164,6 +169,9 @@ def build_default_config() -> dict:
             "news_data": "yfinance",             # Options: alpha_vantage, yfinance
             "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
+            # Raw inputs for the valuation analyst: SEC EDGAR as filed (US filers),
+            # then Yahoo (present-day runs only). Peer data is Yahoo only.
+            "valuation_data": "sec_edgar,yfinance",  # Options: sec_edgar, yfinance
         },
         # Tool-level configuration (takes precedence over category-level)
         "tool_vendors": {
@@ -202,6 +210,32 @@ def build_default_config() -> dict:
             ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
             "":     "SPY",         # default for US-listed tickers (no suffix)
         },
+
+        # --- Valuation analyst (DCF + peer multiples) -------------------------
+        # The "valuation" analyst runs only when selected (--analysts valuation);
+        # set this False to refuse the selection and leave every run unchanged.
+        "valuation_enabled": True,
+        # Risk-free rate used when FRED's 10y Treasury cannot be read (no
+        # FRED_API_KEY, or the vendor is down). The report says which one it used.
+        "valuation_risk_free_rate": 0.04,
+        "valuation_use_fred_risk_free": True,
+        "valuation_equity_risk_premium": 0.055,
+        "valuation_terminal_growth": 0.025,
+        "valuation_forecast_years": 5,
+        # Years of weekly returns for beta against the regional benchmark.
+        "valuation_beta_years": 2,
+        # Used only when a company's effective tax rate cannot be computed.
+        "valuation_tax_rate_default": 0.21,
+        # Initial FCF growth comes from history, clamped to this range; when
+        # history cannot give a usable figure, ``valuation_default_growth`` is
+        # used and the report says so.
+        "valuation_growth_floor": -0.05,
+        "valuation_growth_cap": 0.25,
+        "valuation_default_growth": 0.05,
+        # Optional peer map, ticker -> peers, e.g. {"2222.SR": ["1120.SR", "2010.SR"]}.
+        # Without an entry, peers are the same Yahoo industry's largest companies.
+        "valuation_peer_map": {},
+        "valuation_max_peers": 8,
 
     })
 

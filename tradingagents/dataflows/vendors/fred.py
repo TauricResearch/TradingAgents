@@ -164,6 +164,35 @@ def _request(path: str, params: dict) -> dict:
     return response.json()
 
 
+def get_latest_observation(series_id: str, as_of_date: str) -> tuple[float, str]:
+    """The latest value of a FRED series as published by ``as_of_date``: ``(value, date)``.
+
+    Pinned to the ``as_of_date`` vintage like ``get_macro_data``, so a past run
+    reads what was known then. Raises ``FredNotConfiguredError`` without a key and
+    ``NoMarketDataError`` when no observation was published in the last two weeks.
+    """
+    from tradingagents.dataflows.errors import NoMarketDataError
+
+    pit = min(as_of_date, _fred_today())
+    start = (datetime.strptime(as_of_date, "%Y-%m-%d") - timedelta(days=14)).strftime("%Y-%m-%d")
+    observations = _request(
+        "series/observations",
+        {
+            "series_id": series_id,
+            "observation_start": start,
+            "observation_end": as_of_date,
+            "sort_order": "desc",
+            "limit": 10,
+            "realtime_start": pit,
+            "realtime_end": pit,
+        },
+    ).get("observations", [])
+    for o in observations:
+        if o.get("value") not in (".", None, ""):
+            return float(o["value"]), o["date"]
+    raise NoMarketDataError(series_id, series_id, f"no observation in the 14 days to {as_of_date}")
+
+
 def get_macro_data(
     indicator: str,
     as_of_date: str,
