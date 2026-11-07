@@ -99,7 +99,8 @@ class IntradayPaper(Paper):
                 continue
             fill_price = rules.slipped(price, new_qty - old_qty)
             cash += _move(
-                positions, inst, new_qty, fill_price, atr_value, now_ms, "trade", fills, trade_date
+                positions, inst, new_qty, fill_price, atr_value, now_ms, "trade", fills, trade_date,
+                stop_mult=STOP_ATR_MULT,
             )
 
         meta, snapshots = {}, []
