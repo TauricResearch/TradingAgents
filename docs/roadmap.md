@@ -24,6 +24,15 @@
 
 完成标准：连续 3 天收到日报，账本里有成交和每日净值快照。
 
+### 运行位置：Mac mini（2026-11-07 迁入）
+
+三个 launchd 代理跑在 `macmini`（`~/Projects/TradingAgents`，用户 `kissman`，自动登录），账户目录 `~/.tradingagents/trader/` 从笔记本完整复制，验证期连续。笔记本上的三个代理已 `launchctl disable`，账户目录保留为 11-07 03:07 UTC 的快照；两台机器不能同时跑同一个账户。
+
+- 仓库用只读部署密钥拉取（`core.sshCommand` 已配）。更新流程：本地提交并推到 `backup`，然后 `ssh macmini 'cd ~/Projects/TradingAgents && git pull -q && uv pip install -q --python .venv/bin/python -e ".[dev,web]"'`；前端改了要在本地 `npm run build` 后 `rsync -a --delete web/ui/dist/ macmini:~/Projects/TradingAgents/web/ui/dist/`，再 `launchctl kickstart -k gui/$(id -u)/com.tradingagents.trader.web`。
+- `.env` 单独用 scp 同步，不进 git。
+- 日志在 mini 的 `~/Library/Logs/trader/`。看板只绑 mini 本机回环：在家用 `ssh -L 8000:127.0.0.1:8000 macmini` 转发，或在 mini 上启动 Tailscale 后访问 `http://kissmanmac-mini:8000`。
+- 待做：mini 上 `sudo pmset -a sleep 0`（当前靠其他进程阻止睡眠）。
+
 ## 阶段 1：验证期，4 到 8 周
 
 `trader/settings.py` 里的策略常数和研判输入都不动。每周看一次 `python -m trader report`，关注四个数字：
