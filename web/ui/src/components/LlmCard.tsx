@@ -25,7 +25,7 @@ export function LlmCard({ llm, intraday = false }: { llm: LlmUsage; intraday?: b
         <div className="min-w-0">
           <dt className="flex items-center gap-1 text-[11px] text-muted">
             上限
-            <Help k="budget_cap" align="end" />
+            {!intraday && <Help k="budget_cap" align="end" />}
           </dt>
           <dd className={`num ${intraday || llm.cap === null ? 'text-[12px] leading-6 text-muted' : 'text-[16px]'}`}>
             {capText}

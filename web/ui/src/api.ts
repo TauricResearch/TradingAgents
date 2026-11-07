@@ -9,9 +9,10 @@ export interface WatchlistEntry {
 export interface Account {
   id: string
   kind: string
-  capital: number
+  /** Null with `validation_start` and `halted` while the account has no ledger yet. */
+  capital: number | null
   validation_start: string | null
-  halted: boolean
+  halted: boolean | null
   watchlist: WatchlistEntry[]
   /** The hourly-signal account (ADR 0006): no rating settlement, no monthly budget cap. */
   intraday: boolean

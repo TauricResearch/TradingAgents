@@ -113,7 +113,8 @@ export function Overview() {
               </Panel>
             )
           )}
-          <Panel title="LLM 费用" help="llm_cost" className="flex-1">
+          {/* The `?` text is about the monthly cap, which the intraday account does not have. */}
+          <Panel title="LLM 费用" help={account.intraday ? undefined : 'llm_cost'} className="flex-1">
             <LlmCard llm={ov.llm} intraday={account.intraday} />
           </Panel>
         </div>

@@ -31,7 +31,8 @@ function Shell({ account, accounts, select }: ShellProps) {
   return (
     <AccountContext value={{ account, accounts, select, overview }}>
       <TopBar />
-      <main className="mx-auto max-w-[1500px] px-3 py-3">
+      {/* Keyed by account: switching resets the pages' local state while the top bar, and the focus on its switch, stay. */}
+      <main key={account.id} className="mx-auto max-w-[1500px] px-3 py-3">
         <Routes>
           <Route path="/" element={<OverviewPage />} />
           <Route path="/research" element={<Research />} />
@@ -68,8 +69,7 @@ export default function App() {
   }
   return (
     <StrategyContext value={vars}>
-      {/* Keyed by account: switching resets the pages' local state along with the overview feed. */}
-      <Shell key={account.id} account={account} accounts={accounts.data} select={select} />
+      <Shell account={account} accounts={accounts.data} select={select} />
     </StrategyContext>
   )
 }

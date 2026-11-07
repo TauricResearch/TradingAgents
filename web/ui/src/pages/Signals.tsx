@@ -7,7 +7,7 @@ import { SignalChip } from '../components/SignalChip'
 import { StaleNote } from '../components/Status'
 import { Table } from '../components/Table'
 import { Time } from '../components/Time'
-import { fmtInt, fmtUsd } from '../format'
+import { fmtInt, fmtUsd, truncate } from '../format'
 import { useFetch } from '../hooks'
 
 const REFRESH_MS = 60_000
@@ -22,7 +22,19 @@ const signalColumns: Column<Signal>[] = [
     render: (s) =>
       s.conviction === null ? <span className="text-muted">—</span> : <span className="num">{s.conviction}/3</span>,
   },
-  { key: 'reason', header: '理由', className: 'min-w-64 whitespace-normal', render: (s) => s.reason },
+  {
+    key: 'reason',
+    header: '理由',
+    className: 'min-w-64 whitespace-normal',
+    // A failed call has no reason, only the error; its full text is on hover.
+    render: (s) =>
+      s.reason ||
+      (s.error && (
+        <span className="text-down" title={s.error}>
+          {truncate(s.error, 120)}
+        </span>
+      )),
+  },
   { key: 'tokens_in', header: 'tokens 进', align: 'right', render: (s) => fmtInt(s.tokens_in) },
   { key: 'tokens_out', header: 'tokens 出', align: 'right', render: (s) => fmtInt(s.tokens_out) },
   { key: 'cost', header: '费用', align: 'right', render: (s) => fmtUsd(s.cost_usd) },

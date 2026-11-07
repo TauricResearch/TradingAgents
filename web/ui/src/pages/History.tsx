@@ -104,13 +104,17 @@ export function History() {
   // A tab in the URL that is not among this account's tabs falls back to the fills.
   const active: TabKey = tabs.find((t) => t.key === raw)?.key ?? 'fills'
   const current = { fills, funding, attempts, events }[active]
+  // An intraday fill's date is the UTC day of its hour, not a research day.
+  const fillCols = account.intraday
+    ? fillColumns.map((c) => (c.key === 'trade_date' ? { ...c, header: 'UTC 日' } : c))
+    : fillColumns
 
   return (
     <div className="flex flex-col gap-3">
       <Tabs tabs={tabs} active={active} onChange={(k) => setParams(k === 'fills' ? {} : { tab: k })} />
       {/* Tab keys double as help keys. */}
       <Panel flush aside={<StaleNote error={current.error} />} title={tabs.find((t) => t.key === active)?.label} help={active}>
-        {active === 'fills' && <Table state={fills} columns={fillColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />}
+        {active === 'fills' && <Table state={fills} columns={fillCols} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />}
         {active === 'funding' && (
           <Table state={funding} columns={fundingColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />
         )}
