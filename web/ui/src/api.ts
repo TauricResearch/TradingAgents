@@ -229,6 +229,79 @@ export interface Strategy {
   quick_model: string
 }
 
+/** LLM price in USD per million tokens: [input, output]. */
+export type Price = [number, number]
+
+/** The two model tiers of the research graph. */
+export type Tier = 'deep' | 'quick'
+
+/** One tier's model; the price is null when neither the settings nor the price table have one. */
+export interface TierSelection {
+  model: string
+  provider: string
+  price: Price | null
+}
+
+export interface CurrentModels {
+  deep: TierSelection
+  quick: TierSelection
+  /** Where the selection comes from: `.env`, or the settings.json the dashboard writes. */
+  source: 'env' | 'settings'
+  /** Last write of settings.json. */
+  updated_at: string | null
+  /** Per account id: whether its latest run used this selection. Accounts that never ran are absent. */
+  applied: Record<string, boolean>
+}
+
+export interface ModelInfo {
+  id: string
+  label: string
+  modes: Tier[]
+  price: Price | null
+  /** URL of the official price page. */
+  price_source: string | null
+  price_as_of: string | null
+  /** Listed by the upstream catalog; false for a configured model the catalog lacks. */
+  in_catalog: boolean
+}
+
+export interface ProviderInfo {
+  id: string
+  name: string
+  /** Whether the server has this provider's API key. */
+  has_key: boolean
+  /** Environment variable of the key, e.g. ANTHROPIC_API_KEY. */
+  key_env: string | null
+  models: ModelInfo[]
+}
+
+export interface ModelChange {
+  at: string
+  deep: string
+  quick: string
+  note: string
+}
+
+/** GET /api/models, and the reply of POST /api/settings/llm. */
+export interface ModelsResponse {
+  current: CurrentModels
+  providers: ProviderInfo[]
+  /** Newest first, at most 20. */
+  history: ModelChange[]
+}
+
+/** A tier as saved: the price is required. */
+export interface PricedSelection extends TierSelection {
+  price: Price
+}
+
+/** POST /api/settings/llm. */
+export interface LlmSettingsRequest {
+  deep: PricedSelection
+  quick: PricedSelection
+  confirm: true
+}
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -246,6 +319,33 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T>
     throw new ApiError(res.status, `HTTP ${res.status} ${res.statusText}`.trim())
   }
   return (await res.json()) as T
+}
+
+/** POST a JSON body to the same-origin API; throws ApiError carrying the server's `detail` on non-2xx. */
+export async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const detail = await res.json().then(detailOf, () => null)
+    throw new ApiError(res.status, detail ?? `HTTP ${res.status} ${res.statusText}`.trim())
+  }
+  return (await res.json()) as T
+}
+
+/** FastAPI's error text: `detail` is a string, or for a 422 a list of `{ loc, msg }`. */
+function detailOf(body: unknown): string | null {
+  const detail = typeof body === 'object' && body !== null && 'detail' in body ? body.detail : null
+  if (typeof detail === 'string') return detail
+  if (!Array.isArray(detail)) return null
+  const lines = detail.flatMap((d: unknown) => {
+    if (typeof d !== 'object' || d === null || !('msg' in d) || typeof d.msg !== 'string') return []
+    const loc = 'loc' in d && Array.isArray(d.loc) ? d.loc.filter((p: unknown) => p !== 'body').join('.') : ''
+    return [loc ? `${loc}: ${d.msg}` : d.msg]
+  })
+  return lines.length > 0 ? lines.join('; ') : null
 }
 
 export const accountPath = (id: string, tail: string): string =>

@@ -10,6 +10,7 @@ const NAV = [
   { to: '/research', label: '研判', end: false },
   { to: '/history', label: '历史', end: false },
   { to: '/guide', label: '指南', end: false },
+  { to: '/settings', label: '设置', end: false },
 ]
 
 export function TopBar() {

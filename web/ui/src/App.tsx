@@ -12,6 +12,7 @@ import { History } from './pages/History'
 import { Overview as OverviewPage } from './pages/Overview'
 import { Research } from './pages/Research'
 import { ResearchDetail } from './pages/ResearchDetail'
+import { Settings } from './pages/Settings'
 import { StrategyContext } from './strategy'
 
 const OVERVIEW_REFRESH_MS = 60_000
@@ -29,6 +30,7 @@ function Shell({ account }: { account: Account }) {
           <Route path="/research/:coin/:date" element={<ResearchDetail />} />
           <Route path="/history" element={<History />} />
           <Route path="/guide" element={<Guide />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
