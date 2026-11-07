@@ -101,6 +101,15 @@ class Settings:
     def memory_log_path(self) -> Path:
         return self.home / "memory" / "trading_memory.md"
 
+    # The intraday account (ADR 0006) keeps its own ledger and lock under ``home``.
+    @property
+    def intraday_ledger_path(self) -> Path:
+        return self.home / "intraday" / "ledger.sqlite"
+
+    @property
+    def intraday_lock_path(self) -> Path:
+        return self.home / "intraday" / "trader.lock"
+
     @classmethod
     def from_env(cls) -> Settings:
         home = os.getenv("TRADER_HOME", "").strip()
