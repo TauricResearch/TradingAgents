@@ -5,8 +5,10 @@
   @REPO_DIR@ and @HOME@ are filled in at install time (see docs/roadmap.md).
 
   Serves http://127.0.0.1:8000 (the API under /api, the built web/ui/dist at /) and
-  is restarted when it exits. It binds the loopback address only: reach it from
-  another device over a private network such as Tailscale, never from the internet.
+  is restarted when it exits. It binds the loopback address only, so other devices
+  cannot reach port 8000 directly. From another device on a private network such as
+  Tailscale, put `tailscale serve --bg 8000` in front of it (tailnet only, HTTPS on
+  443); never expose it to the internet.
   Build the UI first (cd web/ui && npm run build); restart the agent after a rebuild.
 -->
 <plist version="1.0">
