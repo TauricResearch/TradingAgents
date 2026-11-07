@@ -43,9 +43,10 @@
 
 产品的终点是替用户在交易所实盘操作（见下）。验证期内先做不依赖验证结果的部分：FastAPI 只读 API + React 看板，对着现在这一个模拟盘账户，API 从第一天带 `account_id`（ADR 0005）。
 
-- [ ] `web/api`：只读 API（账户、总览、净值曲线、成交、资金费、研判记录、评级准确度）
-- [ ] `web/ui`：总览 / 研判 / 历史三个页面
-- [ ] 常驻运行（launchd agent），手机经 Tailscale 访问；不暴露公网
+- [x] `web/api`：只读 API（账户、总览、净值曲线、成交、资金费、研判记录、评级准确度）
+- [x] `web/ui`：总览 / 研判 / 历史三个页面（`cd web/ui && npm install && npm run build`）
+- [x] 常驻运行：`deploy/com.tradingagents.trader.web.plist`，安装方式同另外两个 agent，服务在 http://127.0.0.1:8000；手机经 Tailscale 访问，不暴露公网
+- [ ] 评级结算后核对准确度卡和净值曲线（11-11 前后）
 
 ## 阶段 2：按证据扩展
 

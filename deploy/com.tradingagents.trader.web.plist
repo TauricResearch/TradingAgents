@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the read-only dashboard API on a Mac (ADR 0005).
+  @REPO_DIR@ and @HOME@ are filled in at install time (see docs/roadmap.md).
+
+  Serves http://127.0.0.1:8000 (the API under /api, the built web/ui/dist at /) and
+  is restarted when it exits. It binds the loopback address only: reach it from
+  another device over a private network such as Tailscale, never from the internet.
+  Build the UI first (cd web/ui && npm run build); restart the agent after a rebuild.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tradingagents.trader.web</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@REPO_DIR@/.venv/bin/python</string>
+    <string>-m</string>
+    <string>web.api</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@REPO_DIR@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key>
+    <string>UTC</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>@HOME@/Library/Logs/trader/web.log</string>
+  <key>StandardErrorPath</key>
+  <string>@HOME@/Library/Logs/trader/web.log</string>
+</dict>
+</plist>
