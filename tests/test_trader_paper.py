@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import UTC, datetime
 
 import pytest
@@ -55,6 +56,20 @@ def ledger(tmp_path):
 
 def hold(ledger, qty, entry, stop, cash=10_000.0):
     ledger.commit(positions={BTC.swap: Position(qty, entry, stop)}, cash=cash)
+
+
+def test_a_readonly_ledger_reads_but_cannot_write(ledger):
+    hold(ledger, 0.04, 80_000, 75_000)
+    reader = Ledger(ledger.path, readonly=True)
+    assert reader.get("cash") == 10_000.0
+    assert reader.positions()[BTC.swap].qty == 0.04
+    with pytest.raises(sqlite3.OperationalError):
+        reader.set("cash", 0.0)
+    with pytest.raises(sqlite3.OperationalError):
+        reader.add_event(T0, "x", "y")
+    assert ledger.get("cash") == 10_000.0
+    with pytest.raises(sqlite3.OperationalError):
+        Ledger(ledger.path.with_name("missing.sqlite"), readonly=True)
 
 
 def test_buy_opens_a_full_unit_long(ledger):

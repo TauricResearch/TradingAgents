@@ -53,9 +53,16 @@ class Fill:
 
 
 class Ledger:
-    def __init__(self, path: Path):
-        path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, path: Path, readonly: bool = False):
         self.path = path
+        if readonly:
+            # A reader (the web API) opens the file as it is: no directory, no
+            # schema, and sqlite raises when there is no ledger at ``path``.
+            self.db = sqlite3.connect(
+                f"file:{path}?mode=ro", uri=True, timeout=30, isolation_level=None
+            )
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
         # The research phase writes attempts while an hourly replay may hold a
         # write transaction; the timeout lets one wait for the other.
         self.db = sqlite3.connect(path, timeout=30, isolation_level=None)
