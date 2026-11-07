@@ -76,6 +76,8 @@
 | T6 | 设置页 `/settings`：当前两档模型与单价、按 provider 分组的模型列表（只列有密钥的）、手填模型 ID 与单价、切换确认（提示验证期重算）、生效状态；对着 API 契约用 mock 开发 | B | 第 2 轮派出 |
 | T7 | 后端写入面：`trader/overrides.py`（settings.json 读写与历史）、`Settings.from_env` 和 `build_config` 读取覆盖、`GET /api/models`、`POST /api/settings/llm`；测试 | A | 第 3 轮派出 |
 
+第 3 轮（2026-11-07，起点 `904f637`）：T7 → 分支 `t7-llm-settings`，worktree `../TradingAgents.worktrees/t7-llm-settings`。
+
 第 2 轮（2026-11-07，起点 `6aab66f`）：T5 → 分支 `t5-official-prices`，worktree `../TradingAgents.worktrees/t5-official-prices`；T6 → 分支 `t6-settings-ui`，worktree `../TradingAgents.worktrees/t6-settings-ui`。
 
 第 1 轮（2026-11-07，起点 `8c39826`）：T1 → 分支 `t1-intraday-engine`，worktree `../TradingAgents.worktrees/t1-intraday-engine`；T2 → 分支 `t2-intraday-signal`，worktree `../TradingAgents.worktrees/t2-intraday-signal`。报告目录 `~/.commander/TradingAgents/`。
