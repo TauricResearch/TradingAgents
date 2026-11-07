@@ -1,4 +1,4 @@
-"""OKX public market data: contract specs, closed candles, last price, funding history.
+"""OKX public market data: contract specs, closed candles, last price, funding, open interest.
 
 Public endpoints only, so no API key is needed. Requests go through
 ``requests``; OKX answers urllib's default User-Agent with 403.
@@ -48,6 +48,15 @@ class ContractSpec:
 class FundingEvent:
     ts: int      # settlement time in UTC milliseconds
     rate: float  # realized rate; positive means longs pay shorts
+
+
+@dataclass(frozen=True)
+class FundingRate:
+    """The funding of the current period and OKX's forecast for the one after."""
+
+    rate: float              # current period's rate; positive means longs pay shorts
+    next_rate: float | None  # forecast rate of the next period; None when OKX gives none
+    next_time: int           # settlement time of the next period in UTC milliseconds
 
 
 class OKX:
@@ -104,6 +113,27 @@ class OKX:
             FundingEvent(int(r["fundingTime"]), float(r["realizedRate"] or r["fundingRate"]))
             for r in rows
         ]
+
+    def funding_rate(self, inst_id: str) -> FundingRate:
+        """Current and forecast funding of a swap, from /api/v5/public/funding-rate;
+        OKXError when OKX has no funding for it. An empty nextFundingRate is None."""
+        rows = self._get("/api/v5/public/funding-rate", instId=inst_id)
+        if not rows:
+            raise OKXError(f"OKX has no funding rate for {inst_id}")
+        row = rows[0]
+        return FundingRate(
+            rate=float(row["fundingRate"]),
+            next_rate=float(row["nextFundingRate"]) if row.get("nextFundingRate") else None,
+            next_time=int(row["nextFundingTime"]),
+        )
+
+    def open_interest(self, inst_id: str) -> float:
+        """Open interest of a swap in USD (oiUsd), from /api/v5/public/open-interest;
+        OKXError when OKX has no open interest for it."""
+        rows = self._get("/api/v5/public/open-interest", instType="SWAP", instId=inst_id)
+        if not rows:
+            raise OKXError(f"OKX has no open interest for {inst_id}")
+        return float(rows[0]["oiUsd"])
 
     def _get(self, path: str, **params) -> list:
         """``data`` of a GET to ``path``.

@@ -4,10 +4,12 @@ import pytest
 import requests
 
 from trader import okx
-from trader.okx import OKX, Bar, ContractSpec, FundingEvent, OKXError
+from trader.okx import OKX, Bar, ContractSpec, FundingEvent, FundingRate, OKXError
 
 CANDLES = "/api/v5/market/history-candles"
 FUNDING = "/api/v5/public/funding-rate-history"
+FUNDING_RATE = "/api/v5/public/funding-rate"
+OPEN_INTEREST = "/api/v5/public/open-interest"
 T0 = 1_767_225_600_000  # 2026-01-01 00:00 UTC
 HOUR_MS = 3_600_000
 
@@ -219,6 +221,52 @@ def test_last_price_of_an_unlisted_instrument_raises_with_its_name():
     session = FakeSession({("/api/v5/market/ticker", None): []})
     with pytest.raises(OKXError, match="FOO-USDT"):
         OKX(session).last_price("FOO-USDT")
+
+
+def test_funding_rate_reads_the_current_rate_and_the_forecast():
+    row = {
+        "instId": "BTC-USDT-SWAP", "fundingRate": "0.0001", "nextFundingRate": "-0.00005",
+        "fundingTime": str(settlement(1)), "nextFundingTime": str(settlement(2)),
+    }
+    session = FakeSession({(FUNDING_RATE, None): [row]})
+    rate = OKX(session).funding_rate("BTC-USDT-SWAP")
+    assert rate == FundingRate(rate=0.0001, next_rate=-0.00005, next_time=settlement(2))
+    assert session.calls == [(FUNDING_RATE, {"instId": "BTC-USDT-SWAP"})]
+
+
+def test_funding_rate_without_a_forecast_has_none():
+    row = {"fundingRate": "0.0002", "nextFundingRate": "", "nextFundingTime": str(settlement(2))}
+    session = FakeSession({(FUNDING_RATE, None): [row]})
+    assert OKX(session).funding_rate("ETH-USDT-SWAP") == FundingRate(0.0002, None, settlement(2))
+
+
+def test_funding_rate_of_an_unlisted_swap_raises_with_its_name():
+    session = FakeSession({(FUNDING_RATE, None): []})
+    with pytest.raises(OKXError, match="FOO-USDT-SWAP"):
+        OKX(session).funding_rate("FOO-USDT-SWAP")
+
+
+def test_open_interest_reads_oiusd():
+    row = {"instId": "SOL-USDT-SWAP", "oi": "1000", "oiCcy": "1000000", "oiUsd": "152370000.5"}
+    session = FakeSession({(OPEN_INTEREST, None): [row]})
+    assert OKX(session).open_interest("SOL-USDT-SWAP") == 152_370_000.5
+    assert session.calls == [(OPEN_INTEREST, {"instType": "SWAP", "instId": "SOL-USDT-SWAP"})]
+
+
+def test_open_interest_of_an_unlisted_swap_raises_with_its_name():
+    session = FakeSession({(OPEN_INTEREST, None): []})
+    with pytest.raises(OKXError, match="FOO-USDT-SWAP"):
+        OKX(session).open_interest("FOO-USDT-SWAP")
+
+
+@pytest.mark.integration
+def test_live_btc_funding_rate_and_open_interest():
+    client = OKX()
+    rate = client.funding_rate("BTC-USDT-SWAP")
+    assert abs(rate.rate) < 0.01
+    assert rate.next_rate is None or abs(rate.next_rate) < 0.01
+    assert rate.next_time > time.time() * 1000
+    assert client.open_interest("BTC-USDT-SWAP") > 1_000_000  # USD
 
 
 @pytest.mark.integration
