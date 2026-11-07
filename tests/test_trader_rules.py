@@ -518,3 +518,85 @@ def test_drawdown_is_the_fraction_below_the_peak_and_never_negative(equity, peak
 )
 def test_monthly_cap_is_the_mean_daily_cost_times_thirty_times_headroom(daily_costs, expected):
     assert monthly_cap(daily_costs) == pytest.approx(expected)
+
+
+# ------------------------------------------------------------------ another account's constants
+#
+# The keyword-only parameters let a second account (the intraday one) size and stop with
+# its own constants. Passing the daily constants explicitly gives the defaults' answers.
+
+
+def test_unit_notional_with_custom_risk_and_stop_multiple():
+    # 0.01 * 10000 * 80000 / (2.0 * 400) = 10,000; the defaults would give 3,200 at ATR 2,000
+    assert unit_notional(10_000.0, 400.0, 80_000.0, risk=0.01, stop_mult=2.0) == pytest.approx(
+        10_000.0
+    )
+    assert unit_notional(10_000.0, 2_000.0, 80_000.0, risk=0.02, stop_mult=2.5) == unit_notional(
+        10_000.0, 2_000.0, 80_000.0
+    )
+
+
+def test_target_notional_with_custom_weights():
+    weights = {"Long": 1.0, "Short": -1.0, "Flat": 0.0}
+    assert target_notional("Long", 3_200.0, 777.0, weights=weights) == pytest.approx(3_200.0)
+    assert target_notional("Short", 3_200.0, 777.0, weights=weights) == pytest.approx(-3_200.0)
+    assert target_notional("Flat", 3_200.0, 777.0, weights=weights) == pytest.approx(0.0)
+    # A signal missing from the custom weights keeps the current notional, Buy included.
+    assert target_notional("Buy", 3_200.0, 777.0, weights=weights) == pytest.approx(777.0)
+    assert target_notional(None, 3_200.0, 777.0, weights=weights) == pytest.approx(777.0)
+    assert target_notional("Sell", 3_200.0, 777.0, weights={"Sell": -0.5}) == pytest.approx(
+        target_notional("Sell", 3_200.0, 777.0)
+    )
+
+
+@pytest.mark.parametrize(
+    ("target", "current", "unit", "expected"),
+    [
+        (750.0, 500.0, 1_000.0, True),  # exactly 0.25 unit
+        (749.0, 500.0, 1_000.0, False),  # just under: the default 0.1 would trade
+        (250.0, 500.0, 1_000.0, True),
+        (600.0, 500.0, 1_000.0, False),  # 0.1 unit is a trade by default, not at 0.25
+    ],
+)
+def test_needs_trade_with_a_custom_threshold(target, current, unit, expected):
+    assert needs_trade(target, current, unit, threshold=0.25) is expected
+    assert needs_trade(target, current, unit, threshold=0.1) is needs_trade(target, current, unit)
+
+
+@pytest.mark.parametrize(
+    ("qty", "stop_mult", "expected"),
+    [
+        (0.5, 2.0, 76_000.0),  # long: 80000 - 2.0 * 2000
+        (-0.5, 2.0, 84_000.0),  # short: 80000 + 2.0 * 2000
+        (0.5, 3.0, 74_000.0),
+        (-0.5, 3.0, 86_000.0),
+    ],
+)
+def test_initial_stop_with_a_custom_multiple(qty, stop_mult, expected):
+    assert initial_stop(80_000.0, qty, 2_000.0, stop_mult=stop_mult) == pytest.approx(expected)
+    assert initial_stop(80_000.0, qty, 2_000.0, stop_mult=2.5) == initial_stop(
+        80_000.0, qty, 2_000.0
+    )
+
+
+@pytest.mark.parametrize(
+    ("old_qty", "new_qty", "old_stop", "expected"),
+    [
+        (0.0, 0.5, None, 76_000.0),  # opens a long: fresh stop 2.0 ATR below the fill
+        (0.0, -0.5, None, 84_000.0),  # opens a short
+        (0.5, -0.3, 79_000.0, 84_000.0),  # flips: fresh
+        (0.5, 0.8, 75_000.0, 76_000.0),  # adds, fresh (76,000) is tighter than the old
+        (0.5, 0.8, 77_000.0, 77_000.0),  # adds, old is tighter
+        (0.5, 0.3, 72_000.0, 72_000.0),  # reduces: old stop kept
+    ],
+)
+def test_stop_after_trade_passes_the_multiple_to_the_fresh_stop(
+    old_qty, new_qty, old_stop, expected
+):
+    assert stop_after_trade(
+        old_qty, new_qty, old_stop, 80_000.0, 2_000.0, stop_mult=2.0
+    ) == pytest.approx(expected)
+    assert stop_after_trade(old_qty, new_qty, old_stop, 80_000.0, 2_000.0, stop_mult=2.5) == (
+        stop_after_trade(old_qty, new_qty, old_stop, 80_000.0, 2_000.0)
+    )
+    assert stop_after_trade(old_qty, 0.0, old_stop, 80_000.0, 2_000.0, stop_mult=2.0) is None
