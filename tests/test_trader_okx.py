@@ -230,14 +230,20 @@ def test_funding_rate_reads_the_current_rate_and_the_forecast():
     }
     session = FakeSession({(FUNDING_RATE, None): [row]})
     rate = OKX(session).funding_rate("BTC-USDT-SWAP")
-    assert rate == FundingRate(rate=0.0001, next_rate=-0.00005, next_time=settlement(2))
+    assert rate == FundingRate(
+        rate=0.0001, time=settlement(1), next_rate=-0.00005, next_time=settlement(2)
+    )
     assert session.calls == [(FUNDING_RATE, {"instId": "BTC-USDT-SWAP"})]
 
 
 def test_funding_rate_without_a_forecast_has_none():
-    row = {"fundingRate": "0.0002", "nextFundingRate": "", "nextFundingTime": str(settlement(2))}
+    row = {
+        "fundingRate": "0.0002", "nextFundingRate": "",
+        "fundingTime": str(settlement(1)), "nextFundingTime": str(settlement(2)),
+    }
     session = FakeSession({(FUNDING_RATE, None): [row]})
-    assert OKX(session).funding_rate("ETH-USDT-SWAP") == FundingRate(0.0002, None, settlement(2))
+    rate = OKX(session).funding_rate("ETH-USDT-SWAP")
+    assert rate == FundingRate(0.0002, settlement(1), None, settlement(2))
 
 
 def test_funding_rate_of_an_unlisted_swap_raises_with_its_name():
@@ -265,6 +271,8 @@ def test_live_btc_funding_rate_and_open_interest():
     rate = client.funding_rate("BTC-USDT-SWAP")
     assert abs(rate.rate) < 0.01
     assert rate.next_rate is None or abs(rate.next_rate) < 0.01
+    # fundingTime may lag the clock by seconds while a settlement is processing.
+    assert rate.time < rate.next_time
     assert rate.next_time > time.time() * 1000
     assert client.open_interest("BTC-USDT-SWAP") > 1_000_000  # USD
 

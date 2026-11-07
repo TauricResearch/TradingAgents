@@ -140,9 +140,8 @@ def build_prompt(
         ),
         f"Hourly ATR ({ATR_BARS} bars): {price(market.atr)} "
         f"({market.atr / market.last:.2%} of price)",
-        f"Funding rate: current {funding.rate:+.4%} ({_who_pays(funding.rate)}); "
-        f"next period forecast {_rate(funding.next_rate)}; "
-        f"next period settles {_stamp(funding.next_time)}",
+        f"Funding rate: current {funding.rate:+.4%} ({_who_pays(funding.rate)}), "
+        f"settles {_stamp(funding.time)}; next period forecast {_forecast(funding)}",
         f"Open interest: {market.open_interest / 1e6:,.1f}M USD",
         "",
         *_candles(market.bars, price),
@@ -275,8 +274,11 @@ def _price_format(last: float) -> Callable[[float], str]:
     return lambda p: f"{p:.{decimals}f}"
 
 
-def _rate(rate: float | None) -> str:
-    return "n/a" if rate is None else f"{rate:+.4%}"
+def _forecast(funding: FundingRate) -> str:
+    """The forecast rate and when it settles; "n/a" when OKX gives no forecast."""
+    if funding.next_rate is None:
+        return "n/a"
+    return f"{funding.next_rate:+.4%} (settles {_stamp(funding.next_time)})"
 
 
 def _who_pays(rate: float) -> str:

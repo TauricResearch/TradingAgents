@@ -30,7 +30,9 @@ HOUR_MS = 60 * MINUTE_MS
 M15 = 15 * MINUTE_MS
 USAGE = {"input_tokens": 1200, "output_tokens": 60, "total_tokens": 1260}
 ANSWER = '{"signal": "Long", "conviction": 2, "reason": "日线减持，但盘面已企稳反弹"}'
-FUNDING = FundingRate(rate=0.0001, next_rate=-0.00005, next_time=NOW_MS + 4 * HOUR_MS)
+FUNDING = FundingRate(
+    rate=0.0001, time=NOW_MS + 4 * HOUR_MS, next_rate=-0.00005, next_time=NOW_MS + 12 * HOUR_MS
+)
 ROW = re.compile(r"^\d\d:\d\d \d+ \d+ \d+ \d+$", re.MULTILINE)
 
 
@@ -146,8 +148,8 @@ def test_run_asks_the_model_with_the_research_and_the_market(tmp_path, logs):
             "unrealized +1.96%") in user
     assert "Last price: 100000" in user
     assert "Hourly ATR (14 bars): 500 (0.50% of price)" in user
-    assert ("Funding rate: current +0.0100% (longs pay shorts); next period forecast -0.0050%; "
-            "next period settles 2026-11-07 16:03 UTC") in user
+    assert ("Funding rate: current +0.0100% (longs pay shorts), settles 2026-11-07 16:03 UTC; "
+            "next period forecast -0.0050% (settles 2026-11-08 00:03 UTC)") in user
     assert "Open interest: 2,500.0M USD" in user
     assert "rating: Underweight" in user
     assert "最终决定：减持。" in user
@@ -263,11 +265,11 @@ def test_a_prompt_without_candles_still_builds():
 
 
 def test_funding_without_a_forecast_and_negative_rates_are_described():
-    funding = FundingRate(-0.0002, None, NOW_MS + HOUR_MS)
+    funding = FundingRate(-0.0002, NOW_MS + HOUR_MS, None, NOW_MS + 9 * HOUR_MS)
     market = Market(100_000.0, [], 400.0, funding, 1e9)
     _, user = build_prompt(BTC, NOW_MS, None, market, None)
-    assert ("Funding rate: current -0.0200% (shorts pay longs); next period forecast n/a; "
-            "next period settles 2026-11-07 13:03 UTC") in user
+    assert ("Funding rate: current -0.0200% (shorts pay longs), settles 2026-11-07 13:03 UTC; "
+            "next period forecast n/a") in user
 
 
 def test_the_research_section_lists_date_rating_decision_and_reports():

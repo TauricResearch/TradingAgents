@@ -52,11 +52,13 @@ class FundingEvent:
 
 @dataclass(frozen=True)
 class FundingRate:
-    """The funding of the current period and OKX's forecast for the one after."""
+    """The funding of the current period, settled at ``time``, the next settlement to
+    come, and OKX's forecast for the period after, settled at ``next_time``."""
 
     rate: float              # current period's rate; positive means longs pay shorts
-    next_rate: float | None  # forecast rate of the next period; None when OKX gives none
-    next_time: int           # settlement time of the next period in UTC milliseconds
+    time: int                # the current period's settlement, the next one, UTC milliseconds
+    next_rate: float | None  # forecast rate of the period after; None when OKX gives none
+    next_time: int           # settlement of the period after in UTC milliseconds
 
 
 class OKX:
@@ -115,14 +117,16 @@ class OKX:
         ]
 
     def funding_rate(self, inst_id: str) -> FundingRate:
-        """Current and forecast funding of a swap, from /api/v5/public/funding-rate;
-        OKXError when OKX has no funding for it. An empty nextFundingRate is None."""
+        """Current and forecast funding of a swap, from /api/v5/public/funding-rate:
+        fundingRate settles at fundingTime, nextFundingRate at nextFundingTime. OKXError
+        when OKX has no funding for it. An empty nextFundingRate is None."""
         rows = self._get("/api/v5/public/funding-rate", instId=inst_id)
         if not rows:
             raise OKXError(f"OKX has no funding rate for {inst_id}")
         row = rows[0]
         return FundingRate(
             rate=float(row["fundingRate"]),
+            time=int(row["fundingTime"]),
             next_rate=float(row["nextFundingRate"]) if row.get("nextFundingRate") else None,
             next_time=int(row["nextFundingTime"]),
         )
