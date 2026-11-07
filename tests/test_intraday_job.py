@@ -113,6 +113,19 @@ def test_a_signal_that_fails_is_recorded_and_keeps_the_position(env):
     assert not any(t.startswith("日内 · ") for t in inbox.sent)
 
 
+def test_two_coins_are_decided_and_messaged_together(env):
+    signaler = FakeSignaler({BTC.research: ["Long"], ETH.research: ["Short"]})
+    paper, inbox = run(env, signaler, watchlist=(BTC, ETH))
+    assert [call[0] for call in signaler.calls] == ["BTC-USD", "ETH-USD"]
+    assert paper.ledger.positions()[BTC.swap].qty == pytest.approx(0.1)
+    assert paper.ledger.positions()[ETH.swap].qty == pytest.approx(-0.1)
+    message = [t for t in inbox.sent if t.startswith("日内 · ")][0]
+    assert message.splitlines()[1:3] == [
+        "BTC：Long → 买入 0.1 @ 80,040.00；持仓 +0.1，止损 79,040.00",
+        "ETH：Short → 卖出 0.1 @ 79,960.00；持仓 -0.1，止损 80,960.00",
+    ]
+
+
 def test_nothing_is_asked_while_halted(env):
     env[1].set("halted", True)
     signaler = FakeSignaler({BTC.research: ["Long"]})
@@ -121,6 +134,19 @@ def test_nothing_is_asked_while_halted(env):
     assert env[1].get("decided_hour") is None
     assert env[1].signals() == []
     assert "⚠ 熔断中" in inbox.sent[-1]
+
+
+def test_a_kill_in_the_opening_replay_stops_the_hour_from_asking(env):
+    env[1].commit(positions={BTC.swap: Position(1.0, 80_000, 1.0)}, cash=10_000.0)
+    # Equity 7,900 at the third candle is 21% below the 10,000 peak: flatten and halt.
+    okx = FakeOKX(minute=minutes(T0 - MINUTE_MS, [80_000, 79_000, 77_900, 77_900]))
+    signaler = FakeSignaler({BTC.research: ["Long"]})
+    _, inbox = run(env, signaler, now=NOW + timedelta(minutes=3), okx=okx)
+    assert env[1].get("halted") is True
+    assert env[1].positions() == {}
+    assert signaler.calls == []
+    assert inbox.sent[0].startswith("熔断：")
+    assert [f.reason for f in env[1].fills()] == ["kill"]
 
 
 def test_a_changed_fingerprint_restarts_the_validation_period(env):
