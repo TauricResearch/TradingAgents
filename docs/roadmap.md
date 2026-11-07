@@ -73,7 +73,7 @@
 | 票 | 内容 | 档 | 状态 |
 |---|---|---|---|
 | T5 | 官方定价表 `trader/prices.py`：上游目录里各 provider 模型的官方单价（输入/输出，美元每百万 token），带来源 URL 和日期；测试 | B | 已合 `71f48cd`。维护项：`gpt-5.6-sol`/`gpt-5.6` 促销价 2026-11-30 到期、`gemini-3.8-flash` 2026-12-31 到期后改为 $1.50/$7.50；共用 ID 的 provider 存国际站价，DeepSeek 取空闲时段价 |
-| T6 | 设置页 `/settings`：当前两档模型与单价、按 provider 分组的模型列表（只列有密钥的）、手填模型 ID 与单价、切换确认（提示验证期重算）、生效状态；对着 API 契约用 mock 开发 | B | 第 2 轮派出 |
+| T6 | 设置页 `/settings`：当前两档模型与单价、按 provider 分组的模型列表（只列有密钥的）、手填模型 ID 与单价、切换确认（提示验证期重算）、生效状态；对着 API 契约用 mock 开发 | B | 已合 `01e1f4b`；待 T7 合并后一起部署。后续：契约加 `price_note`（促销价截止日），前端显示 |
 | T7 | 后端写入面：`trader/overrides.py`（settings.json 读写与历史）、`Settings.from_env` 和 `build_config` 读取覆盖、`GET /api/models`、`POST /api/settings/llm`；测试 | A | 第 3 轮派出 |
 
 第 3 轮（2026-11-07，起点 `904f637`）：T7 → 分支 `t7-llm-settings`，worktree `../TradingAgents.worktrees/t7-llm-settings`。
