@@ -270,6 +270,35 @@ def get_closes(symbol: str, start_date: str, end_date: str) -> pd.Series:
     return history["Close"] if history is not None and "Close" in history else pd.Series(dtype=float)
 
 
+def get_final_bars(symbol: str, end_date: str, lookback_days: int) -> pd.DataFrame:
+    """Final daily High, Low and Close for the ``lookback_days`` up to and including ``end_date``.
+
+    The same rules as ``get_final_closes``: calendar-day index, bars with a missing or
+    non-positive close removed, today's still-trading bar removed, nothing after
+    ``end_date`` requested. Needed where the true range (ATR) uses each day's extremes.
+    """
+    columns = ["High", "Low", "Close"]
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    canonical = normalize_symbol(symbol)
+    history = yf_retry(lambda: yf.Ticker(canonical).history(
+        start=(end - relativedelta(days=lookback_days)).strftime("%Y-%m-%d"),
+        end=(end + relativedelta(days=1)).strftime("%Y-%m-%d"),
+    ))
+    if history is None or not set(columns) <= set(history.columns):
+        return pd.DataFrame(columns=columns, dtype=float)
+    bars = history[columns].dropna()
+    bars = bars[bars["Close"] > 0]
+    if bars.empty:
+        return bars
+    tz = getattr(bars.index, "tz", None)
+    now = pd.Timestamp.now(tz="UTC")
+    today = (now.tz_convert(tz) if tz is not None else now).date()
+    bars = bars[bars.index.date < today]
+    if tz is not None:
+        bars.index = bars.index.tz_localize(None)
+    return bars
+
+
 def get_final_closes(symbol: str, end_date: str, lookback_days: int) -> pd.Series:
     """Final daily closes for the ``lookback_days`` up to and including ``end_date``.
 

@@ -8,6 +8,7 @@ from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
     get_portfolio_context_from_state,
+    quant_risk_block,
 )
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.structured import (
@@ -43,6 +44,15 @@ def create_trader(llm):
             grounding = ""
             report_section = ""
 
+        # The computed risk metrics set the stop and the size; empty when that step is off.
+        risk_section = quant_risk_block(state)
+        if risk_section:
+            grounding += (
+                "Take the stop-loss and position size from the Quantitative Risk Metrics (the ATR stop and the "
+                "volatility-scaled size) unless you give a reason to depart from them. "
+            )
+            risk_section += "\n"
+
         messages = [
             {
                 "role": "system",
@@ -67,6 +77,7 @@ def create_trader(llm):
                     f"Here is the research team's investment plan for {company_name}. "
                     f"{instrument_context}\n\n"
                     f"{report_section}"
+                    f"{risk_section}"
                     f"{portfolio_context}\n\n"
                     f"Proposed Investment Plan:\n{investment_plan}\n\n"
                     "Make an informed, strategic trading decision.\n\n"

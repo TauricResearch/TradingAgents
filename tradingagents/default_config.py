@@ -23,6 +23,10 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    # Quantitative risk metrics; see docs/ANALYST_UPGRADES.md.
+    "TRADINGAGENTS_RISK_METRICS_ENABLED":           "risk_metrics_enabled",
+    "TRADINGAGENTS_RISK_METRICS_RISK_PER_POSITION": "risk_metrics_risk_per_position",
+    "TRADINGAGENTS_RISK_METRICS_ATR_MULTIPLE":      "risk_metrics_atr_multiple",
     # Valuation analyst (DCF + peer multiples); see docs/ANALYST_UPGRADES.md.
     "TRADINGAGENTS_VALUATION_ENABLED":            "valuation_enabled",
     "TRADINGAGENTS_VALUATION_RISK_FREE_RATE":     "valuation_risk_free_rate",
@@ -210,6 +214,22 @@ def build_default_config() -> dict:
             ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
             "":     "SPY",         # default for US-listed tickers (no suffix)
         },
+
+        # --- Quantitative risk metrics (a computed step before the risk debate) --
+        # Off leaves every prompt and report exactly as before.
+        "risk_metrics_enabled": True,
+        "risk_metrics_window_days": 365,          # the year ending on the run date
+        "risk_metrics_var_confidence": 0.95,
+        "risk_metrics_atr_window": 14,
+        "risk_metrics_atr_multiple": 2.0,         # stop distance, in ATRs
+        # Share of the book lost if the ATR stop is hit; sets the position size.
+        "risk_metrics_risk_per_position": 0.01,
+        # Largest position as a share of the book (1.0 = no leverage).
+        "risk_metrics_max_position_pct": 1.0,
+        # Sharpe/Sortino risk-free rate: this FRED series (3-month Treasury bill), else the default.
+        "risk_metrics_risk_free_series": "DTB3",
+        "risk_metrics_use_fred_risk_free": True,
+        "risk_metrics_risk_free_rate": 0.04,
 
         # --- Valuation analyst (DCF + peer multiples) -------------------------
         # The "valuation" analyst runs only when selected (--analysts valuation);

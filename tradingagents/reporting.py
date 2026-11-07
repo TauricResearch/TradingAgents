@@ -64,6 +64,7 @@ _SECTIONS = (
         ("Trader", "trader.md", ("trader_investment_plan",)),
     )),
     ("IV. Risk Management Team Decision", "4_risk", (
+        ("Quantitative Risk Metrics", "quant_risk.md", ("quant_risk_metrics",)),
         ("Aggressive Analyst", "aggressive.md", ("risk_debate_state", "aggressive_history")),
         ("Conservative Analyst", "conservative.md", ("risk_debate_state", "conservative_history")),
         ("Neutral Analyst", "neutral.md", ("risk_debate_state", "neutral_history")),

@@ -55,6 +55,8 @@ class AgentState(MessagesState):
     fundamentals_report: Annotated[str, "Report from the Fundamentals Analyst"]
     valuation_report: Annotated[str, "Report from the Valuation Analyst (DCF and peer multiples); empty unless selected"]
 
+    quant_risk_metrics: Annotated[str, "Quantitative Risk Metrics block computed in code before the debates; empty when the step is off"]
+
     # researcher team discussion step
     investment_debate_state: Annotated[
         InvestDebateState, "Current state of the debate on if to invest or not"

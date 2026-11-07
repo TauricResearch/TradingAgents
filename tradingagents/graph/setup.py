@@ -108,7 +108,8 @@ class GraphSetup:
         self.max_tool_rounds = max_tool_rounds
 
     def setup_graph(
-        self, selected_analysts=("market", "social", "news", "fundamentals"), memory_node=None
+        self, selected_analysts=("market", "social", "news", "fundamentals"), memory_node=None,
+        quant_risk_node=None,
     ):
         """Set up and compile the agent workflow graph.
 
@@ -121,6 +122,9 @@ class GraphSetup:
                 - "valuation": Valuation analyst (DCF and peer multiples; opt-in)
             memory_node: Node that settles past decisions and returns the run's
                 ``past_context``. It runs alongside the analysts.
+            quant_risk_node: Node that computes the Quantitative Risk Metrics block
+                (no model call). It runs alongside the analysts; the trader, the
+                risk debators and the portfolio manager read its block.
         """
         plan = build_analyst_execution_plan(selected_analysts)
 
@@ -164,6 +168,9 @@ class GraphSetup:
         if memory_node is not None:
             workflow.add_node("Memory Log", memory_node)
             first_steps.append("Memory Log")
+        if quant_risk_node is not None:
+            workflow.add_node("Quant Risk", quant_risk_node)
+            first_steps.append("Quant Risk")
         for node in first_steps:
             workflow.add_edge(START, node)
         workflow.add_edge(first_steps, "Bull Researcher")

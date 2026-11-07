@@ -18,6 +18,7 @@ from tradingagents.llm_clients import create_tier_client, tier_provider
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
+from tradingagents.risk_metrics.node import create_quant_risk_node
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -112,10 +113,17 @@ class TradingAgentsGraph:
         self.selected_analysts = tuple(selected_analysts)
 
         # Set up the graph: keep the workflow for recompilation with a checkpointer.
-        self.workflow = self.graph_setup.setup_graph(selected_analysts, memory_node=self._memory_step)
+        self.workflow = self.graph_setup.setup_graph(
+            selected_analysts,
+            memory_node=self._memory_step,
+            quant_risk_node=create_quant_risk_node() if self._quant_risk_enabled() else None,
+        )
         self.graph = self.workflow.compile()
         self._checkpointer_ctx = None
         self._resuming = False
+
+    def _quant_risk_enabled(self) -> bool:
+        return bool(self.config.get("risk_metrics_enabled", True))
 
     def resolve_instrument_context(self, ticker: str, asset_type: str = "stock",
                                    trade_date: str | None = None) -> str:
@@ -164,6 +172,9 @@ class TradingAgentsGraph:
             # before the Memory Log step would resume without the lessons.
             "analysts=parallel",
             "memory=parallel",
+            # The risk-metrics step adds a node, so a checkpoint saved without it
+            # must not resume into a graph that has it (absent when off: unchanged).
+            *(["quant_risk=parallel"] if self._quant_risk_enabled() else []),
             f"settings={digest}",
         ])
 
@@ -449,6 +460,8 @@ class TradingAgentsGraph:
             "fundamentals_report": final_state["fundamentals_report"],
             **({"valuation_report": final_state["valuation_report"]}
                if final_state.get("valuation_report") else {}),
+            **({"quant_risk_metrics": final_state["quant_risk_metrics"]}
+               if final_state.get("quant_risk_metrics") else {}),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
