@@ -218,6 +218,38 @@ def test_a_period_reported_under_two_tags_takes_the_preferred_one_not_both():
 
 
 @pytest.mark.unit
+def test_a_bank_reads_its_total_from_revenues_net_of_interest_expense(monkeypatch):
+    """Banks, brokers and card lenders tag their total revenue as
+    RevenuesNetOfInterestExpense and their fee line under the contract tag,
+    so the Revenue row must read the total, not the fee income below it."""
+    facts = {"facts": {"us-gaap": {
+               "RevenuesNetOfInterestExpense": {"units": {"USD": [
+                   _fact("2026-09-30", 1_385_000_000, "2026-11-06", form="10-Q", fp="Q3",
+                         start="2026-07-01")]}},
+               "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
+                   _fact("2026-09-30", 163_000_000, "2026-11-06", form="10-Q", fp="Q3",
+                         start="2026-07-01")]}}}}}
+    bank_map = {"0": {"cik_str": 1818874, "ticker": "SOFI", "title": "SoFi Technologies"}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: bank_map if "company_tickers" in url else facts)
+    out = sec_edgar.get_income_statement("SOFI", "quarterly", "2026-11-07")
+    assert _table(out)[1]["Revenue"] == ["1385"]
+
+
+@pytest.mark.unit
+def test_a_filer_that_avoids_the_net_of_interest_tag_is_unchanged():
+    """A filer tagging only the contract tag keeps reading it exactly as before."""
+    facts = {"facts": {"us-gaap": {"RevenueFromContractWithCustomerExcludingAssessedTax": {
+        "units": {"USD": [_fact("2024-09-28", 391_035_000_000, "2024-11-01",
+                                start="2023-09-30")]}},
+        "Revenues": {"units": {"USD": [_fact("2015-09-26", 233_715_000_000, "2015-10-28",
+                                            start="2014-09-28")]}}}}}
+    out = sec_edgar.get_income_statement("AAPL", "annual", "2026-01-01")
+    assert _table(out)[1]["Revenue"] == ["391035"]
+
+
+@pytest.mark.unit
+
 def test_the_default_identification_names_the_package_version(monkeypatch):
     """SEC asks automated clients to identify themselves; a release names its own version."""
     import tradingagents
