@@ -18,6 +18,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import LLMResult
 
+from trader import overrides
 from trader.settings import ANALYSTS, BENCHMARK, GLOBAL_NEWS_QUERIES, Settings
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -31,8 +32,10 @@ def build_config(settings: Settings) -> dict:
     results_dir, data_cache_dir and memory_log_path under settings.home (the
     trader's records stay apart from manual CLI runs, which settle against SPY);
     benchmark_ticker = BENCHMARK; checkpoint_enabled = True, so a retry resumes
-    where the failed run stopped; global_news_queries = list(GLOBAL_NEWS_QUERIES).
-    DEFAULT_CONFIG itself is left unchanged.
+    where the failed run stopped; global_news_queries = list(GLOBAL_NEWS_QUERIES);
+    and, when settings.llm is set, the models and providers it names (ADR 0007),
+    overrides.LLM_KEYS only, which the fingerprints then see. DEFAULT_CONFIG itself
+    is left unchanged.
     """
     config = copy.deepcopy(DEFAULT_CONFIG)
     config.update(
@@ -44,6 +47,8 @@ def build_config(settings: Settings) -> dict:
         checkpoint_enabled=True,
         global_news_queries=list(GLOBAL_NEWS_QUERIES),
     )
+    if settings.llm:
+        config.update({k: settings.llm[k] for k in overrides.LLM_KEYS if k in settings.llm})
     return config
 
 

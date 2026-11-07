@@ -2,7 +2,8 @@
 
 The strategy constants are frozen for the validation period: changing one
 changes the strategy under test, so they live in code rather than in the
-environment.
+environment. The models and their prices may also come from the dashboard's
+``TRADER_HOME/settings.json`` (ADR 0007), which wins over .env.
 """
 
 from __future__ import annotations
@@ -10,6 +11,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+from trader import overrides, prices
+from tradingagents.default_config import DEFAULT_CONFIG
 
 
 @dataclass(frozen=True)
@@ -78,9 +82,24 @@ def _price(name: str) -> tuple[float, float] | None:
     return input_price, output_price
 
 
+def _model_price(
+    model: str, data: dict | None, from_env: tuple[float, float] | None
+) -> tuple[float, float] | None:
+    """The price of ``model``: settings.json's (``data``, as loaded), else the official
+    table's, else ``from_env`` (the TRADER_PRICE_* value), else None."""
+    saved = (data or {}).get("prices", {}).get(model)
+    if saved is not None:
+        return float(saved[0]), float(saved[1])
+    official = prices.lookup(model)
+    if official is not None:
+        return official.input, official.output
+    return from_env
+
+
 @dataclass(frozen=True)
 class Settings:
-    """Settings that differ per machine, read from the environment (.env)."""
+    """Settings that differ per machine, read from the environment (.env) and from
+    the dashboard's settings.json (ADR 0007)."""
 
     home: Path
     capital: float | None = None
@@ -88,6 +107,7 @@ class Settings:
     price_quick: tuple[float, float] | None = None
     telegram_token: str | None = None
     telegram_chat_id: str | None = None
+    llm: dict | None = None  # the "llm" object of settings.json; None without the file
 
     @property
     def ledger_path(self) -> Path:
@@ -112,13 +132,35 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
+        """The environment's settings with TRADER_HOME/settings.json applied."""
         home = os.getenv("TRADER_HOME", "").strip()
+        return cls.with_overrides(
+            Path(home).expanduser() if home else Path.home() / ".tradingagents" / "trader"
+        )
+
+    @classmethod
+    def with_overrides(cls, home: Path) -> Settings:
+        """The environment's settings with ``home``/settings.json applied (ADR 0007).
+
+        ``llm`` is the file's; each tier's price is the file's for the tier's model,
+        else the official table's (trader.prices), else TRADER_PRICE_DEEP/QUICK's, else
+        None. The tier's model is the file's, else DEFAULT_CONFIG's, which carries the
+        .env one. Without the file and an official price, the settings are the
+        environment's alone.
+        """
         capital = os.getenv("TRADER_CAPITAL", "").strip()
+        # Read first, so a malformed value fails the run whatever price source wins.
+        env_deep, env_quick = _price("TRADER_PRICE_DEEP"), _price("TRADER_PRICE_QUICK")
+        data = overrides.load(home)
+        models = overrides.tier_models(data)
+        deep = models.get("deep_think_llm") or DEFAULT_CONFIG["deep_think_llm"]
+        quick = models.get("quick_think_llm") or DEFAULT_CONFIG["quick_think_llm"]
         return cls(
-            home=Path(home).expanduser() if home else Path.home() / ".tradingagents" / "trader",
+            home=home,
             capital=float(capital) if capital else None,
-            price_deep=_price("TRADER_PRICE_DEEP"),
-            price_quick=_price("TRADER_PRICE_QUICK"),
+            price_deep=_model_price(deep, data, env_deep),
+            price_quick=_model_price(quick, data, env_quick),
             telegram_token=os.getenv("TRADER_TELEGRAM_TOKEN") or None,
             telegram_chat_id=os.getenv("TRADER_TELEGRAM_CHAT_ID") or None,
+            llm=data["llm"] if data else None,
         )

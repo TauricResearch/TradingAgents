@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -7,7 +8,10 @@ from fastapi.testclient import TestClient
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
 from trader.ledger import BUDGET_ERROR, Fill, Ledger, Position
 from trader.okx import DAY_MS, Bar
+from trader.prices import OFFICIAL
 from trader.settings import Settings
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 from tradingagents.memory.log import TradingMemoryLog
 from web.api import app as app_module, data
 from web.api.app import create_app
@@ -92,8 +96,10 @@ def build(tmp_path, okx=None, validated=True):
     return TestClient(create_app(settings, okx or CountingOKX()))
 
 
-def test_accounts_lists_the_paper_account(tmp_path):
-    [account] = build(tmp_path).get("/api/accounts").json()
+def test_accounts_lists_the_paper_account_first(tmp_path):
+    accounts = build(tmp_path).get("/api/accounts").json()
+    assert [a["id"] for a in accounts] == ["paper", "intraday"]
+    account = accounts[0]
     assert account["id"] == "paper" and account["kind"] == "paper"
     assert account["capital"] == 10_000.0
     assert account["validation_start"] == "2026-01-10T00:00:00Z"
@@ -292,7 +298,7 @@ def test_unknown_account_and_missing_ledger_are_404(tmp_path):
     response = client.get("/api/accounts/live/overview")
     assert response.status_code == 404 and "live" in response.json()["detail"]
     empty = TestClient(create_app(Settings(home=tmp_path / "empty"), CountingOKX()))
-    [account] = empty.get("/api/accounts").json()
+    [account] = [a for a in empty.get("/api/accounts").json() if a["id"] == "paper"]
     assert account["capital"] is None and account["validation_start"] is None
     response = empty.get("/api/accounts/paper/overview")
     assert response.status_code == 404 and "ledger" in response.json()["detail"]
@@ -336,3 +342,212 @@ def test_a_built_ui_is_served_with_the_spa_fallback(tmp_path, monkeypatch):
     assert client.get("/research/BTC-USD").text == "<html>ui</html>"
     assert client.get("/api/nope").status_code == 404
     assert client.get("/api/accounts").status_code == 200
+
+
+# -- models and the LLM settings (ADR 0007) ------------------------------------
+
+# The .env of the machine under test: Anthropic models the catalog has not caught up
+# with, spelt with dots as the API accepts them; an Anthropic key, no OpenAI key.
+ENV_DEEP, ENV_QUICK = "claude-sonnet-5.5", "claude-haiku-5.5"
+OPUS = {"model": "claude-opus-5-5", "provider": "anthropic", "price": None}  # priced by the table
+HAIKU = {"model": "claude-haiku-5-5", "provider": "anthropic", "price": [0.2, 0.9]}
+SWITCH = {"deep": OPUS, "quick": HAIKU, "confirm": True}
+HAIKU_NOTE = OFFICIAL["claude-haiku-5-5"].note  # the table's remark on the price; sonnet has none
+assert HAIKU_NOTE and not OFFICIAL["claude-sonnet-5-5"].note and not OFFICIAL["claude-opus-5-5"].note
+
+
+@pytest.fixture
+def llm_env(monkeypatch):
+    monkeypatch.setitem(DEFAULT_CONFIG, "llm_provider", "anthropic")
+    monkeypatch.setitem(DEFAULT_CONFIG, "deep_think_llm", ENV_DEEP)
+    monkeypatch.setitem(DEFAULT_CONFIG, "quick_think_llm", ENV_QUICK)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("TRADER_PRICE_DEEP", "")
+    monkeypatch.setenv("TRADER_PRICE_QUICK", "")
+
+
+def fingerprints(home, paper=None, intraday=None):
+    """Store the research fingerprints the two accounts' jobs would have recorded; the
+    intraday ledger is created for it."""
+    settings = Settings(home=home)
+    if paper is not None:
+        ledger = Ledger(settings.ledger_path)
+        ledger.set("fingerprint", {"version": "0.7.1", "code": "abc", **paper})
+        ledger.db.close()
+    if intraday is not None:
+        ledger = Ledger(settings.intraday_ledger_path)
+        ledger.initialize(1_000.0, T0)
+        ledger.set("fingerprint", {"prompt": "v1", **intraday})
+        ledger.db.close()
+
+
+def provider(body, provider_id):
+    return next(p for p in body["providers"] if p["id"] == provider_id)
+
+
+def test_models_shows_the_env_models_priced_by_the_table_and_the_catalog(tmp_path, llm_env):
+    body = build(tmp_path).get("/api/models").json()
+    assert body["current"] == {
+        "deep": {"model": ENV_DEEP, "provider": "anthropic", "price": [2.0, 10.0],
+                 "price_note": None},
+        "quick": {"model": ENV_QUICK, "provider": "anthropic", "price": [0.1, 0.5],
+                  "price_note": HAIKU_NOTE},
+        "source": "env", "updated_at": None, "applied": {},  # no fingerprint recorded yet
+    }
+    assert body["history"] == []
+    assert [p["id"] for p in body["providers"]] == list(MODEL_OPTIONS)
+    assert all(m["id"] != "custom" for p in body["providers"] for m in p["models"])
+
+    anthropic = provider(body, "anthropic")
+    assert (anthropic["name"], anthropic["has_key"], anthropic["key_env"]) == (
+        "Anthropic", True, "ANTHROPIC_API_KEY"
+    )
+    assert provider(body, "openai")["has_key"] is False
+    assert (provider(body, "ollama")["has_key"], provider(body, "ollama")["key_env"]) == (True, None)
+    assert provider(body, "ollama")["name"] == "Ollama（本地）"
+
+    sonnet = next(m for m in anthropic["models"] if m["id"] == "claude-sonnet-5")
+    assert sonnet["modes"] == ["quick", "deep"] and sonnet["in_catalog"] is True
+    assert sonnet["label"].startswith("Claude Sonnet 5")
+    assert sonnet["price"] == [2.0, 10.0] and sonnet["price_as_of"] == "2026-11-07"
+    assert sonnet["price_source"].startswith("https://")
+    assert sonnet["price_note"] == OFFICIAL["claude-sonnet-5"].note  # the table has a remark
+    opus = next(m for m in anthropic["models"] if m["id"] == "claude-opus-5-5")
+    assert opus["price"] == [4.0, 20.0] and opus["price_note"] is None  # priced, nothing to say
+    unpriced = next(m for m in provider(body, "google")["models"] if m["id"] == "gemini-3.5-flash")
+    assert (
+        unpriced["price"], unpriced["price_source"], unpriced["price_as_of"], unpriced["price_note"]
+    ) == (None,) * 4
+
+    # The current models the catalog lacks follow their provider's list, priced by the table.
+    assert anthropic["models"][-2:] == [
+        {"id": ENV_QUICK, "label": ENV_QUICK, "modes": ["quick"], "price": [0.1, 0.5],
+         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07",
+         "price_note": HAIKU_NOTE, "in_catalog": False},
+        {"id": ENV_DEEP, "label": ENV_DEEP, "modes": ["deep"], "price": [2.0, 10.0],
+         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07",
+         "price_note": None, "in_catalog": False},
+    ]
+
+
+def test_models_tells_per_account_whether_its_fingerprint_names_the_current_models(
+    tmp_path, llm_env
+):
+    client = build(tmp_path)
+    fingerprints(tmp_path, paper={"deep": ENV_DEEP, "quick": ENV_QUICK}, intraday={"model": "old"})
+    assert client.get("/api/models").json()["current"]["applied"] == {
+        "paper": True, "intraday": False,
+    }
+    fingerprints(tmp_path, paper={"deep": ENV_DEEP, "quick": "old"}, intraday={"model": ENV_DEEP})
+    assert client.get("/api/models").json()["current"]["applied"] == {
+        "paper": False, "intraday": True,
+    }
+
+
+def test_switching_the_models_writes_settings_json_and_nothing_else(tmp_path, llm_env):
+    client = build(tmp_path)
+    fingerprints(tmp_path, paper={"deep": ENV_DEEP, "quick": ENV_QUICK}, intraday={"model": ENV_DEEP})
+    ledgers = [tmp_path / "ledger.sqlite", tmp_path / "intraday" / "ledger.sqlite"]
+    before = [path.read_bytes() for path in ledgers]
+
+    response = client.post("/api/settings/llm", json=SWITCH)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    current = body["current"]
+    assert current["deep"] == {
+        "model": "claude-opus-5-5", "provider": "anthropic", "price": [4.0, 20.0], "price_note": None,
+    }
+    # The hand-entered price is in effect; the note is still the table's remark on the model.
+    assert current["quick"] == {
+        "model": "claude-haiku-5-5", "provider": "anthropic", "price": [0.2, 0.9],
+        "price_note": HAIKU_NOTE,
+    }
+    assert current["source"] == "settings"
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", current["updated_at"])
+    assert current["applied"] == {"paper": False, "intraday": False}  # until their next run
+    assert body["history"] == [{
+        "at": current["updated_at"], "deep": "claude-opus-5-5", "quick": "claude-haiku-5-5",
+        "note": "web",
+    }]
+    # The hand-priced quick model is not in the catalog; the deep one is, so nothing is added.
+    anthropic = provider(body, "anthropic")
+    assert [m["id"] for m in anthropic["models"] if not m["in_catalog"]] == ["claude-haiku-5-5"]
+    assert next(m for m in anthropic["models"] if m["id"] == "claude-opus-5-5")["in_catalog"]
+
+    saved = json.loads((tmp_path / "settings.json").read_text())
+    assert saved["llm"] == {
+        "deep_think_llm": "claude-opus-5-5", "deep_think_provider": "anthropic",
+        "quick_think_llm": "claude-haiku-5-5", "quick_think_provider": "anthropic",
+    }
+    assert saved["prices"] == {"claude-opus-5-5": [4.0, 20.0], "claude-haiku-5-5": [0.2, 0.9]}
+    assert client.get("/api/models").json() == body  # read again from the file, not cached
+    assert [path.read_bytes() for path in ledgers] == before
+
+    # The trader reads the same file: its next run researches with the new models.
+    settings = Settings.with_overrides(tmp_path)
+    assert (settings.price_deep, settings.price_quick) == ((4.0, 20.0), (0.2, 0.9))
+    assert data.strategy(settings)["deep_model"] == "claude-opus-5-5"
+
+
+def test_strategy_quotes_the_switched_models_without_a_restart(tmp_path, llm_env):
+    client = build(tmp_path)
+    before = client.get("/api/strategy").json()
+    assert (before["deep_model"], before["quick_model"]) == (ENV_DEEP, ENV_QUICK)
+    assert client.post("/api/settings/llm", json=SWITCH).status_code == 200
+    after = client.get("/api/strategy").json()
+    assert (after["deep_model"], after["quick_model"]) == ("claude-opus-5-5", "claude-haiku-5-5")
+    assert {k: v for k, v in after.items() if k not in ("deep_model", "quick_model")} == {
+        k: v for k, v in before.items() if k not in ("deep_model", "quick_model")
+    }
+
+
+def test_a_second_switch_extends_the_history_and_merges_the_prices(tmp_path, llm_env):
+    client = build(tmp_path)
+    assert client.post("/api/settings/llm", json=SWITCH).status_code == 200
+    back = {
+        "deep": {"model": ENV_DEEP, "provider": "anthropic", "price": None},
+        "quick": {"model": "claude-haiku-5-5", "provider": "anthropic", "price": None},
+        "confirm": True,
+    }
+    body = client.post("/api/settings/llm", json=back).json()
+    assert body["current"]["deep"] == {
+        "model": ENV_DEEP, "provider": "anthropic", "price": [2.0, 10.0], "price_note": None,
+    }
+    # A null price takes the table's, which replaces the hand-entered one saved last time.
+    assert body["current"]["quick"]["price"] == [0.1, 0.5]
+    assert [(h["deep"], h["quick"]) for h in body["history"]] == [
+        (ENV_DEEP, "claude-haiku-5-5"), ("claude-opus-5-5", "claude-haiku-5-5"),
+    ]
+    saved = json.loads((tmp_path / "settings.json").read_text())
+    assert saved["prices"] == {
+        "claude-opus-5-5": [4.0, 20.0], "claude-haiku-5-5": [0.1, 0.5], ENV_DEEP: [2.0, 10.0],
+    }
+
+
+@pytest.mark.parametrize("change, detail", [
+    ({"confirm": False}, "确认"),
+    ({"deep": {**OPUS, "provider": "openai"}}, "密钥"),
+    ({"deep": {**OPUS, "provider": "nobody"}}, "密钥"),
+    ({"deep": {**OPUS, "model": "my-own-model"}}, "单价"),
+    ({"quick": {**HAIKU, "price": [0.2, -0.9]}}, "不能为负"),
+    ({"deep": {**OPUS, "model": " "}}, "模型 ID 为空"),
+])
+def test_a_switch_is_refused_without_confirmation_a_key_or_a_price(tmp_path, llm_env, change, detail):
+    client = build(tmp_path)
+    response = client.post("/api/settings/llm", json={**SWITCH, **change})
+    assert response.status_code == 400 and detail in response.json()["detail"]
+    assert not (tmp_path / "settings.json").exists()
+    assert client.get("/api/models").json()["current"]["source"] == "env"
+
+
+@pytest.mark.parametrize("body", [
+    {"deep": OPUS, "confirm": True},                                  # no quick tier
+    {**SWITCH, "quick": {**HAIKU, "price": [0.2, 0.9, 1.0]}},         # three numbers
+    {**SWITCH, "quick": {**HAIKU, "price": "cheap"}},
+    {**SWITCH, "deep": {"model": "claude-opus-5-5"}},                 # no provider
+])
+def test_a_misshapen_switch_is_422(tmp_path, llm_env, body):
+    client = build(tmp_path)
+    assert client.post("/api/settings/llm", json=body).status_code == 422
+    assert not (tmp_path / "settings.json").exists()
