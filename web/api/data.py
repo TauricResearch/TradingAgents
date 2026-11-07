@@ -145,12 +145,15 @@ def models(settings: Settings, accounts: dict[str, Account]) -> dict:
 
     ``settings`` must be read for this request (``Settings.with_overrides``), so
     ``current`` is what the accounts' next run uses: the models and providers of
-    ``build_config``, the prices of the settings, ``source`` "settings" when settings.json
-    names the models, else "env", and per account with a research fingerprint whether it
-    names the current models (``applied``). ``providers`` is the upstream catalog, less the
-    "custom" sentinel, each model with its official price and the modes it is offered
-    for; a current model the catalog lacks is appended to its provider, ``in_catalog``
-    false. ``history`` is settings.json's, newest first, HISTORY_SHOWN entries at most.
+    ``build_config``, the prices of the settings with the official table's note on the
+    model (``price_note``, null when the table lacks the model or has nothing to say),
+    ``source`` "settings" when settings.json names the models, else "env", and per
+    account with a research fingerprint whether it names the current models
+    (``applied``). ``providers`` is the upstream catalog, less the "custom" sentinel, each
+    model with its official price, that price's source, date and note, and the modes it
+    is offered for; a current model the catalog lacks is appended to its provider,
+    ``in_catalog`` false. ``history`` is settings.json's, newest first, HISTORY_SHOWN
+    entries at most.
     """
     config = build_config(settings)
     current = {
@@ -179,7 +182,16 @@ def has_key(provider: str) -> bool:
 
 def _tier(model_and_provider: tuple[str, str], price: tuple[float, float] | None) -> dict:
     model, provider = model_and_provider
-    return {"model": model, "provider": provider, "price": list(price) if price else None}
+    return {
+        "model": model,
+        "provider": provider,
+        "price": list(price) if price else None,
+        "price_note": _price_note(prices.lookup(model)),
+    }
+
+
+def _price_note(price: prices.Price | None) -> str | None:
+    return (price.note if price else None) or None
 
 
 def _applied(accounts: dict[str, Account], deep: str, quick: str) -> dict[str, bool]:
@@ -244,6 +256,7 @@ def _model(model_id: str, label: str, in_catalog: bool) -> dict:
         "price": [price.input, price.output] if price else None,
         "price_source": price.source if price else None,
         "price_as_of": price.as_of if price else None,
+        "price_note": _price_note(price),
         "in_catalog": in_catalog,
     }
 

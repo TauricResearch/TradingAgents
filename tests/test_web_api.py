@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
 from trader.ledger import BUDGET_ERROR, Fill, Ledger, Position
 from trader.okx import DAY_MS, Bar
+from trader.prices import OFFICIAL
 from trader.settings import Settings
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
@@ -351,6 +352,8 @@ ENV_DEEP, ENV_QUICK = "claude-sonnet-5.5", "claude-haiku-5.5"
 OPUS = {"model": "claude-opus-5-5", "provider": "anthropic", "price": None}  # priced by the table
 HAIKU = {"model": "claude-haiku-5-5", "provider": "anthropic", "price": [0.2, 0.9]}
 SWITCH = {"deep": OPUS, "quick": HAIKU, "confirm": True}
+HAIKU_NOTE = OFFICIAL["claude-haiku-5-5"].note  # the table's remark on the price; sonnet has none
+assert HAIKU_NOTE and not OFFICIAL["claude-sonnet-5-5"].note and not OFFICIAL["claude-opus-5-5"].note
 
 
 @pytest.fixture
@@ -386,8 +389,10 @@ def provider(body, provider_id):
 def test_models_shows_the_env_models_priced_by_the_table_and_the_catalog(tmp_path, llm_env):
     body = build(tmp_path).get("/api/models").json()
     assert body["current"] == {
-        "deep": {"model": ENV_DEEP, "provider": "anthropic", "price": [2.0, 10.0]},
-        "quick": {"model": ENV_QUICK, "provider": "anthropic", "price": [0.1, 0.5]},
+        "deep": {"model": ENV_DEEP, "provider": "anthropic", "price": [2.0, 10.0],
+                 "price_note": None},
+        "quick": {"model": ENV_QUICK, "provider": "anthropic", "price": [0.1, 0.5],
+                  "price_note": HAIKU_NOTE},
         "source": "env", "updated_at": None, "applied": {},  # no fingerprint recorded yet
     }
     assert body["history"] == []
@@ -407,15 +412,22 @@ def test_models_shows_the_env_models_priced_by_the_table_and_the_catalog(tmp_pat
     assert sonnet["label"].startswith("Claude Sonnet 5")
     assert sonnet["price"] == [2.0, 10.0] and sonnet["price_as_of"] == "2026-11-07"
     assert sonnet["price_source"].startswith("https://")
+    assert sonnet["price_note"] == OFFICIAL["claude-sonnet-5"].note  # the table has a remark
+    opus = next(m for m in anthropic["models"] if m["id"] == "claude-opus-5-5")
+    assert opus["price"] == [4.0, 20.0] and opus["price_note"] is None  # priced, nothing to say
     unpriced = next(m for m in provider(body, "google")["models"] if m["id"] == "gemini-3.5-flash")
-    assert (unpriced["price"], unpriced["price_source"], unpriced["price_as_of"]) == (None,) * 3
+    assert (
+        unpriced["price"], unpriced["price_source"], unpriced["price_as_of"], unpriced["price_note"]
+    ) == (None,) * 4
 
     # The current models the catalog lacks follow their provider's list, priced by the table.
     assert anthropic["models"][-2:] == [
         {"id": ENV_QUICK, "label": ENV_QUICK, "modes": ["quick"], "price": [0.1, 0.5],
-         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07", "in_catalog": False},
+         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07",
+         "price_note": HAIKU_NOTE, "in_catalog": False},
         {"id": ENV_DEEP, "label": ENV_DEEP, "modes": ["deep"], "price": [2.0, 10.0],
-         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07", "in_catalog": False},
+         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07",
+         "price_note": None, "in_catalog": False},
     ]
 
 
@@ -443,8 +455,14 @@ def test_switching_the_models_writes_settings_json_and_nothing_else(tmp_path, ll
     assert response.status_code == 200, response.text
     body = response.json()
     current = body["current"]
-    assert current["deep"] == {"model": "claude-opus-5-5", "provider": "anthropic", "price": [4.0, 20.0]}
-    assert current["quick"] == {"model": "claude-haiku-5-5", "provider": "anthropic", "price": [0.2, 0.9]}
+    assert current["deep"] == {
+        "model": "claude-opus-5-5", "provider": "anthropic", "price": [4.0, 20.0], "price_note": None,
+    }
+    # The hand-entered price is in effect; the note is still the table's remark on the model.
+    assert current["quick"] == {
+        "model": "claude-haiku-5-5", "provider": "anthropic", "price": [0.2, 0.9],
+        "price_note": HAIKU_NOTE,
+    }
     assert current["source"] == "settings"
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", current["updated_at"])
     assert current["applied"] == {"paper": False, "intraday": False}  # until their next run
@@ -472,6 +490,18 @@ def test_switching_the_models_writes_settings_json_and_nothing_else(tmp_path, ll
     assert data.strategy(settings)["deep_model"] == "claude-opus-5-5"
 
 
+def test_strategy_quotes_the_switched_models_without_a_restart(tmp_path, llm_env):
+    client = build(tmp_path)
+    before = client.get("/api/strategy").json()
+    assert (before["deep_model"], before["quick_model"]) == (ENV_DEEP, ENV_QUICK)
+    assert client.post("/api/settings/llm", json=SWITCH).status_code == 200
+    after = client.get("/api/strategy").json()
+    assert (after["deep_model"], after["quick_model"]) == ("claude-opus-5-5", "claude-haiku-5-5")
+    assert {k: v for k, v in after.items() if k not in ("deep_model", "quick_model")} == {
+        k: v for k, v in before.items() if k not in ("deep_model", "quick_model")
+    }
+
+
 def test_a_second_switch_extends_the_history_and_merges_the_prices(tmp_path, llm_env):
     client = build(tmp_path)
     assert client.post("/api/settings/llm", json=SWITCH).status_code == 200
@@ -481,7 +511,9 @@ def test_a_second_switch_extends_the_history_and_merges_the_prices(tmp_path, llm
         "confirm": True,
     }
     body = client.post("/api/settings/llm", json=back).json()
-    assert body["current"]["deep"] == {"model": ENV_DEEP, "provider": "anthropic", "price": [2.0, 10.0]}
+    assert body["current"]["deep"] == {
+        "model": ENV_DEEP, "provider": "anthropic", "price": [2.0, 10.0], "price_note": None,
+    }
     # A null price takes the table's, which replaces the hand-entered one saved last time.
     assert body["current"]["quick"]["price"] == [0.1, 0.5]
     assert [(h["deep"], h["quick"]) for h in body["history"]] == [

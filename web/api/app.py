@@ -85,12 +85,12 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     def list_accounts():
         return [data.summary(account) for account in accounts.values()]
 
-    @app.get("/api/strategy")
-    def strategy():
-        return data.strategy(settings)
-
     # The settings are read again per request: a switch shows without a restart, and
     # the accounts' next run reads the same file.
+    @app.get("/api/strategy")
+    def strategy():
+        return data.strategy(Settings.with_overrides(settings.home))
+
     @app.get("/api/models")
     def models():
         return data.models(Settings.with_overrides(settings.home), accounts)
