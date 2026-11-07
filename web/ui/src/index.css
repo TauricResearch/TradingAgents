@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0d10;
+  --color-panel: #12151a;
+  --color-panel-2: #171b21;
+  --color-border: #1f242c;
+  --color-fg: #e6e8eb;
+  --color-muted: #8b949e;
+  --color-accent: #f5a524;
+  --color-up: #22c55e;
+  --color-down: #ef4444;
+  --color-line-strategy: #f5a524;
+  --color-line-equal: #60a5fa;
+  --color-line-btc: #a78bfa;
+
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Monaco, "SF Mono", Consolas,
+    "Liberation Mono", monospace;
+
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+}
+
+/* Numbers: monospace with tabular figures. */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@layer base {
+  html {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+  }
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a313b;
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  a {
+    color: inherit;
+  }
+}
+
+/* Rendered Markdown reports: two heading sizes, compact tables. */
+.md {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+.md h1,
+.md h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 1.1em 0 0.5em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--color-border);
+}
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+  color: var(--color-fg);
+}
+.md p {
+  margin: 0.5em 0;
+}
+.md strong {
+  color: #fff;
+  font-weight: 600;
+}
+.md ul,
+.md ol {
+  margin: 0.4em 0;
+  padding-left: 1.4em;
+}
+.md ul {
+  list-style: disc;
+}
+.md ol {
+  list-style: decimal;
+}
+.md li {
+  margin: 0.15em 0;
+}
+.md blockquote {
+  margin: 0.6em 0;
+  padding: 0.1em 0.8em;
+  border-left: 2px solid var(--color-accent);
+  color: var(--color-muted);
+}
+.md code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  padding: 0 0.3em;
+}
+.md pre {
+  margin: 0.6em 0;
+  padding: 0.6em 0.8em;
+  overflow-x: auto;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+}
+.md pre code {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.md hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 1em 0;
+}
+.md table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 12px;
+}
+.md th,
+.md td {
+  border: 1px solid var(--color-border);
+  padding: 3px 8px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.md th {
+  background: var(--color-panel-2);
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.md td {
+  font-variant-numeric: tabular-nums;
+}
+.md a {
+  color: var(--color-line-equal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

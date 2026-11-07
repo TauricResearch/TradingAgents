@@ -1,0 +1,134 @@
+import { useSearchParams } from 'react-router-dom'
+import { useAccount } from '../account'
+import type { Attempt, Fill, FillReason, Funding, LedgerEvent } from '../api'
+import { accountPath } from '../api'
+import { DataTable, type Column } from '../components/DataTable'
+import { Num } from '../components/Num'
+import { Panel } from '../components/Panel'
+import { RatingChip } from '../components/RatingChip'
+import { ErrorBox, Loading, StaleNote } from '../components/Status'
+import { Tabs } from '../components/Tabs'
+import { fmtInt, fmtPct, fmtQty, fmtSigned, fmtTime, fmtTimeFull, fmtUsd, fmtUsdt } from '../format'
+import { useFetch, type FetchState } from '../hooks'
+
+type TabKey = 'fills' | 'funding' | 'attempts' | 'events'
+const TAB_KEYS: TabKey[] = ['fills', 'funding', 'attempts', 'events']
+
+const REASON: Record<FillReason, { label: string; cls: string }> = {
+  trade: { label: '调仓', cls: 'border-border bg-panel-2 text-muted' },
+  stop: { label: '止损', cls: 'border-down/50 bg-down/15 text-down' },
+  kill: { label: '熔断', cls: 'border-accent/60 bg-accent/15 text-accent' },
+}
+
+function ReasonChip({ reason }: { reason: FillReason }) {
+  const r = REASON[reason] ?? { label: reason, cls: 'border-border bg-panel-2 text-muted' }
+  return <span className={`inline-block rounded-sm border px-1.5 text-[11px] leading-4 ${r.cls}`}>{r.label}</span>
+}
+
+function Time({ ts }: { ts: string }) {
+  return (
+    <span className="num" title={fmtTimeFull(ts)}>
+      {fmtTime(ts)}
+    </span>
+  )
+}
+
+const fillColumns: Column<Fill>[] = [
+  { key: 'ts', header: '时间', render: (f) => <Time ts={f.ts} /> },
+  { key: 'inst', header: '合约', render: (f) => <span className="num">{f.inst}</span> },
+  {
+    key: 'side',
+    header: '方向',
+    render: (f) =>
+      f.qty >= 0 ? <span className="text-up">买入</span> : <span className="text-down">卖出</span>,
+  },
+  { key: 'qty', header: '数量', align: 'right', render: (f) => <Num value={f.qty} fmt={fmtQty} /> },
+  { key: 'price', header: '价格', align: 'right', render: (f) => fmtUsdt(f.price) },
+  { key: 'fee', header: '手续费', align: 'right', render: (f) => fmtUsdt(f.fee, 4) },
+  { key: 'reason', header: '原因', render: (f) => <ReasonChip reason={f.reason} /> },
+  {
+    key: 'trade_date',
+    header: '研判日',
+    render: (f) => <span className="num text-muted">{f.trade_date ?? '—'}</span>,
+  },
+]
+
+const fundingColumns: Column<Funding>[] = [
+  { key: 'ts', header: '时间', render: (f) => <Time ts={f.ts} /> },
+  { key: 'inst', header: '合约', render: (f) => <span className="num">{f.inst}</span> },
+  { key: 'coin', header: '币', render: (f) => <span className="num">{f.coin}</span> },
+  { key: 'rate', header: '费率', align: 'right', render: (f) => fmtPct(f.rate, 4) },
+  { key: 'amount', header: '金额', align: 'right', render: (f) => <Num value={f.amount} fmt={fmtSigned} /> },
+]
+
+const attemptColumns: Column<Attempt>[] = [
+  { key: 'trade_date', header: '研判日', render: (a) => <span className="num">{a.trade_date}</span> },
+  { key: 'coin', header: '币', render: (a) => <span className="num font-medium">{a.coin}</span> },
+  { key: 'ts', header: '时间', render: (a) => <Time ts={a.ts} /> },
+  {
+    key: 'result',
+    header: '评级 / 错误',
+    className: 'max-w-[420px] whitespace-normal',
+    render: (a) =>
+      a.rating !== null ? <RatingChip rating={a.rating} /> : <RatingChip rating={null} state="failed" error={a.error} />,
+  },
+  { key: 'tokens_in', header: 'tokens 进', align: 'right', render: (a) => fmtInt(a.tokens_in) },
+  { key: 'tokens_out', header: 'tokens 出', align: 'right', render: (a) => fmtInt(a.tokens_out) },
+  { key: 'cost', header: '费用', align: 'right', render: (a) => fmtUsd(a.cost_usd) },
+]
+
+const eventColumns: Column<LedgerEvent>[] = [
+  { key: 'ts', header: '时间', render: (e) => <Time ts={e.ts} /> },
+  {
+    key: 'kind',
+    header: '类型',
+    render: (e) => (
+      <span className="num inline-block rounded-sm border border-border bg-panel-2 px-1.5 text-[11px] leading-4 text-muted">
+        {e.kind}
+      </span>
+    ),
+  },
+  { key: 'text', header: '内容', className: 'whitespace-normal', render: (e) => e.text },
+]
+
+function Table<T>({ state, columns, rowKey }: { state: FetchState<T[]>; columns: Column<T>[]; rowKey: (row: T, i: number) => string }) {
+  if (state.error && !state.data) return <ErrorBox error={state.error} onRetry={state.refresh} />
+  if (!state.data) return <Loading />
+  return <DataTable columns={columns} rows={state.data} rowKey={rowKey} />
+}
+
+export function History() {
+  const { account } = useAccount()
+  const [params, setParams] = useSearchParams()
+  const raw = params.get('tab')
+  const active: TabKey = TAB_KEYS.find((k) => k === raw) ?? 'fills'
+
+  const fills = useFetch<Fill[]>(accountPath(account.id, 'fills?limit=500'))
+  const funding = useFetch<Funding[]>(accountPath(account.id, 'funding?limit=500'))
+  const attempts = useFetch<Attempt[]>(accountPath(account.id, 'attempts'))
+  const events = useFetch<LedgerEvent[]>(accountPath(account.id, 'events'))
+
+  const tabs = [
+    { key: 'fills' as const, label: '成交', count: fills.data?.length },
+    { key: 'funding' as const, label: '资金费', count: funding.data?.length },
+    { key: 'attempts' as const, label: '研判记录', count: attempts.data?.length },
+    { key: 'events' as const, label: '事件', count: events.data?.length },
+  ]
+  const current = { fills, funding, attempts, events }[active]
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Tabs tabs={tabs} active={active} onChange={(k) => setParams(k === 'fills' ? {} : { tab: k })} />
+      <Panel flush aside={<StaleNote error={current.error} />} title={tabs.find((t) => t.key === active)?.label}>
+        {active === 'fills' && <Table state={fills} columns={fillColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />}
+        {active === 'funding' && (
+          <Table state={funding} columns={fundingColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />
+        )}
+        {active === 'attempts' && (
+          <Table state={attempts} columns={attemptColumns} rowKey={(a, i) => `${a.trade_date}-${a.coin}-${a.ts}-${i}`} />
+        )}
+        {active === 'events' && <Table state={events} columns={eventColumns} rowKey={(e, i) => `${e.ts}-${i}`} />}
+      </Panel>
+    </div>
+  )
+}
