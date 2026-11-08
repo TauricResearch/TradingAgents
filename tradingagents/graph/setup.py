@@ -61,7 +61,7 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
     """
     output = TypedDict(f"{spec.key.capitalize()}Report", {spec.report_key: str})
     graph = StateGraph(AgentState, output_schema=output)
-    graph.add_node("agent", agent)
+    graph.add_node("agent", agent, metadata={"usage_agent": spec.agent_node})
     graph.add_edge(START, "agent")
     if not spec.tools:
         graph.add_edge("agent", END)
@@ -83,7 +83,7 @@ def _analyst_graph(spec, agent, max_tool_rounds: int):
         return agent({**state, "messages": [*state["messages"], HumanMessage(WRAP_UP)]})
 
     graph.add_node("tools", ToolNode(list(spec.tools)))
-    graph.add_node("wrap_up", wrap_up)
+    graph.add_node("wrap_up", wrap_up, metadata={"usage_agent": spec.agent_node})
     graph.add_conditional_edges("agent", _tools_or_done, ["tools", END])
     graph.add_conditional_edges("tools", more_or_wrap_up, ["agent", "wrap_up"])
     graph.add_edge("wrap_up", END)

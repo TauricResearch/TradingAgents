@@ -451,7 +451,7 @@ def test_the_archive_does_not_sit_under_the_sticky_form_panel():
 
     assert ".form-panel { position: sticky;" in css
     assert ".archive-panel { grid-column: 2; }" in css
-    assert "grid-column: 1 / -1" not in css
+    assert ".archive-panel { grid-column: 1 / -1" not in css
 
 
 @pytest.mark.unit

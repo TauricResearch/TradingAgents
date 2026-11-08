@@ -169,6 +169,7 @@ def run_backtest(
     run_config = {**config, "results_dir": str(run_dir),
                   "memory_log_path": str(run_dir / "trading_memory.md")}
 
+    run_config.update(usage_source="backtest")
     graph = TradingAgentsGraph(selected_analysts, config=run_config)
     result = BacktestResult(run_id=run_id, log_path=Path(run_config["memory_log_path"]))
     done = {(e["ticker"], e["date"]) for e in graph.memory_log.load_entries()}

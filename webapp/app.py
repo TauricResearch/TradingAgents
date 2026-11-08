@@ -135,6 +135,8 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
     archive_root = Path(results_dir) if results_dir else Path(DEFAULT_CONFIG["results_dir"])
 
     app = FastAPI(title="TradingAgents Web", docs_url=None, redoc_url=None, openapi_url=None)
+    from webapp.usage_api import router as usage_router
+    app.include_router(usage_router)
     app.state.runs = runs
     app.state.backtests = sweeps
 

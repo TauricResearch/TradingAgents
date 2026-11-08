@@ -387,3 +387,24 @@ def test_the_memory_step_reads_lessons_as_of_the_trade_date_and_settles_once(tmp
 
     assert asked == ["2026-01-20", "2026-01-20"]
     assert (tmp_path / "log.md").read_text() == log_after_first
+
+
+@pytest.mark.unit
+def test_pipeline_records_usage_with_tier_and_agent_context(tmp_path, monkeypatch, offline):
+    from tradingagents.usage import UsageStore
+
+    cfg = copy.deepcopy(DEFAULT_CONFIG)
+    cfg.update(results_dir=str(tmp_path / "results"), data_cache_dir=str(tmp_path / "cache"),
+               memory_log_path=str(tmp_path / "log.md"), usage_db_path=str(tmp_path / "usage.sqlite"),
+               usage_run_id="web-run", usage_source="web")
+    model = ScriptedModel()
+    monkeypatch.setattr(trading_graph, "create_tier_client", lambda config, tier, **kwargs:
+                        _Client(model.model_copy(update={"callbacks": kwargs["callbacks"]})))
+    graph = trading_graph.TradingAgentsGraph(config=cfg)
+    graph.propagate("NVDA", TRADE_DATE)
+    report = UsageStore(cfg["usage_db_path"]).report()
+    assert report["totals"]["calls"] == len(model.calls)
+    assert report["totals"]["unfinished"] == 0
+    assert {row["model"] for row in report["calls"]} == {cfg["quick_think_llm"], cfg["deep_think_llm"]}
+    assert all(row["run_id"] == "web-run" and row["ticker"] == "NVDA" for row in report["calls"])
+    assert "Market Analyst" in {row["agent"] for row in report["calls"]}

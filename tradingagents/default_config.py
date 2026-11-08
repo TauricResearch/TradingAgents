@@ -8,6 +8,7 @@ _TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
 # of the existing default, so users can keep writing plain strings in
 # their .env file.
 _ENV_OVERRIDES = {
+    "TRADINGAGENTS_USAGE_DB_PATH":        "usage_db_path",
     "TRADINGAGENTS_LLM_PROVIDER":         "llm_provider",
     "TRADINGAGENTS_DEEP_THINK_LLM":       "deep_think_llm",
     "TRADINGAGENTS_QUICK_THINK_LLM":      "quick_think_llm",
@@ -89,6 +90,7 @@ def build_default_config() -> dict:
         # Pending entries are never pruned. None disables rotation entirely.
         "memory_log_max_entries": None,
         # LLM settings
+        "usage_db_path": os.path.join(_TRADINGAGENTS_HOME, "usage.sqlite"),
         "llm_provider": "openai",
         "deep_think_llm": "gpt-6-sol",
         "quick_think_llm": "gpt-6-luna",

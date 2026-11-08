@@ -18,6 +18,7 @@ from tradingagents.llm_clients import create_tier_client, tier_provider
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
+from tradingagents.usage import UsageCallback, UsageStore, new_context
 
 from .checkpointer import checkpoint_step, clear_checkpoint, get_checkpointer, thread_id
 from .conditional_logic import ConditionalLogic
@@ -45,6 +46,7 @@ def _validate_trade_date(trade_date) -> str:
 # whether it checkpoints, and how often it retries a provider.
 _NOT_IN_SIGNATURE = frozenset({
     "results_dir", "data_cache_dir", "memory_log_path", "checkpoint_enabled", "llm_max_retries",
+    "usage_db_path", "usage_run_id", "usage_source",
 })
 
 
@@ -75,9 +77,15 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
-        extra = {"callbacks": self.callbacks} if self.callbacks else {}
-        self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
-        self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
+        self.usage_context = new_context(self.config)
+        def metered_llm(tier):
+            handler = UsageCallback(self.usage_context, tier_provider(self.config, tier),
+                                    self.config[f"{tier}_think_llm"],
+                                    UsageStore(self.config.get("usage_db_path")))
+            return create_tier_client(self.config, tier,
+                                      callbacks=[*self.callbacks, handler]).get_llm()
+        self.deep_thinking_llm = metered_llm("deep")
+        self.quick_thinking_llm = metered_llm("quick")
 
         self.memory_log = TradingMemoryLog(self.config)
 
@@ -298,6 +306,7 @@ class TradingAgentsGraph:
         and loads them alongside the analysts (see ``_memory_step``).
         """
         trade_date = _validate_trade_date(trade_date)
+        self.usage_context.update(new_context(self.config), ticker=company_name, analysis_date=trade_date)
         return self.propagator.create_initial_state(
             company_name,
             trade_date,

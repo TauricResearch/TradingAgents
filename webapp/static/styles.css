@@ -410,3 +410,16 @@ button.danger[disabled] { opacity: 0.55; cursor: progress; }
 .compare-row > h3 { grid-column: 2 span; margin: 0.6rem 0 0; font-size: 0.8rem; font-weight: 650; color: var(--muted); }
 .compare-cell { border: 1px solid var(--rule); border-radius: 7px; padding: 0.2rem 0.85rem 0.6rem; font-size: 0.86rem; line-height: 1.6; overflow-wrap: anywhere; min-height: 1rem; }
 .compare-cell p { margin: 0.6rem 0; }
+
+/* LLM usage monitor */
+.usage-panel { grid-column: 1 / -1; min-width: 0; }
+.usage-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; align-items: end; margin: 1rem 0; }
+.usage-filter-grid .actions { display: flex; flex-wrap: wrap; gap: .6rem; grid-column: 1 / -1; }
+.usage-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .8rem; margin: 1rem 0; }
+.usage-cards > div { border: 1px solid var(--rule); padding: 1rem; border-radius: 8px; }
+.usage-cards span { display: block; font-size: .8rem; color: var(--muted); }
+.usage-cards strong { display: block; font-size: 1.35rem; margin-top: .4rem; overflow-wrap: anywhere; }
+.usage-panel h3, .usage-panel details { margin-top: 1.5rem; }
+.usage-panel td { white-space: nowrap; }
+
+.usage-panel input[type="number"], .usage-panel input:not([type]) { width: 100%; padding: .42rem .55rem; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; }

@@ -326,6 +326,7 @@ class RunManager:
         portfolio = selections.get("portfolio")
         config = _build_run_config(selections, selections.get("checkpoint"))
 
+        config.update(usage_source="web", usage_run_id=run.id)
         stats_handler = StatsCallbackHandler()
         # The analyst selection in the run's own fixed order, as the CLI does it.
         chosen = {analyst.value for analyst in selections["analysts"]}

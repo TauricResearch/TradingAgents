@@ -456,3 +456,9 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+
+## LLM usage monitor
+
+The web console's **Consumi** tab records new LLM calls from the web app, CLI and backtests in SQLite. It shows input/output/cache tokens, cumulative call duration, failures, unfinished calls, per-model totals, filters and CSV export. No prompts or model responses are stored. Existing runs are not backfilled.
+
+The default database is `~/.tradingagents/usage.sqlite`; override it with `TRADINGAGENTS_USAGE_DB_PATH`. All processes must use the same path to share their history. Set model prices in the tab in USD per million tokens. Prices apply to future calls only; each call retains its price snapshot. Unknown usage, missing prices, and subscription calls without a configured price show unavailable cost rather than zero. Cache tokens require a cache price. Totals with unavailable costs are partial estimates, not invoices; SDK-internal retries and provider-specific charges may not be visible. Date filters use UTC. An interrupted process leaves its in-flight calls marked unfinished.

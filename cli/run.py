@@ -112,6 +112,7 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
 
     config = _build_run_config(selections, checkpoint)
 
+    config["usage_source"] = "cli"
     stats_handler = StatsCallbackHandler()
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)

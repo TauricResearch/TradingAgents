@@ -26,6 +26,7 @@
   <button class="mode-tab is-active" role="tab" data-mode="analyze" aria-selected="true">Analyze</button>
   <button class="mode-tab" role="tab" data-mode="backtest" aria-selected="false">Backtest</button>
   <button class="mode-tab" role="tab" data-mode="memory" aria-selected="false">Decision log</button>
+  <button class="mode-tab" role="tab" data-mode="usage" aria-selected="false">Consumi</button>
 </nav>
 
 <main class="layout">
@@ -350,6 +351,39 @@
     </div>
   </section>
 
+  <section class="panel usage-panel" aria-labelledby="usage-title" data-mode-panel="usage" hidden>
+    <h2 id="usage-title">Consumi LLM</h2>
+    <p class="hint">Storico delle nuove chiamate da web, CLI e backtest. I costi sono stime in USD, non importi fatturati. Le chiamate tramite abbonamento non hanno un costo API disponibile salvo tariffa impostata.</p>
+    <form id="usage-filters" class="usage-filter-grid">
+      <div class="field"><label for="usage-start">Dal (UTC)</label><input id="usage-start" name="start" type="date"></div>
+      <div class="field"><label for="usage-end">Al (UTC)</label><input id="usage-end" name="end" type="date"></div>
+      <div class="field"><label for="usage-ticker">Ticker</label><input id="usage-ticker" name="ticker" placeholder="NVDA"></div>
+      <div class="field"><label for="usage-model">Modello</label><input id="usage-model" name="model" placeholder="ID esatto"></div>
+      <div class="field"><label for="usage-run">Analisi</label><input id="usage-run" name="run_id" placeholder="ID analisi"></div>
+      <div class="actions"><button class="primary" type="submit">Aggiorna</button><button id="usage-reset" type="button" class="ghost">Azzera filtri</button><a id="usage-csv" href="/api/usage.csv" download>Esporta CSV</a></div>
+    </form>
+    <p id="usage-error" class="alert alert-error" role="alert" hidden></p>
+    <div id="usage-summary" class="usage-cards" aria-live="polite"></div>
+    <p id="usage-note" class="hint"></p>
+    <p id="usage-empty" class="empty">Nessuna chiamata registrata. Avvia una nuova analisi per raccogliere i consumi.</p>
+    <h3>Per modello</h3>
+    <div class="memory-table-wrap"><table class="memory-table"><thead><tr><th>Provider</th><th>Modello</th><th>Chiamate</th><th>Input</th><th>Output</th><th>Costo stimato USD</th></tr></thead><tbody id="usage-models"></tbody></table></div>
+    <h3>Chiamate recenti</h3><p id="usage-limit" class="hint"></p>
+    <div class="memory-table-wrap"><table class="memory-table"><thead><tr><th>Data</th><th>Ticker</th><th>Analisi</th><th>Origine</th><th>Agente</th><th>Modello</th><th>Stato</th><th>Input</th><th>Output</th><th>Durata</th><th>Costo stimato USD</th></tr></thead><tbody id="usage-calls"></tbody></table></div>
+    <details><summary>Tariffe dei modelli</summary>
+      <p class="hint">Prezzi in USD per un milione di token. Validi per le nuove chiamate; lo storico conserva la tariffa applicata. Se ci sono token cache e manca la tariffa cache, il costo resta non disponibile. I retry interni al provider potrebbero non essere visibili.</p>
+      <form id="usage-price-form" class="usage-filter-grid">
+        <div class="field"><label for="price-provider">Provider</label><input id="price-provider" name="provider" required maxlength="100" placeholder="openai"></div>
+        <div class="field"><label for="price-model">Modello</label><input id="price-model" name="model" required maxlength="250"></div>
+        <div class="field"><label for="price-input">Input USD / 1M</label><input id="price-input" name="input_rate" type="number" min="0" step="any" required></div>
+        <div class="field"><label for="price-output">Output USD / 1M</label><input id="price-output" name="output_rate" type="number" min="0" step="any" required></div>
+        <div class="field"><label for="price-cache">Cache USD / 1M (opzionale)</label><input id="price-cache" name="cache_rate" type="number" min="0" step="any"></div>
+        <button type="submit" class="primary">Salva tariffa</button>
+      </form>
+      <p id="usage-price-message" role="status"></p>
+      <div class="memory-table-wrap"><table class="memory-table"><thead><tr><th>Provider</th><th>Modello</th><th>Input</th><th>Output</th><th>Cache</th><th>Aggiornata</th></tr></thead><tbody id="usage-prices"></tbody></table></div>
+    </details>
+  </section>
 </main>
 
 <footer class="foot">
@@ -357,5 +391,6 @@
 </footer>
 
 <script src="/static/app.js"></script>
+<script src="/static/usage.js"></script>
 </body>
 </html>

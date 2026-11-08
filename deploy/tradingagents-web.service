@@ -1,0 +1,49 @@
+# TradingAgents web console come servizio di sistema.
+#
+#   sudo cp deploy/tradingagents-web.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now tradingagents-web
+#
+# Il processo ascolta solo su 127.0.0.1: la porta e' scelta libera (la 8000 e'
+# del docker di defguard); Apache la pubblica in reverse proxy con
+# deploy/apache-tradingagents-8010.conf.
+#
+# Il .env viene caricato dall'applicazione stessa (load_dotenv con usecwd=True
+# in tradingagents/__init__.py, che parte dalla WorkingDirectory): niente
+# EnvironmentFile, cosi' il parsing resta identico a `python -m webapp` a mano.
+
+[Unit]
+Description=TradingAgents web console (uvicorn)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+# Root perche' tutto l'albero (/var/www/TradingAgents, .env 600) e' di root e
+# i dati finiscono in ~/.tradingagents, come negli avvii manuali. Per restringere:
+#   useradd -r -s /usr/sbin/nologin tradingagents
+#   chown -R tradingagents:tradingagents /var/www/TradingAgents
+#   (e qui sotto User=/Group=, piu' ReadWritePaths se serve)
+User=root
+Group=root
+WorkingDirectory=/var/www/TradingAgents
+
+Environment=TRADINGAGENTS_WEB_HOST=127.0.0.1
+Environment=TRADINGAGENTS_WEB_PORT=8010
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/var/www/TradingAgents/.venv/bin/python -m webapp
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+SyslogIdentifier=tradingagents-web
+UMask=0027
+
+# Hardening che non interferisce con i dati in /root/.tradingagents:
+# niente privilegi nuovi, /tmp privato, /usr /etc /boot in sola lettura.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
