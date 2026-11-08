@@ -186,8 +186,62 @@ def reconcile_metric(
 
 
 # ---------------------------------------------------------------------------
-# Share-class conversion (contract: never mix BRK-A book value with BRK-B price)
+# Currency consistency (contract: verify currency before dividing metrics)
 # ---------------------------------------------------------------------------
+
+
+def validate_currency_consistency(
+    price_currency: str | None,
+    metric_currency: str | None,
+    *,
+    profile=None,
+) -> ValidationResult:
+    """Check that a price and a per-share metric are in comparable currency units.
+
+    A Milan-listed utility quotes in EUR and reports in EUR: consistent. A
+    London listing quotes in GBp (pence) while per-share financials are in
+    GBP: a direct ratio is wrong by 100x. When an :class:`InstrumentProfile`
+    is supplied, the profiler's conversion factor resolves a minor-unit
+    mismatch into a pass-with-conversion; without it, any mismatch is an
+    error. Unknown currencies on either side are UNVERIFIED, not errors —
+    the caller's fail-closed rule decides whether to proceed.
+    """
+    result = ValidationResult()
+    if not price_currency or not metric_currency:
+        result.add(
+            "CURRENCY_UNKNOWN", WARNING,
+            f"currency not reported (price: {price_currency!r}, metric: "
+            f"{metric_currency!r}); ratios are unverified until known",
+        )
+        return result
+    price_c, metric_c = price_currency.strip(), metric_currency.strip()
+    if price_c == metric_c:
+        return result
+    # A minor-unit quote (GBp) against main-unit financials (GBP) is fine
+    # with the profiler's conversion factor; without it, it is an error.
+    if profile is not None and profile.currency_conversion is not None \
+            and profile.per_share_currency() == metric_c:
+        result.add(
+            "CURRENCY_MINOR_UNIT", WARNING,
+            f"price quoted in {price_c} (minor unit); metrics in {metric_c}: "
+            f"apply the {profile.currency_conversion} factor before ratios",
+        )
+        return result
+    result.add(
+        "CURRENCY_MISMATCH", ERROR,
+        f"price is in {price_c} but the metric is in {metric_c}: not "
+        f"comparable without conversion",
+        field="currency", expected=price_c, actual=metric_c,
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Share-class conversion (contract: never mix class-A book value with class-B price)
+# ---------------------------------------------------------------------------
+
+# Class suffixes the identity checks recognize, shared with the profiler.
+_CLASS_SUFFIXES = ("-A", "-B", "-C", ".A", ".B", ".C")
 
 
 def convert_share_class(value: float, ratio: float, from_class: str, to_class: str) -> float:
@@ -195,7 +249,8 @@ def convert_share_class(value: float, ratio: float, from_class: str, to_class: s
 
     ``ratio`` is how many ``to_class`` shares one ``from_class`` share equals
     (BRK: 1 A = 1500 B). A per-A book value becomes per-B by dividing; per-B
-    to per-A multiplies.
+    to per-A multiplies. The ratio comes from the vendor (the profiler reads
+    it) or from a verified source — never derived from prices here.
     """
     if ratio <= 0:
         raise ValueError(f"conversion ratio must be positive, got {ratio}")
@@ -230,35 +285,42 @@ def validate_share_class_comparison(
 # Ticker identity (contract: verify identity before dividing metrics)
 # ---------------------------------------------------------------------------
 
-# Tickers that share a root but are different instruments. A validator that
-# only string-matches the root would serve one class's data for the other.
-_SHARE_CLASS_SIBLINGS = {
-    "BRK": ("BRK-A", "BRK-B"),
-}
 
-
-def check_ticker_identity(requested: str, served: str) -> ValidationResult:
+def check_ticker_identity(requested: str, served: str, *, profile=None) -> ValidationResult:
     """Verify the served symbol is the requested instrument, not a sibling class.
 
     ``requested`` is what the user asked for; ``served`` is the canonical
-    symbol the vendor actually served (after normalization). A mismatch is
-    an error when the two are known share-class siblings, a warning when
-    they merely differ (normalization may legitimately rewrite the symbol).
+    symbol the vendor actually served (after normalization). When an
+    :class:`InstrumentProfile` is supplied, sibling-class detection comes
+    from the profiler (structural, any ticker with a class suffix); without
+    one, only an exact match passes and any other difference is a warning —
+    normalization may legitimately rewrite a symbol (``700.HK`` ->
+    ``0700.HK``), so a bare string mismatch is never an error on its own.
     """
     result = ValidationResult()
     req, srv = requested.strip().upper(), served.strip().upper()
     if req == srv:
         return result
-    root_req = req.split("-")[0].split(".")[0]
-    for sibling_pair in _SHARE_CLASS_SIBLINGS.values():
-        if req in sibling_pair and srv in sibling_pair and req != srv:
-            result.add(
-                "TICKER_SIBLING_CLASS", ERROR,
-                f"requested {req} but vendor served {srv}: different share class, "
-                f"not interchangeable",
-                field="symbol", expected=req, actual=srv,
-            )
-            return result
+    if profile is not None:
+        root = profile.share_class_root
+        own = profile.share_class
+        if root and own:
+            def _class_of(symbol: str) -> str | None:
+                for suffix in _CLASS_SUFFIXES:
+                    if symbol.endswith(suffix):
+                        return suffix.lstrip("-.")
+                    if symbol == f"{root}{suffix}":
+                        return suffix
+                return None
+            served_class = _class_of(srv)
+            if served_class is not None and served_class != own:
+                result.add(
+                    "TICKER_SIBLING_CLASS", ERROR,
+                    f"requested {req} but vendor served {srv}: different share "
+                    f"class of {root}, not interchangeable",
+                    field="symbol", expected=req, actual=srv,
+                )
+                return result
     result.add("TICKER_REWRITTEN", WARNING,
                f"requested {req} was served as {srv} (normalization)")
     return result

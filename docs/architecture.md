@@ -43,7 +43,16 @@ Dati di mercato / financials / news
 ```
 
 Le decisioni `BUY` e `OVERWEIGHT` degli agenti non autorizzano l'esecuzione di ordini. Qualsiasi ordine simulato richiede il passaggio esplicito da RiskEngine ed ExecutionGate.
+## 3.1 Instrument Profiler (implementato)
 
+`tradingagents/dataflows/instrument_profiler.py` classifica qualsiasi strumento **dai dati del vendor**, senza tabelle per-ticker, così che Data Validator, Fact Checker, Risk Engine ed Execution Gate si comportino in modo uniforme su qualunque mercato:
+
+- **Tipo strumento** (`quoteType` del vendor, con fallback strutturali: suffisso `=X` → forex, prefisso `^` → indice, base crypto nota → crypto). Tipo non riconosciuto → `UNKNOWN`, mai un'ipotesi.
+- **Valute**: valuta di quotazione (`currency`) e di rendicontazione (`financialCurrency`). Quotazioni in unità minori (GBp a Londra) ricevono un fattore di conversione verso l'unità principale (GBP).
+- **Classi azionarie**: rilevate **strutturalmente** dal suffisso del ticker (`BRK-B` → root `BRK`, classe `B`); solo un separatore esplicito conta — una lettera finale nuda non è un suffisso (`NVDA` è NVIDIA, non `NVD` classe `A`). I fratelli di classe sono candidati strutturali, da validare contro il vendor prima d'essere trattati come reali.
+- **Qualità dei dati**: `COMPLETE` / `PARTIAL` / `UNKNOWN` — il segnale fail-closed per i chiamanti.
+
+Integrazioni: `validator.check_ticker_identity` accetta un profilo (la classe-sorella servita dal vendor è un errore; senza profilo, una differenza di stringa resta un warning di normalizzazione); `validator.validate_currency_consistency` usa il profilo per risolvere le unità minori. Casi di test: BRK-B (dual-class USA), AAPL e NVDA (single-class USA), ENI.MI (Milano, EUR), più GBp, crypto e indici — tutte le aspettative vengono dal payload vendor simulato, non da regole per-ticker.
 ## 4. Invarianti di sicurezza
 
 1. Istruzioni e configurazioni esistenti non vengono sovrascritte arbitrariamente.
