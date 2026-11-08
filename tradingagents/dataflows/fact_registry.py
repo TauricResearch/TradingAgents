@@ -173,6 +173,31 @@ def _agree(a: float, b: float, tolerance_pct: float) -> bool:
     return abs(a - b) / abs(b) * 100 <= tolerance_pct
 
 
+# Unit scales to a common base (USD million) before comparison: 9.6
+# USD_billion and 9,600 USD_million are the same fact stated in different
+# units, not a conflict. Keys are upper-case; the lookup normalizes. Units
+# outside this table are never normalized and are only compared when
+# identical.
+_UNIT_TO_MILLIONS = {
+    "USD": 1e-3,
+    "USD_THOUSAND": 1e-6,
+    "USD_MILLION": 1.0,
+    "USD_BILLION": 1e3,
+    "EUR": 1e-3,
+    "EUR_MILLION": 1.0,
+    "EUR_BILLION": 1e3,
+    "GBP": 1e-3,
+    "GBP_MILLION": 1.0,
+    "GBP_BILLION": 1e3,
+}
+
+
+def _to_millions(value: float, unit: str) -> float | None:
+    """The value expressed in millions, or None when the unit is unknown."""
+    scale = _UNIT_TO_MILLIONS.get((unit or "").strip().upper())
+    return value * scale if scale is not None else None
+
+
 # EPS definition families: a consensus figure compared against an actual of
 # another definition is the shape of an uncertifiable "beat".
 _EPS_MARKERS = ("eps_gaap", "eps_operating", "eps_adjusted", "eps_consensus",
@@ -218,24 +243,48 @@ def register_facts(
         if not fact.verified and fact.fact_key not in report.unverified_metrics:
             report.unverified_metrics.append(fact.fact_key)
 
-    # Group by comparable scope.
+    # Group by comparable scope. Units are normalized to a common base
+    # (millions) before comparison: 9.6 USD_billion and 9,600 USD_million
+    # are the same fact stated differently. The comparison key keeps the
+    # normalized value's unit so a normalized group is compared on one
+    # base; the original unit difference is recorded on the conflict.
     groups: dict[tuple, list[AgentFact]] = {}
     for fact in facts:
         if fact.value is None:
             continue
-        groups.setdefault(fact.scope_key(), []).append(fact)
+        normalized = _to_millions(fact.value, fact.unit)
+        if normalized is not None:
+            key = (fact.fact_key, fact.metric_id, fact.period,
+                   fact.period_end, fact.segment, "USD_million_base",
+                   fact.currency, fact.metric_definition)
+        else:
+            key = fact.scope_key()
+        groups.setdefault(key, []).append(fact)
 
     for key, group in sorted(groups.items(), key=lambda kv: str(kv[0])):
         if len(group) < 2:
             continue
-        reference = group[0].value
-        if all(_agree(f.value, reference, tolerance_pct) for f in group[1:]):
+        reference = _to_millions(group[0].value, group[0].unit)
+        if reference is None:
+            reference = group[0].value
+        if all(
+            _agree(
+                (_to_millions(f.value, f.unit) if _to_millions(f.value, f.unit)
+                 is not None else f.value),
+                reference, tolerance_pct,
+            )
+            for f in group[1:]
+        ):
             continue
         conflict = FactConflict(
             fact_key=key[0], metric_id=key[1], period=key[2], segment=key[4],
-            unit=key[5], currency=key[6], metric_definition=key[7],
+            unit=group[0].unit, currency=key[6], metric_definition=key[7],
             assertions=list(group),
         )
+        if len({f.unit for f in group}) > 1:
+            # The values were only comparable after normalization: record
+            # the unit difference on the conflict for the audit trail.
+            conflict.reason_code = UNIT_MISMATCH
         primaries = [f for f in group if f.verified and f.is_primary]
         if primaries and not _is_eps(group[0]):
             # A verified primary settles the value — except for the EPS

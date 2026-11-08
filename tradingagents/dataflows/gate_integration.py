@@ -22,11 +22,13 @@ from pathlib import Path
 
 from tradingagents.dataflows.audit import AuditRecord
 from tradingagents.dataflows.causal_guard import evaluate_post_event_pricing
+from tradingagents.dataflows.claim_harvester import harvest_facts
 from tradingagents.dataflows.execution_gate import (
     GateDecision,
     PlanInput,
     evaluate_plan,
 )
+from tradingagents.dataflows.fact_registry import register_facts
 from tradingagents.dataflows.filing_freshness import (
     check_filing_freshness,
 )
@@ -192,8 +194,22 @@ def evaluate_decision(
             data_quality_blocked = True
 
     # P0.2: an unresolved cross-agent conflict over a material fact must
-    # not feed an approval.
-    if fact_registry_report is not None and fact_registry_report.blocks_decision:
+    # not feed an approval. The registry is populated automatically from
+    # the run's own reports (labelled metric patterns only) when the
+    # caller did not supply one; harvested facts are unverified by
+    # construction — harvesting proves what an agent asserted, not that
+    # it is true.
+    registry = fact_registry_report
+    if registry is None:
+        harvested = harvest_facts({
+            key: final_state.get(key)
+            for key in ("market_report", "news_report", "sentiment_report",
+                        "fundamentals_report")
+            if isinstance(final_state.get(key), str)
+        })
+        if harvested:
+            registry = register_facts(harvested)
+    if registry is not None and registry.blocks_decision:
         data_quality_blocked = True
 
     plan = PlanInput(
@@ -231,8 +247,8 @@ def evaluate_decision(
     )
     if freshness is not None:
         record.fundamentals_freshness = freshness
-    if fact_registry_report is not None:
-        record.fact_registry = fact_registry_report
+    if registry is not None:
+        record.fact_registry = registry
     if sizing is not None:
         record.exposure_sizing = sizing
     return record, decision

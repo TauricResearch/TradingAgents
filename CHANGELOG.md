@@ -40,13 +40,21 @@ Istruzioni per l'agente AI:
   financial facts are registered with full scope (metric, value, unit,
   currency, period, segment, definition, source). Same-scope values are
   compared; scope differences (Q2 vs Q3, GAAP vs operating) are never
-  conflated into conflicts. An absence never refutes a sourced value. A
-  consensus/estimate EPS compared against an actual of another definition
-  is `METRIC_DEFINITION_MISMATCH` — no certified "beat". Conflicts
-  resolve only via a verified primary source; unresolved ones block.
-  Diagnostic codes: `FACT_CONFLICT`, `FACT_CONFLICT_UNRESOLVED`,
-  `PERIOD_MISMATCH`, `UNIT_MISMATCH`, `METRIC_DEFINITION_MISMATCH`,
-  `UNVERIFIED_FINANCIAL_METRIC`, `PRIMARY_SOURCE_WINS`.
+  conflated into conflicts. Units are normalized to a common base before
+  comparison — 9.6 USD_billion and 9,600 USD_million are the same fact
+  stated differently, and a unit difference alone is recorded as
+  `UNIT_MISMATCH` context on the conflict, never silently ignored. An
+  absence never refutes a sourced value. A consensus/estimate EPS
+  compared against an actual of another definition is
+  `METRIC_DEFINITION_MISMATCH` — no certified "beat". Conflicts resolve
+  only via a verified primary source; unresolved ones block. Diagnostic
+  codes: `FACT_CONFLICT`, `FACT_CONFLICT_UNRESOLVED`, `PERIOD_MISMATCH`,
+  `UNIT_MISMATCH`, `METRIC_DEFINITION_MISMATCH`,
+  `UNVERIFIED_FINANCIAL_METRIC`, `PRIMARY_SOURCE_WINS`. The registry
+  populates automatically from the run's own reports via
+  `dataflows/claim_harvester.py` (labelled metric patterns only, bare
+  numbers never guessed; harvested facts are unverified by construction —
+  harvesting proves what an agent asserted, not that it is true).
 - **Valuation reconciliation (P0.3).** New module
   (`tradingagents/dataflows/valuation.py`): book value per share, market
   cap and P/B computed only after currency and share-class consistency
