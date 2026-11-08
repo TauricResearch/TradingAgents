@@ -21,6 +21,24 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Independent Fact Checker and bounded debate (Phase 5).** A claim-level
+  checker (`tradingagents/dataflows/fact_checker.py`) classifies every
+  material claim (`FACT`, `DERIVED_CALCULATION`, `CAUSAL_INFERENCE`,
+  `HYPOTHESIS`, `FORECAST`, `UNSUPPORTED`) and checks it against the run's
+  verified facts: a causal claim like "the market has already absorbed the
+  Q3" is refuted with `EVENT_AFTER_LAST_MARKET_SESSION` when no post-event
+  session exists; a fact presented without supporting fact ids is refuted;
+  support resting on unverified or quarantined facts downgrades the claim.
+  A refuted *blocking* claim stops the decision. A debate controller
+  (`tradingagents/dataflows/debate.py`) ends rounds that add no new
+  evidence, no verifiable rebuttal and no concrete plan change (the
+  repeating-the-opening-claim failure), keeps the round cap configurable,
+  and separates rating disagreement (opinions may differ) from trigger
+  disagreement (must resolve or the decision blocks). A refuted claim is
+  checkably barred from returning as fact.
+
+### Added
+
 - **Separated portfolio decision (Phase 4).** A typed decision model
   (`tradingagents/dataflows/portfolio_decision.py`) keeps the contract's
   three levels distinct: strategic rating (`UNDERWEIGHT/NEUTRAL/OVERWEIGHT`
