@@ -21,6 +21,21 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Execution Gate wired into the run flow.** Every finished run is now
+  evaluated through the Execution Gate and audited
+  (`tradingagents/dataflows/gate_integration.py`, called from
+  `TradingAgentsGraph.record_decision`): the gate's verdict is attached to
+  the run state (`execution_action`, `execution_reason_codes`) and the
+  audit JSON is written beside the state log under
+  `results_dir/<ticker>/reliability_audit/`. The decision itself is still
+  recorded and reported exactly as before — the gate governs the execution
+  vocabulary, not reporting — and a reliability-layer failure is logged
+  and skipped rather than losing the run's reports or memory entry. An
+  unreadable rating blocks rather than being guessed (#1170); plan numbers
+  absent from the decision skip the risk check instead of being invented.
+
+### Added
+
 - **Walk-forward validation (Phase 7).** A pure fold-and-score module
   (`tradingagents/dataflows/walk_forward.py`) for historical out-of-sample
   validation without look-ahead: folds cut a historical range so each
