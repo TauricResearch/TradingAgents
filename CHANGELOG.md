@@ -21,6 +21,18 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Reliability baseline (Phase 0).** Frozen BRK-B regression fixture for the
+  2026-11-08 report case (`tests/fixtures/brk_b_2026_11_08.py`) and a
+  deterministic regression suite (`tests/test_reliability_baseline.py`, 14
+  tests) pinning the temporal facts the reliability contract requires: the Q3
+  release postdates the last completed session, no post-event price exists at
+  report time, the Friday close-to-close move is ~-0.25% (not -0.01%), the
+  543.70/543.50 tranche-stop plan sits at ~0.021 ATR (far below the 0.5 ATR
+  minimum buffer), and strategic ratings share no vocabulary with execution
+  actions. A safety audit test verifies the codebase holds no broker SDK or
+  order-submission symbol and that the shared HTTP helper is read-only
+  (GET/HEAD only).
+
 - The web console runs backtests: a **Backtest** tab drives the CLI's `backtest`
   command over a grid of tickers and dates, shows each cell as it runs and the
   per-rating score once settled. One sweep at a time, into its own memory log
