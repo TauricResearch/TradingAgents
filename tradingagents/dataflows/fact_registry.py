@@ -203,7 +203,12 @@ def _to_millions(value: float, unit: str) -> float | None:
 _EPS_MARKERS = ("eps_gaap", "eps_operating", "eps_adjusted", "eps_consensus",
                 "gaap_diluted", "operating_eps", "adjusted_eps",
                 "consensus_eps")
-_ESTIMATE_MARKERS = ("consensus", "estimate", "expected", "forecast")
+# Figures that are not the company's reported GAAP number: a consensus or
+# an adjusted/estimate figure is not comparable to a GAAP actual without an
+# explicit reconciliation. Two GAAP-family actuals (GAAP vs operating) are
+# separate facts, not a mismatch.
+_ESTIMATE_MARKERS = ("consensus", "estimate", "expected", "forecast",
+                     "adjusted")
 
 
 def _is_eps(fact: AgentFact) -> bool:

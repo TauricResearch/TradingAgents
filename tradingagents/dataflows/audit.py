@@ -66,6 +66,11 @@ class AuditRecord:
     # P0.5 exposure-capped sizing (None when the plan had no numbers or no
     # risk budget — the sizing is skipped, never guessed).
     exposure_sizing: object | None = None
+    # P0-D structured execution verdict: the machine-readable answer to
+    # "may the desk act now, and if not, exactly why".
+    execution_verdict: object | None = None
+    # P0-B arithmetic verdicts (None when no snapshot was supplied).
+    arithmetic_verdicts: list | None = None
 
     # Market snapshot as validated (None fields stay None: never invented).
     session_date: str | None = None
@@ -138,7 +143,7 @@ class AuditRecord:
         gate = self.gate
         action = gate.action.value if gate else None
         reasons = [r.value for r in gate.reasons] if gate else []
-        return {
+        entry = {
             "action": action,
             "market_order_allowed": False,  # paper-only, by construction
             "paper_order_allowed_now": bool(
@@ -149,6 +154,11 @@ class AuditRecord:
             ),
             "reason_codes": reasons,
         }
+        # P0-D: the structured verdict, alongside the gate's raw action.
+        verdict = self.execution_verdict
+        if verdict is not None:
+            entry["verdict"] = verdict.to_dict()
+        return entry
 
     def _risk_entry(self) -> dict:
         stop = self.stop_validation
@@ -184,7 +194,9 @@ class AuditRecord:
         fc = self.fact_check
         freshness = self.fundamentals_freshness
         registry = self.fact_registry
-        if prov is None and fc is None and freshness is None and registry is None:
+        arithmetic = self.arithmetic_verdicts or []
+        if (prov is None and fc is None and freshness is None
+                and registry is None and not arithmetic):
             return {"status": None, "blocking_claims": []}
         blocking = fc.blocking_claim_ids if fc else []
         freshness_codes = (
@@ -201,6 +213,12 @@ class AuditRecord:
             status = "REQUIRES_RECONCILIATION"
         else:
             status = "OK"
+        arithmetic = self.arithmetic_verdicts or []
+        arithmetic_blocking = [
+            v.reason_code for v in arithmetic if v.blocks_decision
+        ]
+        if arithmetic_blocking:
+            status = "BLOCKED_BY_CLAIMS"
         return {
             "status": status,
             "provenance_summary": prov.summary() if prov else None,
@@ -209,7 +227,13 @@ class AuditRecord:
                 freshness.summary() if freshness is not None else None
             ),
             "fact_registry": registry.summary() if registry is not None else None,
-            "blocking_claims": list(blocking) + freshness_codes + registry_unresolved,
+            "arithmetic": (
+                [v.summary() for v in arithmetic] if arithmetic else None
+            ),
+            "blocking_claims": (
+                list(blocking) + freshness_codes + registry_unresolved
+                + arithmetic_blocking
+            ),
         }
 
     def to_json(self, *, indent: int = 2) -> str:
