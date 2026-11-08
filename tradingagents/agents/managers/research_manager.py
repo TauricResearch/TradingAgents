@@ -9,6 +9,7 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.data_gate import precheck_notice_from_state
 
 
 def create_research_manager(llm):
@@ -17,6 +18,10 @@ def create_research_manager(llm):
     def research_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
         history = state["investment_debate_state"].get("history", "")
+        # The deterministic pre-check runs before this stage: a stale filing or
+        # a contradicted percentage is named here, so the plan cannot present
+        # it as a verified fact. Empty when no check objected.
+        data_quality_notice = precheck_notice_from_state(state)
 
         investment_debate_state = state["investment_debate_state"]
 
@@ -39,6 +44,8 @@ The debate always contains conflicting arguments; deciding which side is stronge
 
 **Debate History:**
 {history}
+
+{data_quality_notice}
 
 ## Output
 

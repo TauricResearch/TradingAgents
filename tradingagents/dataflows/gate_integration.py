@@ -56,6 +56,29 @@ logger = logging.getLogger(__name__)
 _POLICY_VERSION = "reliability-contract-2026-11"
 
 
+def _freshness_from_precheck(precheck: dict):
+    """Rebuild a freshness verdict from the graph pre-check's summary.
+
+    The pre-check stores its verdict as a dict; the audit wants the typed
+    object. Only the fields the audit reads are restored — this is a
+    presentation of the same computation, never a new one.
+    """
+    data = (precheck or {}).get("freshness") or {}
+    if not data:
+        return None
+    from tradingagents.dataflows.filing_freshness import FreshnessVerdict
+
+    return FreshnessVerdict(
+        status=data.get("status", ""),
+        reason_code=data.get("reason_code", ""),
+        latest_known_period=data.get("latest_known_period"),
+        latest_known_period_end=data.get("latest_known_period_end"),
+        used_period=data.get("used_period"),
+        used_period_end=data.get("used_period_end"),
+        reason=data.get("reason", ""),
+    )
+
+
 def evaluate_decision(
     ticker: str,
     trade_date: str,
@@ -196,9 +219,19 @@ def evaluate_decision(
     # P0.1: the fundamentals the analyst used must be the freshest
     # authoritative filing known at the analysis date. Stale or undatable
     # fundamentals block — an older quarter must not pass as current.
+    #
+    # When the graph's pre-check already ran (it carries its verdict in the
+    # state), that verdict is REUSED rather than recomputed: the analysis
+    # the managers saw and the gate's decision must be the same computation,
+    # or a run could be debated as verified and then blocked, or worse the
+    # reverse.
     freshness = None
     data_quality_blocked = False
-    if fundamentals_filings is not None:
+    precheck = final_state.get("data_quality_precheck")
+    if isinstance(precheck, dict) and precheck.get("blocks_execution"):
+        data_quality_blocked = True
+        freshness = _freshness_from_precheck(precheck)
+    elif fundamentals_filings is not None:
         freshness = check_filing_freshness(
             used_fundamentals_period_end, fundamentals_filings, trade_date,
             used_period=used_fundamentals_period,

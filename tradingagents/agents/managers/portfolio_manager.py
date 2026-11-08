@@ -18,6 +18,7 @@ from tradingagents.agents.context import (
 from tradingagents.agents.rating import parse_rating
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
 from tradingagents.agents.structured import NO_EXTERNAL_TOOLS, bind_structured, invoke_structured
+from tradingagents.dataflows.data_gate import precheck_notice_from_state
 
 
 def create_portfolio_manager(llm):
@@ -38,6 +39,10 @@ def create_portfolio_manager(llm):
             if past_context
             else ""
         )
+        # The deterministic pre-check ran before synthesis; a stale filing or
+        # a contradicted percentage is named here so it cannot be presented
+        # as verified. Empty when no check objected.
+        data_quality_notice = precheck_notice_from_state(state)
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
@@ -58,6 +63,8 @@ def create_portfolio_manager(llm):
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
 {lessons_line}
+{data_quality_notice}
+
 **Risk Analysts Debate History:**
 {history}
 

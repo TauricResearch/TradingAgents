@@ -71,3 +71,4 @@ class AgentState(MessagesState):
     past_context: Annotated[str, "Memory log context for the Portfolio Manager (same-ticker decisions + cross-ticker lessons), written by the Memory Log step"]
     memory_note: Annotated[str, "What the Memory Log step could not settle or read this run, for the report; empty when all went well"]
     portfolio_context: Annotated[str, "Caller-supplied holdings and cash, rendered at run start; empty when not provided"]
+    data_quality_precheck: Annotated[dict, "Deterministic data-quality findings computed before synthesis (freshness, arithmetic); the managers see the notice and the gate reuses the verdicts"]

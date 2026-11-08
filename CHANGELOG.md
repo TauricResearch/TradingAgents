@@ -64,6 +64,16 @@ Istruzioni per l'agente AI:
   offline P0 suites (`reliability-regression`) on every pull request; a
   regression there fails the build. The suites need no network, no LLM, no
   SEC credentials and no broker.
+- **The data-quality checks run before synthesis, not only at the gate.**
+  New `tradingagents/graph/data_quality_node.py` and
+  `tradingagents/dataflows/data_gate.py` place the freshness and arithmetic
+  verdicts between the analysts and the research debate, so the Research
+  Manager and Portfolio Manager are told which figures the data does not
+  support instead of debating them as verified. The findings are carried in
+  the state as a binding notice; the Execution Gate **reuses** the same
+  verdicts rather than recomputing, so what the agents were told and what
+  the gate decides cannot diverge. A provider failure yields no filings,
+  which the check reports as unavailable — never a silent pass.
 
 - **SEC filing freshness gate (P0.1).** New deterministic module
   (`tradingagents/dataflows/filing_freshness.py`): identifies the most
