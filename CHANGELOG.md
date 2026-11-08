@@ -21,6 +21,24 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Data validation layer (Phase 1).** A provenance registry
+  (`tradingagents/dataflows/provenance.py`) records where each material fact
+  came from, its publication and retrieval times, and its verification
+  status: facts without a verified publication time are `UNVERIFIED` and
+  cannot feed a decision; contested ones are `QUARANTINED`. An event-to-price
+  causal guard (`tradingagents/dataflows/causal_guard.py`) answers
+  deterministically whether post-event prices exist — `NOT_YET_OBSERVABLE`,
+  `OBSERVABLE` or `INSUFFICIENT_DATA` — so a claim like "the stock absorbed
+  the earnings" is checkable against the market calendar instead of asserted.
+  A deterministic validator (`tradingagents/dataflows/validator.py`) checks
+  OHLC consistency, reconciles vendor metrics across units with a
+  materiality threshold, and blocks cross-share-class comparisons (e.g. a
+  BRK-B price against BRK-A book value) until converted. The news analyst
+  gains a `check_event_pricing` tool and is instructed to call it before
+  attributing any price move to a published event.
+
+### Added
+
 - **Reliability baseline (Phase 0).** Frozen BRK-B regression fixture for the
   2026-11-08 report case (`tests/fixtures/brk_b_2026_11_08.py`) and a
   deterministic regression suite (`tests/test_reliability_baseline.py`, 14

@@ -6,6 +6,7 @@ and never serves data past it, whatever date the model asks for.
 
 from typing import Annotated, Literal
 
+import pandas as pd
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
@@ -289,3 +290,91 @@ def get_prediction_markets(
         str: A formatted markdown report of matching prediction markets
     """
     return route_to_vendor("get_prediction_markets", topic, limit, trade_date or None)
+
+
+@tool
+def check_event_pricing(
+    symbol: Annotated[str, InjectedState("company_of_interest")],
+    event_date: Annotated[str, "Date the event was published, YYYY-MM-DD"],
+    event_description: Annotated[str, "What the event is, e.g. 'Q3 2026 earnings release'"],
+    curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """Check whether post-event prices exist before claiming a market reaction.
+
+    Call this BEFORE writing any sentence like "the stock absorbed the
+    earnings with a X% move" or "the market reacted to the announcement".
+    It answers, from the market calendar, whether any trading session has
+    actually occurred after the event's publication:
+
+    - NOT_YET_OBSERVABLE: no post-event session yet — a reaction claim would
+      be temporally false. Describe the event without attributing a price
+      reaction.
+    - OBSERVABLE: post-event prices exist; the first usable session is
+      reported and reaction claims must cite prices from it or later.
+    - INSUFFICIENT_DATA: the publication time is unknown, so no causal
+      claim can be checked.
+
+    Args:
+        event_date (str): When the event was published, YYYY-MM-DD
+        event_description (str): Short description of the event
+        curr_date (str): The current trading date, YYYY-mm-dd
+    Returns:
+        str: The causal verdict with the evidence dates.
+    """
+    from tradingagents.dataflows.causal_guard import (
+        NOT_YET_OBSERVABLE,
+        OBSERVABLE,
+        evaluate_post_event_pricing,
+    )
+    from tradingagents.dataflows.errors import VendorError
+    from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv
+
+    analysis_date = as_of(curr_date, trade_date)
+    # The calendar comes from the price series itself: the sessions the
+    # vendor actually served, which is what any price claim would cite.
+    try:
+        frame = load_ohlcv(symbol, analysis_date, fill_gaps=False)
+    except VendorError:
+        frame = None
+    sessions = (
+        [d.strftime("%Y-%m-%d") for d in pd.to_datetime(frame["Date"]).dt.date]
+        if frame is not None and "Date" in frame.columns and not frame.empty
+        else []
+    )
+    verdict = evaluate_post_event_pricing(
+        event_date, sessions, as_of_date=analysis_date
+    )
+    lines = [
+        f"## Event-to-price causal check for {symbol.upper()}: {event_description}",
+        "",
+        f"- Event published: {verdict.event_date or 'UNKNOWN'}",
+        f"- Analysis date: {analysis_date}",
+        f"- Last session on/before the event: {verdict.last_session_before or 'none'}",
+        f"- First session after the event: {verdict.first_session_after or 'none yet'}",
+        f"- Status: **{verdict.status}**",
+        "",
+        verdict.reason,
+    ]
+    if verdict.status == NOT_YET_OBSERVABLE:
+        lines += [
+            "",
+            "Do NOT claim the market reacted to this event. Any percentage move "
+            "attributed to it is not checkable yet; describe the event and note "
+            "that the next session has not traded.",
+        ]
+    elif verdict.status == OBSERVABLE:
+        lines += [
+            "",
+            f"Reaction claims must cite prices from {verdict.first_session_after} "
+            "or later. A close on or before the event date is a pre-event price, "
+            "not a reaction.",
+        ]
+    else:
+        lines += [
+            "",
+            "The publication time is unknown, so no causal claim about prices "
+            "can be verified. Report the event without attributing any price "
+            "reaction to it.",
+        ]
+    return "\n".join(lines)
