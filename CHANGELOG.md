@@ -21,6 +21,23 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Walk-forward validation (Phase 7).** A pure fold-and-score module
+  (`tradingagents/dataflows/walk_forward.py`) for historical out-of-sample
+  validation without look-ahead: folds cut a historical range so each
+  train window ends strictly before its test window, and the memory log's
+  `as_of` guard (lessons resolved by `train_end`) is the enforcement point
+  for what a test-window decision may learn from. Scoring is honest by
+  construction: pending cells are counted and excluded from averages,
+  never folded in as zero; a rating with fewer than 5 settled samples is
+  labelled `insufficient` instead of reporting a noisy hit rate; `Hold`
+  claims no direction so nothing about alpha proves it right or wrong;
+  alpha is measured from the first close *after* each analysis date over a
+  declared holding window against a declared benchmark, and the summary
+  states that basis with the caveat that one model sampling per cell is
+  indicative rather than repeatable.
+
+### Added
+
 - **Structured audit trail (Phase 6).** An audit record
   (`tradingagents/dataflows/audit.py`) assembles the earlier phases' typed
   verdicts — provenance, causal guard, stop validation, sizing, portfolio
