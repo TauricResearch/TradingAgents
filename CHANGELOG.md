@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Changes that need action when upgrading are listed under "Upgrading from" in their release.
 
+<!--
+Istruzioni per l'agente AI:
+- Aggiorna la sezione [Unreleased] nella stessa Pull Request che introduce la modifica.
+- Aggiungi solo modifiche effettivamente implementate, non le attività pianificate nel contratto.
+- Usa le categorie Added, Changed, Deprecated, Removed, Fixed, Security quando pertinenti.
+- Descrivi l'effetto per l'utente o il comportamento del sistema, non ogni file toccato.
+- Non inventare PR, issue, URL, versioni, date o esiti dei test.
+- Non spostare le voci in una versione pubblicata senza autorizzazione esplicita.
+- Se una modifica di una PR non viene integrata, non deve apparire nel changelog del branch predefinito (custom).
+-->
+
 ## [Unreleased]
 
 ### Added
