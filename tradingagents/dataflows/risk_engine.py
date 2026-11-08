@@ -408,6 +408,255 @@ def size_with_exposure_cap(
                                 tuple(reasons), cap_applied)
 
 
+# ---------------------------------------------------------------------------
+# Multi-tranche risk (P0-C): per-leg risk and aggregate exposure
+# ---------------------------------------------------------------------------
+
+# A leg whose stop sits closer than this many ATRs is flagged for policy:
+# the distance is too tight to survive normal noise. A threshold, not a
+# universal law — the caller may override it per strategy.
+DEFAULT_MIN_TRANCHE_ATR = 0.25
+
+
+@dataclass(frozen=True)
+class TrancheRisk:
+    """One tranche's risk, priced on its own entry and stop.
+
+    ``atr_multiple`` is the stop distance in ATR units — the number the
+    policy threshold judges. ``valid`` is False when the stop sits on the
+    wrong side for the direction; ``reason_code`` carries why.
+    """
+
+    entry: float
+    stop: float
+    atr: float
+    direction: str
+    risk_per_share: float
+    atr_multiple: float
+    valid: bool
+    reason_code: str
+
+    @property
+    def blocked(self) -> bool:
+        return not self.valid
+
+    def summary(self) -> dict:
+        return {
+            "entry": self.entry,
+            "stop": self.stop,
+            "atr": self.atr,
+            "direction": self.direction,
+            "risk_per_share": self.risk_per_share,
+            "atr_multiple": self.atr_multiple,
+            "valid": self.valid,
+            "reason_code": self.reason_code,
+        }
+
+
+def tranche_risk(
+    entry: float | None,
+    stop: float | None,
+    atr: float | None,
+    *,
+    direction: str = "LONG",
+    min_atr: float = DEFAULT_MIN_TRANCHE_ATR,
+) -> TrancheRisk:
+    """Price one tranche's risk on its own entry and stop.
+
+    A stop-distance risk is *theoretical*: the worst case at the stop, not a
+    guaranteed fill (gap and slippage widen it — see ``stress_exit``). Each
+    leg keeps its own numbers: a second tranche entered lower must never
+    inherit the first leg's risk per share.
+    """
+    if direction not in ("LONG", "SHORT"):
+        return TrancheRisk(entry or 0.0, stop or 0.0, atr or 0.0, direction,
+                           0.0, 0.0, False, RiskReason.DIRECTION_INVALID.value)
+    if not (math.isfinite(entry or 0) and entry > 0) \
+            or not (math.isfinite(stop or 0) and stop > 0):
+        return TrancheRisk(entry or 0.0, stop or 0.0, atr or 0.0, direction,
+                           0.0, 0.0, False, RiskReason.INVALID_ENTRY.value)
+    wrong_side = (direction == "LONG" and stop >= entry) \
+        or (direction == "SHORT" and stop <= entry)
+    if wrong_side:
+        return TrancheRisk(entry, stop, atr or 0.0, direction, 0.0, 0.0,
+                           False, "INVALID_STOP_SIDE")
+
+    distance = abs(entry - stop)
+    multiple = distance / atr if math.isfinite(atr or 0) and atr > 0 else 0.0
+    if multiple and multiple < min_atr:
+        # Valid geometry, but too tight to be a sensible protective stop.
+        return TrancheRisk(entry, stop, atr, direction, distance, multiple,
+                           True, "STOP_TOO_TIGHT_FOR_POLICY")
+    return TrancheRisk(entry, stop, atr or 0.0, direction, distance, multiple,
+                       True, "OK")
+
+
+@dataclass(frozen=True)
+class TrancheOutcome:
+    """One tranche's sizing within an aggregate plan."""
+
+    entry: float
+    stop: float
+    qty: int
+    notional: float
+    risk: float
+    risk_per_share: float
+    atr_multiple: float
+    reason_code: str | None = None    # None when the tranche is fine
+
+    @property
+    def blocked(self) -> bool:
+        return self.qty <= 0 and self.reason_code is not None
+
+    def summary(self) -> dict:
+        return {
+            "entry": self.entry,
+            "stop": self.stop,
+            "qty": self.qty,
+            "notional": self.notional,
+            "risk": self.risk,
+            "risk_per_share": self.risk_per_share,
+            "atr_multiple": self.atr_multiple,
+            "reason_code": self.reason_code,
+        }
+
+
+@dataclass(frozen=True)
+class AggregateRiskResult:
+    """Aggregate sizing over all tranches plus existing exposure."""
+
+    tranches: list[TrancheOutcome] = field(default_factory=list)
+    total_qty: int = 0
+    total_notional: float = 0.0
+    total_risk: float = 0.0
+    blocked: bool = False
+    reasons: tuple[str, ...] = field(default_factory=tuple)
+
+    def summary(self) -> dict:
+        return {
+            "tranches": [t.summary() for t in self.tranches],
+            "total_qty": self.total_qty,
+            "total_notional": self.total_notional,
+            "total_risk": self.total_risk,
+            "blocked": self.blocked,
+            "reasons": list(self.reasons),
+        }
+
+
+def _as_tranche(leg) -> dict:
+    """Accept a TranchePlan, a mapping, or an object with the same fields."""
+    if isinstance(leg, dict):
+        return leg
+    return {
+        "entry": getattr(leg, "entry", None),
+        "stop": getattr(leg, "stop", None),
+        "atr": getattr(leg, "atr", None),
+        "direction": getattr(leg, "direction", "LONG"),
+        "strategy_id": getattr(leg, "strategy_id", None),
+        "trigger": getattr(leg, "trigger", None),
+    }
+
+
+def aggregate_tranche_risk(
+    tranches: list,
+    *,
+    risk_budget: float | None,
+    equity: float | None,
+    max_symbol_exposure: float | None,
+    existing_notional: float = 0.0,
+    existing_risk: float = 0.0,
+    min_atr: float = DEFAULT_MIN_TRANCHE_ATR,
+) -> AggregateRiskResult:
+    """Size every tranche on its own stop and enforce the AGGREGATE budgets.
+
+    Each leg is priced from its own entry and stop — a second leg entered
+    lower does not inherit the first's risk. Then, simultaneously:
+
+    - total risk (all legs + the existing open risk) stays within
+      ``risk_budget``;
+    - total notional (all legs + the existing notional) stays within
+      ``max_symbol_exposure`` * equity.
+
+    A leg that cannot be sized because a budget is exhausted is skipped, not
+    an error: the *alternative* scenarios simply do not both fire. Only
+    invalid geometry (wrong-side stop, invalid price) blocks the plan.
+
+    Without portfolio context (no equity, no budget) nothing is invented:
+    the result is blocked with ``PORTFOLIO_CONTEXT_MISSING``.
+    """
+    reasons: list[str] = []
+    if risk_budget is None or not math.isfinite(risk_budget) or risk_budget <= 0:
+        return AggregateRiskResult(reasons=(RiskReason.RISK_BUDGET_MISSING.value,),
+                                   blocked=True)
+    if equity is None or not math.isfinite(equity) or equity <= 0:
+        return AggregateRiskResult(
+            reasons=(RiskReason.PORTFOLIO_CONTEXT_MISSING.value,), blocked=True)
+    if max_symbol_exposure is None or not (0 < max_symbol_exposure <= 1):
+        return AggregateRiskResult(
+            reasons=(RiskReason.EXPOSURE_CAP_INVALID.value,), blocked=True)
+
+    outcomes: list[TrancheOutcome] = []
+    total_qty = 0
+    total_notional = max(0.0, existing_notional)
+    total_risk = max(0.0, existing_risk)
+    remaining_risk = risk_budget - max(0.0, existing_risk)
+    remaining_notional = equity * max_symbol_exposure - max(0.0, existing_notional)
+
+    for leg in tranches:
+        spec = _as_tranche(leg)
+        priced = tranche_risk(
+            spec.get("entry"), spec.get("stop"), spec.get("atr"),
+            direction=spec.get("direction") or "LONG", min_atr=min_atr,
+        )
+        if priced.reason_code == "INVALID_STOP_SIDE":
+            outcomes.append(TrancheOutcome(
+                priced.entry, priced.stop, 0, 0.0, 0.0, 0.0, 0.0,
+                "INVALID_STOP_SIDE"))
+            reasons.append("INVALID_STOP_SIDE")
+            continue
+        if priced.reason_code in ("INVALID_ENTRY", "DIRECTION_INVALID"):
+            outcomes.append(TrancheOutcome(
+                priced.entry, priced.stop, 0, 0.0, 0.0, 0.0, 0.0,
+                priced.reason_code))
+            reasons.append(priced.reason_code)
+            continue
+
+        risk_per_share = priced.risk_per_share
+        qty_risk = int(math.floor(remaining_risk / risk_per_share)) \
+            if risk_per_share > 0 and remaining_risk > 0 else 0
+        qty_exposure = int(math.floor(remaining_notional / priced.entry)) \
+            if remaining_notional > 0 else 0
+        qty = min(qty_risk, qty_exposure)
+
+        if qty <= 0:
+            # A budget-exhausted leg is simply not taken; the plan is not
+            # invalid because two alternatives cannot both fire.
+            outcomes.append(TrancheOutcome(
+                priced.entry, priced.stop, 0, 0.0, 0.0, risk_per_share,
+                priced.atr_multiple, None))
+            continue
+
+        notional = qty * priced.entry
+        risk = qty * risk_per_share
+        outcomes.append(TrancheOutcome(
+            priced.entry, priced.stop, qty, notional, risk, risk_per_share,
+            priced.atr_multiple, None))
+        total_qty += qty
+        total_notional += notional
+        total_risk += risk
+        remaining_risk -= risk
+        remaining_notional -= notional
+
+    return AggregateRiskResult(
+        tranches=outcomes,
+        total_qty=total_qty,
+        total_notional=total_notional,
+        total_risk=total_risk,
+        blocked=bool(reasons),
+        reasons=tuple(dict.fromkeys(reasons)),
+    )
+
+
 def portfolio_risk_check(
     planned_risk: float | None,
     equity: float | None,
