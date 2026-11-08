@@ -21,6 +21,72 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **SEC filing freshness gate (P0.1).** New deterministic module
+  (`tradingagents/dataflows/filing_freshness.py`): identifies the most
+  recent authoritative filing (company release or SEC filing, with
+  `filing_date`, `accepted_at`, `period_end`, `form_type`,
+  `accession_number`, source and retrieval timestamp) known at the
+  analysis date, and compares it against the period the fundamentals
+  analyst actually used. A vendor serving Q2 while the Q3 filing is
+  already public yields `STALE_FUNDAMENTALS`; no known filing or an
+  undatable report yields `FUNDAMENTALS_UNAVAILABLE` — both block the
+  decision's execution vocabulary. No look-ahead: a filing dated after
+  the analysis date is invisible, keeping backtests honest. The gate runs
+  automatically in `record_decision` (point-in-time extraction from SEC
+  EDGAR; the used period is read from the run's own fundamentals report)
+  and can be disabled with `fundamentals_freshness_gate: false`.
+- **Shared financial fact registry (P0.2).** New deterministic module
+  (`tradingagents/dataflows/fact_registry.py`): every agent's material
+  financial facts are registered with full scope (metric, value, unit,
+  currency, period, segment, definition, source). Same-scope values are
+  compared; scope differences (Q2 vs Q3, GAAP vs operating) are never
+  conflated into conflicts. Units are normalized to a common base before
+  comparison — 9.6 USD_billion and 9,600 USD_million are the same fact
+  stated differently, and a unit difference alone is recorded as
+  `UNIT_MISMATCH` context on the conflict, never silently ignored. An
+  absence never refutes a sourced value. A consensus/estimate EPS
+  compared against an actual of another definition is
+  `METRIC_DEFINITION_MISMATCH` — no certified "beat". Conflicts resolve
+  only via a verified primary source; unresolved ones block. Diagnostic
+  codes: `FACT_CONFLICT`, `FACT_CONFLICT_UNRESOLVED`, `PERIOD_MISMATCH`,
+  `UNIT_MISMATCH`, `METRIC_DEFINITION_MISMATCH`,
+  `UNVERIFIED_FINANCIAL_METRIC`, `PRIMARY_SOURCE_WINS`. The registry
+  populates automatically from the run's own reports via
+  `dataflows/claim_harvester.py` (labelled metric patterns only, bare
+  numbers never guessed; harvested facts are unverified by construction —
+  harvesting proves what an agent asserted, not that it is true).
+- **Valuation reconciliation (P0.3).** New module
+  (`tradingagents/dataflows/valuation.py`): book value per share, market
+  cap and P/B computed only after currency and share-class consistency
+  pass; a cross-class book value without a conversion ratio is refused,
+  never silently converted.
+- **Exposure-capped position sizing (P0.5).** New
+  `risk_engine.size_with_exposure_cap`: sizing applies the stop-distance
+  budget AND the per-symbol notional cap simultaneously and reports which
+  bound. The 100k/1%/560/552.07 scenario yields 8 shares (4,480 USD)
+  under a 5% cap instead of ~126 shares (~70,600 USD) from the
+  stop-distance alone. Missing portfolio context never invents a size
+  (`PORTFOLIO_CONTEXT_MISSING`); wrong-side stops block per direction
+  (`risk_engine.validate_stop_side`). The sizing runs automatically in
+  the real flow: the plan's numbers (entry/stop/ATR/direction) are
+  extracted from the Trader's own plan text by
+  `dataflows/plan_extraction.py` — labelled patterns only, bare numbers
+  in prose never guessed — and the audit's `risk` section records the
+  capped quantity, notional and which constraint bound.
+- **Final order reconciliation (P0.6).** New module
+  (`tradingagents/dataflows/order_reconciliation.py`): the Portfolio
+  Manager's decision prevails over the Trader's earlier proposal; any
+  revision to quantity/entry/stop/side voids prior authorizations and
+  requires full revalidation; a HOLD decision reconciles to a
+  zero-quantity, unauthorized candidate — a HOLD never becomes a BUY or
+  SELL.
+- **P0 gates wired into the decision point.**
+  `gate_integration.evaluate_decision` accepts the freshness inputs, a
+  fact registry report and the position direction; stale fundamentals, an
+  unresolved material conflict or a wrong-side stop each BLOCK with
+  stable reason codes, and the audit JSON carries the verdicts under
+  `data_quality`.
+
 - **Download button for the markdown report.** The web console's run and
   archive panels gain a **⤓ Download markdown** button that saves the
   consolidated markdown report as a file (`<TICKER>_<DATE>_report.md`)

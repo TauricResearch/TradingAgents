@@ -12,6 +12,10 @@ from tradingagents.agents.context import build_instrument_context, resolve_instr
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
 from tradingagents.dataflows.date_window import get_current_date, is_historical
+from tradingagents.dataflows.filing_freshness import (
+    filings_from_sec_edgar,
+    used_period_end_from_report,
+)
 from tradingagents.dataflows.gate_integration import (
     attach_to_state,
     evaluate_decision,
@@ -392,7 +396,19 @@ class TradingAgentsGraph:
         run's own reports or memory entry, so any exception is logged and
         skipped. The gate's verdict is attached to the state (execution_action)
         and the audit JSON lands beside the state log.
+
+        The P0.1 fundamentals-freshness gate runs automatically: the filings
+        known at the analysis date come from SEC EDGAR (point-in-time, no
+        look-ahead) and the period the analyst used is read from the run's
+        own fundamentals report. A non-US filer or an unreachable SEC yields
+        no filings, and the gate reports FUNDAMENTALS_UNAVAILABLE rather
+        than guessing — an extraction failure must not skip the gate, it
+        must fail closed.
         """
+        filings = self._known_filings(company_name, trade_date)
+        used_end = used_period_end_from_report(
+            final_state.get("fundamentals_report")
+        )
         try:
             record, decision = evaluate_decision(
                 company_name, trade_date, final_state,
@@ -401,6 +417,8 @@ class TradingAgentsGraph:
                     "deep": self.config.get("deep_think_llm"),
                     "quick": self.config.get("quick_think_llm"),
                 },
+                fundamentals_filings=filings,
+                used_fundamentals_period_end=used_end,
             )
             attach_to_state(final_state, decision)
             path = write_audit_record(record, self.config["results_dir"])
@@ -409,6 +427,26 @@ class TradingAgentsGraph:
         except Exception:  # noqa: BLE001 — the audit must never sink the run
             logger.exception("Reliability evaluation failed for %s on %s",
                              company_name, trade_date)
+
+    def _known_filings(self, ticker: str, trade_date: str) -> list | None:
+        """The authoritative filings known at the analysis date, point-in-time.
+
+        Reads SEC EDGAR's cached companyfacts through the freshness module's
+        extractor, which filters every filing to ``filed <= trade_date`` —
+        a backtest never sees a filing the market had not seen. Best-effort:
+        an unreachable SEC or a non-US filer yields an empty list, which the
+        freshness gate reports as FUNDAMENTALS_UNAVAILABLE (fail-closed),
+        never a guess. Returns None when the operator disabled the gate: the
+        check is then not run at all, rather than run against nothing.
+        """
+        if not self.config.get("fundamentals_freshness_gate", True):
+            return None
+        try:
+            return filings_from_sec_edgar(ticker, trade_date)
+        except Exception:  # noqa: BLE001 — an extraction failure is UNAVAILABLE
+            logger.debug("Could not extract filings for %s as of %s",
+                         ticker, trade_date, exc_info=True)
+            return []
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
                    checkpoint_thread_id: str | None = None, portfolio=None):

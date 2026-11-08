@@ -180,6 +180,12 @@ def build_default_config() -> dict:
         # Trading days from the first close after the analysis date over which a
         # decision's outcome is measured, for reflection and for the backtest figures.
         "holding_period_days": 5,
+        # P0.1 fundamentals-freshness gate: compare the period the fundamentals
+        # analyst used against the latest SEC filing known at the analysis
+        # date (point-in-time, no look-ahead). A stale or undatable period
+        # blocks the decision's execution vocabulary. Disable only when the
+        # instrument universe has no US filers at all.
+        "fundamentals_freshness_gate": True,
         "benchmark_ticker": None,
         "benchmark_map": {
             ".NS":  "^NSEI",       # NSE India (Nifty 50)

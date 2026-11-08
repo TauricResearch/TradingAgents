@@ -59,6 +59,9 @@ class RiskReason(StrEnum):
     NON_POSITIVE_SIZE = "NON_POSITIVE_SIZE"
     CASH_EXCEEDED = "CASH_EXCEEDED"
     PORTFOLIO_CONTEXT_MISSING = "PORTFOLIO_CONTEXT_MISSING"
+    EXPOSURE_CAP_EXCEEDED = "EXPOSURE_CAP_EXCEEDED"
+    EXPOSURE_CAP_INVALID = "EXPOSURE_CAP_INVALID"
+    DIRECTION_INVALID = "DIRECTION_INVALID"
 
 
 @dataclass(frozen=True)
@@ -113,6 +116,47 @@ def validate_stop(
                               min_atr, RiskReason.STOP_BUFFER_TOO_TIGHT)
     return StopValidation(True, entry, stop, atr, distance, atr_multiple,
                           min_atr, RiskReason.OK)
+
+
+def validate_stop_side(
+    entry: float,
+    stop: float,
+    direction: str = "LONG",
+) -> object:
+    """Whether the stop sits on the protective side of the entry.
+
+    A LONG's stop is below the entry; a SHORT's is above. A stop on the
+    wrong side protects nothing — it is an error, not a wide stop. Returns
+    a :class:`ValidationResult` from the shared validator vocabulary so the
+    caller can collect the issue with the rest of the data-quality checks.
+    """
+    from tradingagents.dataflows.validator import ValidationResult
+
+    result = ValidationResult()
+    if direction not in ("LONG", "SHORT"):
+        result.add("STOP_DIRECTION_UNKNOWN", "error",
+                   f"direction {direction!r} is not LONG or SHORT")
+        return result
+    if not (math.isfinite(entry) and math.isfinite(stop)) \
+            or entry <= 0 or stop <= 0:
+        result.add("STOP_LEVELS_INVALID", "error",
+                   f"entry {entry} / stop {stop} must be positive finite prices")
+        return result
+    if direction == "LONG" and stop >= entry:
+        result.add(
+            "STOP_WRONG_SIDE", "error",
+            f"a LONG stop ({stop}) must sit below the entry ({entry}); at or "
+            "above it protects nothing",
+            field="stop", expected="< entry", actual=stop,
+        )
+    if direction == "SHORT" and stop <= entry:
+        result.add(
+            "STOP_WRONG_SIDE", "error",
+            f"a SHORT stop ({stop}) must sit above the entry ({entry}); at or "
+            "below it protects nothing",
+            field="stop", expected="> entry", actual=stop,
+        )
+    return result
 
 
 @dataclass(frozen=True)
@@ -244,6 +288,124 @@ class PortfolioRisk:
         """True when the plan may not proceed: no portfolio context, or the
         planned loss exceeds the portfolio's maximum-loss budget."""
         return bool(self.reasons) and self.reasons != (RiskReason.OK,)
+
+
+@dataclass(frozen=True)
+class ExposureSizingResult:
+    """Sizing subject to the stop-budget AND the per-symbol exposure cap.
+
+    ``binding_constraint`` records which limit actually bound the size
+    (``RISK_BUDGET`` or ``EXPOSURE_CAP``): the cap binding is the policy
+    working as intended, not a failure. ``exposure_cap_applied`` is True
+    whenever a cap was in force, so the audit can show the notional was
+    capped, not merely affordable.
+    """
+
+    qty: int
+    notional: float
+    planned_risk: float
+    binding_constraint: str | None    # "RISK_BUDGET" | "EXPOSURE_CAP" | None
+    reasons: tuple[RiskReason, ...] = field(default_factory=tuple)
+    exposure_cap_applied: bool = False
+
+    @property
+    def blocked(self) -> bool:
+        return self.qty <= 0 or bool(self.reasons)
+
+
+def size_with_exposure_cap(
+    *,
+    entry: float,
+    stop: float,
+    atr: float,
+    risk_budget: float | None,
+    equity: float | None,
+    max_symbol_exposure: float | None,
+    direction: str = "LONG",
+    cash: float | None = None,
+    existing_notional: float = 0.0,
+    gap_atr: float = 0.0,
+    slippage_pct: float = 0.0,
+    min_atr: float = DEFAULT_MIN_ENTRY_STOP_ATR,
+) -> ExposureSizingResult:
+    """Size a tranche under BOTH the stop-distance budget and the exposure cap.
+
+    Sizing to the stop-distance alone can produce an enormous position: a
+    100,000 USD portfolio with a 1,000 USD risk budget, entry 560 and stop
+    552.07 gives floor(1000 / 7.93) = 126 shares — about 70,600 USD of
+    notional, 70% of the portfolio in one ticker. The per-symbol exposure
+    cap is the binding constraint that must also apply: with a 5% cap the
+    same plan is capped at floor(5000 / 560) = 8 shares (4,480 USD).
+
+    The engine applies the *most binding* constraint and reports which one
+    bound the size. All limits are caller-configured — nothing is
+    hardcoded per ticker. Without portfolio context (no equity) no size is
+    invented: the result is qty 0 with ``PORTFOLIO_CONTEXT_MISSING``.
+    """
+    reasons: list[RiskReason] = []
+
+    # Direction sanity: the stop must protect the position's side.
+    if direction not in ("LONG", "SHORT"):
+        return ExposureSizingResult(0, 0.0, 0.0, None,
+                                    (RiskReason.DIRECTION_INVALID,))
+    if not (math.isfinite(entry) and entry > 0) \
+            or not (math.isfinite(stop) and stop > 0):
+        return ExposureSizingResult(0, 0.0, 0.0, None,
+                                    (RiskReason.INVALID_ENTRY,))
+    if direction == "LONG" and stop >= entry:
+        return ExposureSizingResult(0, 0.0, 0.0, None,
+                                    (RiskReason.INVALID_STOP,))
+    if direction == "SHORT" and stop <= entry:
+        return ExposureSizingResult(0, 0.0, 0.0, None,
+                                    (RiskReason.INVALID_STOP,))
+    if risk_budget is None or not math.isfinite(risk_budget) or risk_budget <= 0:
+        return ExposureSizingResult(0, 0.0, 0.0, None,
+                                    (RiskReason.RISK_BUDGET_MISSING,))
+
+    risk_per_share = abs(entry - stop)
+    stressed_extra = max(0.0, gap_atr) * atr + max(0.0, slippage_pct) * entry
+    stressed_risk = risk_per_share + stressed_extra
+
+    qty_risk = int(math.floor(risk_budget / stressed_risk)) \
+        if stressed_risk > 0 else 0
+
+    # Exposure cap: notional at entry (plus what is already held) must stay
+    # within the configured fraction of equity.
+    qty_exposure = None
+    cap_applied = False
+    if max_symbol_exposure is not None:
+        if equity is None or not math.isfinite(equity) or equity <= 0:
+            return ExposureSizingResult(
+                0, 0.0, 0.0, None, (RiskReason.PORTFOLIO_CONTEXT_MISSING,))
+        if not (0 < max_symbol_exposure <= 1):
+            return ExposureSizingResult(
+                0, 0.0, 0.0, None, (RiskReason.EXPOSURE_CAP_INVALID,))
+        cap_applied = True
+        max_notional = equity * max_symbol_exposure - max(0.0, existing_notional)
+        qty_exposure = int(math.floor(max_notional / entry)) \
+            if max_notional > 0 else 0
+
+    if qty_exposure is not None:
+        qty = min(qty_risk, qty_exposure)
+        binding = "EXPOSURE_CAP" if qty_exposure < qty_risk else "RISK_BUDGET"
+    else:
+        qty = qty_risk
+        binding = "RISK_BUDGET"
+
+    if qty <= 0:
+        reasons.append(RiskReason.NON_POSITIVE_SIZE)
+        return ExposureSizingResult(0, 0.0, 0.0, None, tuple(reasons),
+                                    cap_applied)
+
+    notional = qty * entry
+    if cash is not None and (not math.isfinite(cash) or cash < 0 or notional > cash):
+        reasons.append(RiskReason.CASH_EXCEEDED)
+        return ExposureSizingResult(0, 0.0, 0.0, None, tuple(reasons),
+                                    cap_applied)
+
+    planned_risk = qty * stressed_risk
+    return ExposureSizingResult(qty, notional, planned_risk, binding,
+                                tuple(reasons), cap_applied)
 
 
 def portfolio_risk_check(

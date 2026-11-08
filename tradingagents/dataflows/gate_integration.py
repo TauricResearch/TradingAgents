@@ -22,17 +22,28 @@ from pathlib import Path
 
 from tradingagents.dataflows.audit import AuditRecord
 from tradingagents.dataflows.causal_guard import evaluate_post_event_pricing
+from tradingagents.dataflows.claim_harvester import harvest_facts
 from tradingagents.dataflows.execution_gate import (
-    ExecutionAction,
     GateDecision,
     PlanInput,
     evaluate_plan,
 )
+from tradingagents.dataflows.fact_registry import register_facts
+from tradingagents.dataflows.filing_freshness import (
+    check_filing_freshness,
+)
+from tradingagents.dataflows.plan_extraction import extract_plan_numbers
 from tradingagents.dataflows.portfolio_decision import (
     map_legacy_rating,
     with_execution_action,
 )
-from tradingagents.dataflows.risk_engine import validate_stop
+from tradingagents.dataflows.risk_engine import (
+    DEFAULT_MIN_ENTRY_STOP_ATR,
+    RiskReason,
+    StopValidation,
+    size_with_exposure_cap,
+    validate_stop_side,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +65,18 @@ def evaluate_decision(
     atr: float | None = None,
     trigger_met: bool = False,
     market_open: bool = True,
+    # P0 data-quality inputs (all optional; absent checks are not guessed).
+    fundamentals_filings: list | None = None,
+    used_fundamentals_period_end: str | None = None,
+    used_fundamentals_period: str | None = None,
+    fact_registry_report=None,
+    position_direction: str | None = None,
+    # P0.5 sizing inputs (optional; absent portfolio context never invents
+    # a size — the sizing is skipped rather than guessed).
+    equity: float | None = None,
+    cash: float | None = None,
+    risk_budget: float | None = None,
+    max_symbol_exposure: float | None = None,
 ) -> tuple[AuditRecord, GateDecision]:
     """Evaluate a finished run's decision through the gate and audit it.
 
@@ -61,6 +84,22 @@ def evaluate_decision(
     own text when its caller extracted them; when absent the risk check is
     skipped rather than guessed, and the gate sees a valid plan with no
     trigger — the honest default. Returns ``(audit_record, gate_decision)``.
+
+    P0 data-quality gates, all fail-closed:
+
+    - ``fundamentals_filings`` + ``used_fundamentals_period_end``: the
+      freshness gate compares the period the analyst used against the
+      latest filing known at the analysis date; a stale or undatable
+      period blocks (``FUNDAMENTALS_STALE`` / ``FUNDAMENTALS_UNAVAILABLE``).
+    - ``fact_registry_report``: an unresolved cross-agent conflict over a
+      material fact blocks (``DATA_QUALITY_BLOCKED``).
+    - ``position_direction``: the stop must sit on the protective side for
+      the position's direction; a wrong-side stop blocks. Defaults to the
+      plan text's own direction when not supplied.
+    - ``equity``/``cash``/``risk_budget``/``max_symbol_exposure``: with the
+      plan's numbers (extracted from the decision text when not passed),
+      sizing runs under BOTH the stop-distance budget and the per-symbol
+      exposure cap; without portfolio context no size is invented.
     """
     rating_label = final_state.get("final_rating") or ""
     # An unreadable rating maps to nothing: the gate sees an unknown
@@ -79,14 +118,99 @@ def evaluate_decision(
             event_publication_date, sessions, as_of_date=trade_date
         )
 
-    # Risk engine: only when the plan's numbers are all present.
+    # Risk engine: the plan's numbers come from the caller when supplied,
+    # else from the run's own trader plan text (labelled patterns only —
+    # bare numbers in prose are never guessed).
+    plan_numbers = extract_plan_numbers(
+        final_state.get("trader_investment_plan")
+    )
+    eff_entry = entry if entry is not None else plan_numbers.entry
+    eff_stop = stop if stop is not None else plan_numbers.stop
+    eff_atr = atr if atr is not None else plan_numbers.atr
+    eff_direction = position_direction or plan_numbers.direction
+
     stop_validation = None
     risk_blocked = False
     risk_reasons = ()
-    if entry is not None and stop is not None and atr is not None:
-        stop_validation = validate_stop(entry, stop, atr)
-        risk_blocked = stop_validation.blocked
-        risk_reasons = (stop_validation.reason,) if stop_validation.blocked else ()
+    sizing = None
+    if eff_entry is not None and eff_stop is not None and eff_atr is not None:
+        # The ATR-buffer check uses the absolute distance so a SHORT plan's
+        # stop above the entry is measured by the same rule; the side check
+        # below (validate_stop_side) enforces the direction itself.
+        distance = abs(eff_entry - eff_stop)
+        if distance <= 0:
+            risk_blocked = True
+            risk_reasons = ("INVALID_STOP",)
+        else:
+            atr_multiple = distance / eff_atr
+            if atr_multiple < DEFAULT_MIN_ENTRY_STOP_ATR:
+                stop_validation = StopValidation(
+                    False, eff_entry, eff_stop, eff_atr, distance,
+                    atr_multiple, DEFAULT_MIN_ENTRY_STOP_ATR,
+                    RiskReason.STOP_BUFFER_TOO_TIGHT)
+                risk_blocked = True
+                risk_reasons = (RiskReason.STOP_BUFFER_TOO_TIGHT,)
+            else:
+                stop_validation = StopValidation(
+                    True, eff_entry, eff_stop, eff_atr, distance,
+                    atr_multiple, DEFAULT_MIN_ENTRY_STOP_ATR, RiskReason.OK)
+
+            # P0.5: size under BOTH the stop-distance budget and the
+            # per-symbol exposure cap. Without portfolio context (no
+            # equity) no size is invented — the sizing result records
+            # PORTFOLIO_CONTEXT_MISSING and the plan cannot pass as
+            # executable.
+            if not risk_blocked and risk_budget is not None:
+                sizing = size_with_exposure_cap(
+                    entry=eff_entry, stop=eff_stop, atr=eff_atr,
+                    risk_budget=risk_budget, equity=equity,
+                    max_symbol_exposure=max_symbol_exposure,
+                    direction=eff_direction, cash=cash,
+                )
+                if sizing.reasons:
+                    risk_blocked = True
+                    risk_reasons = risk_reasons + sizing.reasons
+
+    # P0: the stop must sit on the protective side for the position's
+    # direction. A wrong-side stop protects nothing and blocks the plan.
+    stop_side = None
+    if eff_entry is not None and eff_stop is not None:
+        stop_side = validate_stop_side(eff_entry, eff_stop, eff_direction)
+        if stop_side.has_errors:
+            risk_blocked = True
+            risk_reasons = risk_reasons + ("STOP_WRONG_SIDE",)
+
+    # P0.1: the fundamentals the analyst used must be the freshest
+    # authoritative filing known at the analysis date. Stale or undatable
+    # fundamentals block — an older quarter must not pass as current.
+    freshness = None
+    data_quality_blocked = False
+    if fundamentals_filings is not None:
+        freshness = check_filing_freshness(
+            used_fundamentals_period_end, fundamentals_filings, trade_date,
+            used_period=used_fundamentals_period,
+        )
+        if freshness.blocks_decision:
+            data_quality_blocked = True
+
+    # P0.2: an unresolved cross-agent conflict over a material fact must
+    # not feed an approval. The registry is populated automatically from
+    # the run's own reports (labelled metric patterns only) when the
+    # caller did not supply one; harvested facts are unverified by
+    # construction — harvesting proves what an agent asserted, not that
+    # it is true.
+    registry = fact_registry_report
+    if registry is None:
+        harvested = harvest_facts({
+            key: final_state.get(key)
+            for key in ("market_report", "news_report", "sentiment_report",
+                        "fundamentals_report")
+            if isinstance(final_state.get(key), str)
+        })
+        if harvested:
+            registry = register_facts(harvested)
+    if registry is not None and registry.blocks_decision:
+        data_quality_blocked = True
 
     plan = PlanInput(
         ticker=ticker,
@@ -95,6 +219,7 @@ def evaluate_decision(
         trigger_met=trigger_met,
         risk_blocked=risk_blocked,
         risk_reasons=risk_reasons,
+        data_quality_blocked=data_quality_blocked,
         post_event_status=causal.status if causal else None,
         signal_as_of=trade_date,
         analysis_as_of=trade_date,
@@ -120,6 +245,12 @@ def evaluate_decision(
         strategic=strategic,
         session_date=sessions[-1] if sessions else None,
     )
+    if freshness is not None:
+        record.fundamentals_freshness = freshness
+    if registry is not None:
+        record.fact_registry = registry
+    if sizing is not None:
+        record.exposure_sizing = sizing
     return record, decision
 
 
