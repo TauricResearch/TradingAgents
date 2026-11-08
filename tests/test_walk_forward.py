@@ -19,7 +19,6 @@ from tradingagents.dataflows.walk_forward import (
     summarize_walk_forward,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fold construction — the no-leakage geometry
 # ---------------------------------------------------------------------------

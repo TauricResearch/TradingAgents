@@ -14,16 +14,14 @@ from datetime import UTC, datetime
 
 import pytest
 
+from tests.fixtures.brk_b_2026_11_08 import ATR_14, STOP_LOSS, TRANCHE_3_ENTRY
 from tradingagents.dataflows.audit import SCHEMA_VERSION, AuditRecord
 from tradingagents.dataflows.causal_guard import (
     NOT_YET_OBSERVABLE,
-    CausalVerdict,
     evaluate_post_event_pricing,
 )
 from tradingagents.dataflows.execution_gate import (
     ExecutionAction,
-    GateDecision,
-    GateReason,
     PlanInput,
     evaluate_plan,
 )
@@ -42,7 +40,6 @@ from tradingagents.dataflows.risk_engine import (
     portfolio_risk_check,
     validate_stop,
 )
-from tests.fixtures.brk_b_2026_11_08 import ATR_14, STOP_LOSS, TRANCHE_3_ENTRY
 
 
 def _registry() -> ProvenanceRegistry:
@@ -219,7 +216,7 @@ def test_audit_section_carries_versions_without_secrets():
     # No key material anywhere in the record.
     text = json.dumps(_brk_b_record().to_dict())
     for secret in ("api_key", "API_KEY", "token", "password", "secret"):
-        assert secret.lower() not in text.lower() or secret == "secret" and False
+        assert secret.lower() not in text.lower()
 
 
 @pytest.mark.unit

@@ -21,7 +21,6 @@ from tradingagents.dataflows.validator import (
     validate_currency_consistency,
 )
 
-
 # Vendor payloads as Yahoo serves them (fields the profiler reads).
 BRK_B_INFO = {
     "quoteType": "EQUITY",

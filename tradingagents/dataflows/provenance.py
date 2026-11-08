@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
 
 # Verification statuses, ordered from strongest to weakest. The contract's
 # blocking rules key off these names; keep them stable.

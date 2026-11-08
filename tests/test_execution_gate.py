@@ -24,19 +24,19 @@ from tradingagents.dataflows.risk_engine import RiskReason
 
 def _plan(**overrides) -> PlanInput:
     """A plan that passes every check; overrides retarget any field."""
-    kwargs = dict(
-        ticker="BRK-B",
-        rating="OVERWEIGHT",
-        intent="ACCUMULATE_CONDITIONALLY",
-        trigger_met=True,
-        risk_blocked=False,
-        risk_reasons=(),
-        data_quality_blocked=False,
-        post_event_status=OBSERVABLE,
-        signal_as_of="2026-11-09",
-        analysis_as_of="2026-11-09",
-        market_open=True,
-    )
+    kwargs = {
+        "ticker": "BRK-B",
+        "rating": "OVERWEIGHT",
+        "intent": "ACCUMULATE_CONDITIONALLY",
+        "trigger_met": True,
+        "risk_blocked": False,
+        "risk_reasons": (),
+        "data_quality_blocked": False,
+        "post_event_status": OBSERVABLE,
+        "signal_as_of": "2026-11-09",
+        "analysis_as_of": "2026-11-09",
+        "market_open": True,
+    }
     kwargs.update(overrides)
     return PlanInput(**kwargs)
 

@@ -19,7 +19,6 @@ from tradingagents.dataflows.portfolio_decision import (
     with_execution_action,
 )
 
-
 # ---------------------------------------------------------------------------
 # Legacy mapping — explicit, label-preserving, fail-closed
 # ---------------------------------------------------------------------------
