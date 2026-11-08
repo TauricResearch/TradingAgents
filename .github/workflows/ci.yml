@@ -65,3 +65,38 @@ jobs:
         # The repo is fully clean under the strict select, so we lint everything
         # (generated results/ is excluded via pyproject extend-exclude).
         run: ruff check .
+
+  reliability-regression:
+    name: P0 reliability regression (offline)
+    runs-on: ubuntu-latest
+    # The P0 gates are the merge gate: a regression here must fail the PR.
+    # These suites are offline by construction — no network, no LLM, no
+    # SEC credentials, no broker — so they are safe to run on every PR.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install (with dev extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run the P0 regression suites
+        # Only files that exist on this branch: passing a missing path makes
+        # pytest exit non-zero for the wrong reason.
+        run: |
+          pytest -q \
+            tests/test_p0_final_hardening.py \
+            tests/test_p0_paper_safety.py \
+            tests/test_p0_completion.py \
+            tests/test_p0_auto_wiring.py \
+            tests/test_p0_harvest_wiring.py \
+            tests/test_p0_sizing_wiring.py \
+            tests/test_reliability_baseline.py \
+            tests/test_execution_gate.py \
+            tests/test_gate_integration.py \
+            tests/test_risk_engine.py \
+            tests/test_fact_checker.py \
+            tests/test_causal_guard.py \
+            tests/test_data_validator.py \
+            tests/test_audit.py
