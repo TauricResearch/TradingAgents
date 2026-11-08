@@ -663,17 +663,11 @@ function renderMessages(run) {
   }));
 }
 
-function reportDownloadName(ticker, date) {
-  return `${ticker}_${date}_report.md`;
-}
-
 function renderReport(run) {
   const links = [];
   if (run.report_available) {
     links.push(`<a href="/api/runs/${run.id}/report" target="_blank" rel="noopener">Open HTML report</a>`);
     links.push(`<a href="/api/runs/${run.id}/report.md" target="_blank" rel="noopener">Markdown</a>`);
-    // A real download: the browser saves the file instead of opening a tab.
-    links.push(`<a class="download" href="/api/runs/${run.id}/report.md?download=1" download="${reportDownloadName(run.ticker, run.analysis_date)}">⤓ Download markdown</a>`);
   }
   els.reportLinks.innerHTML = links.join("");
   loadChart(run.ticker, run.analysis_date);
@@ -838,8 +832,6 @@ async function openArchiveReport(report) {
   }
   if (report.source === "report") {
     links.push(`<a href="/api/archive/${report.id}/report.md" target="_blank" rel="noopener">Markdown</a>`);
-    // A real download: the browser saves the file instead of opening a tab.
-    links.push(`<a class="download" href="/api/archive/${report.id}/report.md?download=1" download="${reportDownloadName(report.ticker, report.analysis_date)}">⤓ Download markdown</a>`);
   }
   els.archiveLinks.innerHTML = links.join("");
 

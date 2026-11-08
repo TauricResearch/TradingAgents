@@ -376,24 +376,6 @@ class TestArchive:
         assert client.get("/api/archive/reports/AAPL_1/report").status_code == 404
         assert client.get("/api/archive/reports/AAPL_1/report.md").status_code == 200
 
-    def test_the_markdown_report_can_be_downloaded_as_a_file(self, tmp_path):
-        """The download button saves the report instead of opening a tab:
-        ?download=1 serves it as an attachment with a named file."""
-        _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04")
-        client = TestClient(create_app(RunManager(), results_dir=tmp_path))
-
-        inline = client.get("/api/archive/reports/AAPL_1/report.md")
-        assert inline.status_code == 200
-        assert inline.headers["content-disposition"].startswith("inline")
-        assert inline.headers["content-type"].startswith("text/markdown")
-
-        downloaded = client.get("/api/archive/reports/AAPL_1/report.md?download=1")
-        assert downloaded.status_code == 200
-        disposition = downloaded.headers["content-disposition"]
-        assert disposition.startswith("attachment")
-        assert "complete_report.md" in disposition
-        assert downloaded.text.startswith("# Trading Analysis Report")
-
     def test_an_unknown_rating_is_not_reported_as_a_tier(self, tmp_path):
         # A decision nobody could read is "REVIEW", which is not a position.
         _write_finished_report(tmp_path, "AAPL_1", "AAPL", "2026-11-04", rating="REVIEW")

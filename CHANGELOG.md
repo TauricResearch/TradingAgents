@@ -21,18 +21,7 @@ Istruzioni per l'agente AI:
 
 ### Added
 
-- **Download button for the markdown report.** The web console's run and
-  archive panels gain a **⤓ Download markdown** button that saves the
-  consolidated markdown report as a file (`<TICKER>_<DATE>_report.md`)
-  instead of opening it in a browser tab: the markdown endpoints
-  (`/api/runs/{id}/report.md`, `/api/archive/{id}/report.md`) accept
-  `?download=1` and serve a `Content-Disposition: attachment` header with
-  the report's filename. The existing "Open HTML report" and "Markdown"
-  links are unchanged (inline by default), so both opening and saving the
-  report remain available.
-
 - **SEC filing freshness gate (P0.1).** New deterministic module
-
   (`tradingagents/dataflows/filing_freshness.py`): identifies the most
   recent authoritative filing (company release or SEC filing, with
   `filing_date`, `accepted_at`, `period_end`, `form_type`,
