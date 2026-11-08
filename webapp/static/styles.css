@@ -234,13 +234,28 @@ button.ghost:hover:not(:disabled) { color: var(--ink); }
 .messages .type.type-Tool { color: var(--warn); }
 .messages .content { overflow-wrap: anywhere; white-space: pre-wrap; }
 
-.report-links { display: flex; gap: 0.5rem; margin-bottom: 0.7rem; }
+.report-links { display: flex; gap: 0.5rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
 .report-links a {
   font-size: 0.82rem; color: var(--accent);
   text-decoration: none; border: 1px solid var(--rule);
   border-radius: 6px; padding: 0.25rem 0.6rem;
 }
 .report-links a:hover { border-color: var(--accent); }
+/* The download button reads as an action: filled, so it is not mistaken for
+   another "open in a tab" link. A saved file leaves no navigate-away state. */
+.report-links a.download, .archive-links a.download {
+  background: var(--accent); color: var(--bg); border-color: var(--accent);
+  font-weight: 600;
+}
+.report-links a.download:hover, .archive-links a.download:hover { filter: brightness(1.08); }
+
+.archive-links { display: flex; gap: 0.5rem; margin-bottom: 0.7rem; flex-wrap: wrap; }
+.archive-links a {
+  font-size: 0.82rem; color: var(--accent);
+  text-decoration: none; border: 1px solid var(--rule);
+  border-radius: 6px; padding: 0.25rem 0.6rem;
+}
+.archive-links a:hover { border-color: var(--accent); }
 
 .report-body { max-height: 34rem; overflow: auto; }
 .report-section { margin-bottom: 1rem; }
