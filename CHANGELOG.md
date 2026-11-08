@@ -21,6 +21,21 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Structured audit trail (Phase 6).** An audit record
+  (`tradingagents/dataflows/audit.py`) assembles the earlier phases' typed
+  verdicts — provenance, causal guard, stop validation, sizing, portfolio
+  risk, execution gate, strategic decision, fact check — into the
+  contract's machine-readable schema (`schema_version` 1.0), produced
+  alongside the human report. Fields the run did not produce stay `None`,
+  never invented; the run id is derived deterministically from ticker,
+  analysis date and snapshot id so re-auditing is idempotent; model and
+  provider names are recorded, key material never is. A few-second human
+  summary separates the opinion (`OVERWEIGHT`) from the execution action
+  (`WAIT`/`BLOCK`) and names the blocking refuted claims, so a reader can
+  tell an opinion from a plan from an order at a glance.
+
+### Added
+
 - **Independent Fact Checker and bounded debate (Phase 5).** A claim-level
   checker (`tradingagents/dataflows/fact_checker.py`) classifies every
   material claim (`FACT`, `DERIVED_CALCULATION`, `CAUSAL_INFERENCE`,
