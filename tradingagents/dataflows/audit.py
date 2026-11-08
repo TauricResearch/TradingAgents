@@ -63,6 +63,9 @@ class AuditRecord:
     # P0 data-quality verdicts (None when the check did not run).
     fundamentals_freshness: object | None = None
     fact_registry: object | None = None
+    # P0.5 exposure-capped sizing (None when the plan had no numbers or no
+    # risk budget — the sizing is skipped, never guessed).
+    exposure_sizing: object | None = None
 
     # Market snapshot as validated (None fields stay None: never invented).
     session_date: str | None = None
@@ -151,6 +154,7 @@ class AuditRecord:
         stop = self.stop_validation
         sizing = self.sizing
         portfolio = self.portfolio_risk
+        exposure = self.exposure_sizing
         return {
             "stop_model": "VALIDATED" if (stop and not stop.blocked) else "UNVALIDATED",
             "stop_atr_multiple": stop.atr_multiple if stop else None,
@@ -164,6 +168,15 @@ class AuditRecord:
                 portfolio.planned_risk_pct_equity if portfolio else None
             ),
             "gap_stress_test_passed": bool(sizing and sizing.qty > 0),
+            # P0.5 exposure-capped sizing: which limit bound the size.
+            "exposure_capped_qty": exposure.qty if exposure else None,
+            "exposure_capped_notional": exposure.notional if exposure else None,
+            "exposure_binding_constraint": (
+                exposure.binding_constraint if exposure else None
+            ),
+            "exposure_cap_applied": (
+                exposure.exposure_cap_applied if exposure else None
+            ),
         }
 
     def _data_quality_entry(self) -> dict:

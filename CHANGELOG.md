@@ -59,7 +59,12 @@ Istruzioni per l'agente AI:
   under a 5% cap instead of ~126 shares (~70,600 USD) from the
   stop-distance alone. Missing portfolio context never invents a size
   (`PORTFOLIO_CONTEXT_MISSING`); wrong-side stops block per direction
-  (`risk_engine.validate_stop_side`).
+  (`risk_engine.validate_stop_side`). The sizing runs automatically in
+  the real flow: the plan's numbers (entry/stop/ATR/direction) are
+  extracted from the Trader's own plan text by
+  `dataflows/plan_extraction.py` — labelled patterns only, bare numbers
+  in prose never guessed — and the audit's `risk` section records the
+  capped quantity, notional and which constraint bound.
 - **Final order reconciliation (P0.6).** New module
   (`tradingagents/dataflows/order_reconciliation.py`): the Portfolio
   Manager's decision prevails over the Trader's earlier proposal; any
