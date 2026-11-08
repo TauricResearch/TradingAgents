@@ -21,6 +21,16 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Download button for the markdown report.** The web console's run and
+  archive panels gain a **⤓ Download markdown** button that saves the
+  consolidated markdown report as a file (`<TICKER>_<DATE>_report.md`)
+  instead of opening it in a browser tab: the markdown endpoints
+  (`/api/runs/{id}/report.md`, `/api/archive/{id}/report.md`) accept
+  `?download=1` and serve a `Content-Disposition: attachment` header with
+  the report's filename. The existing "Open HTML report" and "Markdown"
+  links are unchanged (inline by default), so both opening and saving the
+  report remain available.
+
 - **Instrument Profiler.** A vendor-data-driven instrument classifier
   (`tradingagents/dataflows/instrument_profiler.py`) so the reliability
   layers behave uniformly for any instrument — US mega-caps, dual-class
