@@ -34,14 +34,15 @@ from tradingagents.dataflows.risk_engine import RiskReason, portfolio_risk_check
 
 
 class ExecutionAction(StrEnum):
-    """The only actions the gate can emit. ``PROPOSE_PAPER_ORDER`` and
-    ``SUBMIT_PAPER_ORDER`` exist in the contract's vocabulary; this module
-    emits only WAIT/BLOCK/PROPOSE — an actual submission happens through
-    :meth:`ExecutionGate.submit`, which revalidates and is idempotent."""
+    """The contract's full action vocabulary (§4). This module emits only
+    WAIT/BLOCK/PROPOSE — an actual ``SUBMIT_PAPER_ORDER`` happens through
+    :meth:`ExecutionGate.submit`, which revalidates and is idempotent; the
+    member exists so decision records can name the submission step."""
 
     WAIT = "WAIT"
     BLOCK = "BLOCK"
     PROPOSE_PAPER_ORDER = "PROPOSE_PAPER_ORDER"
+    SUBMIT_PAPER_ORDER = "SUBMIT_PAPER_ORDER"
 
 
 class GateReason(StrEnum):

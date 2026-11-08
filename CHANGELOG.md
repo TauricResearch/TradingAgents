@@ -21,6 +21,22 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Separated portfolio decision (Phase 4).** A typed decision model
+  (`tradingagents/dataflows/portfolio_decision.py`) keeps the contract's
+  three levels distinct: strategic rating (`UNDERWEIGHT/NEUTRAL/OVERWEIGHT`
+  over a declared horizon), investment intent
+  (`AVOID/MONITOR/ACCUMULATE_CONDITIONALLY/MAINTAIN/REDUCE`), and execution
+  action (`WAIT/BLOCK/PROPOSE_PAPER_ORDER/SUBMIT_PAPER_ORDER`, filled only
+  by the Execution Gate). Legacy 5-tier labels (`Buy`/`Hold`/…) map
+  explicitly with the original label preserved on the decision — `Buy`
+  becomes `OVERWEIGHT` + `ACCUMULATE_CONDITIONALLY`, never a market order —
+  and unknown labels are refused for review rather than guessed. An
+  `OVERWEIGHT` rating now visibly coexists with a `WAIT` action in the
+  rendered decision, ending the report practice of treating `HOLD`, `BUY`
+  and `Overweight` as equivalent actions.
+
+### Added
+
 - **Execution Gate (Phase 3).** A deterministic gate
   (`tradingagents/dataflows/execution_gate.py`) sits between a proposed plan
   and any paper order. It consumes only the typed verdicts of the earlier
