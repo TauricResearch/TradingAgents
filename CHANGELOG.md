@@ -21,6 +21,34 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Instrument Profiler.** A vendor-data-driven instrument classifier
+  (`tradingagents/dataflows/instrument_profiler.py`) so the reliability
+  layers behave uniformly for any instrument — US mega-caps, dual-class
+  shares, Milan-listed utilities, London minor-unit quotes, crypto pairs,
+  indices and forex — with no per-ticker tables. It derives the instrument
+  kind from the vendor's `quoteType` (with structural fallbacks: `=X`
+  forex, `^` index, known crypto bases), the quote and financial
+  currencies (`currency` / `financialCurrency`, with a conversion factor
+  for minor-unit quotes like GBp→GBP), and the share class structurally
+  from the ticker's explicit suffix (`BRK-B` → root `BRK`, class `B`;
+  `NVDA` is never read as `NVD` class `A`). A data-quality label
+  (`COMPLETE`/`PARTIAL`/`UNKNOWN`) is the caller's fail-closed signal.
+
+### Changed
+
+- **Ticker-identity and currency checks are profile-driven.**
+  `validator.check_ticker_identity` accepts an `InstrumentProfile`: a
+  sibling-class symbol served by the vendor (asked BRK-B, served BRK-A) is
+  an error via structural detection instead of a hardcoded sibling table;
+  without a profile, a bare string mismatch stays a normalization warning.
+  New `validator.validate_currency_consistency` checks a price's currency
+  against a metric's: a minor-unit quote (GBp) against main-unit
+  financials (GBP) passes with the profiler's conversion factor, a real
+  mismatch (USD price vs EUR financials on ENI.MI) is an error, and
+  unknown currencies are `UNVERIFIED` rather than errors.
+
+### Added
+
 - **Execution Gate wired into the run flow.** Every finished run is now
   evaluated through the Execution Gate and audited
   (`tradingagents/dataflows/gate_integration.py`, called from

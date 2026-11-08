@@ -180,8 +180,15 @@ def test_conversion_rejects_bad_ratio_and_same_class():
 
 @pytest.mark.unit
 def test_sibling_share_class_serving_is_an_error():
-    """Asked for BRK-B, served BRK-A: different instrument, not interchangeable."""
-    result = check_ticker_identity("BRK-B", "BRK-A")
+    """Asked for BRK-B, served BRK-A: different instrument, not interchangeable.
+
+    Sibling detection comes from the InstrumentProfile (structural); without
+    one, a bare string mismatch is only a normalization warning.
+    """
+    from tradingagents.dataflows.instrument_profiler import profile_instrument
+
+    profile = profile_instrument("BRK-B", {"quoteType": "EQUITY", "currency": "USD"})
+    result = check_ticker_identity("BRK-B", "BRK-A", profile=profile)
     assert result.status == QUARANTINED
     assert any(i.code == "TICKER_SIBLING_CLASS" for i in result.issues)
 
