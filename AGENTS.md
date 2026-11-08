@@ -22,23 +22,32 @@ Implement the specification **one phase and one reviewable feature branch at a t
 
 Do not fabricate execution results, measurements, source timestamps, paths, tools, APIs or tests.
 
-## 3. Automated Git workflow
+## 3. Branch policy — integration branch `custom`
+
+- The stable integration branch for this repository is **`custom`**, **not `main`**.
+- All new task branches must branch from the latest verified `origin/custom` (or an up-to-date local `custom` when safe).
+- All Pull Requests must use `custom` as their **base/target branch**.
+- Never use `main` as the base branch, assume it is the default branch, or change GitHub's default branch automatically.
+- If `custom` is missing locally or on the remote, report the blocker; do not silently fall back to another branch.
+- Treat `custom` as protected: no direct pushes, no force-push, and no autonomous merges.
+
+## 4. Automated Git workflow
 
 The agent should manage routine Git operations autonomously **when tooling and permissions allow it**.
 
 1. Check `git status`, current branch, remotes and local changes.
 2. If there are unrelated uncommitted changes, do **not** delete, stash, overwrite or commit them without a safe explicit plan. Report the blocker.
-3. For a new feature, start from an up-to-date `custom` (the default branch of this repository) only if the tree is clean and pulling is safe; use fast-forward-only updates.
+3. For a new feature, start from an up-to-date local `custom` tracking `origin/custom` only if the tree is clean and pulling is safe; use fast-forward-only updates. Check that the branch actually exists.
 4. Create a branch automatically, named `feature/<short-scope>`, `fix/<short-scope>` or `test/<short-scope>`.
 5. Implement a single coherent phase, add tests and run available validations.
 6. Review diffs; commit only files related to the task with meaningful messages (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
-7. If authenticated GitHub access is available and the user has authorized remote operations, push the branch and open a Pull Request to `custom`; report PR URL. Otherwise provide the exact commands to finish.
+7. If authenticated GitHub access is available and the user has authorized remote operations, push the feature branch and open a Pull Request **targeting `custom`**; verify the actual PR base and report its URL. Otherwise provide the exact commands to finish.
 8. **Never merge or push directly to `custom`.** Never force-push, reset destructive history, delete remote branches, alter security settings, or bypass branch protection.
 9. Do not auto-create releases or publish packages without explicit authorization.
 
 If no GitHub integration or terminal permission exists, work locally to the extent available and describe the remaining manual steps. A prompt cannot grant missing permissions.
 
-## 4. Implementation phases and branch names
+## 5. Implementation phases and branch names
 
 Complete and integrate each phase before beginning dependent phases. Branch names are suggestions; avoid name conflicts.
 
@@ -55,7 +64,7 @@ Complete and integrate each phase before beginning dependent phases. Branch name
 
 The specification defines the acceptance details and P0/P1/P2 severity. Dependencies may require adjusting the order; explain any change.
 
-## 5. Safety and risk — non-negotiable
+## 6. Safety and risk — non-negotiable
 
 - The target is **paper trading / simulation only**. Never enable or route orders to live accounts.
 - LLM generated recommendations are **proposals**, not authorization to execute.
@@ -68,7 +77,7 @@ The specification defines the acceptance details and P0/P1/P2 severity. Dependen
 - Never store or print tokens, API keys, portfolio credentials or other secrets. Preserve `.gitignore` and `.env.example` hygiene.
 - Avoid external market orders, account mutations or other irreversible actions. Ask explicit authorization for any real-world action not covered here.
 
-## 6. Compatibility and code quality
+## 7. Compatibility and code quality
 
 - Preserve existing model provider selection, local/custom providers, data integrations, reports, dashboards and persisted history.
 - Use existing project conventions, dependency management, formatter and test framework; inspect them first.
@@ -77,7 +86,7 @@ The specification defines the acceptance details and P0/P1/P2 severity. Dependen
 - Add schema migrations and backward-compatibility handling if persistence changes.
 - Do not hardcode decisions or safety logic for BRK-B; BRK-B is only a regression fixture.
 
-## 7. Tests and gates
+## 8. Tests and gates
 
 - Before a phase: record baseline outcomes.
 - During a phase: add unit tests for deterministic rules, integration tests for critical paths, and a regression fixture for known failures.
@@ -87,7 +96,7 @@ The specification defines the acceptance details and P0/P1/P2 severity. Dependen
 - Run the relevant CI checks. If something cannot be executed, label it **NOT RUN** with the reason, never **PASS**.
 - A phase is complete only when its relevant acceptance criteria and regression tests pass or explicit blockers are documented.
 
-## 8. Required output at the end of each phase
+## 9. Required output at the end of each phase
 
 1. **Branch and scope**: name and goal.
 2. **Changes**: exact modules/files changed and why.
@@ -100,7 +109,7 @@ The specification defines the acceptance details and P0/P1/P2 severity. Dependen
 
 Do not claim a Pull Request was created without a real URL or tool confirmation. Do not claim CI passed without its actual result.
 
-## 9. Changelog and release versioning
+## 10. Changelog and release versioning
 
 - Maintain the repository-root `CHANGELOG.md` using the **Keep a Changelog** categories (`Added`, `Changed`, `Fixed`, `Security`, etc.).
 - Update the `[Unreleased]` section as part of each relevant feature, fix, or documentation Pull Request. Document only behavior and changes actually implemented in that PR, not the roadmap or merely requested work.
@@ -108,6 +117,6 @@ Do not claim a Pull Request was created without a real URL or tool confirmation.
 - Do not create or advance a version number/tag without explicit authorization. On an authorized release, move verified `[Unreleased]` entries into a dated version section and preserve existing history.
 - Prefer concise, user-impacting entries and link to PRs/issues when known; never invent PR identifiers, links or release dates.
 
-## 10. Recommended starting task
+## 11. Recommended starting task
 
 Begin with **Phase 0**, not all phases together. Inspect the existing repository, record baseline behavior, add reproducible test fixtures for the BRK-B report of 2026-11-08 and related temporal/risk errors, and prepare the `test/reliability-baseline` branch for review. Do **not** modify trading behavior in the baseline phase unless necessary to make tests reproducible and explicitly scoped.
