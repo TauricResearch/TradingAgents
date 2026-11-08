@@ -21,6 +21,23 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Execution Gate (Phase 3).** A deterministic gate
+  (`tradingagents/dataflows/execution_gate.py`) sits between a proposed plan
+  and any paper order. It consumes only the typed verdicts of the earlier
+  phases — never LLM prose — and emits `WAIT` (no trigger yet),
+  `BLOCK` (invalid plan or missing mandatory data) or
+  `PROPOSE_PAPER_ORDER`. `WAIT` and `BLOCK` create zero orders, pending
+  conditional ones included. A strategic `OVERWEIGHT` rating with an
+  unmet entry trigger now ends in `WAIT` with explicit reason codes
+  (`ENTRY_TRIGGER_NOT_MET`, `POST_EARNINGS_REACTION_UNOBSERVABLE`,
+  `MARKET_CLOSED`); the same plan with the trigger met while the post-event
+  reaction is still unobservable hard-`BLOCK`s. Submission is a separate,
+  revalidated, idempotent step: a stale signal or a non-proposal decision
+  is refused, and a retry with the same plan key returns the original
+  order (`DUPLICATE_ORDER`) instead of creating a second one.
+
+### Added
+
 - **Deterministic risk engine (Phase 2).** A pure, typed risk engine
   (`tradingagents/dataflows/risk_engine.py`) computes position sizing, stop
   validation and gap/slippage stress in code, never in LLM prose. Stop
