@@ -60,6 +60,9 @@ class AuditRecord:
     gate: GateDecision | None = None
     strategic: StrategicDecision | None = None
     fact_check: FactCheckReport | None = None
+    # P0 data-quality verdicts (None when the check did not run).
+    fundamentals_freshness: object | None = None
+    fact_registry: object | None = None
 
     # Market snapshot as validated (None fields stay None: never invented).
     session_date: str | None = None
@@ -166,10 +169,20 @@ class AuditRecord:
     def _data_quality_entry(self) -> dict:
         prov = self.provenance
         fc = self.fact_check
-        if prov is None and fc is None:
+        freshness = self.fundamentals_freshness
+        registry = self.fact_registry
+        if prov is None and fc is None and freshness is None and registry is None:
             return {"status": None, "blocking_claims": []}
         blocking = fc.blocking_claim_ids if fc else []
-        if blocking:
+        freshness_codes = (
+            [freshness.reason_code] if freshness is not None
+            and freshness.blocks_decision else []
+        )
+        registry_unresolved = (
+            [c.fact_key for c in registry.unresolved_conflicts]
+            if registry is not None else []
+        )
+        if blocking or freshness_codes or registry_unresolved:
             status = "BLOCKED_BY_CLAIMS"
         elif prov and prov.blocking_fact_ids():
             status = "REQUIRES_RECONCILIATION"
@@ -179,7 +192,11 @@ class AuditRecord:
             "status": status,
             "provenance_summary": prov.summary() if prov else None,
             "fact_check_summary": fc.summary() if fc else None,
-            "blocking_claims": blocking,
+            "fundamentals_freshness": (
+                freshness.summary() if freshness is not None else None
+            ),
+            "fact_registry": registry.summary() if registry is not None else None,
+            "blocking_claims": list(blocking) + freshness_codes + registry_unresolved,
         }
 
     def to_json(self, *, indent: int = 2) -> str:

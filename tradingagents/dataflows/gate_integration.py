@@ -23,16 +23,18 @@ from pathlib import Path
 from tradingagents.dataflows.audit import AuditRecord
 from tradingagents.dataflows.causal_guard import evaluate_post_event_pricing
 from tradingagents.dataflows.execution_gate import (
-    ExecutionAction,
     GateDecision,
     PlanInput,
     evaluate_plan,
+)
+from tradingagents.dataflows.filing_freshness import (
+    check_filing_freshness,
 )
 from tradingagents.dataflows.portfolio_decision import (
     map_legacy_rating,
     with_execution_action,
 )
-from tradingagents.dataflows.risk_engine import validate_stop
+from tradingagents.dataflows.risk_engine import validate_stop, validate_stop_side
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,12 @@ def evaluate_decision(
     atr: float | None = None,
     trigger_met: bool = False,
     market_open: bool = True,
+    # P0 data-quality inputs (all optional; absent checks are not guessed).
+    fundamentals_filings: list | None = None,
+    used_fundamentals_period_end: str | None = None,
+    used_fundamentals_period: str | None = None,
+    fact_registry_report=None,
+    position_direction: str = "LONG",
 ) -> tuple[AuditRecord, GateDecision]:
     """Evaluate a finished run's decision through the gate and audit it.
 
@@ -61,6 +69,17 @@ def evaluate_decision(
     own text when its caller extracted them; when absent the risk check is
     skipped rather than guessed, and the gate sees a valid plan with no
     trigger — the honest default. Returns ``(audit_record, gate_decision)``.
+
+    P0 data-quality gates, all fail-closed:
+
+    - ``fundamentals_filings`` + ``used_fundamentals_period_end``: the
+      freshness gate compares the period the analyst used against the
+      latest filing known at the analysis date; a stale or undatable
+      period blocks (``FUNDAMENTALS_STALE`` / ``FUNDAMENTALS_UNAVAILABLE``).
+    - ``fact_registry_report``: an unresolved cross-agent conflict over a
+      material fact blocks (``DATA_QUALITY_BLOCKED``).
+    - ``position_direction``: the stop must sit on the protective side for
+      the position's direction; a wrong-side stop blocks.
     """
     rating_label = final_state.get("final_rating") or ""
     # An unreadable rating maps to nothing: the gate sees an unknown
@@ -88,6 +107,33 @@ def evaluate_decision(
         risk_blocked = stop_validation.blocked
         risk_reasons = (stop_validation.reason,) if stop_validation.blocked else ()
 
+    # P0: the stop must sit on the protective side for the position's
+    # direction. A wrong-side stop protects nothing and blocks the plan.
+    stop_side = None
+    if entry is not None and stop is not None:
+        stop_side = validate_stop_side(entry, stop, position_direction)
+        if stop_side.has_errors:
+            risk_blocked = True
+            risk_reasons = risk_reasons + ("STOP_WRONG_SIDE",)
+
+    # P0.1: the fundamentals the analyst used must be the freshest
+    # authoritative filing known at the analysis date. Stale or undatable
+    # fundamentals block — an older quarter must not pass as current.
+    freshness = None
+    data_quality_blocked = False
+    if fundamentals_filings is not None:
+        freshness = check_filing_freshness(
+            used_fundamentals_period_end, fundamentals_filings, trade_date,
+            used_period=used_fundamentals_period,
+        )
+        if freshness.blocks_decision:
+            data_quality_blocked = True
+
+    # P0.2: an unresolved cross-agent conflict over a material fact must
+    # not feed an approval.
+    if fact_registry_report is not None and fact_registry_report.blocks_decision:
+        data_quality_blocked = True
+
     plan = PlanInput(
         ticker=ticker,
         rating=strategic.rating if strategic else "UNKNOWN",
@@ -95,6 +141,7 @@ def evaluate_decision(
         trigger_met=trigger_met,
         risk_blocked=risk_blocked,
         risk_reasons=risk_reasons,
+        data_quality_blocked=data_quality_blocked,
         post_event_status=causal.status if causal else None,
         signal_as_of=trade_date,
         analysis_as_of=trade_date,
@@ -120,6 +167,10 @@ def evaluate_decision(
         strategic=strategic,
         session_date=sessions[-1] if sessions else None,
     )
+    if freshness is not None:
+        record.fundamentals_freshness = freshness
+    if fact_registry_report is not None:
+        record.fact_registry = fact_registry_report
     return record, decision
 
 
