@@ -21,6 +21,60 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Deterministic arithmetic validator (P0-B).** New module
+  (`tradingagents/dataflows/arithmetic.py`): percentage moves and distances
+  from reference levels are computed as
+  `(current / reference - 1) * 100`, with intraday open→close and
+  close→close kept as distinct metrics. A percentage the report states that
+  contradicts the data beyond tolerance is `ARITHMETIC_MISMATCH` and blocks;
+  a price and an indicator from different sessions are
+  `PRICE_TIMESTAMP_MISMATCH` and block too. The 2026-11-08 report's
+  -11.3% / +4.5% / +12.1% figures are rejected against the correct
+  -2.63% / +14.70% / +23.03%. Wired into `evaluate_decision` via
+  `price_snapshot` + `stated_percentages`, with the verdicts recorded in
+  the audit's `data_quality.arithmetic` section.
+- **Multi-tranche risk engine (P0-C).** New
+  `risk_engine.tranche_risk` prices each leg on its own entry and stop
+  (a leg entered lower never inherits the first leg's risk), flags a stop
+  tighter than the policy minimum (`STOP_TOO_TIGHT_FOR_POLICY`) and a
+  wrong-side stop (`INVALID_STOP_SIDE`). New
+  `risk_engine.aggregate_tranche_risk` sizes every leg and enforces the
+  aggregate risk and notional budgets *including* open positions and open
+  orders; a budget-exhausted alternative leg is skipped rather than
+  failing the plan.
+- **Structured execution verdict (P0-D).** New module
+  (`tradingagents/dataflows/execution_verdict.py`): every run produces a
+  machine-readable verdict (`run_id`, `instrument`, `analysis_as_of`,
+  `strategic_rating`, `execution_action`, `execution_approved`,
+  `authorized_orders`, `blocking_reasons`, `checked_at`,
+  `policy_version`). The constructor refuses contradictions — an
+  order-bearing action cannot carry blocking reasons, and a blocked or
+  waiting verdict cannot carry orders — so no LLM can make an unvalidated
+  order look authorized. Written to the audit JSON under
+  `execution.verdict`.
+- **P0 regression and safety suites.** `tests/test_p0_final_hardening.py`
+  (FRESH_01–06, ARITH_01–06, RISK_01–08, EXEC_01–09 plus a four-ticker
+  parameterised run) and `tests/test_p0_paper_safety.py` (a mock paper
+  broker records zero orders whenever any critical check fails, and one
+  order only when every gate passes).
+
+### Changed
+
+- **CI gains a P0 reliability job.** `.github/workflows/ci.yml` runs the
+  offline P0 suites (`reliability-regression`) on every pull request; a
+  regression there fails the build. The suites need no network, no LLM, no
+  SEC credentials and no broker.
+- **The data-quality checks run before synthesis, not only at the gate.**
+  New `tradingagents/graph/data_quality_node.py` and
+  `tradingagents/dataflows/data_gate.py` place the freshness and arithmetic
+  verdicts between the analysts and the research debate, so the Research
+  Manager and Portfolio Manager are told which figures the data does not
+  support instead of debating them as verified. The findings are carried in
+  the state as a binding notice; the Execution Gate **reuses** the same
+  verdicts rather than recomputing, so what the agents were told and what
+  the gate decides cannot diverge. A provider failure yields no filings,
+  which the check reports as unavailable — never a silent pass.
+
 - **SEC filing freshness gate (P0.1).** New deterministic module
   (`tradingagents/dataflows/filing_freshness.py`): identifies the most
   recent authoritative filing (company release or SEC filing, with

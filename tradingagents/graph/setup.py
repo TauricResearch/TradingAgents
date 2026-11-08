@@ -22,6 +22,7 @@ from tradingagents.agents import (
 )
 from tradingagents.agents.analysts.turn import WRAP_UP
 from tradingagents.agents.state import AgentState
+from tradingagents.graph.data_quality_node import create_data_quality_check
 
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
@@ -161,6 +162,14 @@ class GraphSetup:
         if memory_node is not None:
             workflow.add_node("Memory Log", memory_node)
             first_steps.append("Memory Log")
+
+        # A deterministic data-quality pre-check runs between the analysts and
+        # the research debate: the managers must not debate numbers a later
+        # gate would reject. The node is pure (no LLM, no network) and records
+        # its verdicts so the Execution Gate reuses them instead of recomputing.
+        workflow.add_node("Data Quality Check", create_data_quality_check())
+        first_steps.append("Data Quality Check")
+
         for node in first_steps:
             workflow.add_edge(START, node)
         workflow.add_edge(first_steps, "Bull Researcher")

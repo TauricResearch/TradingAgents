@@ -20,6 +20,10 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from tradingagents.dataflows.arithmetic import (
+    check_price_timestamp_alignment,
+    check_stated_percentage,
+)
 from tradingagents.dataflows.audit import AuditRecord
 from tradingagents.dataflows.causal_guard import evaluate_post_event_pricing
 from tradingagents.dataflows.claim_harvester import harvest_facts
@@ -28,6 +32,7 @@ from tradingagents.dataflows.execution_gate import (
     PlanInput,
     evaluate_plan,
 )
+from tradingagents.dataflows.execution_verdict import verdict_from_gate
 from tradingagents.dataflows.fact_registry import register_facts
 from tradingagents.dataflows.filing_freshness import (
     check_filing_freshness,
@@ -49,6 +54,29 @@ logger = logging.getLogger(__name__)
 
 # The state keys the audit reads; all optional, all defaulted.
 _POLICY_VERSION = "reliability-contract-2026-11"
+
+
+def _freshness_from_precheck(precheck: dict):
+    """Rebuild a freshness verdict from the graph pre-check's summary.
+
+    The pre-check stores its verdict as a dict; the audit wants the typed
+    object. Only the fields the audit reads are restored — this is a
+    presentation of the same computation, never a new one.
+    """
+    data = (precheck or {}).get("freshness") or {}
+    if not data:
+        return None
+    from tradingagents.dataflows.filing_freshness import FreshnessVerdict
+
+    return FreshnessVerdict(
+        status=data.get("status", ""),
+        reason_code=data.get("reason_code", ""),
+        latest_known_period=data.get("latest_known_period"),
+        latest_known_period_end=data.get("latest_known_period_end"),
+        used_period=data.get("used_period"),
+        used_period_end=data.get("used_period_end"),
+        reason=data.get("reason", ""),
+    )
 
 
 def evaluate_decision(
@@ -77,6 +105,10 @@ def evaluate_decision(
     cash: float | None = None,
     risk_budget: float | None = None,
     max_symbol_exposure: float | None = None,
+    # P0-B arithmetic inputs: the dated price snapshot the run used, so a
+    # percentage the report states can be checked against the data.
+    price_snapshot: dict | None = None,
+    stated_percentages: dict | None = None,
 ) -> tuple[AuditRecord, GateDecision]:
     """Evaluate a finished run's decision through the gate and audit it.
 
@@ -100,6 +132,10 @@ def evaluate_decision(
       plan's numbers (extracted from the decision text when not passed),
       sizing runs under BOTH the stop-distance budget and the per-symbol
       exposure cap; without portfolio context no size is invented.
+    - ``price_snapshot`` + ``stated_percentages``: every percentage the
+      report states is recomputed from the snapshot; a critical mismatch
+      (``ARITHMETIC_MISMATCH``) blocks. A price and an indicator from
+      different sessions block too (``PRICE_TIMESTAMP_MISMATCH``).
     """
     rating_label = final_state.get("final_rating") or ""
     # An unreadable rating maps to nothing: the gate sees an unknown
@@ -183,9 +219,19 @@ def evaluate_decision(
     # P0.1: the fundamentals the analyst used must be the freshest
     # authoritative filing known at the analysis date. Stale or undatable
     # fundamentals block — an older quarter must not pass as current.
+    #
+    # When the graph's pre-check already ran (it carries its verdict in the
+    # state), that verdict is REUSED rather than recomputed: the analysis
+    # the managers saw and the gate's decision must be the same computation,
+    # or a run could be debated as verified and then blocked, or worse the
+    # reverse.
     freshness = None
     data_quality_blocked = False
-    if fundamentals_filings is not None:
+    precheck = final_state.get("data_quality_precheck")
+    if isinstance(precheck, dict) and precheck.get("blocks_execution"):
+        data_quality_blocked = True
+        freshness = _freshness_from_precheck(precheck)
+    elif fundamentals_filings is not None:
         freshness = check_filing_freshness(
             used_fundamentals_period_end, fundamentals_filings, trade_date,
             used_period=used_fundamentals_period,
@@ -210,6 +256,34 @@ def evaluate_decision(
         if harvested:
             registry = register_facts(harvested)
     if registry is not None and registry.blocks_decision:
+        data_quality_blocked = True
+
+    # P0-B: recompute every percentage the report states from the dated
+    # snapshot. A critical mismatch blocks: a report may round, it may not
+    # contradict its own data. The snapshot's price/indicator dates must
+    # also agree — two sessions mixed is not one snapshot.
+    arithmetic_verdicts = []
+    arithmetic_blocked = False
+    if price_snapshot:
+        alignment = check_price_timestamp_alignment(
+            price_snapshot.get("price_as_of"),
+            price_snapshot.get("indicator_as_of"),
+            indicator=price_snapshot.get("indicator", "indicator"),
+        )
+        arithmetic_verdicts.append(alignment)
+        if alignment.blocks_decision:
+            arithmetic_blocked = True
+
+        close = price_snapshot.get("close")
+        for label, spec in (stated_percentages or {}).items():
+            verdict = check_stated_percentage(
+                spec.get("stated_pct"), spec.get("reference"), close,
+                label=label,
+            )
+            arithmetic_verdicts.append(verdict)
+            if verdict.blocks_decision:
+                arithmetic_blocked = True
+    if arithmetic_blocked:
         data_quality_blocked = True
 
     plan = PlanInput(
@@ -251,6 +325,27 @@ def evaluate_decision(
         record.fact_registry = registry
     if sizing is not None:
         record.exposure_sizing = sizing
+    if arithmetic_verdicts:
+        record.arithmetic_verdicts = arithmetic_verdicts
+
+    # P0-D: the structured, machine-readable execution verdict. It carries
+    # the gate's action and every blocking reason; authorized_orders stays
+    # empty unless the gate actually proposed an order (the verdict
+    # constructor refuses the contradiction either way).
+    authorized = ()
+    if decision.creates_order and sizing is not None and sizing.qty > 0:
+        authorized = ({"ticker": ticker, "quantity": sizing.qty,
+                       "entry": eff_entry, "stop": eff_stop},)
+    record.execution_verdict = verdict_from_gate(
+        run_id=f"{ticker}-{trade_date}-{snapshot_id}",
+        instrument=ticker,
+        analysis_as_of=trade_date,
+        strategic_rating=strategic.rating if strategic else "UNKNOWN",
+        decision=decision,
+        policy_version=_POLICY_VERSION,
+        blocking_reasons=tuple(r.value for r in decision.reasons),
+        authorized_orders=authorized,
+    )
     return record, decision
 
 
