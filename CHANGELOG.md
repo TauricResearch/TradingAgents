@@ -21,6 +21,21 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Deterministic risk engine (Phase 2).** A pure, typed risk engine
+  (`tradingagents/dataflows/risk_engine.py`) computes position sizing, stop
+  validation and gap/slippage stress in code, never in LLM prose. Stop
+  validation requires an entry-to-stop buffer of at least 0.5 ATR
+  (parametric): the BRK-B plan of 543.70/543.50 with ATR 9.408 (~0.021 ATR)
+  now fails deterministically with `STOP_BUFFER_TOO_TIGHT`. Sizing uses the
+  *stressed* exit price — stop less a gap allowance and slippage — so
+  `qty = floor(risk_budget / stressed_risk_per_share)`; a missing budget
+  yields zero size (`RISK_BUDGET_MISSING`), never a guess. Portfolio-level
+  checks keep `max_portfolio_loss_fraction` as `None` when equity is
+  unknown: a loss quoted against a standard allocation is never converted
+  to a fraction of total wealth without the real base.
+
+### Added
+
 - **Data validation layer (Phase 1).** A provenance registry
   (`tradingagents/dataflows/provenance.py`) records where each material fact
   came from, its publication and retrieval times, and its verification
