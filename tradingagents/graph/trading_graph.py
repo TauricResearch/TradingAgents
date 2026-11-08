@@ -12,6 +12,11 @@ from tradingagents.agents.context import build_instrument_context, resolve_instr
 from tradingagents.agents.rating import run_rating
 from tradingagents.dataflows.config import run_config, run_config_context, set_config
 from tradingagents.dataflows.date_window import get_current_date, is_historical
+from tradingagents.dataflows.gate_integration import (
+    attach_to_state,
+    evaluate_decision,
+    write_audit_record,
+)
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
@@ -369,6 +374,7 @@ class TradingAgentsGraph:
         """Record a finished run: its state log, and its decision in the memory log
         for reflection on the next same-ticker run. propagate() and the CLI both end here."""
         self._log_state(trade_date, final_state)
+        self._evaluate_reliability(company_name, trade_date, final_state)
         decision = final_state.get("final_trade_decision")
         if not decision:
             logger.warning("No final decision for %s on %s; nothing added to the memory log",
@@ -378,6 +384,31 @@ class TradingAgentsGraph:
             ticker=company_name, trade_date=trade_date, final_trade_decision=decision,
             rating=run_rating(final_state),
         )
+
+    def _evaluate_reliability(self, company_name, trade_date, final_state):
+        """Run the decision through the Execution Gate and write the audit.
+
+        Best-effort by design: a reliability-layer failure must not lose the
+        run's own reports or memory entry, so any exception is logged and
+        skipped. The gate's verdict is attached to the state (execution_action)
+        and the audit JSON lands beside the state log.
+        """
+        try:
+            record, decision = evaluate_decision(
+                company_name, trade_date, final_state,
+                snapshot_id=f"{company_name}-{trade_date}",
+                model_versions={
+                    "deep": self.config.get("deep_think_llm"),
+                    "quick": self.config.get("quick_think_llm"),
+                },
+            )
+            attach_to_state(final_state, decision)
+            path = write_audit_record(record, self.config["results_dir"])
+            logger.info("Reliability audit for %s on %s: %s -> %s",
+                        company_name, trade_date, decision.action.value, path)
+        except Exception:  # noqa: BLE001 — the audit must never sink the run
+            logger.exception("Reliability evaluation failed for %s on %s",
+                             company_name, trade_date)
 
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
                    checkpoint_thread_id: str | None = None, portfolio=None):
