@@ -28,6 +28,7 @@ from cli.prompts import (
     filter_analysts_for_asset_type,
     normalize_ticker_symbol,
 )
+from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.api_key_env import get_api_key_env
 from tradingagents.llm_clients.model_catalog import get_model_options
@@ -357,7 +358,7 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
         return FileResponse(path, media_type="text/html")
 
     @app.get("/api/runs/{run_id}/report.md")
-    def report_markdown(run_id: str):
+    def report_markdown(run_id: str, download: bool = False):
         run = runs.get(run_id)
         if run is None:
             raise HTTPException(status_code=404, detail="no such run")
@@ -366,7 +367,14 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
         path = Path(run.report_markdown)
         if not path.is_file():
             raise HTTPException(status_code=404, detail="the report file is gone")
-        return FileResponse(path, media_type="text/markdown")
+        # inline by default so the "Markdown" link still opens in a tab;
+        # ?download=1 switches to attachment so the download button saves it.
+        disposition = "attachment" if download else "inline"
+        filename = f"{safe_ticker_component(run.ticker)}_{run.analysis_date}_report.md"
+        return FileResponse(
+            path, media_type="text/markdown",
+            headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+        )
 
     @app.get("/api/archive")
     def list_archive() -> dict:
@@ -402,13 +410,18 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
         return FileResponse(path, media_type="text/html")
 
     @app.get("/api/archive/{entry_id:path}/report.md")
-    def archive_report_markdown(entry_id: str):
+    def archive_report_markdown(entry_id: str, download: bool = False):
         """The archived consolidated markdown report."""
         try:
             path = archive.report_file(archive_root, entry_id, html=False)
         except archive.ArchivePathError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from None
-        return FileResponse(path, media_type="text/markdown")
+        disposition = "attachment" if download else "inline"
+        filename = path.name
+        return FileResponse(
+            path, media_type="text/markdown",
+            headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+        )
 
     @app.get("/api/archive/{entry_id:path}/rerun")
     def archive_rerun(entry_id: str):
