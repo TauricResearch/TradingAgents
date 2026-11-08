@@ -272,7 +272,8 @@ def structured_decision_fields(final_state) -> dict:
     }
 
 
-def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", context: str | None = None) -> dict:
+def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", context: str | None = None,
+                 deadline_sec: float | None = None) -> dict:
     """Run one propagate() decision and return the result dict (hermes#213).
 
     Extracted from main() so both the CLI below and scripts/service.py's
@@ -280,15 +281,22 @@ def run_decision(ticker: str, trade_date: str, asset_type: str = "stock", contex
     call -- only the transport (argv/stdout vs. HTTP request/response)
     differs between callers.
 
+    deadline_sec (fork audit R3): cooperative server-side spend guard --
+    any LLM call attempted more than this many seconds after graph
+    construction raises DeadlineExceeded instead of billing. The HTTP
+    service sets it just under its caller's timeout so a runaway decision
+    cannot keep spending after the client has given up; the CLI leaves it
+    None (interactive runs are supervised by definition).
+
     Raises on failure; callers decide how to report it (the CLI prints to
-    stderr and exits 1, the HTTP service returns a 500 with the exception
-    detail).
+    stderr and exits 1, the HTTP service maps DeadlineExceeded to 504 and
+    any other exception to a 500 with the exception detail).
     """
     external_signal_context, external_signal_direction = parse_external_signal(context) if context else ("", "")
 
     usage_handler = UsageMetadataCallbackHandler()
     config = _build_config(ticker)
-    ta = TradingAgentsGraph(debug=False, config=config, callbacks=[usage_handler])
+    ta = TradingAgentsGraph(debug=False, config=config, callbacks=[usage_handler], deadline_sec=deadline_sec)
     # A flat book, stated through upstream's portfolio context so the Trader,
     # risk debaters and Portfolio Manager all read "No current position"
     # rather than "portfolio not provided; do not assume a flat book" -- every

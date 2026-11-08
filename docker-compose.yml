@@ -23,6 +23,22 @@ services:
     command: ["-m", "uvicorn", "scripts.service:app", "--host", "0.0.0.0", "--port", "8100"]
     env_file:
       - .env
+    environment:
+      # Fork audit R2 (2026-11-09): tail-risk guards, git-tracked here so a
+      # redeploy can't lose them. Measured ReAct loops self-terminate in 3-5
+      # rounds, so 8 costs nothing in the typical case and caps the
+      # pathological ~72-call/~$2.50 decision at ~$0.80. max_tokens guards
+      # against unbounded-output hangs (default_config.py's #1204 note);
+      # measured single-call outputs sit far below 8192. Both overridable
+      # via .env (compose interpolates ${...} from the project .env too).
+      - TRADINGAGENTS_MAX_TOOL_ROUNDS=${TRADINGAGENTS_MAX_TOOL_ROUNDS:-8}
+      - TRADINGAGENTS_MAX_TOKENS=${TRADINGAGENTS_MAX_TOKENS:-8192}
+    volumes:
+      # Fork audit R1 (2026-11-09): this service previously had NO volume --
+      # every container recreate wiped the memory log (the PM's "lessons from
+      # prior decisions"), saved report trees, state logs and the OHLCV/EDGAR
+      # caches. Same volume the interactive `tradingagents` service uses.
+      - ${TRADINGAGENTS_DATA_DIR:-tradingagents_data}:/home/appuser/.tradingagents
     restart: unless-stopped
     networks:
       hermes-internal:

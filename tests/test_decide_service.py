@@ -157,7 +157,8 @@ class TestServiceDecideEndpoint:
                 },
                 headers={"Authorization": "Bearer s"},
             )
-        mock_run.assert_called_once_with("WIPRO.NS", "2026-07-16", "stock", '{"side": "short"}')
+        mock_run.assert_called_once_with("WIPRO.NS", "2026-07-16", "stock", '{"side": "short"}',
+                                         deadline_sec=service._DECIDE_DEADLINE_SEC)
 
     def test_decide_defaults_asset_type_and_context(self, client, service):
         service._SERVICE_SECRET = "s"
@@ -166,7 +167,8 @@ class TestServiceDecideEndpoint:
                 "/decide", json={"ticker": "NVDA", "trade_date": "2026-07-16"},
                 headers={"Authorization": "Bearer s"},
             )
-        mock_run.assert_called_once_with("NVDA", "2026-07-16", "stock", None)
+        mock_run.assert_called_once_with("NVDA", "2026-07-16", "stock", None,
+                                         deadline_sec=service._DECIDE_DEADLINE_SEC)
 
     def test_decide_surfaces_failure_as_500(self, client, service):
         service._SERVICE_SECRET = "s"

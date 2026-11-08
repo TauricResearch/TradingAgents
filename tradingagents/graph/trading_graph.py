@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import os
+import time
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
+from tradingagents.llm_clients.deadline import DeadlineGuardedRunnable
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
@@ -71,6 +73,7 @@ class TradingAgentsGraph:
         debug=False,
         config: dict[str, Any] = None,
         callbacks: list | None = None,
+        deadline_sec: float | None = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -79,6 +82,15 @@ class TradingAgentsGraph:
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
+            deadline_sec: Optional cooperative spend guard (fork audit R3):
+                seconds from construction after which any further LLM call
+                raises DeadlineExceeded instead of billing. The /decide
+                service sets this just under its caller's HTTP timeout so a
+                runaway decision stops spending instead of running to
+                completion server-side after the client disconnects. None
+                (CLI/backtest default) leaves behavior unchanged. Counts
+                from __init__ because decide.py builds a fresh graph per
+                decision.
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
@@ -92,6 +104,15 @@ class TradingAgentsGraph:
         extra = {"callbacks": self.callbacks} if self.callbacks else {}
         self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
         self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
+        if deadline_sec is not None:
+            # Wrap the two shared tier LLMs once, here -- GraphSetup hands
+            # these exact instances to every agent, and Reflector takes the
+            # quick one below, so this is the single interception point that
+            # covers the whole graph (see llm_clients/deadline.py's docstring
+            # for why a Runnable wrapper, not a callback handler).
+            deadline = time.monotonic() + deadline_sec
+            self.deep_thinking_llm = DeadlineGuardedRunnable(self.deep_thinking_llm, deadline, "deep")
+            self.quick_thinking_llm = DeadlineGuardedRunnable(self.quick_thinking_llm, deadline, "quick")
 
         self.memory_log = TradingMemoryLog(self.config)
 
