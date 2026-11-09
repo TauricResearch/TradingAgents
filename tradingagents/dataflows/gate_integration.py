@@ -51,6 +51,7 @@ from tradingagents.dataflows.portfolio_decision import (
 from tradingagents.dataflows.risk_engine import (
     DEFAULT_MIN_ENTRY_STOP_ATR,
     RiskReason,
+    SizingResult,
     StopValidation,
     size_with_exposure_cap,
     validate_stop_side,
@@ -259,7 +260,16 @@ def evaluate_decision(
             # equity) no size is invented — the sizing result records
             # PORTFOLIO_CONTEXT_MISSING and the plan cannot pass as
             # executable.
-            if not risk_blocked and risk_budget is not None:
+            #
+            # The size is attempted whenever the plan HAS numbers, even
+            # with no budget and no equity: skipping the call is what let a
+            # missing budget hide behind an unrelated reason (audit F4 —
+            # `qty_proposed`, `planned_risk` and the exposure fields were all
+            # null, and nothing said why). The engine returns the reason
+            # itself (`RISK_BUDGET_MISSING`, `PORTFOLIO_CONTEXT_MISSING`), so
+            # a plan that could not be quantified is refused for *that*
+            # cause and not for one it happens to share with a valid plan.
+            if not risk_blocked:
                 sizing = size_with_exposure_cap(
                     entry=eff_entry, stop=eff_stop, atr=eff_atr,
                     risk_budget=risk_budget, equity=equity,
@@ -458,6 +468,23 @@ def evaluate_decision(
         record.fact_registry = registry
     if sizing is not None:
         record.exposure_sizing = sizing
+        # F4: the quantity is the audit's answer to "how much would this
+        # order have been". It used to be written only as
+        # ``exposure_sizing``, so ``risk.qty_proposed`` reported null for a
+        # plan that had in fact been sized.
+        record.sizing = SizingResult(
+            qty=sizing.qty,
+            risk_per_share=abs(eff_entry - eff_stop)
+            if eff_entry is not None and eff_stop is not None else 0.0,
+            stressed_risk_per_share=(
+                abs(eff_entry - eff_stop) / sizing.qty
+                if sizing.qty > 0 and eff_entry is not None
+                and eff_stop is not None else 0.0
+            ),
+            risk_budget=risk_budget or 0.0,
+            planned_risk=sizing.planned_risk,
+            reasons=sizing.reasons,
+        )
     if arithmetic_verdicts:
         record.arithmetic_verdicts = arithmetic_verdicts
     if math_verdict is not None:

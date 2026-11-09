@@ -31,9 +31,17 @@ class Position(BaseModel):
 
 
 class PortfolioContext(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
+    # ``extra="forbid"``: ``equity`` silently dropped by an earlier revision
+    # because unknown keys were ignored, so sizing saw no capital base and
+    # every plan came back unsized. A misspelt risk input must fail here, at
+    # the edge, rather than turn into "no budget" downstream.
+    model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
 
     cash: float | None = Field(default=None, description="Free cash available")
+    equity: float | None = Field(
+        default=None,
+        description="Total account equity the exposure caps are a fraction of",
+    )
     currency: str | None = Field(default=None, description="Currency label for cash and prices")
     positions: list[Position] = Field(default_factory=list)
 

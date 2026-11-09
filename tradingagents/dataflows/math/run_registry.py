@@ -54,21 +54,58 @@ class RunInputs:
     book_value_per_share: float | None = None
     revenue_consolidated: float | None = None
     revenue_prior: float | None = None
+    # Dual-class valuation inputs (§3 of P3). A company with two share classes
+    # needs all of these before a P/B can be computed: the equity, both share
+    # counts, the conversion ratio and the class the price belongs to.
+    equity: float | None = None
+    shares_class_a: float | None = None
+    shares_class_b: float | None = None
+    class_a_to_b_ratio: float | None = None
+    price_class: str | None = None
+    currency: str | None = None
+    weighted_average_shares: float | None = None
+    # Which inputs are the model's own assertions rather than vendor or filing
+    # figures (§2 of P3). A figure read out of an analyst's prose is a claim,
+    # not a fact: `metric()` records it as LLM_CLAIMED, which is not a trusted
+    # source, so a multiple built on it can be shown and reported but never
+    # certified. Without this the extractor's figures entered the registry
+    # looking exactly like reconciled ones — the original F2 defect, where a
+    # P/B the model invented was indistinguishable from a computed one.
+    claimed_inputs: tuple[str, ...] = ()
 
 
 def _register_if_computable(registry: MetricRegistry, name: str,
                             value: Any, *, unit: str, formula_id: str,
-                            operands: dict[str, Any], reason: str) -> MetricRecord:
+                            operands: dict[str, Any], reason: str,
+                            source_status: SourceStatus | None = None,
+                            period_end: str | None = None) -> MetricRecord:
     """Record a metric, or its absence, so the audit shows which happened.
 
     ``metric()`` already turns a ``None`` value into ``NOT_COMPUTABLE``; this
     wrapper exists to keep the call sites readable and to carry the operands
     that would have been used, which is what a later diagnosis needs.
+
+    ``source_status`` says whether the *inputs* are facts or claims: a
+    perfectly executed division over a model's own assertion is still a claim,
+    and ``MetricRecord.is_usable`` refuses it even though the arithmetic
+    verified.
     """
+    extra = {}
+    if source_status is not None:
+        extra["source_status"] = source_status
+    if period_end is not None:
+        extra["period_end"] = period_end
     return registry.register(metric(
         name, value, unit=unit, formula_id=formula_id, operands=operands,
-        reason="" if value is not None else reason,
+        reason="" if value is not None else reason, **extra,
     ))
+
+
+def _source_of(inputs: RunInputs, *names: str) -> SourceStatus:
+    """VERIFIED only when none of the inputs was the model's own claim."""
+    if set(inputs.claimed_inputs).intersection(names):
+        return SourceStatus.LLM_CLAIMED
+    return SourceStatus.VERIFIED
 
 
 def build_run_registry(inputs: RunInputs, *, run_id: str = "") -> MetricRegistry:
@@ -122,15 +159,7 @@ def build_run_registry(inputs: RunInputs, *, run_id: str = "") -> MetricRegistry
         operands={"price": inputs.price,
                   "bvps": inputs.book_value_per_share},
         reason="the price or the book value per share is unavailable",
-    )
-
-    _register_if_computable(
-        registry, "pe_trailing",
-        (price_to_earnings(inputs.price, inputs.eps_ttm).value
-         if inputs.price is not None and inputs.eps_ttm is not None else None),
-        unit="multiple", formula_id="price_div_eps_trailing_gaap",
-        operands={"price": inputs.price, "eps": inputs.eps_ttm},
-        reason="the price or the trailing EPS is unavailable",
+        source_status=_source_of(inputs, "price", "book_value_per_share"),
     )
 
     _register_if_computable(
@@ -141,6 +170,7 @@ def build_run_registry(inputs: RunInputs, *, run_id: str = "") -> MetricRegistry
         operands={"eps_ttm": inputs.eps_ttm,
                   "eps_forward": inputs.eps_forward},
         reason="the trailing or forward EPS is unavailable",
+        source_status=_source_of(inputs, "eps_ttm", "eps_forward"),
     )
 
     _register_if_computable(
@@ -152,9 +182,200 @@ def build_run_registry(inputs: RunInputs, *, run_id: str = "") -> MetricRegistry
         operands={"revenue": inputs.revenue_consolidated,
                   "revenue_prior": inputs.revenue_prior},
         reason="one of the two revenue figures is unavailable",
+        source_status=_source_of(inputs, "revenue_consolidated", "revenue_prior"),
     )
 
+    _register_dual_class_valuation(registry, inputs)
+    _register_eps_reconciliation(registry, inputs)
+
+    # §4 of P3: a trailing P/E may only rest on an EPS whose denominator is
+    # known. Registering it earlier — before the reconciliation ran — meant a
+    # P/E of 14.51 was certified from a vendor figure the reconciliation had
+    # just marked UNSUPPORTED, so the report could quote a multiple built on
+    # an unverified input while the audit said the input was unverified.
+    if inputs.price is not None and inputs.eps_ttm is not None \
+            and inputs.weighted_average_shares:
+        _register_if_computable(
+            registry, "pe_trailing",
+            price_to_earnings(inputs.price, inputs.eps_ttm).value,
+            unit="multiple", formula_id="price_div_eps_trailing_gaap",
+            operands={"price": inputs.price, "eps": inputs.eps_ttm,
+                      "weighted_average_shares": inputs.weighted_average_shares},
+            reason="the price or the trailing EPS is unavailable",
+            source_status=_source_of(inputs, "price", "eps_ttm"),
+        )
+    else:
+        # No denominator: the EPS is not a certified fact, so neither is the
+        # multiple. Recorded rather than omitted — a silent gap reads as "not
+        # applicable", and this one is measurable and missing.
+        halted = registry.get("eps_gaap")
+        registry.register(metric(
+            "pe_trailing", None, unit="multiple",
+            formula_id="price_div_eps_trailing_gaap",
+            operands={"price": inputs.price, "eps": inputs.eps_ttm,
+                      "weighted_average_shares": inputs.weighted_average_shares},
+            calculation_status=(
+                CalculationStatus.UNSUPPORTED
+                if halted is not None
+                and halted.calculation_status is CalculationStatus.UNSUPPORTED
+                else CalculationStatus.NOT_COMPUTABLE),
+            reason=("a trailing P/E needs an EPS reconciled against the "
+                    "filing's weighted-average share count"),
+        ))
+
     return registry
+
+
+def _register_dual_class_valuation(registry: MetricRegistry,
+                                   inputs: RunInputs) -> None:
+    """P/B for a company with two share classes (§3 of P3).
+
+    Runs the repository's own ``reconcile_valuation``, which refuses a
+    cross-class comparison and a currency mismatch rather than producing a
+    plausible number. Both compatible formulas are computed and compared:
+
+    ``market_cap / attributable_equity``
+        The whole company against the whole book.
+    ``price_B / book_value_per_share_B``
+        The per-share form, on Class-B equivalents.
+
+    They agree only when every input refers to the same class and period,
+    which is the check the audit asked for. A disagreement beyond tolerance is
+    recorded as a refusal, not averaged away.
+    """
+    from tradingagents.dataflows.math.precision import safe_ratio
+    from tradingagents.dataflows.math.valuation import (
+        dual_class_book_value_per_share,
+    )
+    from tradingagents.dataflows.valuation import EquityInputs, reconcile_valuation
+
+    b_equivalent = None
+    if inputs.shares_class_b is not None and inputs.shares_class_a is not None \
+            and inputs.class_a_to_b_ratio is not None:
+        b_equivalent = (inputs.shares_class_b
+                        + inputs.shares_class_a * inputs.class_a_to_b_ratio)
+
+    # The per-share form, through the engine's dual-class helper.
+    per_share_bvps = None
+    if (inputs.equity is not None and inputs.shares_class_a is not None
+            and inputs.shares_class_b is not None
+            and inputs.class_a_to_b_ratio is not None):
+        record = dual_class_book_value_per_share(
+            inputs.equity, inputs.shares_class_a, inputs.shares_class_b,
+            class_a_to_b_ratio=inputs.class_a_to_b_ratio,
+        )
+        per_share_bvps = record.value
+
+    _register_if_computable(
+        registry, "book_value_per_share_B", per_share_bvps,
+        unit="base_per_share", formula_id="equity_div_class_b_equivalent_shares",
+        operands={"equity": inputs.equity, "shares_a": inputs.shares_class_a,
+                  "shares_b": inputs.shares_class_b,
+                  "ratio": inputs.class_a_to_b_ratio,
+                  "class_b_equivalent": b_equivalent},
+        reason=("the equity, both share counts and the conversion ratio are "
+                "all needed for a dual-class book value"),
+        source_status=_source_of(inputs, "equity", "shares_class_a",
+                                 "shares_class_b", "class_a_to_b_ratio"),
+    )
+
+    pb_per_share = None
+    if inputs.price is not None and per_share_bvps is not None:
+        pb_per_share = safe_ratio(inputs.price, per_share_bvps)
+    elif inputs.price is not None and inputs.book_value_per_share is not None:
+        # A directly supplied book value is a legitimate input: a single-class
+        # filer has no dual-class arithmetic to do, and refusing to use it
+        # would make every such run unverifiable.
+        per_share_bvps = inputs.book_value_per_share
+        pb_per_share = safe_ratio(inputs.price, per_share_bvps)
+
+    # The reconciliation itself, which refuses a class or currency mismatch.
+    reconciled = None
+    if inputs.price is not None and inputs.equity is not None \
+            and b_equivalent is not None:
+        reconciled = reconcile_valuation(EquityInputs(
+            price=inputs.price,
+            price_class=inputs.price_class,
+            price_currency=inputs.currency,
+            equity=inputs.equity,
+            equity_currency=inputs.currency,
+            shares_outstanding=b_equivalent,
+            bvps_reported=inputs.book_value_per_share,
+            bvps_class=inputs.price_class,
+            bvps_currency=inputs.currency,
+            share_class_ratio=inputs.class_a_to_b_ratio,
+        ))
+
+    if reconciled is not None and not reconciled.is_usable:
+        # The reconciliation refused: record why rather than the number.
+        reason = "; ".join(i.message for i in reconciled.issues.issues
+                           if i.severity == "error") or "inputs did not reconcile"
+        registry.register(metric(
+            "price_to_book", None, unit="multiple", formula_id="price_div_bvps",
+            operands={"price": inputs.price, "bvps": per_share_bvps},
+            calculation_status=CalculationStatus.REFUSED, reason=reason,
+        ))
+        return
+
+    value = pb_per_share
+    if reconciled is not None and reconciled.price_to_book is not None:
+        value = reconciled.price_to_book
+
+    _register_if_computable(
+        registry, "price_to_book", value,
+        unit="multiple", formula_id="price_div_bvps",
+        operands={"price": inputs.price, "bvps": per_share_bvps,
+                  "equity": inputs.equity, "class_b_equivalent": b_equivalent,
+                  "market_cap_over_equity": (
+                      safe_ratio((inputs.price or 0) * b_equivalent,
+                                 inputs.equity)
+                      if b_equivalent is not None and inputs.equity else None)},
+        reason=("a price-to-book needs the price and a book value on the same "
+                "share class and period"),
+        source_status=_source_of(inputs, "price", "book_value_per_share",
+                                 "equity", "shares_class_a",
+                                 "shares_class_b", "class_a_to_b_ratio"),
+    )
+
+
+def _register_eps_reconciliation(registry: MetricRegistry,
+                                 inputs: RunInputs) -> None:
+    """EPS on the GAAP denominator, or UNVERIFIED (§4 of P3).
+
+    ``earnings_per_share`` records its basis and its share count. When the
+    weighted-average count is absent the metric is registered as
+    ``UNSUPPORTED``: a P/E built on an unverified EPS must not be certified,
+    and inventing a share count would be worse than saying so.
+    """
+    from tradingagents.dataflows.math.valuation import earnings_per_share
+
+    if inputs.eps_ttm is not None and inputs.weighted_average_shares:
+        record = earnings_per_share(
+            inputs.eps_ttm * inputs.weighted_average_shares,
+            inputs.weighted_average_shares, period_end=None)
+        registry.register(record)
+        return
+
+    if inputs.eps_ttm is not None:
+        # The EPS is known but its denominator is not: unusable, and said so.
+        registry.register(metric(
+            "eps_gaap", None, unit="gaap_per_share",
+            formula_id="net_income_div_shares_gaap",
+            operands={"eps_reported": inputs.eps_ttm,
+                      "weighted_average_shares": None},
+            calculation_status=CalculationStatus.UNSUPPORTED,
+            reason=("the trailing EPS was reported but the weighted-average "
+                    "share count is not available, so it cannot be reconciled "
+                    "against the filing"),
+        ))
+        return
+
+    _register_if_computable(
+        registry, "eps_gaap", None, unit="gaap_per_share",
+        formula_id="net_income_div_shares_gaap",
+        operands={"eps_reported": None, "weighted_average_shares": None},
+        reason="no trailing EPS was reported for this run",
+    )
 
 
 def registry_inputs_from_state(state: dict) -> RunInputs:

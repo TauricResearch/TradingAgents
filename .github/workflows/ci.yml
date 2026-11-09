@@ -121,4 +121,5 @@ jobs:
             tests/test_exchange_calendar.py \
             tests/test_p1_runtime_gate_integration.py \
             tests/test_p1_build_info.py \
-            tests/test_p2_financial_data_integrity.py
+            tests/test_p2_financial_data_integrity.py \
+            tests/test_p3_math_wiring.py

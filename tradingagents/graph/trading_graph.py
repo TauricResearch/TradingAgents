@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,78 @@ from .propagation import Propagator
 from .setup import GraphSetup
 
 logger = logging.getLogger(__name__)
+
+
+def _merge_extracted(base, extracted):
+    """Combine the state's own figures with the ones read from the reports.
+
+    The state wins: a structured value a node wrote is authoritative, while a
+    figure recovered from report text is a fallback for the fields no node
+    fills. ``claimed_inputs`` is a union rather than a fallback — it names
+    inputs that came from model prose, and losing it would re-trust a figure
+    that is only an assertion.
+    """
+    if base is None:
+        return extracted
+    if extracted is None:
+        return base
+    updates = {}
+    for name in base.__dataclass_fields__:
+        if name == "claimed_inputs":
+            merged = tuple(sorted(set(base.claimed_inputs or ())
+                                  | set(extracted.claimed_inputs or ())))
+            if merged != tuple(base.claimed_inputs or ()):
+                updates[name] = merged
+            continue
+        current = getattr(base, name, None)
+        if current is not None and current != "":
+            continue
+        found = getattr(extracted, name, None)
+        if found is not None:
+            updates[name] = found
+    return replace(base, **updates) if updates else base
+
+
+def _portfolio_sizing_inputs(config: dict, portfolio, ticker: str) -> dict:
+    """The portfolio figures deterministic sizing needs (§5 of P3).
+
+    Returns an empty dict when no book was supplied, which leaves ``equity`` and
+    ``risk_budget`` as ``None`` — the signal the engine reads as "cannot size"
+    rather than "size zero". That distinction is the whole of F4: the previous
+    run passed nothing, the engine had no equity to cap against, and the audit
+    recorded ``qty_proposed: null``.
+
+    ``equity`` is deliberately not derived from ``cash``: the base an exposure
+    cap is a fraction of is not the same number as the free balance.
+    """
+    if portfolio is None:
+        return {}
+
+    equity = getattr(portfolio, "equity", None)
+    if not isinstance(equity, (int, float)) or isinstance(equity, bool) \
+            or equity <= 0:
+        # A book without equity is still not sizeable; the engine says so.
+        return {"cash": getattr(portfolio, "cash", None)}
+
+    inputs: dict = {
+        "equity": float(equity),
+        "cash": getattr(portfolio, "cash", None),
+        "risk_budget": float(equity) * float(
+            config.get("risk_per_trade_pct") or 0.01),
+        "max_symbol_exposure": config.get("max_symbol_exposure") or 0.05,
+    }
+
+    # Existing exposure in this instrument, so the cap counts what is already
+    # held instead of sizing as if the book were empty.
+    try:
+        held = portfolio.position_in(ticker)
+    except Exception:  # noqa: BLE001 — an unreadable book is not a flat one
+        held = None
+    if held is not None and getattr(held, "quantity", 0):
+        price = getattr(held, "average_price", None)
+        if isinstance(price, (int, float)) and price > 0:
+            inputs["existing_notional"] = abs(float(held.quantity)) * float(price)
+    return inputs
 
 
 def _validate_trade_date(trade_date) -> str:
@@ -375,11 +448,19 @@ class TradingAgentsGraph:
         with run_config(self.config):
             return settlement.settle_all_pending(self.memory_log, self.reflector, self.config, wait=wait)
 
-    def record_decision(self, company_name, trade_date, final_state):
+    def record_decision(self, company_name, trade_date, final_state, portfolio=None):
         """Record a finished run: its state log, and its decision in the memory log
-        for reflection on the next same-ticker run. propagate() and the CLI both end here."""
+        for reflection on the next same-ticker run. propagate() and the CLI both end here.
+
+        ``portfolio`` is the caller's book. It is what makes deterministic sizing
+        possible at all (§5 of P3): the risk budget and the per-symbol exposure
+        cap are fractions of the account's equity, so without a book the engine
+        refuses to size rather than inventing one. An unknown book is never
+        treated as a flat one.
+        """
         self._log_state(trade_date, final_state)
-        self._evaluate_reliability(company_name, trade_date, final_state)
+        self._evaluate_reliability(company_name, trade_date, final_state,
+                                   portfolio=portfolio)
         decision = final_state.get("final_trade_decision")
         if not decision:
             logger.warning("No final decision for %s on %s; nothing added to the memory log",
@@ -390,7 +471,8 @@ class TradingAgentsGraph:
             rating=run_rating(final_state),
         )
 
-    def _evaluate_reliability(self, company_name, trade_date, final_state):
+    def _evaluate_reliability(self, company_name, trade_date, final_state,
+                              portfolio=None):
         """Run the decision through the Execution Gate and write the audit.
 
         Best-effort by design: a reliability-layer failure must not lose the
@@ -426,6 +508,7 @@ class TradingAgentsGraph:
                 fundamentals_filings=filings,
                 used_fundamentals_period_end=used_end,
                 metric_registry=registry,
+                **_portfolio_sizing_inputs(self.config, portfolio, company_name),
             )
             attach_to_state(final_state, decision)
             attach_registry_status(final_state, registry)
@@ -445,12 +528,21 @@ class TradingAgentsGraph:
         reports as "nothing was checked" rather than as a pass.
         """
         try:
+            from tradingagents.dataflows.math.extraction import (
+                extract_run_inputs,
+            )
             from tradingagents.dataflows.math.run_registry import (
                 build_run_registry,
                 registry_inputs_from_state,
             )
 
+            # The labelled figures the reports actually state are read first
+            # (F2/F3): `registry_inputs_from_state` alone reads only state
+            # keys no node writes, so every valuation metric came out
+            # NOT_COMPUTABLE and the model's own numbers were never checked.
+            extracted = extract_run_inputs(final_state)
             inputs = registry_inputs_from_state(final_state)
+            inputs = _merge_extracted(inputs, extracted.inputs)
             return build_run_registry(
                 inputs, run_id=f"{company_name}-{trade_date}")
         except Exception:  # noqa: BLE001 — an unavailable registry is not a pass
@@ -505,7 +597,8 @@ class TradingAgentsGraph:
         else:
             final_state = self.graph.invoke(graph_input, **args)
 
-        self.record_decision(company_name, trade_date, final_state)
+        self.record_decision(company_name, trade_date, final_state,
+                             portfolio=portfolio)
 
         # Clear checkpoint on successful completion to avoid stale state.
         self.clear_checkpoint_on_success(company_name, trade_date, asset_type, portfolio)

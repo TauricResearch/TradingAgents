@@ -21,6 +21,67 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **The math engine now runs inside a real analysis.** A finished run reads the
+  labelled figures its analysts stated, computes the valuation multiples with
+  the deterministic engine, and hands the result to the Execution Gate as a
+  certified-metric registry. A multiple quoted in a report is now checked
+  against a computation instead of being taken at its word, and a figure the
+  model authored is marked `LLM_CLAIMED` — reported, never certified.
+- **`dataflows/math/extraction.py`** reads the labelled valuation figures out of
+  the finished reports (price-to-book, EPS trailing and forward, book value per
+  share, consolidated revenue), keeping the label it matched as provenance and
+  applying the modelled scale, so "105,647 million" and "359,5599" are read as
+  the numbers they are.
+- **Portfolio input accepts an equity figure.** `PortfolioContext` carries
+  `equity`, the capital base the exposure caps are a fraction of, distinct from
+  the free cash balance. Sizing is computed from the run's own portfolio rather
+  than skipped.
+- **XBRL concepts keep their meaning.** `dataflows/vendors/concept_resolution.py`
+  classifies revenue tags as consolidated, contract, segment or component, and
+  `sec_edgar._as_of_with_provenance` records the concept, accession, form, period,
+  unit and dimensions with each figure. Candidate tags are ordered by **meaning
+  before spelling**, so a filer's consolidated total outranks a component however
+  the tags are listed. Asking for consolidated revenue from a filer that reports
+  only contract revenue now returns *missing* with the rejected candidate named,
+  rather than substituting the subset.
+- **Bar finality travels with the price.** `dataflows/vendors/bar_finality.py`
+  reports `EOD_CONFIRMED`, `EOD_PENDING_CONFIRMATION`, `INTRADAY_PARTIAL`,
+  `STALE` or `UNKNOWN`, with session date, exchange timezone, observation and
+  source timestamps, last confirmed close, source and calendar. It uses the
+  existing exchange calendar, so holidays and 13:00 closes are honoured. The
+  verified market snapshot now states the bar's finality and, when provisional,
+  instructs the agent not to quote it as a close or derive an end-of-day signal
+  from it.
+
+### Changed
+
+- **A trailing P/E is only certified on a reconciled EPS.** The multiple is
+  registered after the EPS reconciliation, so a price-to-earnings built on a
+  vendor EPS whose denominator is unknown is `UNSUPPORTED` rather than
+  `VERIFIED`. Previously the audit could certify a P/E while marking the EPS
+  behind it unverifiable.
+- **Sizing is attempted whenever a plan has numbers.** The engine runs with a
+  missing budget or missing equity instead of being skipped, so the refusal
+  names its own cause (`RISK_BUDGET_MISSING`, `PORTFOLIO_CONTEXT_MISSING`)
+  instead of being reported as an unrelated gate reason. The audit's
+  `qty_proposed` and `planned_risk` are populated when a size exists.
+
+### Fixed
+
+- **A misspelt portfolio field fails at the edge.** `PortfolioContext` rejects
+  unknown keys instead of ignoring them: an earlier revision dropped `equity`
+  silently, which left every plan unsized with no visible cause.
+- **The metric registry is populated for real runs.** Extraction feeds
+  `build_run_registry`, which previously read only state keys no node wrote, so
+  every valuation metric came out `NOT_COMPUTABLE` and no figure was ever
+  checked.
+- **A numeric capture group that can be absent no longer raises.** The forward
+  EPS pattern alternates between a plain and a tabular shape; reading a fixed
+  group made extraction throw whenever the second shape matched.
+- **`359,5599` is read as a decimal, not as 3,595,599.** Four or more digits
+  after a comma cannot be a thousands group, and treating it as one inflated a
+  per-share value by four orders of magnitude.
+
 - **XBRL concepts keep their meaning.** `dataflows/vendors/concept_resolution.py`
   classifies revenue tags as consolidated, contract, segment or component, and
   `sec_edgar._as_of_with_provenance` records the concept, accession, form, period,
