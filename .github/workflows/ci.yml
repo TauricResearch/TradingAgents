@@ -109,4 +109,5 @@ jobs:
             tests/test_audit.py \
             tests/test_financial_math_engine.py \
             tests/test_math_gate_end_to_end.py \
-            tests/test_deterministic_math.py
+            tests/test_deterministic_math.py \
+            tests/test_metric_definitions.py

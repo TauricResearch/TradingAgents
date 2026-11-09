@@ -380,6 +380,15 @@ Istruzioni per l'agente AI:
 - **Certified metric lookup.** `get_certified_metric` reads a value from the
   run's registry, and answers `UNSUPPORTED` for a metric the engine never
   computed — so a report cannot quote a number nobody verified.
+- **Metric definition reconciliation.** `tradingagents/dataflows/math/definitions.py`
+  decides whether two figures may be combined, refusing a segment total
+  against a consolidated one, GAAP against adjusted, a quarter against a TTM
+  figure, differing currencies or unit scales, and a per-share figure built on
+  end-of-period instead of weighted-average shares. This is the one check
+  arithmetic cannot provide: dividing 105,647 by 74,322 is flawless and
+  meaningless, so the block must come from comparing what the figures mean.
+  Differing *quarters* remain compatible — a year-over-year comparison is the
+  purpose of having period labels; a quarter against a trailing year is not.
 
 ### Fixed
 

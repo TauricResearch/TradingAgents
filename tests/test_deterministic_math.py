@@ -386,10 +386,12 @@ class TestToolContract:
         assert payload["blocks_decision"] is False
 
     def test_every_tool_is_registered_for_binding(self):
-        assert len(MATH_TOOLS) == 18
+        # 19: the eighteen measurement/validation tools plus the definition
+        # reconciler added for §5.
+        assert len(MATH_TOOLS) == 19
         names = {t.name for t in MATH_TOOLS}
         assert {"calculate_stop_distance", "validate_market_bar",
-                "get_certified_metric"} <= names
+                "validate_metric_definitions", "get_certified_metric"} <= names
 
 
 class TestCertifiedMetricLookup:

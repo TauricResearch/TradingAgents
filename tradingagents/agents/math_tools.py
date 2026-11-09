@@ -26,6 +26,11 @@ from langgraph.prebuilt import InjectedState
 
 from tradingagents.dataflows.math.claims import ClaimKind, NumericClaim, check_claim
 from tradingagents.dataflows.math.consistency import check_stop_consistency
+from tradingagents.dataflows.math.definitions import (
+    DefinitionKind,
+    MetricIdentity,
+    reconcile_definitions,
+)
 from tradingagents.dataflows.math.metric_record import (
     CalculationStatus,
     SourceStatus,
@@ -461,6 +466,49 @@ def validate_stated_percentage(
 
 
 @tool
+def validate_metric_definitions(
+    left_definition: Annotated[
+        Literal["consolidated", "segment", "adjusted", "operating", "gaap", "unknown"],
+        "What the first figure measures",
+    ],
+    right_definition: Annotated[
+        Literal["consolidated", "segment", "adjusted", "operating", "gaap", "unknown"],
+        "What the second figure measures",
+    ],
+    left_period: Annotated[str, "Period of the first figure, e.g. 2026-Q3"] = "",
+    right_period: Annotated[str, "Period of the second figure"] = "",
+    left_currency: Annotated[str, "Currency of the first figure"] = "",
+    right_currency: Annotated[str, "Currency of the second figure"] = "",
+    left_unit: Annotated[str, "Unit of the first figure: base, million, billion"] = "",
+    right_unit: Annotated[str, "Unit of the second figure"] = "",
+) -> str:
+    """Whether two figures may be combined into one metric (§5).
+
+    Half of every reported revenue discrepancy is definitional, not
+    arithmetic: a segment total against a consolidated one, or adjusted
+    against GAAP. Growth across them is well-formed and meaningless, so the
+    check has to happen before the division, on what the figures mean.
+
+    An unlabelled figure on either side is refused: two numbers without a
+    stated definition are not thereby compatible.
+    """
+    left = MetricIdentity(
+        definition=DefinitionKind(left_definition),
+        period=left_period or None,
+        currency=left_currency or None,
+        unit=left_unit or "base",
+    )
+    right = MetricIdentity(
+        definition=DefinitionKind(right_definition),
+        period=right_period or None,
+        currency=right_currency or None,
+        unit=right_unit or "base",
+    )
+    verdict = reconcile_definitions(left, right)
+    return json.dumps(verdict.summary(), ensure_ascii=False)
+
+
+@tool
 def validate_market_bar(
     bar_timestamp: Annotated[str, "Timestamp of the price bar, ISO 8601"],
     analysis_time: Annotated[str, "When the analysis runs, ISO 8601"] = "",
@@ -570,6 +618,7 @@ MATH_TOOLS = [
     convert_money_unit,
     validate_stated_multiple,
     validate_stated_percentage,
+    validate_metric_definitions,
     validate_market_bar,
     validate_market_series,
     validate_trade_proposal,
@@ -606,5 +655,6 @@ TOOLS_FOR_FUNDAMENTALS = (
     convert_money_unit,
     validate_stated_multiple,
     validate_stated_percentage,
+    validate_metric_definitions,
     get_certified_metric,
 )
