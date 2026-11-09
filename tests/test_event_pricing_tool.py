@@ -12,8 +12,8 @@ import pandas as pd
 import pytest
 
 import tradingagents.agents.tools as tools_mod
-from tradingagents.agents.tools import check_event_pricing
 from tradingagents.agents.analysts.news_analyst import TOOLS as NEWS_TOOLS
+from tradingagents.agents.tools import check_event_pricing
 
 
 def _sessions_frame(dates):

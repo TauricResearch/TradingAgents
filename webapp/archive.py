@@ -26,6 +26,7 @@ cannot read an arbitrary file.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 from dataclasses import dataclass, field
@@ -402,15 +403,11 @@ def delete_report(results_dir: Path, entry_id: str) -> dict:
                 path.unlink(missing_ok=True)
                 removed.append(path)
                 continue
-            try:
+            # Not empty: something this module does not own lives there.
+            with contextlib.suppress(OSError):
                 path.rmdir()
-            except OSError:
-                # Not empty: something this module does not own lives there.
-                pass
-    try:
+    with contextlib.suppress(OSError):
         directory.rmdir()
-    except OSError:
-        pass
 
     # A finished report's ticker folder only ever held stamped reports; once its
     # last one is gone there is nothing to show, so prune it. A run folder's
@@ -418,10 +415,8 @@ def delete_report(results_dir: Path, entry_id: str) -> dict:
     if entry.source == "report":
         parent = directory.parent
         if parent != results_dir and parent.name != "reports":
-            try:
+            with contextlib.suppress(OSError):
                 parent.rmdir()
-            except OSError:
-                pass
 
     return {
         "id": entry.id,

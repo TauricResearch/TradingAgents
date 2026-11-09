@@ -394,6 +394,17 @@ Istruzioni per l'agente AI:
 - Percentages an agent states are compared against the engine's own
   computation, and a disagreement is recorded as a refused claim rather than
   silently corrected.
+- The test and lint CI jobs pass again, so they can gate merges. The test job
+  installed only the `dev` extra while two suites import `fastapi`, which
+  lives in `web`: collection aborted on every Python version before running a
+  single test. The lint job reported 27 findings that pre-date this work —
+  mechanical ones (unused imports, import ordering, a missing trailing
+  newline) plus an unused local, an ambiguous `l` renamed to `low`, three
+  `try/except/pass` blocks written with `contextlib.suppress`, and two
+  `dict()` calls written as literals. Behaviour is unchanged.
+- A push to `custom`, the integration branch, now runs CI. Previously only
+  `main` and version tags were covered, so a merge into `custom` landed
+  unvalidated.
 
 ## [0.7.1] — 2026-10-27
 

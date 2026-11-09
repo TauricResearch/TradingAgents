@@ -29,19 +29,19 @@ _PUBLISHED = datetime(2026, 11, 7, 12, 0, tzinfo=UTC)
 
 def _fact(**overrides):
     """A verified BRK-style fact; overrides retarget any field."""
-    kwargs = dict(
-        fact_id="q3_operating_earnings",
-        value=12705,
-        unit="USD_million",
-        period="2026-Q3",
-        period_end="2026-09-30",
-        source_type="company_release",
-        source_uri="https://example.com/release",
-        published_at=_PUBLISHED,
-        retrieved_at=_RETRIEVED,
-        snapshot_id="snap-1",
-        verification_status=VERIFIED,
-    )
+    kwargs = {
+        "fact_id": "q3_operating_earnings",
+        "value": 12705,
+        "unit": "USD_million",
+        "period": "2026-Q3",
+        "period_end": "2026-09-30",
+        "source_type": "company_release",
+        "source_uri": "https://example.com/release",
+        "published_at": _PUBLISHED,
+        "retrieved_at": _RETRIEVED,
+        "snapshot_id": "snap-1",
+        "verification_status": VERIFIED,
+    }
     kwargs.update(overrides)
     return Fact(**kwargs)
 

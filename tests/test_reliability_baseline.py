@@ -13,7 +13,7 @@ no live-broker path. All data is frozen in
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import pytest

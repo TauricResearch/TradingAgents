@@ -10,7 +10,6 @@ audit file exists, and a reliability-layer failure cannot sink the run.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 

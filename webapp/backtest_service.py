@@ -18,7 +18,6 @@ import time
 from dataclasses import dataclass, field
 
 from tradingagents.backtest import BacktestResult, iter_grid, run_backtest, summarize
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 # How many recent cell events a sweep keeps for the page. A long sweep can run
 # hundreds of cells; the page shows the tail.
