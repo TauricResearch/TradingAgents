@@ -246,6 +246,22 @@ _CLAIM_PATTERNS: tuple[tuple[str, re.Pattern[str], str, int], ...] = (
     ("risk_reward",
      re.compile(r"(?:R:?R|risk[/-]reward)[^.\d]{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE),
      "multiple", 1),
+    # EPS growth or contraction, in the phrasings a report actually uses:
+    # "EPS contracts 37%", "EPS growth of -37%", "a 37% decline in EPS".
+    # Case A of the 2026-11-09 19:24 report is exactly this claim.
+    ("eps_change",
+     re.compile(
+         r"\bEPS\b[^.\d%]{0,40}?([-+]?\d+(?:\.\d+)?)\s*%"
+         r"|([-+]?\d+(?:\.\d+)?)\s*%\s+(?:decline|contraction|drop|growth|increase|"
+         r"decrease)\s+in\s+\bEPS\b",
+         re.IGNORECASE), "percent", -1),
+    # VIX change, the same shape: "VIX rose 58%", "VIX at 28.18 from 16.61
+    # (+58%)".
+    ("vix_change",
+     re.compile(
+         r"\bVIX\b[^.\d%]{0,40}?([-+]?\d+(?:\.\d+)?)\s*%"
+         r"|\(?([-+]?\d+(?:\.\d+)?)\s*%\)?[^.]{0,30}?\bVIX\b",
+         re.IGNORECASE), "percent", -1),
 )
 
 

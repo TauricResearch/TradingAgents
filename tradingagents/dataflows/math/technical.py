@@ -226,13 +226,30 @@ def standard_deviation(values: Sequence[float], ddof: int = 0) -> float | None:
 
 @dataclass(frozen=True)
 class BollingerBands:
-    """The band triple plus the two derived figures reports quote."""
+    """The band triple plus the derived figures reports quote.
+
+    Two width percentages are kept separate because they answer different
+    questions and are routinely confused (§2 case C):
+
+    ``bandwidth_pct``
+        ``(upper - lower) / middle * 100`` — the standard Bollinger
+        bandwidth, measured against the band's own centre.
+    ``width_over_price_pct``
+        ``(upper - lower) / price * 100`` — the band's span as a share of the
+        traded price.
+
+    On the regression figures (upper 580.114, lower 512.863, middle 546.488,
+    price 573.095) they are 12.31% and 11.73%: both correct, neither
+    interchangeable. A report that quotes one number without naming its
+    denominator cannot be checked, which is why both carry explicit names.
+    """
 
     upper: Decimal
     middle: Decimal
     lower: Decimal
     bandwidth_pct: Decimal | None
     percent_b: Decimal | None
+    width_over_price_pct: Decimal | None = None
 
     def summary(self) -> dict:
         return {
@@ -240,6 +257,12 @@ class BollingerBands:
             "middle": str(self.middle),
             "lower": str(self.lower),
             "bandwidth_pct": str(self.bandwidth_pct) if self.bandwidth_pct is not None else None,
+            "bandwidth_denominator": "middle",
+            "width_over_price_pct": (
+                str(self.width_over_price_pct)
+                if self.width_over_price_pct is not None else None
+            ),
+            "width_over_price_denominator": "price",
             "percent_b": str(self.percent_b) if self.percent_b is not None else None,
         }
 
@@ -273,24 +296,55 @@ def bollinger_bands(series: Sequence[object] | None, window: int = BOLLINGER_PER
     if last is not None and (upper - lower) != 0:
         percent_b = quantize((last - Decimal(repr(lower))) / Decimal(repr(upper - lower)),
                              Decimal("0.0001"))
+    # The band span as a share of the price — a different metric from the
+    # bandwidth above, with a different denominator, so a different name.
+    width_over_price = None
+    if last is not None and last != 0:
+        width_over_price = quantize(
+            Decimal(repr(upper - lower)) / last * Decimal(100),
+            Decimal("0.0001"),
+        )
     return BollingerBands(
         upper=quantize(Decimal(repr(upper)), q),
         middle=quantize(Decimal(repr(middle)), q),
         lower=quantize(Decimal(repr(lower)), q),
         bandwidth_pct=quantize(Decimal(repr(bandwidth)), Decimal("0.0001")),
+        width_over_price_pct=width_over_price,
         percent_b=percent_b,
     )
 
 
 def distance_from_level(price: object, level: object,
                         quantum: Decimal = Decimal("0.0001")) -> Decimal | None:
-    """Percentage distance of a price from a level, same convention as §6.
+    """How far the **price** sits from a level, as a share of the level.
 
     ``((price / level) - 1) * 100``. Negative when below, positive when
     above — so "-2.63% from the high" and "+9.46% over SMA50" come from one
     implementation and cannot drift apart.
+
+    The denominator is the **level**. Its converse, where the *level* is
+    measured against the *price*, is a different metric with a different
+    denominator and a different answer — see ``level_distance_from_price``.
     """
     return pct_change(price, level, quantum=quantum)
+
+
+def level_distance_from_price(price: object, level: object,
+                              quantum: Decimal = Decimal("0.0001")
+                              ) -> Decimal | None:
+    """How far a **level** sits from the price, as a share of the price.
+
+    ``((level / price) - 1) * 100``. The 19:24 report quoted the Bollinger
+    middle against the price this way: ``(546.488 / 573.095 - 1) * 100``
+    is -4.64%, whereas measuring the price against the middle gives +4.87%.
+
+    The two are **not** negatives of each other, because a percentage change
+    is not symmetric: -4.64% and +4.87% describe the same pair of numbers
+    under different denominators. Keeping one function for both would make
+    the validator reject a correct figure, which is why the denominator is
+    part of the metric's identity rather than an implementation detail.
+    """
+    return pct_change(level, price, quantum=quantum)
 
 
 def fibonacci_retracement(high: object, low: object,

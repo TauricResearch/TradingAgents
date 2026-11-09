@@ -54,6 +54,7 @@ from tradingagents.dataflows.math.technical import (
     bollinger_bands,
     distance_from_level,
     exponential_moving_average,
+    level_distance_from_price,
     macd,
     relative_strength_index,
     risk_reward_ratio,
@@ -509,6 +510,88 @@ def validate_metric_definitions(
 
 
 @tool
+def calculate_distance_from_level(
+    price: Annotated[float, "The price"],
+    level: Annotated[float, "The reference level: moving average, band, high, low"],
+    denominator: Annotated[
+        Literal["level", "price"],
+        "What the percentage is measured against (§2 case B)",
+    ] = "level",
+) -> str:
+    """Distance between a price and a level, with the denominator named.
+
+    The two conventions are both legitimate and give different answers, because
+    a percentage change is not symmetric:
+
+    - ``denominator="level"`` → ``(price / level - 1) * 100``. The 570.89
+      close against a 497.723 SMA200 is **+14.70%**.
+    - ``denominator="price"`` → ``(level / price - 1) * 100``. The Bollinger
+      middle 546.488 against a 573.095 price is **-4.64%**.
+
+    A report that quotes a distance without saying which denominator it used
+    cannot be checked; this tool makes the choice explicit so it can be.
+    """
+    if denominator == "price":
+        value = level_distance_from_price(price, level)
+        formula = "level_div_price"
+    else:
+        value = distance_from_level(price, level)
+        formula = "price_div_level"
+    if value is None:
+        return _refused("distance_from_level", formula,
+                        "a zero denominator has no percentage",
+                        price=price, level=level, denominator=denominator)
+    return _payload(metric(
+        f"distance_from_level_{denominator}", value, unit="percent",
+        formula_id=formula,
+        operands={"price": price, "level": level, "denominator": denominator},
+    ))
+
+
+@tool
+def calculate_eps_change(
+    eps_ttm: Annotated[float, "Trailing-twelve-month EPS"],
+    eps_forward: Annotated[float, "Forward EPS estimate"],
+) -> str:
+    """Percentage change from TTM to forward EPS, signed by direction.
+
+    The 19:24 report claimed a 37% contraction where 22.43 against 39.76 is
+    **-43.59%**. Both figures are on the same basis, so the comparison is
+    legitimate; only the arithmetic was wrong, and this is the arithmetic.
+    """
+    value = pct_change(eps_forward, eps_ttm)
+    if value is None:
+        return _refused("eps_change", "pct_change",
+                        "EPS TTM of zero has no percentage change",
+                        eps_ttm=eps_ttm, eps_forward=eps_forward)
+    return _payload(metric(
+        "eps_change_ttm_to_forward", value, unit="percent",
+        formula_id="pct_change",
+        operands={"eps_ttm": eps_ttm, "eps_forward": eps_forward},
+    ))
+
+
+@tool
+def calculate_quantity_sensitivity(
+    previous_atr: Annotated[float, "ATR before the change"],
+    new_atr: Annotated[float, "ATR after the change"],
+    previous_qty: Annotated[int, "Quantity sized with the previous ATR"],
+) -> str:
+    """How a quantity changes when ATR changes, at constant monetary risk.
+
+    At a fixed risk budget and the same ATR multiple, the quantity is
+    inversely proportional to ATR, so it scales by ``previous_atr / new_atr``.
+    ATR 6.36 to 9.524 therefore cuts the size by **33.22%**, not the
+    "40-50%" the report asserted without a calculation.
+    """
+    from tradingagents.dataflows.risk_engine import quantity_sensitivity_to_atr
+
+    result = quantity_sensitivity_to_atr(previous_atr, new_atr,
+                                         previous_qty=previous_qty)
+    return json.dumps(result.summary(), ensure_ascii=False)
+
+
+@tool
 def validate_market_bar(
     bar_timestamp: Annotated[str, "Timestamp of the price bar, ISO 8601"],
     analysis_time: Annotated[str, "When the analysis runs, ISO 8601"] = "",
@@ -612,6 +695,9 @@ MATH_TOOLS = [
     calculate_eps,
     calculate_indicator,
     calculate_price_distance,
+    calculate_distance_from_level,
+    calculate_eps_change,
+    calculate_quantity_sensitivity,
     calculate_stop_distance,
     calculate_stop_for_atr,
     calculate_risk_reward,
@@ -633,6 +719,8 @@ MATH_TOOLS = [
 TOOLS_FOR_MARKET = (
     calculate_indicator,
     calculate_price_distance,
+    calculate_distance_from_level,
+    calculate_quantity_sensitivity,
     calculate_stop_distance,
     calculate_stop_for_atr,
     calculate_risk_reward,
@@ -647,6 +735,7 @@ TOOLS_FOR_MARKET = (
 # that refuses a figure contradicting them.
 TOOLS_FOR_FUNDAMENTALS = (
     calculate_price_to_book,
+    calculate_eps_change,
     calculate_book_value_per_share,
     calculate_valuation_ratio,
     calculate_eps,

@@ -359,14 +359,22 @@ def check_report_consistency(
         # Not-verified claims raise findings so they appear in the
         # diagnostics, not only in the claims block.
         for result in report.claims.blocking:
+            # §3: a claimed *rate* the engine disproves gets its own code, so
+            # the audit says which kind of number was wrong, and the finding
+            # records the agent that produced it.
+            contradicted = result.verdict.value == "MISMATCH"
             report.findings.append(Finding(
                 kind=(FindingKind.CONTRADICTION
-                      if result.verdict.value == "MISMATCH"
-                      else FindingKind.UNVERIFIED),
-                code=(f"NUMERIC_CLAIM_{result.verdict.value}"),
-                message=result.reason or f"claim '{result.claim.label}' refused",
+                      if contradicted else FindingKind.UNVERIFIED),
+                code=("NUMERIC_CLAIM_MISMATCH" if contradicted
+                      else f"NUMERIC_CLAIM_{result.verdict.value}"),
+                message=(f"agent '{result.claim.agent}' stated "
+                         f"'{result.claim.label}' = {result.claim.value}: "
+                         f"{result.reason}") if result.reason else
+                        f"agent '{result.claim.agent}' claim refused",
                 agents=(result.claim.agent,),
-                values=(str(result.claim.value),),
+                values=(str(result.claim.value),
+                        result.record.display if result.record else ""),
                 blocks=True,
             ))
 
