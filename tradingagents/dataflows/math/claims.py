@@ -153,17 +153,21 @@ def check_claim(claim: NumericClaim, computed: Any, *,
     kind of check by forgetting a parameter.
     """
     computed_d = as_decimal(computed)
+    # A claim may arrive as a float from a tool argument or from prose; convert
+    # it once so the comparison is Decimal against Decimal. Mixing the two
+    # raises TypeError, which surfaced only when a tool built a claim directly.
+    claimed_d = as_decimal(claim.value)
     is_pct = claim.unit in ("percent", "percentage_points")
     tol = (as_decimal(tolerance) if tolerance is not None
            else (PCT_TOLERANCE if is_pct else MULTIPLE_TOLERANCE))
     quantum = PERCENT_QUANTUM if is_pct else RATIO_QUANTUM
 
-    if computed_d is None or claim.value is None:
+    if computed_d is None or claimed_d is None:
         return ClaimResult(
             claim=claim, verdict=ClaimVerdict.NOT_CHECKABLE,
             record=metric(
                 claim.label, computed_d, unit=claim.unit, formula_id=formula_id,
-                period_end=period_end, llm_claimed_value=claim.value,
+                period_end=period_end, llm_claimed_value=claimed_d,
                 source_status=SourceStatus.LLM_CLAIMED,
                 calculation_status=CalculationStatus.UNSUPPORTED,
                 reason="no computed value to check the claim against",
@@ -172,16 +176,16 @@ def check_claim(claim: NumericClaim, computed: Any, *,
             reason="the claim cannot be verified: no engine value for this metric",
         )
 
-    difference = computed_d - claim.value
+    difference = computed_d - claimed_d
     within = abs(difference) <= tol
     record = metric(
         claim.label, computed_d, unit=claim.unit, formula_id=formula_id,
-        period_end=period_end, llm_claimed_value=claim.value,
+        period_end=period_end, llm_claimed_value=claimed_d,
         tolerance=tol, source_status=SourceStatus.LLM_CLAIMED,
         calculation_status=(CalculationStatus.VERIFIED if within
                             else CalculationStatus.MISMATCH),
         reason=("" if within else
-                f"the agent stated {quantize(claim.value, quantum)}, the engine "
+                f"the agent stated {quantize(claimed_d, quantum)}, the engine "
                 f"computes {quantize(computed_d, quantum)} "
                 f"(off by {quantize(difference, quantum)}, tolerance {tol})"),
         affected_decisions=affected_decisions, quantum=quantum,

@@ -358,6 +358,41 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Mathematical tools for the analysts.** Eighteen typed tools
+  (`tradingagents/agents/math_tools.py`) let an agent *ask for* a number
+  instead of computing one: percentage changes, CAGR, P/B, book value per
+  share, P/E and earnings yield, EPS on weighted-average shares, technical
+  indicators, price distances, stop distances, ATR-implied stops, risk/reward,
+  unit conversion, and validators for stated multiples, stated percentages,
+  market bars, market series and trade proposals. Each returns structured
+  JSON with `value`, `formula_id`, `operands` and a calculation status, never
+  a bare number a model could restate. The market analyst receives the
+  measurement tools and the fundamentals analyst the valuation tools, so a
+  distance from a moving average or a price-to-book is certified rather than
+  estimated in prose.
+- **Market session status.** `tradingagents/dataflows/math/session.py`
+  distinguishes a final end-of-day close from a bar that is still forming, and
+  reports `market_session_status`, `bar_timestamp`, `is_complete`, `is_final`
+  and `last_completed_session`. A date-only bar is judged as its whole session
+  rather than as midnight, so a past daily bar is complete while the running
+  session's is not. `assess_series` reports `includes_partial_bar` so an
+  indicator can declare that it was computed over a price still moving.
+- **Certified metric lookup.** `get_certified_metric` reads a value from the
+  run's registry, and answers `UNSUPPORTED` for a metric the engine never
+  computed — so a report cannot quote a number nobody verified.
+
+### Fixed
+
+- A LONG stop above its entry, or a SHORT stop below it, is refused rather than
+  measured: the distance from such a pair looks plausible while the plan
+  protects nothing.
+- `check_claim` compared a `Decimal` against a claimed `float`, raising
+  `TypeError` whenever a claim was built from a tool argument rather than
+  parsed from prose. Both sides are converted once, so the comparison is
+  always exact.
+
+### Added
+
 - **Financial Math Engine.** A dedicated package (`tradingagents/dataflows/math/`)
   that owns every financial calculation the application performs, so no
   quantity, multiple, percentage or risk figure is produced by a language
