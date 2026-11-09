@@ -299,6 +299,30 @@ def check_share_class_mix(price_class: str | None, value_class: str | None,
     )
 
 
+def check_definition_mix(left, right, metric_name: str = "metric") -> Finding | None:
+    """Refuse a metric computed across two different definitions (§5).
+
+    Case B of the regression: revenue of 74,322 (segment) against 105,647
+    (consolidated). The growth rate across them is arithmetically perfect, so
+    only a definition check can catch it.
+    """
+    if left is None or right is None:
+        return None
+    if left.definition is right.definition:
+        return None
+    if not left.is_labelled() and not right.is_labelled():
+        return None
+    return Finding(
+        kind=FindingKind.CONTRADICTION,
+        code="DEFINITION_MIX",
+        message=(f"'{metric_name}' combines a {left.definition} figure with a "
+                 f"{right.definition} one: these measure different things, so "
+                 "any metric across them is not comparable"),
+        values=(str(left.definition), str(right.definition)),
+        blocks=True,
+    )
+
+
 def check_report_consistency(
     *,
     reports: dict[str, str] | None = None,
@@ -318,6 +342,8 @@ def check_report_consistency(
     metric_name: str = "metric",
     price_class: str | None = None,
     value_class: str | None = None,
+    left_identity: Any = None,
+    right_identity: Any = None,
 ) -> ConsistencyReport:
     """Run every cross-report check and collect the diagnostic section.
 
@@ -333,14 +359,22 @@ def check_report_consistency(
         # Not-verified claims raise findings so they appear in the
         # diagnostics, not only in the claims block.
         for result in report.claims.blocking:
+            # §3: a claimed *rate* the engine disproves gets its own code, so
+            # the audit says which kind of number was wrong, and the finding
+            # records the agent that produced it.
+            contradicted = result.verdict.value == "MISMATCH"
             report.findings.append(Finding(
                 kind=(FindingKind.CONTRADICTION
-                      if result.verdict.value == "MISMATCH"
-                      else FindingKind.UNVERIFIED),
-                code=(f"NUMERIC_CLAIM_{result.verdict.value}"),
-                message=result.reason or f"claim '{result.claim.label}' refused",
+                      if contradicted else FindingKind.UNVERIFIED),
+                code=("NUMERIC_CLAIM_MISMATCH" if contradicted
+                      else f"NUMERIC_CLAIM_{result.verdict.value}"),
+                message=(f"agent '{result.claim.agent}' stated "
+                         f"'{result.claim.label}' = {result.claim.value}: "
+                         f"{result.reason}") if result.reason else
+                        f"agent '{result.claim.agent}' claim refused",
                 agents=(result.claim.agent,),
-                values=(str(result.claim.value),),
+                values=(str(result.claim.value),
+                        result.record.display if result.record else ""),
                 blocks=True,
             ))
 
@@ -365,6 +399,14 @@ def check_report_consistency(
     shared = check_share_class_mix(price_class, value_class, metric_name)
     if shared is not None:
         report.findings.append(shared)
+
+    # §5: two figures with different definitions must not be combined. This
+    # is the only check that can catch case B — the arithmetic of dividing
+    # 105,647 by 74,322 is flawless.
+    definition_finding = check_definition_mix(left_identity, right_identity,
+                                              metric_name)
+    if definition_finding is not None:
+        report.findings.append(definition_finding)
 
     if metrics:
         report.metrics.extend(metrics)

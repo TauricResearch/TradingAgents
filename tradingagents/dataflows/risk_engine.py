@@ -695,3 +695,63 @@ def portfolio_risk_check(
         planned_risk=planned_risk, planned_risk_pct_equity=fraction,
         reasons=tuple(reasons) or (RiskReason.OK,),
     )
+
+
+@dataclass(frozen=True)
+class QuantitySensitivity:
+    """How a quantity changes when one sizing input changes (§2 case E).
+
+    The 19:24 report asserted that a quantity falls "40-50%" when ATR rises
+    from 6.36 to 9.524, with no calculation behind it. The engine can answer
+    exactly: the size is inversely proportional to the stop distance, so with
+    a fixed monetary risk and the same ATR multiple the quantity scales by
+    ``atr_old / atr_new`` — a 33.22% reduction here.
+
+    This is deliberately a *reported consequence*, not a new sizing rule: the
+    quantity itself still comes from ``size_with_exposure_cap``.
+    """
+
+    previous_qty: int
+    new_qty: int
+    reduction_pct: float | None
+    ratio: float | None
+
+    def summary(self) -> dict:
+        return {
+            "previous_qty": self.previous_qty,
+            "new_qty": self.new_qty,
+            "quantity_ratio": self.ratio,
+            "reduction_pct": self.reduction_pct,
+            "formula_id": "qty_scales_inversely_with_stop_distance",
+        }
+
+
+def quantity_sensitivity_to_atr(
+    previous_atr: float,
+    new_atr: float,
+    *,
+    previous_qty: int,
+) -> QuantitySensitivity:
+    """The quantity implied by a changed ATR at constant monetary risk.
+
+    ``new_qty = previous_qty * (previous_atr / new_atr)`` — because the stop
+    distance in currency units scales with ATR, and a fixed risk budget
+    divided by a wider per-share risk buys proportionally fewer shares.
+
+    A non-positive ATR yields ``None`` rather than an infinite ratio: the
+    question is then not answerable, and inventing a number is what the
+    report did.
+    """
+    if (previous_atr is None or new_atr is None
+            or not math.isfinite(previous_atr) or not math.isfinite(new_atr)
+            or previous_atr <= 0 or new_atr <= 0 or previous_qty <= 0):
+        return QuantitySensitivity(previous_qty, 0, None, None)
+    ratio = previous_atr / new_atr
+    new_qty = int(math.floor(previous_qty * ratio))
+    reduction = (1.0 - ratio) * 100.0
+    return QuantitySensitivity(
+        previous_qty=previous_qty,
+        new_qty=new_qty,
+        reduction_pct=round(reduction, 2),
+        ratio=round(ratio, 6),
+    )

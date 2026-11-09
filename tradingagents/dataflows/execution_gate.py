@@ -29,7 +29,10 @@ import json
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from tradingagents.dataflows.causal_guard import NOT_YET_OBSERVABLE
+from tradingagents.dataflows.causal_guard import (
+    NOT_YET_OBSERVABLE,
+    OBSERVABLE_INTRADAY,
+)
 from tradingagents.dataflows.risk_engine import RiskReason, portfolio_risk_check
 
 
@@ -67,6 +70,11 @@ class GateReason(StrEnum):
     INVALID_VALUATION_METRIC = "INVALID_VALUATION_METRIC"
     NUMERIC_CLAIM_CONTRADICTED = "NUMERIC_CLAIM_CONTRADICTED"
     NUMERIC_CLAIM_UNVERIFIABLE = "NUMERIC_CLAIM_UNVERIFIABLE"
+    # §3: a percentage an agent stated that the engine recomputes differently.
+    # Distinct from CONTRADICTED, which covers a stated multiple: this one is
+    # specifically a claimed rate (growth, contraction, distance) that the
+    # registry disproves.
+    NUMERIC_CLAIM_MISMATCH = "NUMERIC_CLAIM_MISMATCH"
     STALE_FUNDAMENTALS_PERIOD = "STALE_FUNDAMENTALS_PERIOD"
 
 
@@ -160,7 +168,8 @@ def evaluate_plan(plan: PlanInput) -> GateDecision:
     # strategy relies on the presumed reaction"). When the trigger is unmet
     # the plan is not acting on the reaction yet, so it is a WAIT reason —
     # the contract's own example schema carries this code inside a WAIT.
-    reaction_unobservable = plan.post_event_status == NOT_YET_OBSERVABLE
+    reaction_unobservable = plan.post_event_status in (
+        NOT_YET_OBSERVABLE, OBSERVABLE_INTRADAY)
     if reaction_unobservable and plan.trigger_met:
         reasons.append(GateReason.POST_EARNINGS_REACTION_UNOBSERVABLE)
 

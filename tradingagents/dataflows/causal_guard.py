@@ -27,6 +27,10 @@ from datetime import date, datetime, timedelta
 # Statuses the contract's decision schema (section 8) carries verbatim.
 NOT_YET_OBSERVABLE = "NOT_YET_OBSERVABLE"
 OBSERVABLE = "OBSERVABLE"
+# The post-event session is trading right now: a price move exists but it is
+# not yet a confirmed close. §5 requires these to be different verdicts - an
+# intraday reaction is not the EOD reaction a strategy may trade on.
+OBSERVABLE_INTRADAY = "OBSERVABLE_INTRADAY"
 INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
 
@@ -56,8 +60,29 @@ class CausalVerdict:
 
     @property
     def reaction_claim_allowed(self) -> bool:
-        """Whether a 'the market reacted to this event' claim can be true yet."""
+        """Whether a 'the market reacted to this event' claim can be true yet.
+
+        Only an ``OBSERVABLE`` verdict allows it. An ``OBSERVABLE_INTRADAY``
+        result means a move is happening but no session has closed since the
+        event, so the reaction is not settled — and a strategy that needs a
+        confirmed close must not be told otherwise (§5).
+        """
         return self.status == OBSERVABLE
+
+    @property
+    def reaction_in_progress(self) -> bool:
+        """Whether the post-event session is trading right now.
+
+        The distinction the 19:24 report collapsed: an intraday move is
+        observable as *movement*, and is not the same evidence as a closed
+        session's reaction.
+        """
+        return self.status == OBSERVABLE_INTRADAY
+
+    @property
+    def needs_confirmed_close(self) -> bool:
+        """Whether a confirmed-close strategy must wait for this verdict."""
+        return self.status == OBSERVABLE_INTRADAY
 
 
 def last_session_on_or_before(sessions: list[str], day: str | date | datetime | None) -> str | None:
@@ -87,6 +112,7 @@ def evaluate_post_event_pricing(
     sessions: list[str],
     *,
     as_of_date: str | date | datetime | None = None,
+    session_still_open: bool = False,
 ) -> CausalVerdict:
     """Whether post-event prices exist for an event published at a known time.
 
@@ -94,6 +120,13 @@ def evaluate_post_event_pricing(
     run has validated. ``as_of_date`` is the analysis date; it defaults to
     today. The verdict is a pure function of these inputs: no network, no
     LLM, no per-ticker special cases.
+
+    ``session_still_open`` says whether the latest post-event session is
+    trading at the moment of analysis. When it is, the verdict is
+    ``OBSERVABLE_INTRADAY``: a move is happening, but no close has settled, so
+    it is not the reaction a confirmed-close strategy may trade on. Without
+    this flag an intraday price would be indistinguishable from a closed
+    session's — which is exactly the confusion the 19:24 report made.
 
     An unknown publication time is ``INSUFFICIENT_DATA`` by design: the
     contract forbids inventing ``published_at``, and a causal claim without
@@ -140,6 +173,19 @@ def evaluate_post_event_pricing(
             reason=(
                 f"the first post-event session ({first_after}) is after the "
                 f"analysis date ({as_of_d:%Y-%m-%d})"
+            ),
+        )
+
+    if session_still_open:
+        return CausalVerdict(
+            status=OBSERVABLE_INTRADAY,
+            event_date=f"{event_d:%Y-%m-%d}",
+            last_session_before=last_before,
+            first_session_after=first_after,
+            reason=(
+                f"the post-event session {first_after} is still trading: the "
+                "reaction is observable as movement but no close has settled, "
+                "so it is not an end-of-day reaction"
             ),
         )
 

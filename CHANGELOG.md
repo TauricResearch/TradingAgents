@@ -358,6 +358,59 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Mathematical tools for the analysts.** Eighteen typed tools
+  (`tradingagents/agents/math_tools.py`) let an agent *ask for* a number
+  instead of computing one: percentage changes, CAGR, P/B, book value per
+  share, P/E and earnings yield, EPS on weighted-average shares, technical
+  indicators, price distances, stop distances, ATR-implied stops, risk/reward,
+  unit conversion, and validators for stated multiples, stated percentages,
+  market bars, market series and trade proposals. Each returns structured
+  JSON with `value`, `formula_id`, `operands` and a calculation status, never
+  a bare number a model could restate. The market analyst receives the
+  measurement tools and the fundamentals analyst the valuation tools, so a
+  distance from a moving average or a price-to-book is certified rather than
+  estimated in prose.
+- **Market session status.** `tradingagents/dataflows/math/session.py`
+  distinguishes a final end-of-day close from a bar that is still forming, and
+  reports `market_session_status`, `bar_timestamp`, `is_complete`, `is_final`
+  and `last_completed_session`. A date-only bar is judged as its whole session
+  rather than as midnight, so a past daily bar is complete while the running
+  session's is not. `assess_series` reports `includes_partial_bar` so an
+  indicator can declare that it was computed over a price still moving.
+- **Certified metric lookup.** `get_certified_metric` reads a value from the
+  run's registry, and answers `UNSUPPORTED` for a metric the engine never
+  computed — so a report cannot quote a number nobody verified.
+- **Metric definition reconciliation.** `tradingagents/dataflows/math/definitions.py`
+  decides whether two figures may be combined, refusing a segment total
+  against a consolidated one, GAAP against adjusted, a quarter against a TTM
+  figure, differing currencies or unit scales, and a per-share figure built on
+  end-of-period instead of weighted-average shares. This is the one check
+  arithmetic cannot provide: dividing 105,647 by 74,322 is flawless and
+  meaningless, so the block must come from comparing what the figures mean.
+  Differing *quarters* remain compatible — a year-over-year comparison is the
+  purpose of having period labels; a quarter against a trailing year is not.
+- **Analyst report validation.** `dataflows/math/report_validation.py` reads
+  each analyst's finished report, extracts the figures that carry a label and
+  checks them against the run's certified metrics, so the constraint on agent
+  arithmetic lives in code rather than in a prompt asking the model not to
+  calculate. A figure the engine computed and the report got wrong blocks the
+  decision. A figure with no certified counterpart does not block by itself
+  and is reported as `is_validated: false`: before any metric is registered
+  every labelled number would be unverifiable, and blocking on those would
+  fail every run including the valid path.
+
+### Fixed
+
+- A LONG stop above its entry, or a SHORT stop below it, is refused rather than
+  measured: the distance from such a pair looks plausible while the plan
+  protects nothing.
+- `check_claim` compared a `Decimal` against a claimed `float`, raising
+  `TypeError` whenever a claim was built from a tool argument rather than
+  parsed from prose. Both sides are converted once, so the comparison is
+  always exact.
+
+### Added
+
 - **Financial Math Engine.** A dedicated package (`tradingagents/dataflows/math/`)
   that owns every financial calculation the application performs, so no
   quantity, multiple, percentage or risk figure is produced by a language
@@ -405,6 +458,43 @@ Istruzioni per l'agente AI:
 - A push to `custom`, the integration branch, now runs CI. Previously only
   `main` and version tags were covered, so a merge into `custom` landed
   unvalidated.
+
+### Added
+
+- **Trade actions, separate from ratings.** `dataflows/math/trade_actions.py`
+  introduces OPEN_LONG, REDUCE_LONG, CLOSE_LONG, OPEN_SHORT, REDUCE_SHORT,
+  CLOSE_SHORT and WAIT, and the rules that make each checkable. A strategic
+  rating permits candidate actions but never implies one: a bare SELL or BUY
+  names a direction, not a book operation, so it maps to no action — which is
+  what stops a SELL becoming an OPEN_SHORT. A reduction applies its fraction
+  to the held quantity, so 40% of 10 shares is 4 and never 40% of an unknown
+  base; a reduction on a flat book or with an unknown portfolio blocks rather
+  than yielding a zero that looks like a decision.
+- **Code-generated technical audit section.** The audit JSON now carries a
+  `technical_audit` block listing the last confirmed EOD bar, the intraday bar
+  status, the fundamentals period used and its reconciliation, the count of
+  mathematical findings, the invalidated metrics, the numeric claims checked
+  and blocking, the risk verdict, the execution action and the blocking
+  reasons. Every field derives from a verdict the run produced; a missing one
+  stays null rather than being reported as passed.
+
+### Fixed
+
+- A percentage claim can now say which denominator it used. Measuring a price
+  against a level and a level against a price give +4.87% and -4.64% for the
+  same two numbers, because a percentage change is not symmetric; the engine
+  previously had one convention, so it would have rejected the correct
+  Bollinger figure. `distance_from_level` and `level_distance_from_price` are
+  now distinct, and the tool takes the denominator as an argument.
+- Bollinger bands expose two widths under different names with their
+  denominators stated: `bandwidth_pct` against the middle (12.31% on the
+  19:24 figures) and `width_over_price_pct` against the price (11.73%).
+- The numeric claim extractor recognizes EPS and VIX change phrasings
+  ("EPS contracts 37%", "VIX rose 58%"). Before this, such a claim produced
+  nothing, so a mismatch could not have been caught.
+- `NUMERIC_CLAIM_MISMATCH` is a distinct gate reason for a claimed rate the
+  engine disproves, and the finding records the claiming agent alongside the
+  stated and computed values.
 
 ## [0.7.1] — 2026-10-27
 
