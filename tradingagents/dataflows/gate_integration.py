@@ -58,6 +58,34 @@ logger = logging.getLogger(__name__)
 _POLICY_VERSION = "reliability-contract-2026-11"
 
 
+def _bar_still_forming(price_snapshot: dict | None,
+                       trade_date: str) -> bool:
+    """Whether the price bar this run used belongs to a session still trading.
+
+    Reads the snapshot's ``price_as_of`` timestamp, which is when the price was
+    observed. A timestamp inside the session means the price is moving, so a
+    post-event reaction computed from it is intraday, not settled.
+
+    No timestamp yields ``False``: the causal guard already treats an unknown
+    event time as ``INSUFFICIENT_DATA``, and inventing a session state here
+    would be a second guess on top of the first.
+    """
+    if not isinstance(price_snapshot, dict):
+        return False
+    stamp = price_snapshot.get("price_as_of")
+    if not stamp:
+        return False
+    try:
+        from tradingagents.dataflows.math.session import (
+            SessionStatus,
+            market_session_status,
+        )
+
+        return market_session_status(stamp) is SessionStatus.OPEN
+    except Exception:  # noqa: BLE001 — an unparseable stamp is not "open"
+        return False
+
+
 def _freshness_from_precheck(precheck: dict):
     """Rebuild a freshness verdict from the graph pre-check's summary.
 
@@ -154,11 +182,16 @@ def evaluate_decision(
         logger.warning("Unreadable rating for %s on %s; gate will block",
                        ticker, trade_date)
 
-    # Causal guard: only when the run knows an event and a calendar.
+    # Causal guard: only when the run knows an event and a calendar. The
+    # session status decides whether a post-event move is a settled reaction or
+    # one still forming (§5) — derived from the price bar when one was
+    # supplied, so an intraday analysis cannot be mistaken for an EOD one.
     causal = None
     if event_publication_date and sessions:
+        bar_open = _bar_still_forming(price_snapshot, trade_date)
         causal = evaluate_post_event_pricing(
-            event_publication_date, sessions, as_of_date=trade_date
+            event_publication_date, sessions, as_of_date=trade_date,
+            session_still_open=bar_open,
         )
 
     # Risk engine: the plan's numbers come from the caller when supplied,
