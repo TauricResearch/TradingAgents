@@ -35,6 +35,19 @@ jobs:
       - name: Run test suite
         run: pytest -q
 
+  surge:
+    name: surge optional extra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install Surge and test dependencies
+        run: pip install -e ".[dev,surge]"
+      - name: Test deterministic research slice
+        run: pytest tests/test_surge_engine.py tests/test_surge_eodhd.py tests/test_surge_chart.py tests/test_surge_app.py tests/test_surge_scorecard.py -q
+
   smoke-install:
     name: clean-install smoke
     runs-on: ubuntu-latest
