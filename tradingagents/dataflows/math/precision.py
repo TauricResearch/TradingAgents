@@ -121,12 +121,22 @@ def as_decimal(value: Any) -> Decimal | None:
 def quantize(value: Decimal | None, quantum: Decimal = RATIO_QUANTUM) -> Decimal | None:
     """Round to ``quantum`` with the engine's explicit rounding rule.
 
-    applied at the domain's output boundary only — an intermediate value
+    Applied at the domain's output boundary only — an intermediate value
     stays exact, because rounding early compounds.
+
+    A value with more significant digits than the decimal context can hold
+    raises ``InvalidOperation`` from ``quantize``. That is not an error to
+    propagate through a report pipeline: an amount that large is outside any
+    financial range this engine serves, so it is refused as ``None`` rather
+    than crashing the run. Found by the property-based test that asserts no
+    ratio helper ever raises.
     """
     if value is None:
         return None
-    return value.quantize(quantum, rounding=DEFAULT_ROUNDING)
+    try:
+        return value.quantize(quantum, rounding=DEFAULT_ROUNDING)
+    except (InvalidOperation, ValueError):
+        return None
 
 
 def divide(numerator: Any, denominator: Any) -> Decimal | None:
