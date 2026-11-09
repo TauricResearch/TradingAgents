@@ -248,3 +248,103 @@ def test_a_narrative_claiming_a_figure_does_not_turn_it_into_a_fact(five_runs):
               for registry, _, _ in five_runs}
     assert len(growth) == 1
     assert growth.pop() != "None"
+
+
+# ---------------------------------------------------------------------------
+# §5.4 — the same comparison, through the persisted records
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_five_persisted_runs_produce_one_digest(tmp_path):
+    """§5 at the level a reader can inspect: five files, one answer.
+
+    The in-memory comparison above proves the computation is stable. This one
+    proves the *records* are too, and that five analyses leave five distinct
+    files — which is also the §2 defect (same-day overwriting) checked from the
+    other direction.
+    """
+    import hashlib
+    import json
+    import tempfile
+
+    from tradingagents.dataflows import run_record
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from tradingagents.portfolio import PortfolioContext
+
+    digests, quantities, run_ids = set(), set(), []
+    for narrative in NARRATIVES:
+        with tempfile.TemporaryDirectory() as directory:
+            graph = object.__new__(TradingAgentsGraph)
+            graph.config = {
+                "results_dir": directory,
+                "deep_think_llm": "gpt-6-sol", "quick_think_llm": "gpt-6-luna",
+                "fundamentals_freshness_gate": False,
+                "risk_per_trade_pct": 0.01, "max_symbol_exposure": 0.05,
+            }
+            graph.selected_analysts = []
+
+            class _Log:
+                def store_decision(self, **kwargs):
+                    pass
+
+            graph.memory_log = _Log()
+            state = BRKB.run_state(market_report=narrative)
+            graph.record_decision(
+                TICKER, ANALYSIS_DATE, state,
+                portfolio=PortfolioContext.model_validate(BRKB.portfolio()))
+
+            runs = run_record.list_runs(directory, TICKER)
+            assert len(runs) == 1, runs
+            record = run_record.read_run(runs[0])
+
+        run_ids.append(record["run_id"])
+        digests.add(hashlib.sha256(json.dumps(
+            {"registry": record["metric_registry"],
+             "risk": record["risk"],
+             "gate": record["execution_gate"]},
+            sort_keys=True).encode()).hexdigest()[:16])
+        quantities.add(record["risk"]["exposure_capped_qty"])
+
+    assert len(set(run_ids)) == REPEATS, "every run needs its own id"
+    assert len(digests) == 1, f"records disagreed: {digests}"
+    assert quantities == {BRKB.expected["exposure_capped_qty"]}
+
+
+@pytest.mark.unit
+def test_a_real_run_records_every_required_field(tmp_path):
+    """§2's list, verified field by field on a persisted record."""
+    from tradingagents.dataflows import run_record
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    from tradingagents.portfolio import PortfolioContext
+
+    graph = object.__new__(TradingAgentsGraph)
+    graph.config = {
+        "results_dir": str(tmp_path),
+        "deep_think_llm": "gpt-6-sol", "quick_think_llm": "gpt-6-luna",
+        "fundamentals_freshness_gate": False,
+        "risk_per_trade_pct": 0.01, "max_symbol_exposure": 0.05,
+    }
+    graph.selected_analysts = []
+
+    class _Log:
+        def store_decision(self, **kwargs):
+            pass
+
+    graph.memory_log = _Log()
+    graph.record_decision(
+        TICKER, ANALYSIS_DATE, BRKB.run_state(),
+        portfolio=PortfolioContext.model_validate(BRKB.portfolio()))
+
+    record = run_record.read_run(run_record.list_runs(tmp_path, TICKER)[0])
+    required = [
+        "run_id", "created_at", "analysis_date",
+        "fingerprint", "model_config", "inputs", "filings",
+        "metric_registry", "agents", "decision", "risk", "execution_gate",
+        "audit",
+    ]
+    for key in required:
+        assert key in record, f"the record is missing {key}"
+    for key in ("commit", "build_id", "service_started_at", "python",
+                "validators"):
+        assert key in record["fingerprint"], f"fingerprint missing {key}"

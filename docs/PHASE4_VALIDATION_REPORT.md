@@ -118,8 +118,8 @@ certified number — which is exactly the distinction §5 requires.
 
 ```
 ruff check .                         All checks passed
-pytest tests/ -q                     2301 passed, 4 skipped, 1 deselected
-  of which Phase 4                   53 passed
+pytest tests/ -q                     2303 passed, 4 skipped, 1 deselected
+  of which Phase 4                   55 passed
 ```
 
 The 4 skips are pre-existing and unrelated: `langchain_aws` is not installed,
@@ -128,7 +128,7 @@ and three BRK-B/AAPL/NVDA concept cases are covered by blocking tests instead.
 | Suite | Tests | What it proves |
 |---|---|---|
 | `test_p4_e2e_brkb.py` | 20 | The whole pipeline on the frozen fixture: revenue, growth, BVPS, P/B, EPS unverified, indicators, intraday bar, registry, quantity, authorization, run persistence |
-| `test_p4_determinism.py` | 9 | Five repeats agree on every certified number |
+| `test_p4_determinism.py` | 11 | Five repeats agree on every certified number |
 | `test_p4_negative.py` | 11 | Ten injected defects each caught, none authorized |
 | `test_p4_execution_boundary.py` | 13 | Spies prove no order is created for an invalid plan; no broker adapter exists |
 | `test_p3_math_wiring.py` | 27 | The engine is wired into the run path (Phase 3) |
@@ -207,8 +207,8 @@ Commands run on this branch, with the results quoted above:
 
 ```
 ruff check .                          → All checks passed
-pytest tests/ -q                      → 2301 passed, 4 skipped, 1 deselected
-pytest tests/test_p4_*.py -q          → 53 passed
+pytest tests/ -q                      → 2303 passed, 4 skipped, 1 deselected
+pytest tests/test_p4_*.py -q          → 55 passed
 ```
 
 CI on `8ffd7363`, all eight checks green:
