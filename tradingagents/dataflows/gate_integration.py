@@ -58,6 +58,25 @@ logger = logging.getLogger(__name__)
 _POLICY_VERSION = "reliability-contract-2026-11"
 
 
+def _assess_price_bar(price_snapshot: dict, trade_date: str) -> dict | None:
+    """Assess the price bar the run used, for the technical audit (§9).
+
+    Returns ``None`` when the snapshot carries no timestamp: a bar without a
+    time cannot be judged, and a null in the audit says so more honestly than an
+    invented verdict.
+    """
+    stamp = price_snapshot.get("price_as_of")
+    if not stamp:
+        return None
+    try:
+        from tradingagents.dataflows.math.session import assess_bar
+
+        return assess_bar(stamp, analysis_time=trade_date).summary()
+    except Exception:  # noqa: BLE001 — an unparseable stamp yields no verdict
+        logger.debug("Could not assess the price bar %r", stamp, exc_info=True)
+        return None
+
+
 def _bar_still_forming(price_snapshot: dict | None,
                        trade_date: str) -> bool:
     """Whether the price bar this run used belongs to a session still trading.
@@ -427,6 +446,14 @@ def evaluate_decision(
         record.arithmetic_verdicts = arithmetic_verdicts
     if math_verdict is not None:
         record.math_verdict = math_verdict
+
+    # §9: the audit must state whether the decision rested on a confirmed close
+    # or on a bar still forming. Without this the three bar fields stay null and
+    # a reader cannot tell an EOD analysis from an intraday one.
+    if price_snapshot:
+        bar_assessment = _assess_price_bar(price_snapshot, trade_date)
+        if bar_assessment is not None:
+            record.price_snapshot_bar = bar_assessment
 
     # P0-D: the structured, machine-readable execution verdict. It carries
     # the gate's action and every blocking reason; authorized_orders stays

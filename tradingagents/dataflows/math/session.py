@@ -28,7 +28,7 @@ for ``is_final``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -168,6 +168,28 @@ def market_session_status(
     return SessionStatus.AFTER_HOURS
 
 
+def _session_day_info(day: date):
+    """The exchange calendar's view of a date, with a conservative fallback.
+
+    An uncovered year has no verified schedule, so the day is treated as
+    *trading* with the caller's default close: refusing every bar from an
+    unknown year would be worse than using the regular session, and the
+    assessment still reports that the calendar did not cover it.
+    """
+    from tradingagents.dataflows.math.exchange_calendar import session_day
+
+    info = session_day(day)
+    if info.kind == "UNCOVERED":
+        # No verified schedule: assume a regular session, but say so by
+        # leaving the close time to the caller's default.
+        from tradingagents.dataflows.math.exchange_calendar import (
+            SessionDay,
+        )
+
+        return SessionDay(day.isoformat(), "TRADING", None, None, info.reason)
+    return info
+
+
 def assess_bar(
     bar_timestamp: str | datetime | None,
     *,
@@ -204,32 +226,59 @@ def assess_bar(
     now = now or datetime.now(tz=_zone(tz))
     now_local = now.astimezone(_zone(tz))
 
-    # The session that owns the bar: its calendar date.
+    # The session that owns the bar: its calendar date, and — when the
+    # exchange calendar covers it — that day's *own* close time. An early close
+    # at 13:00 makes a 14:00 bar belong to no session, which judging by the
+    # 16:00 default would miss entirely.
     session_day = bar_local.date()
-    session_end = datetime.combine(session_day, session_close,
+    day_info = _session_day_info(session_day)
+    effective_close = day_info.close_time or session_close
+    session_end = datetime.combine(session_day, effective_close,
                                    tzinfo=_zone(tz))
 
     status = market_session_status(bar_local, tz=tz, session_open=session_open,
-                                   session_close=session_close)
+                                   session_close=effective_close)
 
     # A bar stamped before the close of its own session is still forming.
     # A date-only bar carries no clock, so it refers to the whole session:
     # it is complete once that session has ended.
     before_close = bar_has_time and bar_local < session_end
+    # A tick outside the session's hours belongs to no session at all. On an
+    # early-close day a 14:30 stamp is two hours after the close, so calling it
+    # a "complete" bar would certify a price that no session produced.
+    #
+    # The closing instant itself *is* the session's last moment: a bar stamped
+    # exactly at the close is the end-of-day bar, not an after-hours tick, so
+    # the upper bound is inclusive.
+    outside_session = bar_has_time and (
+        bar_local < datetime.combine(session_day, session_open, tzinfo=_zone(tz))
+        or bar_local > session_end
+    )
     # A bar whose session has not ended yet, as seen from the analysis moment.
     session_open_now = now_local < session_end
 
-    is_complete = (not before_close) and (not session_open_now)
+    is_complete = (not before_close) and (not session_open_now) \
+        and (not outside_session) and day_info.trades
     is_final = is_complete and vendor_settled
 
-    if not is_complete:
+    if not day_info.trades:
+        # A holiday has no session, so a bar dated that day cannot be a close.
+        reason = (f"{session_day} is not a trading day ({day_info.kind}), so a "
+                  "bar dated that day is not a close")
+    elif outside_session:
+        reason = (
+            f"the bar is stamped {bar_local:%Y-%m-%d %H:%M} {tz}, outside the "
+            f"session's hours ({session_open:%H:%M}-{effective_close:%H:%M}): "
+            "no session produced it, so it is not a close"
+        )
+    elif not is_complete:
         if session_open_now and session_day == now_local.date():
             reason = (f"the bar for {session_day} is still forming: the session "
-                      f"closes at {session_close:%H:%M} {tz} and the analysis "
+                      f"closes at {effective_close:%H:%M} {tz} and the analysis "
                       f"ran at {now_local:%H:%M}")
         else:
             reason = (f"the bar is stamped {bar_local:%Y-%m-%d %H:%M} {tz}, "
-                      f"before its session's close at {session_close:%H:%M}: "
+                      f"before its session's close at {effective_close:%H:%M}: "
                       "it is a partial bar, not an end-of-day close")
     elif not vendor_settled:
         reason = ("the session closed but the vendor has not settled the bar; "
