@@ -38,11 +38,19 @@ _CACHE = Path("/root/.tradingagents/cache/sec_edgar/CIK0001067983.json")
 
 
 def _real_payload() -> dict | None:
-    if not _CACHE.exists():
-        return None
+    """The cached SEC payload, or None when it is absent *or unreadable*.
+
+    Both ``Path.exists()`` and ``read_text()`` can raise ``PermissionError`` on
+    a path the process cannot stat — which is what CI hits, since the cache
+    lives under ``/root`` and the runner has no access. Guarding only the read
+    was not enough. The synthetic payload covers the same logic, so a machine
+    without the cache tests the code instead of failing on the environment.
+    """
     try:
+        if not _CACHE.exists():
+            return None
         return json.loads(_CACHE.read_text())
-    except (OSError, json.JSONDecodeError):
+    except (OSError, PermissionError, json.JSONDecodeError):
         return None
 
 
