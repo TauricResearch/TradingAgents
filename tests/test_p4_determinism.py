@@ -43,6 +43,38 @@ NARRATIVES = [
 ]
 
 
+# Fields that record *when* something happened, not *what* it was. §5 asks for
+# the values, the formulas, the bar status, the quantity and the verdict to
+# agree; it does not ask five runs to share a clock. These are stripped before
+# comparing, and a separate assertion proves nothing else was stripped.
+_CLOCK_FIELDS = frozenset({"checked_at", "generated_at", "created_at"})
+
+
+def _without_clock(payload):
+    """The payload minus its timestamps, recursively."""
+    if isinstance(payload, dict):
+        return {k: _without_clock(v) for k, v in payload.items()
+                if k not in _CLOCK_FIELDS}
+    if isinstance(payload, list):
+        return [_without_clock(item) for item in payload]
+    return payload
+
+
+def _clock_values(payload):
+    """Every timestamp in the payload, for a separate sanity assertion."""
+    found = set()
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            if key in _CLOCK_FIELDS and isinstance(value, str):
+                found.add(value)
+            else:
+                found |= _clock_values(value)
+    elif isinstance(payload, list):
+        for item in payload:
+            found |= _clock_values(item)
+    return found
+
+
 def _pipeline(narrative: str):
     """Run the registry and the gate over the fixture with one narrative."""
     from tradingagents.dataflows.gate_integration import evaluate_decision
@@ -272,7 +304,7 @@ def test_five_persisted_runs_produce_one_digest(tmp_path):
     from tradingagents.graph.trading_graph import TradingAgentsGraph
     from tradingagents.portfolio import PortfolioContext
 
-    digests, quantities, run_ids = set(), set(), []
+    digests, quantities, run_ids, payloads = set(), set(), [], []
     for narrative in NARRATIVES:
         with tempfile.TemporaryDirectory() as directory:
             graph = object.__new__(TradingAgentsGraph)
@@ -298,17 +330,31 @@ def test_five_persisted_runs_produce_one_digest(tmp_path):
             assert len(runs) == 1, runs
             record = run_record.read_run(runs[0])
 
+        payload = {"registry": record["metric_registry"],
+                   "risk": record["risk"],
+                   "gate": record["execution_gate"]}
         run_ids.append(record["run_id"])
-        digests.add(hashlib.sha256(json.dumps(
-            {"registry": record["metric_registry"],
-             "risk": record["risk"],
-             "gate": record["execution_gate"]},
-            sort_keys=True).encode()).hexdigest()[:16])
+        payloads.append(payload)
+        digests.add(hashlib.sha256(
+            json.dumps(_without_clock(payload), sort_keys=True).encode()
+        ).hexdigest()[:16])
         quantities.add(record["risk"]["exposure_capped_qty"])
 
     assert len(set(run_ids)) == REPEATS, "every run needs its own id"
     assert len(digests) == 1, f"records disagreed: {digests}"
     assert quantities == {BRKB.expected["exposure_capped_qty"]}
+
+    # The comparison above is only meaningful if stripping the clock was the
+    # *only* thing that made the payloads agree. If a run also differed in, say,
+    # a metric value, that difference would survive the strip and the digest
+    # assertion would already have failed — so this pins the other direction:
+    # stripping must change the payload (there really are timestamps), and the
+    # keys must match exactly, so nothing structural hid behind a missing key.
+    assert set().union(*(_clock_values(p) for p in payloads)), (
+        "no timestamp was found, so the strip removed nothing")
+    first_keys = json.dumps(_without_clock(payloads[0]), sort_keys=True)
+    assert all(json.dumps(_without_clock(p), sort_keys=True) == first_keys
+               for p in payloads), "the record structure differs between runs"
 
 
 @pytest.mark.unit
