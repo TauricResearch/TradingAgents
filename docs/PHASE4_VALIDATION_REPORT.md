@@ -211,6 +211,19 @@ pytest tests/ -q                      → 2301 passed, 4 skipped, 1 deselected
 pytest tests/test_p4_*.py -q          → 53 passed
 ```
 
+CI on `8ffd7363`, all eight checks green:
+
+```
+tests (py3.11)                                      pass  1m4s
+tests (py3.12, America/New_York)                    pass  1m10s
+tests (py3.13)                                      pass  59s
+tests (py3.14)                                      pass  53s
+clean-install smoke                                 pass  45s
+ruff (strict, full repo)                            pass  7s
+P0 reliability regression (offline)                 pass  35s
+End-to-end reliability (offline, frozen fixtures)   pass  42s
+```
+
 Measured values (from `evaluate_decision` on the frozen fixture):
 
 ```
@@ -255,10 +268,15 @@ python -m pytest tests/test_p4_e2e_brkb.py tests/test_p4_determinism.py \
 |---|---|
 | Branch | `test/p4-tradingagents-e2e-reliability` |
 | Base | `custom` (PR target), stacked on `cc2d11b` |
-| Commit | see the PR; recorded after the push |
-| PR | see the PR link |
+| Commit | `8ffd7363` (`8ffd736373eaa3cef411cf28ce993156aa583917`) |
+| PR | [#27](https://github.com/muzzye/TradingAgents/pull/27) |
+| CI | 8/8 green — including the new `End-to-end reliability (offline, frozen fixtures)` job, now also a **required** check on `custom` |
 
 Merge order: **#24 → #25 → #26 → this PR**. No merges were performed.
+
+Because the end-to-end job was added to the ruleset's required checks, a P0
+failure in the Phase 4 suites now blocks a merge into `custom` rather than merely
+appearing in the run log.
 
 ---
 
