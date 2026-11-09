@@ -126,6 +126,14 @@ reproduces; 0.00116 is also not the exact inverse ratio (0.0010694).
 Five persisted runs over identical inputs, five different narratives: five
 distinct run ids, **one** metric/risk/gate digest, **one** authorised quantity.
 
+> The digest excludes `checked_at` / `generated_at` / `created_at`. An earlier
+> version included them, passed locally (five runs inside one second) and failed
+> in CI where the runs straddled a second boundary. §5 asks the *values* to
+> agree; it does not ask five runs to share a clock. The test now also asserts
+> that timestamps were present — so the strip removed something real — and that
+> the remaining structure is identical, so no difference hid behind a missing
+> key. Mutation-checked: a drifting registry id still fails it.
+
 Ten injected defects, all caught, none authorised: incompatible P/B,
 non-consolidated revenue labelled consolidated, EPS without a basis,
 inconsistent ATR, wrong percentage, wrong-side stop, quantity over the cap,
