@@ -38,6 +38,7 @@ from tradingagents.dataflows.filing_freshness import (
     check_filing_freshness,
 )
 from tradingagents.dataflows.math.math_gate import evaluate_math
+from tradingagents.dataflows.math.report_validation import validate_analyst_report
 from tradingagents.dataflows.plan_extraction import extract_plan_numbers
 from tradingagents.dataflows.portfolio_decision import (
     map_legacy_rating,
@@ -296,6 +297,26 @@ def evaluate_decision(
     # arithmetically, and any numeric claim the reports make must either
     # match a verified metric or be reported unverifiable. A contradiction
     # here is a hard block, so it cannot be downgraded to a WAIT later.
+    # §7: the constraint on agent arithmetic lives in code. Each analyst's
+    # report is checked against the certified metrics, so a figure the engine
+    # disproves blocks here rather than relying on a prompt asking the model
+    # not to compute.
+    report_validations = []
+    reports_to_check = {
+        "market": final_state.get("market_report"),
+        "fundamentals": final_state.get("fundamentals_report"),
+        "news": final_state.get("news_report"),
+    }
+    for agent_name, text in reports_to_check.items():
+        if not isinstance(text, str) or not text:
+            continue
+        validation = validate_analyst_report(
+            text, agent=agent_name, registry=metric_registry,
+        )
+        report_validations.append(validation)
+        if validation.blocks_decision:
+            data_quality_blocked = True
+
     math_verdict = None
     try:
         math_verdict = evaluate_math(

@@ -389,6 +389,15 @@ Istruzioni per l'agente AI:
   meaningless, so the block must come from comparing what the figures mean.
   Differing *quarters* remain compatible — a year-over-year comparison is the
   purpose of having period labels; a quarter against a trailing year is not.
+- **Analyst report validation.** `dataflows/math/report_validation.py` reads
+  each analyst's finished report, extracts the figures that carry a label and
+  checks them against the run's certified metrics, so the constraint on agent
+  arithmetic lives in code rather than in a prompt asking the model not to
+  calculate. A figure the engine computed and the report got wrong blocks the
+  decision. A figure with no certified counterpart does not block by itself
+  and is reported as `is_validated: false`: before any metric is registered
+  every labelled number would be unverifiable, and blocking on those would
+  fail every run including the valid path.
 
 ### Fixed
 
