@@ -37,6 +37,7 @@ from tradingagents.dataflows.fact_registry import register_facts
 from tradingagents.dataflows.filing_freshness import (
     check_filing_freshness,
 )
+from tradingagents.dataflows.math.math_gate import evaluate_math
 from tradingagents.dataflows.plan_extraction import extract_plan_numbers
 from tradingagents.dataflows.portfolio_decision import (
     map_legacy_rating,
@@ -109,6 +110,11 @@ def evaluate_decision(
     # percentage the report states can be checked against the data.
     price_snapshot: dict | None = None,
     stated_percentages: dict | None = None,
+    # Financial Math Engine (§9, §11): the run's metric registry (verified and
+    # refused metrics), and the ATR multiple the report claims for its stop so
+    # the arithmetic can be checked against entry/stop/ATR.
+    metric_registry=None,
+    stated_atr_distance: float | None = None,
 ) -> tuple[AuditRecord, GateDecision]:
     """Evaluate a finished run's decision through the gate and audit it.
 
@@ -286,6 +292,43 @@ def evaluate_decision(
     if arithmetic_blocked:
         data_quality_blocked = True
 
+    # Financial Math Engine (§9, §11): the plan's own numbers must hold up
+    # arithmetically, and any numeric claim the reports make must either
+    # match a verified metric or be reported unverifiable. A contradiction
+    # here is a hard block, so it cannot be downgraded to a WAIT later.
+    math_verdict = None
+    try:
+        math_verdict = evaluate_math(
+            registry=metric_registry,
+            reports={
+                key: final_state.get(key)
+                for key in ("market_report", "news_report", "sentiment_report",
+                            "fundamentals_report", "investment_plan",
+                            "trader_investment_plan")
+                if isinstance(final_state.get(key), str)
+            } or None,
+            entry=eff_entry,
+            stop=eff_stop,
+            atr=eff_atr,
+            direction=eff_direction,
+            stated_atr_distance=stated_atr_distance,
+            strategic_rating=strategic.rating if strategic else None,
+            authorized_orders=0,
+            # No period comparison here: the accounting-period check needs a
+            # *period end* on both sides, and ``trade_date`` is an analysis
+            # date, not a fiscal period. Comparing the two flagged every run
+            # whose report had no fundamentals section. The freshest-period
+            # question is already answered by the filing freshness gate
+            # above, which knows both periods.
+        )
+    except Exception:  # noqa: BLE001 — the math layer must not sink the run
+        logger.exception("Financial math evaluation failed for %s on %s",
+                         ticker, trade_date)
+
+    math_reasons = math_verdict.reasons if math_verdict is not None else ()
+    if math_reasons:
+        data_quality_blocked = True
+
     plan = PlanInput(
         ticker=ticker,
         rating=strategic.rating if strategic else "UNKNOWN",
@@ -298,6 +341,7 @@ def evaluate_decision(
         signal_as_of=trade_date,
         analysis_as_of=trade_date,
         market_open=market_open,
+        math_reasons=math_reasons,
     )
     decision = evaluate_plan(plan)
 
@@ -327,6 +371,8 @@ def evaluate_decision(
         record.exposure_sizing = sizing
     if arithmetic_verdicts:
         record.arithmetic_verdicts = arithmetic_verdicts
+    if math_verdict is not None:
+        record.math_verdict = math_verdict
 
     # P0-D: the structured, machine-readable execution verdict. It carries
     # the gate's action and every blocking reason; authorized_orders stays
