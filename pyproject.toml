@@ -35,6 +35,9 @@ dev = [
     "ruff>=0.16",
     "pytest>=8.0",
     "pytest-subtests>=0.13",
+    # Property-based tests for the Financial Math Engine: formulas are checked
+    # against invariants over generated inputs, not only hand-picked cases.
+    "hypothesis>=6.100",
 ]
 # Amazon Bedrock support (AWS SigV4 auth + boto3). Optional so the core install
 # stays lean: pip install "tradingagents[bedrock]".

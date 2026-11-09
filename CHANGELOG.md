@@ -356,8 +356,44 @@ Istruzioni per l'agente AI:
   live state and report writer without changing them, binds to loopback only,
   and reuses the same `results_dir` artifacts a CLI run produces.
 
+### Added
+
+- **Financial Math Engine.** A dedicated package (`tradingagents/dataflows/math/`)
+  that owns every financial calculation the application performs, so no
+  quantity, multiple, percentage or risk figure is produced by a language
+  model. Monetary math uses `Decimal` with explicit rounding and carried
+  units; each derived metric is a record with its formula, operands, period
+  and a verified/refused status, so the audit can reproduce it. Refusals are
+  kept rather than dropped, letting a report show the rejected figure next to
+  the computed one. Covers arithmetic and unit conversion, valuation metrics
+  (market cap, EPS GAAP/adjusted, P/E trailing/forward, P/B, D/E, ROE, ROA,
+  dual-class book value), technical indicators (SMA, EMA, VWMA, ATR, RSI,
+  MACD, Bollinger/%B), numeric-claim validation and cross-report consistency
+  checking. See `docs/financial-math-engine.md`.
+- **Mathematical execution gate.** A contradicted or unverifiable figure now
+  blocks a paper order with the specific hazard named
+  (`INVALID_PRICE_TO_BOOK`, `INVALID_STOP_ATR_DISTANCE`,
+  `NUMERIC_CLAIM_CONTRADICTED`, `NUMERIC_CLAIM_UNVERIFIABLE`), and these
+  reasons cannot be downgraded to a WAIT: a wrong number does not become
+  right later. Verified by an end-to-end test in which reports carrying the
+  2026-11-08 figures (P/B 1.35x, "2.5 ATR" stop, -11.3% from the high) send
+  **zero** orders to a mock paper broker, while the same plan with sound
+  arithmetic sends exactly one.
+
 ### Fixed
 
+- A price-to-book a report states is checked against price and book value
+  instead of being trusted: 570.89 / 385.70 = 1.4801, so the reported 1.35x
+  is now refused and both figures are recorded in the audit.
+- A stop's stated ATR distance is checked against its own entry, stop and
+  ATR: entry 557.00, stop 547.40 and ATR 9.408 give 1.02 ATR, so a reported
+  2.5 ATR is refused. Wrong-side stops are reported as contradictions for
+  both directions.
+- A valuation built on a stale accounting period (Q2 book value applied to a
+  Q3 analysis) is refused rather than presented as current.
+- Percentages an agent states are compared against the engine's own
+  computation, and a disagreement is recorded as a refused claim rather than
+  silently corrected.
 - The test and lint CI jobs pass again, so they can gate merges. The test job
   installed only the `dev` extra while two suites import `fastapi`, which
   lives in `web`: collection aborted on every Python version before running a

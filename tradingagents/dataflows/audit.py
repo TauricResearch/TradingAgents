@@ -71,6 +71,10 @@ class AuditRecord:
     execution_verdict: object | None = None
     # P0-B arithmetic verdicts (None when no snapshot was supplied).
     arithmetic_verdicts: list | None = None
+    # Financial Math Engine verdict (§9, §11): the consistency report, the
+    # gate reasons the arithmetic produced, and every metric with its
+    # formula and operands. Serialized under ``financial_math``.
+    math_verdict: object | None = None
 
     # Market snapshot as validated (None fields stay None: never invented).
     session_date: str | None = None
@@ -114,6 +118,9 @@ class AuditRecord:
             "execution": self._execution_entry(),
             "risk": self._risk_entry(),
             "data_quality": self._data_quality_entry(),
+            "financial_math": (
+                self.math_verdict.summary() if self.math_verdict is not None else None
+            ),
             "audit": {
                 "snapshot_id": self.snapshot_id,
                 "policy_version": self.policy_version,

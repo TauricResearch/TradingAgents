@@ -106,4 +106,6 @@ jobs:
             tests/test_fact_checker.py \
             tests/test_causal_guard.py \
             tests/test_data_validator.py \
-            tests/test_audit.py
+            tests/test_audit.py \
+            tests/test_financial_math_engine.py \
+            tests/test_math_gate_end_to_end.py

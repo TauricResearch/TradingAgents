@@ -1,5 +1,7 @@
 """Jev post screening, against TypeSafe's documented request and response shapes."""
 
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 import requests
 
@@ -250,12 +252,37 @@ def test_an_answer_missing_its_fields_reads_as_malformed(jev):
 
 @pytest.mark.unit
 def test_the_first_failure_cancels_the_requests_not_yet_sent(jev, post, monkeypatch):
+    """A failure must stop the remaining requests from being sent.
+
+    The original assertion (``len(post) < 21``) was scheduler-dependent:
+    ``_ask_each`` submits all 21 tasks at once, and which ones the single
+    worker has started by the time the first failure is observed is up to the
+    OS. Run alone it saw 1 request and passed; inside the full suite it saw 21
+    and failed, with nothing changed in the code under test.
+
+    Here the shutdown is made to *wait*, so the outcome of cancellation is
+    fully realised before the assertion runs. The cancel flag itself still
+    comes from ``_ask_each``: with cancellation on the batch stops at two, with
+    it off all 21 run. Verified by flipping the flag in the source — the test
+    fails (21 sent) when it is disabled.
+    """
     monkeypatch.setattr(typesafe, "_WORKERS", 1)
     jev.update({"a": _Response(401), **{f"p{i}": _post_answers(0.9) for i in range(20)}})
 
+    real_shutdown = ThreadPoolExecutor.shutdown
+
+    def waiting_shutdown(self, wait=True, cancel_futures=False):
+        # Wait so every task either runs or is cancelled before we assert.
+        return real_shutdown(self, wait=True, cancel_futures=cancel_futures)
+
+    monkeypatch.setattr(ThreadPoolExecutor, "shutdown", waiting_shutdown)
+
     typesafe.jev_screen("NVDA")(list(jev))
 
-    assert len(post) < 21
+    assert len(post) <= 3, (
+        f"cancellation did not stop the batch: {len(post)} of 21 requests "
+        "were sent after the first failure"
+    )
 
 
 @pytest.mark.unit
