@@ -31,6 +31,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+surge = [
+    "streamlit>=1.67",
+    "plotly>=6.0",
+    "exchange-calendars>=4.5",
+]
 dev = [
     "ruff>=0.16",
     "pytest>=8.0",

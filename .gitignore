@@ -214,6 +214,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.surge-cache/
 
 # Cache
 **/data_cache/
