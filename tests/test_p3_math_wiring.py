@@ -47,6 +47,18 @@ BRKB_CERTIFIED = {
 }
 
 
+
+def _latest_audit(tmp_path) -> str:
+    """The audit of the single run this test made.
+
+    Audits are run-scoped since §2 of P4 (date plus run id), so a test that
+    pinned the dated filename would assert the very overwriting behaviour the
+    change removed.
+    """
+    audits = sorted((tmp_path / "BRK-B" / "reliability_audit").glob("audit_*.json"))
+    assert len(audits) == 1, f"expected one audit, got {audits}"
+    return audits[0].read_text()
+
 def _graph(tmp_path, **overrides) -> TradingAgentsGraph:
     """A graph with only the collaborators the registry path touches."""
     graph = object.__new__(TradingAgentsGraph)
@@ -306,8 +318,7 @@ def test_11_sizing_produces_a_quantity_from_a_real_book(tmp_path):
 
     graph.record_decision("BRK-B", "2026-11-09", state, portfolio=book)
 
-    audit = json.loads(
-        (tmp_path / "BRK-B" / "reliability_audit" / "audit_2026-11-09.json").read_text())
+    audit = json.loads(_latest_audit(tmp_path))
     risk = audit["risk"]
     assert risk["qty_proposed"] is not None and risk["qty_proposed"] > 0
     assert risk["planned_risk"] > 0
@@ -333,8 +344,7 @@ def test_12_the_per_symbol_cap_binds_before_the_risk_budget(tmp_path):
 
     graph.record_decision("BRK-B", "2026-11-09", state, portfolio=book)
 
-    audit = json.loads(
-        (tmp_path / "BRK-B" / "reliability_audit" / "audit_2026-11-09.json").read_text())
+    audit = json.loads(_latest_audit(tmp_path))
     risk = audit["risk"]
     assert risk["exposure_capped_qty"] == 8
     assert risk["exposure_binding_constraint"] == "EXPOSURE_CAP"
@@ -364,8 +374,7 @@ def test_13_a_missing_book_blocks_with_its_own_reason(tmp_path):
 
     graph.record_decision("BRK-B", "2026-11-09", state)   # no portfolio
 
-    audit = json.loads(
-        (tmp_path / "BRK-B" / "reliability_audit" / "audit_2026-11-09.json").read_text())
+    audit = json.loads(_latest_audit(tmp_path))
     assert audit["execution"]["action"] == "BLOCK"
     assert "PORTFOLIO_RISK_BUDGET_MISSING" in audit["execution"]["reason_codes"]
 

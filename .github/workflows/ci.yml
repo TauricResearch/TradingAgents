@@ -122,4 +122,35 @@ jobs:
             tests/test_p1_runtime_gate_integration.py \
             tests/test_p1_build_info.py \
             tests/test_p2_financial_data_integrity.py \
-            tests/test_p3_math_wiring.py
+            tests/test_p3_math_wiring.py \
+            tests/test_p4_e2e_brkb.py \
+            tests/test_p4_determinism.py \
+            tests/test_p4_negative.py \
+            tests/test_p4_execution_boundary.py
+
+  # §8 of P4: the end-to-end reliability suite runs on its own, on one
+  # interpreter, so a P0 failure in it is legible in the checks list rather
+  # than buried in the regression job's output. It must fail the build when any
+  # of these fail — that is the whole requirement, so no `continue-on-error`.
+  e2e-reliability:
+    name: End-to-end reliability (offline, frozen fixtures)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (with dev extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run the end-to-end reliability suites
+        run: |
+          pytest -q -p no:randomly \
+            tests/test_p4_e2e_brkb.py \
+            tests/test_p4_determinism.py \
+            tests/test_p4_negative.py \
+            tests/test_p4_execution_boundary.py \
+            tests/test_p3_math_wiring.py \
+            tests/test_p2_financial_data_integrity.py \
+            tests/test_p1_runtime_gate_integration.py

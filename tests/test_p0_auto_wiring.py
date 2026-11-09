@@ -21,6 +21,20 @@ Q3 = FilingRecord("2026-Q3", "2026-09-30", published_date="2026-11-07",
                   form_type="8-K")
 
 
+def _read_audit(results_root, ticker, analysis_date):
+    """The audit of the single run this test made.
+
+    Audits are run-scoped since §2 of P4: the dated filename it used to have was
+    overwritten by any second analysis of the same instrument that day, which is
+    the defect that phase removes. Reading by glob asserts the run exists without
+    pinning the behaviour that lost data.
+    """
+    directory = results_root / ticker / "reliability_audit"
+    audits = sorted(directory.glob(f"audit_{analysis_date}_*.json"))
+    assert len(audits) == 1, f"expected one run-scoped audit, got {audits}"
+    return json.loads(audits[0].read_text(encoding="utf-8"))
+
+
 def _graph(tmp_path):
     graph = object.__new__(TradingAgentsGraph)
     graph.config = {
@@ -116,10 +130,7 @@ class TestAutomaticWiring:
 
         assert state["execution_action"] == "BLOCK"
         assert "DATA_QUALITY_BLOCKED" in state["execution_reason_codes"]
-        audit = json.loads(
-            (tmp_path / "results" / "BRK-B" / "reliability_audit" /
-             "audit_2026-11-08.json").read_text(encoding="utf-8")
-        )
+        audit = _read_audit(tmp_path / "results", "BRK-B", "2026-11-08")
         assert audit["data_quality"]["fundamentals_freshness"]["status"] == \
             "STALE_FUNDAMENTALS"
 
@@ -139,10 +150,7 @@ class TestAutomaticWiring:
         graph.record_decision("ENI.MI", "2026-11-08", state)
 
         assert state["execution_action"] == "BLOCK"
-        audit = json.loads(
-            (tmp_path / "results" / "ENI.MI" / "reliability_audit" /
-             "audit_2026-11-08.json").read_text(encoding="utf-8")
-        )
+        audit = _read_audit(tmp_path / "results", "ENI.MI", "2026-11-08")
         assert audit["data_quality"]["fundamentals_freshness"]["status"] == \
             "FUNDAMENTALS_UNAVAILABLE"
 
@@ -163,10 +171,7 @@ class TestAutomaticWiring:
 
         assert graph.memory_log.stored["ticker"] == "BRK-B"
         assert state["execution_action"] == "BLOCK"
-        audit = json.loads(
-            (tmp_path / "results" / "BRK-B" / "reliability_audit" /
-             "audit_2026-11-08.json").read_text(encoding="utf-8")
-        )
+        audit = _read_audit(tmp_path / "results", "BRK-B", "2026-11-08")
         assert audit["data_quality"]["fundamentals_freshness"]["status"] == \
             "FUNDAMENTALS_UNAVAILABLE"
 

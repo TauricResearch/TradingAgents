@@ -21,6 +21,45 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Every analysis keeps its own record.** `dataflows/run_record.py` writes one
+  file per run under `results_dir/<ticker>/runs/`, addressed by a unique run id
+  (UTC timestamp, ticker, random suffix). Each record carries the run id, the
+  analysis and creation timestamps, the git commit, a build id, the service
+  start time, the Python version, the loaded-validator status, the model
+  configuration, the input snapshot and portfolio, the SEC filings known at the
+  analysis date, the metric registry, the agents' reports, the decision, the
+  risk assessment and the Execution Gate verdict. Records are written
+  owner-only, credentials are redacted, long agent reports are truncated with
+  the truncation recorded, and an existing record is never replaced.
+- **Retention is explicit and bounded.** `run_record_keep` (default `None`,
+  keeps everything) prunes oldest-first per instrument and always keeps the
+  newest record; `run_record_max_text_chars` (default 20,000) caps each stored
+  report.
+- **`/api/health` identifies the running code.** The payload now reports
+  `build.commit`, `build.build_id`, `build.service_started_at`, the interpreter
+  version and a per-component `validators` map stating whether the math engine,
+  valuation, technical, registry, extraction, risk engine, execution gate and
+  arithmetic guard are loaded and expose their expected callables. No paths,
+  environment values or credentials are exposed.
+- **End-to-end reliability suite.** A frozen BRK-B fixture
+  (`tests/fixtures/brkb_2026_11_09.py`) supplies Q3 2026 SEC figures, prices,
+  indicators, an intraday snapshot and a simulated book, alongside expected
+  values computed independently of the code. `tests/test_p4_e2e_brkb.py` drives
+  the whole pipeline over it, `tests/test_p4_determinism.py` repeats the run five
+  times and proves the certified mathematics does not move,
+  `tests/test_p4_negative.py` injects ten named defects and asserts each is
+  caught and never authorized, and `tests/test_p4_execution_boundary.py` spies
+  on the gate and asserts no order is created for an invalid plan.
+- **Deployment verification procedure.** `docs/DEPLOYMENT_VERIFICATION.md`
+  documents how to compare a deployment's target commit against the running
+  process, how to rehearse in an isolated environment, which checks gate the
+  restart, and the rollback path. The restart step is marked as requiring
+  explicit authorization and no script performs it.
+- **A dedicated CI job for the end-to-end suites.** `e2e-reliability` runs the
+  P4, P3, P2 and P1 reliability tests offline on one interpreter, so a P0
+  failure is legible in the checks list rather than buried in the regression
+  job's output.
+
 - **The math engine now runs inside a real analysis.** A finished run reads the
   labelled figures its analysts stated, computes the valuation multiples with
   the deterministic engine, and hands the result to the Execution Gate as a

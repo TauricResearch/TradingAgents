@@ -416,6 +416,17 @@ def registry_inputs_from_state(state: dict) -> RunInputs:
         book_value_per_share=_num(state.get("book_value_per_share")),
         revenue_consolidated=_num(state.get("revenue_consolidated")),
         revenue_prior=_num(state.get("revenue_prior")),
+        # §3 of P3 added these to ``RunInputs`` but nothing ever populated
+        # them, so a run that carried the equity and the share counts still
+        # produced NOT_COMPUTABLE for every dual-class metric. Reading them
+        # here is what makes the supplied figures reach the arithmetic.
+        equity=_num(state.get("equity")),
+        shares_class_a=_num(state.get("shares_class_a")),
+        shares_class_b=_num(state.get("shares_class_b")),
+        class_a_to_b_ratio=_num(state.get("class_a_to_b_ratio")),
+        price_class=state.get("price_class"),
+        currency=(state.get("currency") or snapshot.get("currency") or None),
+        weighted_average_shares=_num(state.get("weighted_average_shares")),
     )
 
 

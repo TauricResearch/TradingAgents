@@ -497,6 +497,11 @@ class TradingAgentsGraph:
         # analysis certify another's figures.
         registry = self._build_metric_registry(company_name, trade_date,
                                                final_state)
+        # §2 of P4: one id shared by the audit and the run record, minted once
+        # per analysis so the two files can be matched and neither can collide
+        # with another run of the same instrument on the same day.
+        from tradingagents.dataflows import run_record as rr
+        run_id = rr.new_run_id(company_name)
         try:
             record, decision = evaluate_decision(
                 company_name, trade_date, final_state,
@@ -512,12 +517,91 @@ class TradingAgentsGraph:
             )
             attach_to_state(final_state, decision)
             attach_registry_status(final_state, registry)
-            path = write_audit_record(record, self.config["results_dir"])
+            path = write_audit_record(record, self.config["results_dir"],
+                                      run_id=run_id)
             logger.info("Reliability audit for %s on %s: %s -> %s",
                         company_name, trade_date, decision.action.value, path)
+            # §2 of P4: the audit filename is stamped by analysis date, so two
+            # analyses of one instrument on one day replace each other. The run
+            # record is addressed by a unique id instead, and keeps everything
+            # needed to reproduce the decision.
+            self._write_run_record(company_name, trade_date, final_state,
+                                   record, decision, registry, filings,
+                                   portfolio, run_id)
         except Exception:  # noqa: BLE001 — the audit must never sink the run
             logger.exception("Reliability evaluation failed for %s on %s",
                              company_name, trade_date)
+
+    def _write_run_record(self, company_name, trade_date, final_state,
+                          audit_record, decision, registry, filings,
+                          portfolio, run_id):
+        """Persist this analysis under a unique id (§2 of P4).
+
+        Separate from the audit file and deliberately so: the audit answers
+        "was this decision sound", the run record answers "what exactly ran, on
+        what inputs, with what code". Best-effort like the rest of the
+        reliability layer — losing the record must not lose the analysis — but
+        a failure is logged at error level rather than swallowed, because a run
+        without a record is the finding, not a detail.
+        """
+        try:
+            from tradingagents.dataflows import run_record as rr
+
+            results_dir = self.config["results_dir"]
+            snapshot = final_state.get("verified_market_snapshot")
+            record = rr.RunRecord(
+                run_id=run_id,
+                ticker=company_name,
+                analysis_date=trade_date,
+                fingerprint=rr.runtime_fingerprint(),
+                model_config=rr.model_config(self.config),
+                inputs=rr.redact({
+                    "market_snapshot": snapshot,
+                    "portfolio": (portfolio.model_dump()
+                                  if portfolio is not None else None),
+                    "asset_type": final_state.get("asset_type"),
+                }),
+                filings=list(filings or []),
+                metric_registry=(registry.summary()
+                                 if registry is not None else {}),
+                agents={
+                    "market": final_state.get("market_report"),
+                    "sentiment": final_state.get("sentiment_report"),
+                    "news": final_state.get("news_report"),
+                    "fundamentals": final_state.get("fundamentals_report"),
+                    "research_plan": final_state.get("investment_plan"),
+                    "trader_plan": final_state.get("trader_investment_plan"),
+                },
+                decision={
+                    "report": final_state.get("final_trade_decision"),
+                    "rating": final_state.get("final_rating"),
+                    "execution_action": decision.action.value,
+                    "reason_codes": [r.value for r in decision.reasons],
+                    "execution_authorization": final_state.get(
+                        "execution_authorization"),
+                },
+                risk=audit_record.to_dict().get("risk", {}),
+                execution_gate=audit_record.to_dict().get("execution", {}),
+                audit=audit_record.to_dict(),
+            )
+            path = rr.write_run(
+                results_dir, record,
+                max_text_chars=int(
+                    self.config.get("run_record_max_text_chars") or 20_000))
+            final_state["run_id"] = run_id
+            final_state["run_record_path"] = str(path)
+            logger.info("Run record for %s on %s: %s",
+                        company_name, trade_date, path)
+
+            # An explicit limit only. An audit that ages out unasked is not an
+            # audit, so nothing is pruned unless the operator set a number.
+            keep = self.config.get("run_record_keep")
+            if isinstance(keep, int) and keep > 0:
+                rr.prune_runs(results_dir, company_name, keep)
+        except Exception:  # noqa: BLE001 — a record failure must not sink the run
+            logger.error("Could not write the run record for %s on %s",
+                         company_name, trade_date, exc_info=True)
+
 
     def _build_metric_registry(self, company_name: str, trade_date: str,
                                final_state: dict):

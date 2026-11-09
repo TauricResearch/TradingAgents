@@ -62,14 +62,27 @@ def build_info() -> dict:
     Reports no environment values and no filesystem paths: a health endpoint is
     often reachable by anyone who can reach the service, so the payload stays to
     what identifies the build and nothing more.
+
+    §3 of P4 widened this from "which commit" to "which code, in which process,
+    with which validators loaded". The three questions an operator actually asks
+    after a deployment are answered here: is the running code the merged code
+    (``commit``), did the process restart since the merge (``service_started_at``
+    against the commit time), and are the deterministic checks actually wired
+    (``validators``) — the last one being the failure the lineage audit could
+    not detect from outside.
     """
-    from tradingagents.dataflows.math import registry as math_registry
+    from tradingagents.dataflows import run_record
 
     return {
         "commit": commit_sha(),
+        "build_id": run_record.build_id(),
         "loaded_at": LOADED_AT,
+        "service_started_at": LOADED_AT,
+        "python": run_record.runtime_fingerprint()["python"],
+        "validators": run_record.validator_status(),
         "math_engine": {
-            "loaded": math_registry.__name__ is not None,
+            "loaded": run_record.validator_status().get(
+                "metric_registry", {}).get("loaded", False),
             "module": "tradingagents.dataflows.math",
         },
     }

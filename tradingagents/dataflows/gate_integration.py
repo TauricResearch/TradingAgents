@@ -519,12 +519,24 @@ def evaluate_decision(
     return record, decision
 
 
-def write_audit_record(record: AuditRecord, results_dir: str) -> Path:
-    """Write the audit JSON beside the run's state log, same layout."""
+def write_audit_record(record: AuditRecord, results_dir: str,
+                       run_id: str | None = None) -> Path:
+    """Write the audit JSON beside the run's state log.
+
+    Named by analysis date *and* run id when one is supplied (§2 of P4): two
+    analyses of one instrument on one day used to write the same filename, so
+    the later run destroyed the earlier one — the lineage audit found three of
+    its four runs missing for exactly this reason. The date stays in the name
+    so an operator can still find an audit by day, and the id is what keeps
+    them apart.
+    """
     safe = record.ticker.replace("/", "-")
     directory = Path(results_dir) / safe / "reliability_audit"
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"audit_{record.analysis_as_of}.json"
+    stem = f"audit_{record.analysis_as_of}"
+    if run_id:
+        stem = f"{stem}_{run_id}"
+    path = directory / f"{stem}.json"
     path.write_text(record.to_json(), encoding="utf-8")
     return path
 

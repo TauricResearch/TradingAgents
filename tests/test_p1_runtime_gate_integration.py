@@ -42,6 +42,14 @@ BUDGET = {"equity": 100_000.0, "cash": 100_000.0,
           "risk_budget": 1_000.0, "max_symbol_exposure": 0.05}
 
 
+def _read_audit(results_root, ticker, analysis_date):
+    """The audit of the single run this test made (run-scoped since §2 of P4)."""
+    directory = results_root / ticker / "reliability_audit"
+    audits = sorted(directory.glob(f"audit_{analysis_date}_*.json"))
+    assert len(audits) == 1, f"expected one run-scoped audit, got {audits}"
+    return json.loads(audits[0].read_text(encoding="utf-8"))
+
+
 def _state(market: str = "", plan: str = "Entry 557.00, stop 547.40, ATR 9.408."):
     return {
         "company_of_interest": "BRK-B",
@@ -298,9 +306,7 @@ class TestRealGraphPath:
             "close": 576.74, "sma200": 502.85, "previous_close": 570.89}
         graph.record_decision("BRK-B", "2026-11-09", state)
 
-        audit = json.loads(
-            (tmp_path / "results" / "BRK-B" / "reliability_audit" /
-             "audit_2026-11-09.json").read_text())
+        audit = _read_audit(tmp_path / "results", "BRK-B", "2026-11-09")
         assert audit["technical_audit"] is not None
         # And the registry status is on the state the caller sees.
         assert "metric_registry_status" in state
