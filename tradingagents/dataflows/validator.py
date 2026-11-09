@@ -95,24 +95,24 @@ def validate_ohlcv_frame(df: pd.DataFrame) -> ValidationResult:
         return result
 
     for idx, row in df.iterrows():
-        o, h, l, c = row["Open"], row["High"], row["Low"], row["Close"]
+        o, h, low, c = row["Open"], row["High"], row["Low"], row["Close"]
         date_label = row.get("Date", idx)
         # A row with no close is an unsettled session, not corruption: the
         # loader already handles trailing unsettled bars (#1201/#1289).
-        if pd.isna(o) and pd.isna(h) and pd.isna(l) and pd.isna(c):
+        if pd.isna(o) and pd.isna(h) and pd.isna(low) and pd.isna(c):
             continue
-        if pd.isna(h) or pd.isna(l):
+        if pd.isna(h) or pd.isna(low):
             result.add("OHLCV_MISSING_HL", ERROR,
                        f"{date_label}: high/low missing on a priced row",
                        field="High/Low")
             continue
-        if h < l:
+        if h < low:
             result.add("OHLCV_INVERTED_RANGE", ERROR,
-                       f"{date_label}: high {h} < low {l}",
+                       f"{date_label}: high {h} < low {low}",
                        field="High", expected=">= low", actual=h)
         if not pd.isna(o) and not pd.isna(c):
             lo, hi = min(o, c), max(o, c)
-            if l > lo or (not pd.isna(h) and h < hi):
+            if low > lo or (not pd.isna(h) and h < hi):
                 result.add("OHLCV_RANGE_VIOLATION", ERROR,
                            f"{date_label}: open/close outside the bar's low-high range",
                            field="OHLC")

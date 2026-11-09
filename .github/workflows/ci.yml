@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main, 'v[0-9]+.[0-9]+.[0-9]+']
+    # `custom` is this repository's integration branch (AGENTS.md §3), so a
+    # push to it must be validated too — otherwise a merge lands unverified.
+    # `main` is the upstream default branch and stays listed.
+    branches: [main, custom, 'v[0-9]+.[0-9]+.[0-9]+']
   pull_request:
 
 concurrency:
@@ -28,10 +31,14 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install (with dev extras)
+      - name: Install (with dev and web extras)
+        # The suite imports the web console (tests/test_webapp.py,
+        # tests/test_usage.py), which needs fastapi/uvicorn from the `web`
+        # extra. Installing only `dev` made the tests job fail on collection
+        # on every Python version, so it could never be a required check.
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,web]"
       - name: Run test suite
         run: pytest -q
 

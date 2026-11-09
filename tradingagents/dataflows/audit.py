@@ -90,7 +90,6 @@ class AuditRecord:
 
     def to_dict(self) -> dict:
         """The contract's section-8 shape, filled from real verdicts only."""
-        gate = self.gate
         strategic = self.strategic
         return {
             "schema_version": SCHEMA_VERSION,

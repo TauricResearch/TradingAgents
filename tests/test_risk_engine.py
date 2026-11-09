@@ -12,6 +12,14 @@ import math
 
 import pytest
 
+from tests.fixtures.brk_b_2026_11_08 import (
+    ATR_14,
+    MIN_ENTRY_STOP_ATR,
+    STOP_LOSS,
+    TRANCHE_3_ENTRY,
+    entry_stop_atr_multiple,
+    entry_stop_distance,
+)
 from tradingagents.dataflows.risk_engine import (
     DEFAULT_MIN_ENTRY_STOP_ATR,
     RiskReason,
@@ -21,15 +29,6 @@ from tradingagents.dataflows.risk_engine import (
     stress_exit,
     validate_stop,
 )
-from tests.fixtures.brk_b_2026_11_08 import (
-    ATR_14,
-    MIN_ENTRY_STOP_ATR,
-    STOP_LOSS,
-    TRANCHE_3_ENTRY,
-    entry_stop_atr_multiple,
-    entry_stop_distance,
-)
-
 
 # ---------------------------------------------------------------------------
 # Stop validation — the BRK-B regression case must fail (contract §5)

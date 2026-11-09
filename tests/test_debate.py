@@ -8,21 +8,17 @@ distinct: only the latter (or a refuted blocking claim) stops the decision.
 
 from __future__ import annotations
 
-import pytest
-
 from tradingagents.dataflows.debate import (
     classify_debate_outcome,
     refuted_claim_may_not_return,
     should_continue_debate,
 )
 from tradingagents.dataflows.fact_checker import (
-    Claim,
     ClaimClassification,
     ClaimStatus,
-    FactCheckReport,
     ClaimVerdict,
+    FactCheckReport,
 )
-from tradingagents.dataflows.causal_guard import NOT_YET_OBSERVABLE
 
 
 def _turn(speaker, round_index, evidence=(), plan=None, rating=None):
