@@ -113,4 +113,5 @@ jobs:
             tests/test_metric_definitions.py \
             tests/test_report_validation.py \
             tests/test_p0_1924_regression.py \
-            tests/test_trade_actions.py
+            tests/test_trade_actions.py \
+            tests/test_sec_reconciliation.py
