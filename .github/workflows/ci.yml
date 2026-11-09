@@ -120,4 +120,5 @@ jobs:
             tests/test_p0_numbered_cases.py \
             tests/test_exchange_calendar.py \
             tests/test_p1_runtime_gate_integration.py \
-            tests/test_p1_build_info.py
+            tests/test_p1_build_info.py \
+            tests/test_p2_financial_data_integrity.py

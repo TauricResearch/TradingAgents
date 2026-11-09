@@ -21,6 +21,35 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **XBRL concepts keep their meaning.** `dataflows/vendors/concept_resolution.py`
+  classifies revenue tags as consolidated, contract, segment or component, and
+  `sec_edgar._as_of_with_provenance` records the concept, accession, form, period,
+  unit and dimensions with each figure. Candidate tags are ordered by **meaning
+  before spelling**, so a filer's consolidated total outranks a component however
+  the tags are listed. Asking for consolidated revenue from a filer that reports
+  only contract revenue now returns *missing* with the rejected candidate named,
+  rather than substituting the subset.
+- **Bar finality travels with the price.** `dataflows/vendors/bar_finality.py`
+  reports `EOD_CONFIRMED`, `EOD_PENDING_CONFIRMATION`, `INTRADAY_PARTIAL`,
+  `STALE` or `UNKNOWN`, with session date, exchange timezone, observation and
+  source timestamps, last confirmed close, source and calendar. It uses the
+  existing exchange calendar, so holidays and 13:00 closes are honoured. The
+  verified market snapshot now states the bar's finality and, when provisional,
+  instructs the agent not to quote it as a close or derive an end-of-day signal
+  from it.
+
+### Fixed
+
+- Berkshire's Q3 2026 revenue resolved to 74,322 (contract revenue) because the
+  tag list put a component before `Revenues`, and the resolver kept the first tag
+  that reported a period. The filing states 105,647 as the consolidated total;
+  that is what the row now reports, and the YoY growth against 94,972 is 11.24%.
+  A component is still identifiable as contract revenue, never renamed as the
+  total.
+- A daily candle read during the session was presented as a verified close. The
+  2026-11-09 reports at 18:37, 19:24 and 21:01 Rome (12:37, 13:24, 15:01 New
+  York) all fell inside the session and are now labelled `INTRADAY_PARTIAL`.
+
 - **A metric registry reaches the Execution Gate.** `record_decision` built no
   registry, so the claims validator could verify nothing and every run blocked
   with `NUMERIC_CLAIM_UNVERIFIABLE` — the F6 defect the data lineage audit
