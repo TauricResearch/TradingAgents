@@ -118,4 +118,6 @@ jobs:
             tests/test_execution_chokepoint.py \
             tests/test_determinism.py \
             tests/test_p0_numbered_cases.py \
-            tests/test_exchange_calendar.py
+            tests/test_exchange_calendar.py \
+            tests/test_p1_runtime_gate_integration.py \
+            tests/test_p1_build_info.py

@@ -18,7 +18,9 @@ adds the verdict that would govern one.
 from __future__ import annotations
 
 import logging
+from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from tradingagents.dataflows.arithmetic import (
     check_price_timestamp_alignment,
@@ -28,7 +30,9 @@ from tradingagents.dataflows.audit import AuditRecord
 from tradingagents.dataflows.causal_guard import evaluate_post_event_pricing
 from tradingagents.dataflows.claim_harvester import harvest_facts
 from tradingagents.dataflows.execution_gate import (
+    ExecutionAction,
     GateDecision,
+    GateReason,
     PlanInput,
     evaluate_plan,
 )
@@ -402,6 +406,18 @@ def evaluate_decision(
     if math_reasons:
         data_quality_blocked = True
 
+    # §4: an executable decision must rest on at least one certified metric.
+    # Without a registry — or with one that certified nothing — the gate cannot
+    # say the plan's numbers hold up, so it must not propose an order. The
+    # report is still produced; only the order stops. This is the rule that
+    # makes "no metric" block without turning "not computable" into a
+    # contradiction (which is what broke every run before).
+    certified = _certified_metric_count(metric_registry)
+    if certified == 0:
+        data_quality_blocked = True
+        math_reasons = tuple(dict.fromkeys(
+            tuple(math_reasons) + (GateReason.NO_CERTIFIED_METRIC,)))
+
     plan = PlanInput(
         ticker=ticker,
         rating=strategic.rating if strategic else "UNKNOWN",
@@ -490,3 +506,136 @@ def attach_to_state(final_state: dict, decision: GateDecision) -> None:
     """Attach the gate's verdict to the run state for callers and the CLI."""
     final_state["execution_action"] = decision.action.value
     final_state["execution_reason_codes"] = [r.value for r in decision.reasons]
+    final_state["execution_authorization"] = _authorization(
+        decision, final_state.get("execution_authorization"))
+
+
+class ReportOutcome(StrEnum):
+    """Whether the analysis itself produced a usable document (§4).
+
+    Separate from the execution verdict on purpose: a run whose numbers cannot
+    be certified still owes its reader an explanation of what went wrong. Failing
+    the whole run would hide the diagnosis; approving the order would act on it.
+    """
+
+    COMPLETED = "COMPLETED"
+    COMPLETED_WITH_WARNINGS = "COMPLETED_WITH_WARNINGS"
+    FAILED = "FAILED"
+
+
+class ExecutionAuthorization(StrEnum):
+    """Whether an order may be created (§4)."""
+
+    APPROVED = "APPROVED"
+    BLOCKED = "BLOCKED"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+
+
+def _authorization(decision: GateDecision, previous: Any) -> str:
+    """The execution authorisation implied by a gate decision.
+
+    ``APPROVED`` only when the gate actually proposes an order. A ``WAIT`` is
+    ``NOT_APPLICABLE`` — the plan is sound but it is not time to act, which is
+    not a refusal. Everything else is ``BLOCKED``.
+    """
+    if decision.creates_order:
+        return str(ExecutionAuthorization.APPROVED)
+    if decision.action is ExecutionAction.WAIT:
+        return str(ExecutionAuthorization.NOT_APPLICABLE)
+    return str(ExecutionAuthorization.BLOCKED)
+
+
+def _certified_metric_count(registry: Any) -> int:
+    """How many metrics this run certified, or 0 when there is no registry.
+
+    Reads the registry's own ``usable`` list rather than re-deriving the rule,
+    so "certified" means exactly what the registry says it means.
+    """
+    if registry is None:
+        return 0
+    try:
+        return len(registry.usable)
+    except Exception:  # noqa: BLE001 — an unreadable registry certified nothing
+        return 0
+
+
+def report_outcome(math_verdict: Any, decision: GateDecision,
+                   registry: Any) -> str:
+    """Whether the run produced a report, and whether it carries warnings (§4).
+
+    ``COMPLETED`` — every check that ran passed.
+    ``COMPLETED_WITH_WARNINGS`` — the report is usable but something could not be
+    certified or was contradicted; the reader is told, and execution is blocked.
+    ``FAILED`` — no report content at all.
+
+    Deliberately independent of the gate's action: a blocked order and a
+    delivered report are both correct outcomes of the same run.
+    """
+    if not decision.ticker:
+        return str(ReportOutcome.FAILED)
+    problems = False
+    if math_verdict is not None:
+        findings = getattr(getattr(math_verdict, "report", None), "findings", [])
+        # A finding that passed its check is not a warning: a claim matching the
+        # engine is the healthy case, and counting it would mark every good run
+        # as warning-laden.
+        problems = any(
+            getattr(f, "blocks", False)
+            or str(getattr(f, "kind", "")) == "UNVERIFIED"
+            for f in findings
+        )
+    if registry is not None:
+        try:
+            problems = problems or bool(registry.blocking)
+        except Exception:  # noqa: BLE001 — a registry that cannot be read is a warning
+            problems = True
+    return str(ReportOutcome.COMPLETED_WITH_WARNINGS if problems
+               else ReportOutcome.COMPLETED)
+
+
+def attach_registry_status(final_state: dict, registry: Any) -> None:
+    """Publish what this run certified, and the two separate outcomes (§4).
+
+    Written into the state so the caller, the CLI and the audit can all say
+    *how many metrics were certified* and *whether the order was authorised* —
+    two different questions that the earlier code answered with one flag.
+    """
+    from tradingagents.dataflows.math.run_registry import status_of
+
+    if registry is None:
+        final_state["metric_registry_status"] = {
+            "metrics_total": 0, "metrics_usable": 0,
+            "metrics_not_computable": 0, "blocking_metrics": [],
+            "is_empty": True, "source": None,
+            "note": "no registry was available: nothing was certified",
+        }
+    else:
+        try:
+            final_state["metric_registry_status"] = status_of(registry)
+        except Exception:  # noqa: BLE001 — an unreadable registry is reported, not fatal
+            final_state["metric_registry_status"] = {
+                "is_empty": True, "note": "the registry could not be read"}
+
+    decision = final_state.get("execution_action")
+    blocking = final_state.get("execution_reason_codes") or []
+    # A run with no certified metric and no blocking reason still must not
+    # authorise an order: an unverified decision is not an approved one.
+    status = final_state.get("metric_registry_status") or {}
+    if not status.get("metrics_usable") and decision == "PROPOSE_PAPER_ORDER":
+        final_state["execution_authorization"] = str(
+            ExecutionAuthorization.BLOCKED)
+        final_state["execution_reason_codes"] = list(
+            dict.fromkeys(list(blocking) + ["NO_CERTIFIED_METRIC"]))
+    elif "execution_authorization" not in final_state:
+        final_state["execution_authorization"] = str(
+            ExecutionAuthorization.NOT_APPLICABLE)
+
+    # A plan that proposed cleanly carries "OK" as its only reason, which is a
+    # success code, not a warning. Only a genuine refusal makes the report
+    # "completed with warnings".
+    _non_blocking = {"OK", "NO_TRIGGER", "ENTRY_TRIGGER_NOT_MET", "MARKET_CLOSED"}
+    warnings = [c for c in blocking if c not in _non_blocking]
+    final_state["report_outcome"] = str(
+        ReportOutcome.COMPLETED_WITH_WARNINGS if warnings
+        else ReportOutcome.COMPLETED
+    )

@@ -21,6 +21,30 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **A metric registry reaches the Execution Gate.** `record_decision` built no
+  registry, so the claims validator could verify nothing and every run blocked
+  with `NUMERIC_CLAIM_UNVERIFIABLE` — the F6 defect the data lineage audit
+  found. `dataflows/math/run_registry.py` now builds a registry per run from the
+  engine's own computations and `_evaluate_reliability` supplies it. A run with
+  no certified metric blocks with `NO_CERTIFIED_METRIC`.
+- **Report generation and execution authorization are separate outcomes.** A
+  run whose numbers cannot be certified still produces a report explaining the
+  problem (`COMPLETED` / `COMPLETED_WITH_WARNINGS` / `FAILED`) while the order is
+  refused (`APPROVED` / `BLOCKED` / `NOT_APPLICABLE`). A `WAIT` is
+  `NOT_APPLICABLE`, not a refusal.
+- **Build identification in the health endpoint.** `/api/health` reports the
+  commit it was built from and the moment the process loaded its modules. A
+  process started before a deployment keeps its old code, and start time alone
+  could not prove which code was live; the two identifiers together make a stale
+  service visible.
+
+### Fixed
+
+- A metric that could not be computed (`NOT_COMPUTABLE`) no longer counts as a
+  contradiction. It stays unusable — and a decision resting on no certified
+  metric is blocked — but a missing input is a gap to report, not a wrong figure
+  to stop on. Treating the two alike is what made every run fail.
+
 - **Deterministic arithmetic validator (P0-B).** New module
   (`tradingagents/dataflows/arithmetic.py`): percentage moves and distances
   from reference levels are computed as

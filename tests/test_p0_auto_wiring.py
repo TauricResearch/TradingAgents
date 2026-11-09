@@ -58,6 +58,12 @@ def _state(fundamentals_report="", rating="Hold"):
         "investment_plan": "",
         "final_rating": rating,
         "final_trade_decision": f"**Rating**: {rating}\nMaintain.",
+        # A snapshot the engine can certify from. These tests exercise the
+        # freshness gate, not the authorisation rule, so a certified metric is
+        # supplied to keep the run otherwise approvable (§4: no certified
+        # metric means no order, which would mask what is under test here).
+        "verified_market_snapshot": {"close": 570.89, "sma200": 497.723,
+                                     "previous_close": 572.33},
     }
 
 

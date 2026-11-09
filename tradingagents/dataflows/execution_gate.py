@@ -75,6 +75,10 @@ class GateReason(StrEnum):
     # specifically a claimed rate (growth, contraction, distance) that the
     # registry disproves.
     NUMERIC_CLAIM_MISMATCH = "NUMERIC_CLAIM_MISMATCH"
+    # §4: an executable decision must rest on at least one certified metric.
+    # Distinct from the claim codes: this says nothing was certified at all,
+    # rather than that a particular figure was wrong.
+    NO_CERTIFIED_METRIC = "NO_CERTIFIED_METRIC"
     STALE_FUNDAMENTALS_PERIOD = "STALE_FUNDAMENTALS_PERIOD"
 
 

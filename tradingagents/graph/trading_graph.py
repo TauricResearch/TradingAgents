@@ -17,6 +17,7 @@ from tradingagents.dataflows.filing_freshness import (
     used_period_end_from_report,
 )
 from tradingagents.dataflows.gate_integration import (
+    attach_registry_status,
     attach_to_state,
     evaluate_decision,
     write_audit_record,
@@ -409,6 +410,11 @@ class TradingAgentsGraph:
         used_end = used_period_end_from_report(
             final_state.get("fundamentals_report")
         )
+        # §3: a registry belongs to THIS run. Built here, attached here,
+        # discarded with the analysis — a process-wide one would let one
+        # analysis certify another's figures.
+        registry = self._build_metric_registry(company_name, trade_date,
+                                               final_state)
         try:
             record, decision = evaluate_decision(
                 company_name, trade_date, final_state,
@@ -419,14 +425,38 @@ class TradingAgentsGraph:
                 },
                 fundamentals_filings=filings,
                 used_fundamentals_period_end=used_end,
+                metric_registry=registry,
             )
             attach_to_state(final_state, decision)
+            attach_registry_status(final_state, registry)
             path = write_audit_record(record, self.config["results_dir"])
             logger.info("Reliability audit for %s on %s: %s -> %s",
                         company_name, trade_date, decision.action.value, path)
         except Exception:  # noqa: BLE001 — the audit must never sink the run
             logger.exception("Reliability evaluation failed for %s on %s",
                              company_name, trade_date)
+
+    def _build_metric_registry(self, company_name: str, trade_date: str,
+                               final_state: dict):
+        """The certified metrics for this run (§3).
+
+        Best-effort like the rest of the reliability layer: a failure here must
+        not lose the run's reports, and the gate still sees ``None`` — which it
+        reports as "nothing was checked" rather than as a pass.
+        """
+        try:
+            from tradingagents.dataflows.math.run_registry import (
+                build_run_registry,
+                registry_inputs_from_state,
+            )
+
+            inputs = registry_inputs_from_state(final_state)
+            return build_run_registry(
+                inputs, run_id=f"{company_name}-{trade_date}")
+        except Exception:  # noqa: BLE001 — an unavailable registry is not a pass
+            logger.debug("Could not build the metric registry for %s on %s",
+                         company_name, trade_date, exc_info=True)
+            return None
 
     def _known_filings(self, ticker: str, trade_date: str) -> list | None:
         """The authoritative filings known at the analysis date, point-in-time.
