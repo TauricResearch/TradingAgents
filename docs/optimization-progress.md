@@ -32,6 +32,8 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 22 | Demo 并行验收（mini 部署、7 个交易日对照报告） | P2 | in-progress | #20 #21 | 2026-11-10 11:53Z 用户授权（选 A）后部署：mini → 2a7a8f9、web 重启；`demo check` 通过（跨币种保证金、net、read+trade）；`demo init` 本金 5,000 USDT；launchd demo 作业已加载（:10） | 每小时按时运行；跑满 7 个交易日出 `docs/reports/demo-parallel-run.md`，结论进 roadmap | 观察中；13:01Z 用户授权（选 A）后 mini 升到 03aa7b0（含 #23 权限探针和 #24 跟随信号页），只 pull + rsync dist + 重启 web；首次运行 12:10Z |
 | 23 | demo check/init 用探针验证 API key 的交易权限（50123 到首次下单才暴露） | P2 | done | #20 | `OKXPrivate.check_trade_permission`：撤一张不存在的订单，50xxx 即权限不足，51400 即能下单；check 打印结论，init 先探再改设置；账户模式档位用 OKX 现名（合约模式）；下单预检接口不能用（只对跨币种/组合保证金开放） | +4 测试，全量 1959；mini 真 key 验过两种结果 | 已关（CI 42816890344）；提交 e7f8dbe；未部署 mini |
 | 24 | Demo 账户显示它跟随的日内信号及每小时执行结果（切到 Demo 信号页为空） | P2 | done | #22 | `followed_signals`：读日内账本的信号，按小时对照 Demo 的成交/事件标 executed / no_change / skipped / blocked / failed / pending；前端 Demo 有「信号」页和总览「最近信号」，「Demo 执行」芯片代替 token 成本列 |
+| 25 | 信号记录同时显示北京时间 | P3 | done | — | `Time` 组件 `beijing` 属性：信号页和总览「最近信号」在 UTC 后显示「北京 HH:MM」，跨日带日期；其他页面不变 |
+| 26 | demo 对账切掉了交易所时间戳晚于本机“现在”的成交，迟到成交下一小时又重复计 | P1 | review | #22 | 13:10Z 首次真实下单暴露：mini 时钟比 OKX 慢 1～3 s。对账窗口向后放宽 CLOCK_SKEW_MS=60 s；“成交解释的仓位”= `Ledger.net_fills()` 累计和，迟到成交抵消而非叠加；近三天成交读 `/trade/fills` 实时接口，更早读历史；等部署后观察一次对账再关 |
 
 ## 执行记录
 
@@ -62,3 +64,5 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | #23 | 首次 demo 运行暴露（三笔单 50123）后新开；`cursor/issue-23-demo-precheck-6e50` → e7f8dbe（ff） | 验收通过（CI 42816890344）；全量 1959 通过；用户已把 key 权限补上、账户模式改为合约模式，模拟盘 13:10Z 起正常下单；未部署 mini |
 | 2026-11-10 | #24 | 用户反馈「切到 demo 信号不见了」后新开；`cursor/issue-24-demo-followed-signals-6e50` → 65dc8e7 + 20400c2（ff） | 验收通过（CI 42819046917）；全量 1961 通过，tsc/eslint/build 干净；本地合成账本预览六种芯片正常；未部署 mini |
 | 2026-11-10 | 部署 #23 + #24 | mini 2a7a8f9 → 03aa7b0 | 用户授权（选 A）；pull + uv + rsync dist + kickstart web；/、demo 和 intraday 的 /signals 均 200，demo 信号页显示 12:03Z 三条日内信号并标「下单失败」（即 12:10Z 的 50123）；未重启 daily/intraday/mark/demo |
+| 2026-11-10 | #25 | 用户要求信号记录显示北京时间；`cursor/issue-25-signals-beijing-time-6e50` → 854008c（ff） | 验收通过（CI 42822807972）；tsc/eslint/build 干净；未部署 mini |
+| 2026-11-10 | #26 | 13:10Z demo 首次下单后对账漏了 ETH/SOL 成交；`cursor/issue-26-demo-fills-latency-6e50` → a123dce（ff） | 全量 1968 通过，新增 7 测（两接口分段/合并、迟到成交抵消、持续不解释仍报、时钟偏差、net_fills）；ADR 0008 补记；等授权部署 |
