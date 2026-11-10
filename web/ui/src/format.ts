@@ -97,6 +97,17 @@ export function fmtTimeFull(iso: string | null | undefined): string {
   return `${stamp(d)} UTC · 北京 ${stamp(new Date(d.getTime() + BEIJING_OFFSET_MS))}`
 }
 
+/** ISO time -> "北京 08:15", or "北京 11-08 00:15" when Beijing is already on another day
+ * than UTC; the companion of fmtTime for readers on the Beijing clock. */
+export function fmtBeijing(iso: string | null | undefined): string {
+  if (!iso) return DASH
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const b = new Date(d.getTime() + BEIJING_OFFSET_MS)
+  const day = b.getUTCDate() === d.getUTCDate() ? '' : `${pad2(b.getUTCMonth() + 1)}-${pad2(b.getUTCDate())} `
+  return `北京 ${day}${pad2(b.getUTCHours())}:${pad2(b.getUTCMinutes())}`
+}
+
 /** ISO time -> "2026-11-07" (UTC date). */
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return DASH

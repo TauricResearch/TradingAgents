@@ -14,7 +14,7 @@ import { useFetch } from '../hooks'
 const REFRESH_MS = 60_000
 
 const signalColumns: Column<Signal>[] = [
-  { key: 'ts', header: '时间', render: (s) => <Time ts={s.ts} /> },
+  { key: 'ts', header: '时间', render: (s) => <Time ts={s.ts} beijing /> },
   { key: 'coin', header: '币', render: (s) => <span className="num font-medium">{s.coin}</span> },
   { key: 'signal', header: '信号', render: (s) => <SignalChip signal={s.signal} error={s.error} /> },
   {
