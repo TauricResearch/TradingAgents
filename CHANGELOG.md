@@ -19,6 +19,33 @@ Istruzioni per l'agente AI:
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-11-10
+
+### Added
+
+- **The web console names the build it runs at startup.** `python -m webapp`
+  prints the commit, the build id, the Python version and which validators
+  loaded, so a process started before a deployment is visible from the console
+  that started it. The same identifiers were already in `/api/health`, but
+  needed an HTTP call to read. A broken checkout degrades to one `unknown`
+  line instead of blocking the start.
+- **The runtime-verification audit, with three recorded defects.**
+  `docs/audits/P1_RUNTIME_VERIFICATION.md` establishes which commit the serving
+  process runs, and records: `service_started_at` reports the module's first
+  import rather than the process start (a value later than the process it
+  describes); the analysts' `get_certified_metric` tool can never read a
+  registry because the graph never calls `set_run_registry`, and the global it
+  reads leaks one analysis's metrics into the next; and the startup line did
+  not name the build. The first two are documented with reproductions, not
+  fixed here.
+
+### Fixed
+
+- **`test_p3_math_wiring.py` no longer passes over dead code.** Its registry
+  check asserted that `set_run_registry` exists, never that anything calls it;
+  `tests/test_p1_runtime_verification.py` now asserts the production call sites
+  and the leak between runs, so the gap cannot pass silently.
+
 ## [0.8.0] — 2026-11-10
 
 ### Added

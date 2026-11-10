@@ -242,7 +242,7 @@ Below the run panel, **Saved reports** lists every report already under `results
 
 **Delete report** removes the open report from disk after asking to confirm, since the deletion cannot be undone. A finished report takes its whole stamped folder with it; an unfinished run loses only the sections it wrote, because the run's message log beside them is a separate record. Deleting is available over the API too, as `DELETE /api/archive/<id>?confirm=true`: without the explicit `confirm` the request is refused rather than obeyed, so nothing is destroyed by a stray call.
 
-The version the server is running appears in the header pill (`v0.8.0`) and in the console's start-up line; the same value is returned as `version` by `/api/health` and `/api/options`, so a page can tell which build it is talking to without reading the source.
+The version the server is running appears in the header pill (`v0.8.1`) and in the console's start-up line, which also names the commit and the validators that loaded; the same version value is returned as `version` by `/api/health` and `/api/options`, so a page can tell which build it is talking to without reading the source.
 
 Settings live in `TRADINGAGENTS_WEB_HOST`, `TRADINGAGENTS_WEB_PORT` and `TRADINGAGENTS_WEB_RELOAD`. The API starts paid model runs and serves files from this machine, so it binds to the loopback address and refuses to bind elsewhere unless `TRADINGAGENTS_WEB_ALLOW_REMOTE=1` is set; it also rejects requests whose `Host` header is not a local name.
 

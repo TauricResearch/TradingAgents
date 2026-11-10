@@ -17,6 +17,37 @@ from tradingagents import __version__
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
+def startup_diagnostics() -> list[str]:
+    """The lines a console prints so the running build is identifiable.
+
+    The audit could not tell from outside whether the serving process ran the
+    merged code: a process started before a deployment keeps its modules. The
+    same identifiers `/api/health` returns are printed here, so the answer is
+    in the console that started the process and needs no HTTP call.
+
+    Never raises: a broken git checkout or an unimportable validator must not
+    stop the server from starting, only make one line say ``unknown``.
+    """
+    try:
+        from tradingagents.build_info import commit_sha
+        from tradingagents.dataflows import run_record
+
+        info = run_record.runtime_fingerprint()
+        lines = [
+            f"build {info['build_id']} (commit {commit_sha()}, python {info['python']})",
+        ]
+        broken = [name for name, status in (info.get("validators") or {}).items()
+                  if not status.get("loaded")]
+        if broken:
+            lines.append("validators NOT loaded: " + ", ".join(sorted(broken)))
+        else:
+            lines.append("validators loaded: " + ", ".join(sorted(info.get("validators") or {})))
+        return lines
+    except Exception as exc:  # noqa: BLE001 — diagnostics never block a start
+        return [f"build unknown ({type(exc).__name__}: {exc})"]
+
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the server; returns the process exit code."""
     try:
@@ -46,6 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"TradingAgents web console v{__version__}: http://{host}:{port}/  (Ctrl-C to stop)"
     )
+    for line in startup_diagnostics():
+        print(f"  {line}")
     uvicorn.run(
         "webapp.app:app",
         host=host,
