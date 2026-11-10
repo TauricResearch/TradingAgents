@@ -19,12 +19,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-import requests
-
 from trader import jobs, overrides, prices, report, rules, settings as strategy_constants
 from trader.intraday import report as intraday_report
 from trader.ledger import Ledger
-from trader.okx import DAY_MS, OKX, Bar, OKXError
+from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, Bar
 from trader.paper import Paper
 from trader.research import build_config
 from trader.settings import BENCHMARK, BUDGET_LEARNING_DAYS, WATCHLIST, Coin, Settings
@@ -36,9 +34,7 @@ from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 PRICE_TTL = 30       # seconds a last price is reused
 BARS_TTL = 10 * 60   # seconds a daily candle series is reused
 FAILURE_TTL = 20     # seconds OKX is left alone after a request to it failed
-# What a failed OKX request raises: the client's own error, or requests' for a
-# connection that failed, timed out or answered with a status it retried out on.
-MARKET_ERRORS = (requests.RequestException, OKXError)
+MARKET_ERRORS = REQUEST_ERRORS  # what a failed request to OKX raises
 RECORD_NAME = re.compile(r"^full_states_log_(\d{4}-\d{2}-\d{2})\.json$")
 
 

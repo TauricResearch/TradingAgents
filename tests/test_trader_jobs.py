@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
+import requests
 
 from tests.test_trader_paper import BTC, T0, FakeOKX, minutes as candles
 from trader import jobs
@@ -71,6 +72,24 @@ def test_a_buy_is_researched_traded_and_reported(env):
     assert "研判日 2026-01-09" in inbox.sent[-1]
     assert "BTC：Buy → 买入 0.04" in inbox.sent[-1]
     assert "上限未定（已观察 0/7 天）" in inbox.sent[-1]
+
+
+def test_the_report_goes_out_when_okx_fails_after_the_trades(env):
+    class SpotDown(FakeOKX):
+        """Swaps quote; the spot tickers the report prices the baseline with do not."""
+
+        def last_price(self, inst):
+            if not inst.endswith("-SWAP"):
+                raise requests.ConnectionError("Host is down")
+            return super().last_price(inst)
+
+    settings, ledger = env
+    paper, inbox = Paper(ledger, SpotDown(), (BTC,)), Inbox()
+    jobs.daily(settings, paper, inbox, lambda: FakeResearcher({BTC.research: ["Buy"]}), now_fn=lambda: NOW)
+    assert paper.ledger.positions()[BTC.swap].qty == pytest.approx(0.04)
+    assert "研判日 2026-01-09" in inbox.sent[-1]
+    assert inbox.sent[-1].splitlines()[-1].startswith("⚠ 行情暂不可用")
+    assert ledger.get("reported") == ["2026-01-09", True]
 
 
 def test_a_rerun_does_not_research_trade_or_report_again(env):

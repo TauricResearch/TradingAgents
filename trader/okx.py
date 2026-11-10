@@ -26,6 +26,11 @@ class OKXError(RuntimeError):
     """OKX answered with a non-zero error code."""
 
 
+# What a request to OKX raises when it fails: OKXError, or requests' error for a
+# connection that failed, timed out, or answered with a status the retries gave up on.
+REQUEST_ERRORS = (requests.RequestException, OKXError)
+
+
 @dataclass(frozen=True)
 class Bar:
     """A closed candle. ``ts`` is its open time in UTC milliseconds."""

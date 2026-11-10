@@ -13,7 +13,7 @@ from pathlib import Path
 
 from trader import rules
 from trader.ledger import BUDGET_ERROR, Ledger
-from trader.okx import DAY_MS
+from trader.okx import DAY_MS, REQUEST_ERRORS
 from trader.paper import Paper
 from trader.settings import BUDGET_LEARNING_DAYS
 from tradingagents.backtest import summarize
@@ -120,10 +120,12 @@ def daily(
     month_start_ms: int, cap: float | None,
 ) -> str:
     """The report sent after each daily run. ``states`` maps research tickers to
-    ``jobs.coin_state`` results."""
+    ``jobs.coin_state`` results. The report goes out even when OKX is down: equity is
+    then marked at the last marks (``Paper.equity_now``), the spot baseline is left
+    out, and a last line says so."""
     ledger = paper.ledger
     positions = ledger.positions()
-    equity = paper.equity({inst: paper.okx.last_price(inst) for inst in positions})
+    equity, unavailable = paper.equity_now()
     lines = [f"模拟盘日报 · 研判日 {trade_date}"]
     if ledger.get("halted"):
         lines.append("⚠ 熔断中：只研判，不交易。确认后运行 python -m trader resume 恢复。")
@@ -156,11 +158,14 @@ def daily(
         base = ledger.equity_series(start)[0][1]
         spent, _ = ledger.cost_since(start)
         ref = ledger.get("baseline_ref")
-        ratios = [paper.okx.last_price(c.spot) / ref[c.research] for c in paper.watchlist]
-        lines.append(
-            f"验证期累计 {equity / base - 1:+.2%}，扣 LLM 费用后 {(equity - spent) / base - 1:+.2%}；"
-            f"三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}"
-        )
+        line = f"验证期累计 {equity / base - 1:+.2%}，扣 LLM 费用后 {(equity - spent) / base - 1:+.2%}"
+        try:
+            ratios = [paper.okx.last_price(c.spot) / ref[c.research] for c in paper.watchlist]
+        except REQUEST_ERRORS:  # the baseline has no mark to fall back on: left out
+            unavailable = True
+        else:
+            line += f"；三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}"
+        lines.append(line)
 
     today, unknown_today = ledger.cost_of(trade_date)
     month, unknown_month = ledger.cost_since(month_start_ms)
@@ -171,6 +176,10 @@ def daily(
         limit = f"上限 ${cap:,.2f}"
     unknown = "；有调用费用未知，没算进去" if unknown_today or unknown_month else ""
     lines.append(f"LLM 费用：今日 ${today:,.2f}，本月 ${month:,.2f}，{limit}{unknown}")
+    if unavailable:
+        lines.append(
+            "⚠ 行情暂不可用（OKX）：净值按最近一次标记价计，三币等权现货略去。"
+        )
     return "\n".join(lines)
 
 
