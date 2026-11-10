@@ -17,6 +17,7 @@ from trader.intraday.paper import HOUR_MS
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger
 from trader.okx import DAY_MS, OKXError
+from trader.okx_private import OKXPrivateError
 from trader.settings import Settings
 
 RUN0 = HOUR + 10 * 60_000  # the job's slot: ten past the hour
@@ -220,6 +221,20 @@ def test_demo_init_refuses_an_account_that_is_not_flat(demo_cli):
     exchange.manual_fill(BTC.swap, 5)
     result = runner.invoke(cli.app, ["demo", "init"])
     assert result.exit_code == 1 and "模拟账户里还有持仓" in result.output
+    assert not settings.demo_ledger_path.exists() or not Ledger(settings.demo_ledger_path).initialized
+
+
+def test_demo_init_refuses_a_key_that_cannot_trade(demo_cli):
+    runner, exchange, settings = demo_cli
+    exchange.mode = "long_short_mode"
+    exchange.permission_error = OKXPrivateError(
+        "/api/v5/trade/cancel-order", "50123", "This API Key does not have trading permission for the Crypto"
+    )
+    result = runner.invoke(cli.app, ["demo", "init"])
+    assert result.exit_code == 1, result.output
+    assert "这把 key 下不了单：50123" in result.output and "勾上加密货币/永续合约" in result.output
+    # Refused before anything was changed on the exchange or written to the ledger.
+    assert exchange.mode == "long_short_mode" and exchange.leverages == {}
     assert not settings.demo_ledger_path.exists() or not Ledger(settings.demo_ledger_path).initialized
 
 

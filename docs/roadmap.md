@@ -73,7 +73,7 @@
 
 设计见 ADR 0008，代码在 `trader/okx_private.py`（私有接口客户端，只能连模拟盘）和 `trader/demo/`（对账、下单、交易所侧止损、作业、报告）。票：#19 客户端、#20 执行器、#21 看板、#22 并行验收。
 
-- 在 OKX「模拟交易」里建一个只勾“交易”权限的 API，把三个变量写进 `.env`（名字见 `deploy/trader.env.example`，值不进 git、不进日志），`python -m trader demo check` 看账户模式、余额、持仓。
+- 在 OKX「模拟交易」里建一个只勾“交易”权限的 API，把三个变量写进 `.env`（名字见 `deploy/trader.env.example`，值不进 git、不进日志），`python -m trader demo check` 看账户模式、余额、持仓，并探一次交易权限（key 的交易权限要勾到加密货币/永续合约，否则到下单才报 50123；账户模式要合约模式或跨币种保证金）。
 - `python -m trader demo init`：要求模拟账户没有持仓和挂单，本金取账户的 USDT 钱包余额，持仓模式切单向、三个合约设全仓 3×。
 - 装 launchd 代理，方式同前（`for job in demo`）：每小时 :10 运行 `python -m trader demo run`，等日内账户 :03 的决定最多 15 分钟；等不到本小时不交易。止损挂在交易所，程序不在线也会触发；下次运行对账时按成交入账。
 - 日常：`demo sync` 只读交易所入账、打印持仓和问题；`demo report` 看绩效；熔断后在交易所确认平干净，`demo resume` 解除。对不上账（非程序成交、杠杆/保证金模式不对、持仓与成交推算不符）时本小时不下单并告警，每个问题 6 小时最多提醒一次。

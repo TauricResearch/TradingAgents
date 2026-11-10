@@ -33,6 +33,7 @@ import requests
 from trader.okx import _RETRY_PAUSES, BASE_URL, OKXError
 
 SIMULATED_HEADER = "x-simulated-trading"
+PROBE_ORDER_ID = "1"  # OKX order ids are 18-digit; this one can never exist
 DUPLICATE_CLIENT_ID = "51016"  # OKX's code for a clOrdId / algoClOrdId that already exists
 TIMESTAMP_EXPIRED = "50102"    # the request's timestamp was more than 30 s off OKX's clock
 _PAGE = 100                    # rows per page; the most fills and bills endpoints give
@@ -41,11 +42,13 @@ _TIMEOUT = 10
 
 class OKXPrivateError(OKXError):
     """OKX answered a signed request with a non-zero code (the order's ``sCode`` when
-    the request was an order). ``code`` is that code as OKX spells it."""
+    the request was an order). ``code`` is that code as OKX spells it, ``message``
+    its text."""
 
     def __init__(self, path: str, code: str, message: str):
         super().__init__(f"{path} failed with code {code}: {message}")
         self.code = code
+        self.message = message
 
 
 @dataclass(frozen=True, repr=False)
@@ -268,6 +271,19 @@ class OKXPrivate:
             "reduceOnly": reduce_only,
         })[0]
         return row["ordId"]
+
+    def check_trade_permission(self, inst: str) -> None:
+        """Raise OKXPrivateError when the key cannot place orders on ``inst``; a no-op
+        when it can. The account endpoints do not tell: a key whose trade permission
+        leaves out crypto reads config, balance and leverage fine and fails only at
+        the order (50123). The probe cancels an order that cannot exist: a 50xxx
+        answer is the gateway refusing the key, a 51xxx one (51400, the order does
+        not exist) means the request went through. Nothing is placed or changed."""
+        try:
+            self._post("/api/v5/trade/cancel-order", {"instId": inst, "ordId": PROBE_ORDER_ID})
+        except OKXPrivateError as exc:
+            if exc.code.startswith("50"):
+                raise
 
     def order(self, inst: str, client_id: str | None = None, order_id: str | None = None) -> Order:
         """An order by client or exchange id; OKXPrivateError (code 51603) when there

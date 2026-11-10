@@ -57,6 +57,7 @@ class FakeExchange:
         self.calls = []
         self.fill_state = "filled"  # what a placed market order does
         self.place_error = None     # OKXPrivateError to raise from place_market
+        self.permission_error = None  # OKXPrivateError to raise from check_trade_permission
         self._ids = 0
 
     # -- the client's interface ---------------------------------------------
@@ -81,6 +82,11 @@ class FakeExchange:
             ExchangePosition(inst, c, avg, self._upl(inst), self.leverage, self.margin_mode, None, self.now)
             for inst, (c, avg) in self.book.items() if c
         ]
+
+    def check_trade_permission(self, inst):
+        self.calls.append(("check_trade_permission", inst))
+        if self.permission_error:
+            raise self.permission_error
 
     def place_market(self, inst, contracts, client_id, reduce_only=False, margin_mode="cross"):
         self.calls.append(("place_market", inst, contracts, client_id, reduce_only, margin_mode))

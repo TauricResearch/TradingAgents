@@ -20,10 +20,10 @@ from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
 from trader.notify import Notifier
 from trader.okx import OKX, REQUEST_ERRORS
-from trader.okx_private import OKXPrivate
+from trader.okx_private import OKXPrivate, OKXPrivateError
 from trader.paper import Paper
 from trader.research import Researcher
-from trader.settings import Settings
+from trader.settings import WATCHLIST, Settings
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 intraday_app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -182,9 +182,10 @@ def demo_check() -> None:
         balance = client.balance()
         positions = client.positions()
         stops = client.pending_stops()
+        trade_error = _trade_permission_error(client)
     except REQUEST_ERRORS as exc:
         _fail(f"OKX 模拟盘没有应答：{jobs.error_text(exc)}")
-    levels = {"1": "现货", "2": "单币种保证金", "3": "跨币种保证金", "4": "组合保证金"}
+    levels = {"1": "现货", "2": "合约模式（单币种保证金）", "3": "跨币种保证金", "4": "组合保证金"}
     typer.echo(
         f"模拟账户可用。持仓模式 {config.position_mode}，"
         f"账户模式 {levels.get(config.account_level, config.account_level)}，权限 {config.permissions}"
@@ -201,7 +202,11 @@ def demo_check() -> None:
     if config.position_mode != "net_mode":
         typer.echo("注意：demo 账户按单向持仓（net_mode）设计，首次运行会切换；要求当时没有持仓和挂单。")
     if config.account_level == "1":
-        typer.echo("注意：现货账户模式不能交易合约，请在 OKX 模拟盘把账户模式改成单币种保证金或以上。")
+        typer.echo("注意：现货模式不能交易合约，请在 OKX 模拟盘把账户模式改成合约模式（以前叫单币种保证金）或跨币种保证金。")
+    if trade_error:
+        typer.echo(f"注意：{trade_error}")
+    else:
+        typer.echo("交易权限正常（试了一次不存在订单的撤单，没有下单）。")
 
 
 @demo_app.command("init")
@@ -216,6 +221,9 @@ def demo_init() -> None:
         _fail("demo 跟随日内账户的信号，先要有日内账户：python -m trader intraday init")
     account = DemoAccount(ledger, OKX(), client)
     try:
+        trade_error = _trade_permission_error(client)
+        if trade_error:
+            _fail(trade_error)
         if client.positions():
             _fail("模拟账户里还有持仓，先在 OKX 平掉再 init")
         if client.pending_stops():
@@ -307,6 +315,19 @@ def _open_intraday(require_utc: bool = False) -> tuple[Settings, IntradayPaper, 
     if not ledger.initialized:
         _fail("还没有日内模拟账户，先运行 python -m trader intraday init")
     return settings, IntradayPaper(ledger, OKX()), notifier
+
+
+PRECHECK_INST = WATCHLIST[0].swap  # the contract the trade-permission probe names
+
+
+def _trade_permission_error(client: OKXPrivate) -> str | None:
+    """Why the key cannot place orders, or None when it can (OKXPrivate.check_trade_permission)."""
+    try:
+        client.check_trade_permission(PRECHECK_INST)
+    except OKXPrivateError as exc:
+        hint = "；请在 OKX 模拟盘的 API 管理里给这把 key 的交易权限勾上加密货币/永续合约" if exc.code == "50123" else ""
+        return f"这把 key 下不了单：{exc.code} {exc.message}{hint}"
+    return None
 
 
 def _demo_client() -> tuple[Settings, OKXPrivate]:

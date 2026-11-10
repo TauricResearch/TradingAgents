@@ -226,6 +226,26 @@ def test_an_order_that_okx_rejects_raises_its_item_code():
     assert "Client order ID already exists" in str(info.value)
 
 
+def test_the_trade_permission_probe_passes_when_only_the_order_is_missing():
+    okx, session = client([(("POST", "/api/v5/trade/cancel-order"), {
+        "code": "1", "msg": "All operations failed",
+        "data": [{"ordId": "1", "sCode": "51400", "sMsg": "Order cancellation failed as the order does not exist."}],
+    })])
+    assert okx.check_trade_permission("BTC-USDT-SWAP") is None
+    method, path, data, _ = session.calls[0]
+    assert (method, path, data) == ("POST", "/api/v5/trade/cancel-order", '{"instId":"BTC-USDT-SWAP","ordId":"1"}')
+
+
+def test_the_trade_permission_probe_raises_the_gateway_refusal():
+    okx, _ = client([(("POST", "/api/v5/trade/cancel-order"), {
+        "code": "50123", "msg": "This API Key does not have trading permission for the Crypto", "data": [],
+    })])
+    with pytest.raises(OKXPrivateError) as info:
+        okx.check_trade_permission("BTC-USDT-SWAP")
+    assert info.value.code == "50123"
+    assert info.value.message == "This API Key does not have trading permission for the Crypto"
+
+
 # -- account ---------------------------------------------------------------------
 
 
@@ -458,15 +478,22 @@ def test_demo_check_reads_the_account_and_places_nothing(monkeypatch, tmp_path):
             {"instId": "BTC-USDT-SWAP", "pos": "3", "posSide": "net", "avgPx": "80000", "upl": "12.5",
              "lever": "3", "mgnMode": "cross", "liqPx": "", "uTime": str(T0)}]),
         (("GET", "/api/v5/trade/orders-algo-pending?ordType=conditional&instType=SWAP"), []),
+        (("POST", "/api/v5/trade/cancel-order"), {
+            "code": "1", "msg": "All operations failed",
+            "data": [{"ordId": "1", "sCode": "51400", "sMsg": "Order cancellation failed as the order does not exist."}],
+        }),
     ])
     monkeypatch.setattr(cli, "OKXPrivate", lambda creds: OKXPrivate(creds, session=session, clock=lambda: NOW))
     result = CliRunner().invoke(cli.app, ["demo", "check"])
     assert result.exit_code == 0, result.output
-    assert "long_short_mode" in result.output and "单币种保证金" in result.output
+    assert "long_short_mode" in result.output and "合约模式（单币种保证金）" in result.output
     assert "USDT 权益 10,012.50" in result.output
     assert "BTC-USDT-SWAP +3 张 @ 80,000.00" in result.output
     assert "首次运行会切换" in result.output
-    assert all(method == "GET" for method, *_ in session.calls)
+    assert "交易权限正常" in result.output
+    # Nothing is placed: the reads, then one cancel of an order that cannot exist.
+    posts = [(path, data) for method, path, data, _ in session.calls if method == "POST"]
+    assert posts == [("/api/v5/trade/cancel-order", '{"instId":"BTC-USDT-SWAP","ordId":"1"}')]
     assert "test-secret" not in result.output and "pass-word" not in result.output
 
 
@@ -481,3 +508,28 @@ def test_demo_check_reports_an_unreachable_exchange(monkeypatch, tmp_path):
     result = CliRunner().invoke(cli.app, ["demo", "check"])
     assert result.exit_code == 1
     assert "OKX 模拟盘没有应答" in result.output and "ConnectionError" in result.output
+
+
+def test_demo_check_points_at_a_key_that_cannot_trade(monkeypatch, tmp_path):
+    monkeypatch.setenv("TRADER_HOME", str(tmp_path))
+    monkeypatch.setenv("TRADER_OKX_DEMO_KEY", "key-123")
+    monkeypatch.setenv("TRADER_OKX_DEMO_SECRET", "test-secret")
+    monkeypatch.setenv("TRADER_OKX_DEMO_PASSPHRASE", "pass-word")
+    session = FakeSession([
+        (("GET", "/api/v5/account/config"), [{"posMode": "net_mode", "acctLv": "3", "perm": "read_only,trade"}]),
+        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [
+            {"ccy": "USDT", "eq": "5000", "cashBal": "5000", "availBal": "5000", "upl": "0"}]}]),
+        (("GET", "/api/v5/account/positions?instType=SWAP"), []),
+        (("GET", "/api/v5/trade/orders-algo-pending?ordType=conditional&instType=SWAP"), []),
+        (("POST", "/api/v5/trade/cancel-order"), {
+            "code": "50123", "msg": "This API Key does not have trading permission for the Crypto", "data": [],
+        }),
+    ])
+    monkeypatch.setattr(cli, "OKXPrivate", lambda creds: OKXPrivate(creds, session=session, clock=lambda: NOW))
+    result = CliRunner().invoke(cli.app, ["demo", "check"])
+    assert result.exit_code == 0, result.output
+    assert "跨币种保证金" in result.output and "权限 read_only,trade" in result.output
+    assert "注意：这把 key 下不了单：50123 This API Key does not have trading permission for the Crypto；" in result.output
+    assert "勾上加密货币/永续合约" in result.output
+    assert "交易权限正常" not in result.output
+
