@@ -5,13 +5,17 @@ accepts (streamed, unstored, no ``system`` role); the CLI offers it under
 "Subscription", checks the sign-in before a run, and lists the plan's models.
 """
 
+import asyncio
+import json
 import logging
 from types import SimpleNamespace
 from unittest import mock
 
+import httpx
 import pytest
 import typer
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import tool
 
 import cli.prompts as prompts
 import cli.selections as selections
@@ -74,6 +78,93 @@ def test_a_chatgpt_tier_beside_an_openai_tier_keeps_each_credential(signed_in, m
     assert quick.openai_api_key() == "plan-token"
     assert not isinstance(deep, ChatGPTPlanChatOpenAI)
     assert deep.openai_api_key.get_secret_value() == "sk-openai"
+
+
+# --- tool calls made in one turn ---------------------------------------------------
+
+_RESPONSE = {"id": "resp_1", "object": "response", "created_at": 1, "model": "gpt-5.5", "output": [],
+             "parallel_tool_calls": True, "tool_choice": "auto", "tools": [], "status": "in_progress"}
+_ARGUMENTS = ['{"indicator": "rsi", "curr_date": "2026-11-10"}', '{"indicator": "macd", "curr_date": "2026-11-10"}']
+
+
+@tool
+def get_indicators(indicator: str, curr_date: str) -> str:
+    """One indicator on a date."""
+    return "ok"
+
+
+def _function_call(i, arguments, status):
+    return {"type": "function_call", "id": f"fc_{i}", "call_id": f"call_{i}", "name": "get_indicators",
+            "arguments": arguments, "status": status}
+
+
+def _plan_answer(*streamed):
+    """A turn of two calls as the plan streams it; ``streamed[i]`` says whether call i's
+    arguments come as deltas. For calls made together the plan sends none (#1672)."""
+    events = [{"type": "response.created", "response": _RESPONSE}]
+    for i, (arguments, deltas) in enumerate(zip(_ARGUMENTS, streamed, strict=True)):
+        events.append({"type": "response.output_item.added", "output_index": i,
+                       "item": _function_call(i, "", "in_progress")})
+        if deltas:
+            events += [{"type": "response.function_call_arguments.delta", "output_index": i,
+                        "item_id": f"fc_{i}", "delta": part} for part in (arguments[:9], arguments[9:])]
+        events += [{"type": "response.function_call_arguments.done", "output_index": i, "item_id": f"fc_{i}",
+                    "name": "get_indicators", "arguments": arguments},
+                   {"type": "response.output_item.done", "output_index": i,
+                    "item": _function_call(i, arguments, "completed")}]
+    events.append({"type": "response.completed", "response": {**_RESPONSE, "status": "completed"}})
+    body = "".join(f"event: {e['type']}\ndata: {json.dumps({**e, 'sequence_number': n})}\n\n"
+                   for n, e in enumerate(events)).encode()
+    return lambda request: httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body)
+
+
+def _plan_llm(answer):
+    config = {**default_config.DEFAULT_CONFIG, "llm_provider": "chatgpt"}
+    transport = httpx.MockTransport(answer)
+    kwargs = {**factory.build_llm_kwargs(config), "http_client": httpx.Client(transport=transport),
+              "http_async_client": httpx.AsyncClient(transport=transport)}
+    return factory.create_llm_client("chatgpt", "gpt-5.5", **kwargs).get_llm().bind_tools([get_indicators])
+
+
+_EXPECTED = [json.loads(arguments) for arguments in _ARGUMENTS]
+
+
+@pytest.mark.unit
+def test_tool_calls_made_together_keep_their_arguments(signed_in):
+    """The plan sends their arguments only when each call is done (#1672)."""
+    reply = _plan_llm(_plan_answer(False, False)).invoke([HumanMessage("go")])
+    assert [call["args"] for call in reply.tool_calls] == _EXPECTED
+
+
+@pytest.mark.unit
+def test_tool_calls_made_together_keep_their_arguments_when_awaited(signed_in):
+    """Analysts may run asynchronously; the async client streams the same way (#1672)."""
+    reply = asyncio.run(_plan_llm(_plan_answer(False, False)).ainvoke([HumanMessage("go")]))
+    assert [call["args"] for call in reply.tool_calls] == _EXPECTED
+
+
+@pytest.mark.unit
+def test_streamed_arguments_are_not_doubled(signed_in):
+    """The done event repeats arguments already streamed; they must count once (#1672)."""
+    reply = _plan_llm(_plan_answer(True, True)).invoke([HumanMessage("go")])
+    assert [call["args"] for call in reply.tool_calls] == _EXPECTED
+
+
+@pytest.mark.unit
+def test_a_turn_mixing_streamed_and_unstreamed_calls_keeps_each_call_s_arguments(signed_in):
+    """Whether arguments were streamed is decided per call, not per turn (#1672)."""
+    reply = _plan_llm(_plan_answer(True, False)).invoke([HumanMessage("go")])
+    assert [call["args"] for call in reply.tool_calls] == _EXPECTED
+
+
+@pytest.mark.unit
+def test_the_next_request_sends_the_calls_back_with_their_arguments(signed_in):
+    """Otherwise the model reads its own calls back as made without arguments (#1672)."""
+    llm = _plan_llm(_plan_answer(False, False))
+    reply = llm.invoke([HumanMessage("go")])
+    payload = llm.bound._get_request_payload([HumanMessage("go"), reply])
+    sent = [item["arguments"] for item in payload["input"] if item.get("type") == "function_call"]
+    assert [json.loads(arguments) for arguments in sent] == _EXPECTED
 
 
 # --- the CLI ---------------------------------------------------------------------

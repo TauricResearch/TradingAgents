@@ -1,3 +1,5 @@
+import functools
+import inspect
 import logging
 import os
 import re
@@ -8,6 +10,7 @@ from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
+from openai.types.responses import ResponseFunctionCallArgumentsDeltaEvent
 
 from .api_key_env import get_api_key_env
 from .base_client import BaseLLMClient, normalize_content
@@ -169,6 +172,79 @@ class MinimaxChatOpenAI(NormalizedChatOpenAI):
 # Settings a ChatGPT plan refuses.
 _PLAN_REFUSED = ("temperature", "top_p", "max_tokens")
 
+_ARGS_DELTA = "response.function_call_arguments.delta"
+_ARGS_DONE = "response.function_call_arguments.done"
+
+
+def _with_arguments(event: Any, streamed: set[str]) -> Any:
+    """``event``, or the delta that carries a call's arguments when none was streamed.
+
+    For tool calls made together in one turn, the plan sends no argument deltas,
+    only the full arguments in each call's ``.done`` event, and langchain-openai
+    builds tool calls from deltas alone, so those calls reached the tools with
+    empty arguments (#1672). Replacing the ``.done`` event, rather than adding a
+    delta beside it, keeps arguments from counting twice should langchain later
+    read ``.done`` itself.
+    """
+    kind = getattr(event, "type", None)
+    if kind == _ARGS_DELTA:
+        streamed.add(event.item_id)
+    elif kind == _ARGS_DONE and event.item_id not in streamed and event.arguments:
+        return ResponseFunctionCallArgumentsDeltaEvent(
+            type=_ARGS_DELTA, delta=event.arguments, item_id=event.item_id,
+            output_index=event.output_index, sequence_number=event.sequence_number,
+        )
+    return event
+
+
+class _CompleteArguments:
+    """A Responses stream whose function calls always carry their arguments."""
+
+    def __init__(self, stream: Any):
+        self._stream = stream
+        self._streamed: set[str] = set()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
+
+    def __enter__(self):
+        self._stream.__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        return self._stream.__exit__(*exc)
+
+    def __iter__(self):
+        for event in self._stream:
+            yield _with_arguments(event, self._streamed)
+
+    async def __aenter__(self):
+        await self._stream.__aenter__()
+        return self
+
+    async def __aexit__(self, *exc):
+        return await self._stream.__aexit__(*exc)
+
+    async def __aiter__(self):
+        async for event in self._stream:
+            yield _with_arguments(event, self._streamed)
+
+
+def _completing(create: Callable) -> Callable:
+    """``responses.create`` whose streams complete each call's arguments."""
+    if inspect.iscoroutinefunction(create):
+        @functools.wraps(create)
+        async def acreate(*args, **kwargs):
+            result = await create(*args, **kwargs)
+            return _CompleteArguments(result) if kwargs.get("stream") else result
+        return acreate
+
+    @functools.wraps(create)
+    def screate(*args, **kwargs):
+        result = create(*args, **kwargs)
+        return _CompleteArguments(result) if kwargs.get("stream") else result
+    return screate
+
 
 class ChatGPTPlanChatOpenAI(NormalizedChatOpenAI):
     """The person's ChatGPT plan through OpenAI's Responses API.
@@ -193,6 +269,9 @@ class ChatGPTPlanChatOpenAI(NormalizedChatOpenAI):
         for client in (self.root_client, self.root_async_client):
             client.organization = None
             client.project = None
+            # Wrapped on this instance's own clients, so no other provider and no
+            # langchain internals are touched.
+            client.responses.create = _completing(client.responses.create)
 
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
