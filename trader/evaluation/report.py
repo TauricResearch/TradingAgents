@@ -41,7 +41,7 @@ def replay_table(results: list[tuple[Params, Policy, Result]]) -> str:
         ])
     return table(
         ["配置", "收益", "最大回撤", "Sharpe(日)", "成交", "止损", "手续费", "资金费", "换手(USDT)",
-         "平均敲口", "触发熝断"],
+         "平均敞口", "触发熔断"],
         rows,
     )
 
