@@ -22,10 +22,12 @@ interface Props<T> {
   empty?: string
   /** Keep the header visible while the body scrolls inside a bounded panel. */
   stickyHeader?: boolean
+  /** A totals row under the body: cells by column key, the other columns blank. */
+  footer?: Partial<Record<string, ReactNode>>
 }
 
 /** Dense table; scrolls horizontally on narrow screens. */
-export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', stickyHeader = false }: Props<T>) {
+export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', stickyHeader = false, footer }: Props<T>) {
   if (rows.length === 0) return <Empty label={empty} />
   return (
     <div className="w-full overflow-x-auto">
@@ -64,6 +66,17 @@ export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', st
             </tr>
           ))}
         </tbody>
+        {footer && (
+          <tfoot>
+            <tr className="border-t border-border bg-panel-2/40 font-medium">
+              {columns.map((c) => (
+                <td key={c.key} className={`px-2 py-[3px] ${c.align === 'right' ? 'num text-right' : 'text-left'} ${c.className ?? ''}`}>
+                  {footer[c.key]}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   )

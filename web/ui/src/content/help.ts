@@ -9,8 +9,16 @@ export type HelpKey =
   // top bar
   | 'drawdown'
   | 'processed_to'
-  // overview KPIs
+  // overview asset card
   | 'equity'
+  | 'today_pnl'
+  | 'unrealized_total'
+  | 'realized'
+  | 'cash'
+  | 'notional_total'
+  | 'total_pnl'
+  | 'exposure'
+  // validation metrics
   | 'cumulative'
   | 'annualized_net'
   | 'sharpe'
@@ -36,6 +44,7 @@ export type HelpKey =
   | 'price'
   | 'notional'
   | 'unrealized'
+  | 'unrealized_pct'
   | 'stop'
   | 'stop_distance'
   // research detail sections, in pipeline order
@@ -71,7 +80,35 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'daily-cycle',
   },
   equity: {
-    text: `账户当前净值（USDT）= 现金 + 所有仓位按现价标记的浮动盈亏。`,
+    text: `账户总资产（净值，USDT）= 现金 + 所有仓位按现价标记的浮动盈亏；注释里的本金是开户时的初始资金。`,
+    section: 'overview-page',
+  },
+  today_pnl: {
+    text: `今天到现在赚了还是亏了：实时总资产减去今天 UTC 零点（北京时间 08:00）的净值快照，含成交、手续费和资金费，不含 AI 研判费用；零点快照由整点任务写入，还没写时以上一个快照为起点并注明。`,
+    section: 'overview-page',
+  },
+  unrealized_total: {
+    text: `所有未平仓位按现价计算的浮动盈亏之和；只要有一个合约拿不到报价就显示“—”，不给出会误导的部分合计。`,
+    section: 'overview-page',
+  },
+  realized: {
+    text: `已经落袋的盈亏 = 现金 − 本金：历史上每次平仓、减仓的盈亏，扣掉手续费，再加上收付的资金费。`,
+    section: 'overview-page',
+  },
+  cash: {
+    text: `账户现金（USDT）：本金加上已实现盈亏。模拟账户不冻结保证金，持仓的浮动盈亏单独计在总资产里。`,
+    section: 'overview-page',
+  },
+  notional_total: {
+    text: `所有持仓的名义价值之和（数量 × 现价）；杠杆 = 名义 ÷ 总资产，大于 1 表示合约追踪的资产超过了账户本身。`,
+    section: 'perps',
+  },
+  total_pnl: {
+    text: `开户以来的总盈亏 = 总资产 − 本金，即已实现 + 未实现；百分比按本金计。验证期的策略指标在净值曲线下方。`,
+    section: 'overview-page',
+  },
+  exposure: {
+    text: `各合约名义价值占全部持仓的比例，绿为多头、红为空头；一眼看出资金压在哪个币、哪个方向。`,
     section: 'overview-page',
   },
   cumulative: {
@@ -164,6 +201,10 @@ export const HELP: Record<HelpKey, HelpEntry> = {
   },
   unrealized: {
     text: `按现价计算、尚未平仓的浮动盈亏；平仓后转为已实现盈亏并计入现金。`,
+    section: 'overview-page',
+  },
+  unrealized_pct: {
+    text: `浮动盈亏相对开仓时仓位价值（数量 × 开仓均价）的百分比，已按方向折算：空头在价格下跌时为正。`,
     section: 'overview-page',
   },
   stop: {

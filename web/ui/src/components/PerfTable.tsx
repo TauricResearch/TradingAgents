@@ -1,4 +1,5 @@
 import type { Perf, Performance } from '../api'
+import type { HelpKey } from '../content/help'
 import { fmtDrawdown, fmtNum, fmtPct } from '../format'
 import { Help } from './Help'
 import { Num } from './Num'
@@ -9,7 +10,13 @@ const ROWS: { key: keyof Performance; label: string; color: string }[] = [
   { key: 'btc', label: 'BTC 持有', color: 'var(--color-line-btc)' },
 ]
 
-const HEAD = ['累计', '年化', 'Sharpe', '最大回撤', '年化/回撤']
+const HEAD: { label: string; help: HelpKey }[] = [
+  { label: '累计', help: 'cumulative' },
+  { label: '年化', help: 'annualized_net' },
+  { label: 'Sharpe', help: 'sharpe' },
+  { label: '最大回撤', help: 'max_drawdown' },
+  { label: '年化/回撤', help: 'calmar' },
+]
 
 function cells(p: Perf | null) {
   if (!p) {
@@ -34,7 +41,7 @@ function cells(p: Perf | null) {
   )
 }
 
-/** Strategy performance against the baselines, same figures as the KPI strip. */
+/** Strategy performance against the baselines: the validation metrics, under the chart. */
 export function PerfTable({ performance }: { performance: Performance }) {
   return (
     <div className="overflow-x-auto">
@@ -46,8 +53,9 @@ export function PerfTable({ performance }: { performance: Performance }) {
               <Help k="performance" size="xs" className="ml-1" />
             </th>
             {HEAD.map((h) => (
-              <th key={h} className="px-2 py-1 text-right font-medium">
-                {h}
+              <th key={h.help} className="px-2 py-1 text-right font-medium">
+                {h.label}
+                <Help k={h.help} size="xs" align="end" className="ml-1" />
               </th>
             ))}
           </tr>

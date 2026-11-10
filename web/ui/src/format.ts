@@ -1,5 +1,6 @@
 // Number and time formatting. All times render in UTC, the ledger's and the
-// trade date's convention.
+// trade date's convention; the full form adds the Beijing clock, where the
+// dashboard is read.
 
 export const DASH = '—'
 
@@ -83,12 +84,17 @@ export function fmtTime(iso: string | null | undefined): string {
   return `${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`
 }
 
-/** ISO time -> "2026-11-07 00:15:30 UTC", for tooltips. */
+const BEIJING_OFFSET_MS = 8 * 3_600_000
+
+const stamp = (d: Date): string =>
+  `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`
+
+/** ISO time -> "2026-11-07 00:15:30 UTC · 北京 2026-11-07 08:15:30", for tooltips. */
 export function fmtTimeFull(iso: string | null | undefined): string {
   if (!iso) return DASH
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())} UTC`
+  return `${stamp(d)} UTC · 北京 ${stamp(new Date(d.getTime() + BEIJING_OFFSET_MS))}`
 }
 
 /** ISO time -> "2026-11-07" (UTC date). */

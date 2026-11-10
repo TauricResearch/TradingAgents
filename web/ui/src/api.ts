@@ -52,7 +52,28 @@ export interface Position {
   price: number | null
   notional: number | null
   unrealized: number | null
+  /** Return on the position's value at entry, the side's sign applied. */
+  unrealized_pct: number | null
   stop_distance: number | null
+}
+
+/** The day's PnL against the midnight snapshot `since` (null before the first one). */
+export interface Today {
+  since: string | null
+  /** Null without the snapshot or without the quotes that price the equity. */
+  pnl: number | null
+  pct: number | null
+}
+
+/** Account sums; the marked ones are null while a position has no quote. */
+export interface Totals {
+  unrealized: number | null
+  notional: number | null
+  leverage: number | null
+  /** Cash less capital: what closed trades, fees and funding have added since the account opened. */
+  realized: number
+  pnl: number | null
+  pnl_pct: number | null
 }
 
 /** Whether the API's last request to OKX succeeded; `since` is when the failures began. */
@@ -88,12 +109,15 @@ export interface Overview {
   /** Null with `drawdown` while OKX gives no quote for a position (see `market`). */
   equity: number | null
   cash: number
+  capital: number
   peak: number
   drawdown: number | null
   halted: boolean
   processed_to: string
   validation_start: string | null
   days: number
+  today: Today
+  totals: Totals
   performance: Performance
   llm: LlmUsage
   positions: Position[]
