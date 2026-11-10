@@ -13,6 +13,7 @@ import os
 import re
 import threading
 import time
+from collections import Counter
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -591,6 +592,76 @@ def _baselines(
         ratios = {c: s[midnight - DAY_MS] / s[start - DAY_MS] for c, s in closes.items()}
         btc = capital * ratios["BTC-USD"] if "BTC-USD" in ratios else None
         out.append((capital * sum(ratios.values()) / len(ratios), btc))
+    return out
+
+
+def daily(account: Account, ledger: Ledger, market: Market, limit: int) -> dict:
+    """GET /api/accounts/{id}/daily: the validation period day by day, newest first,
+    and by month. A day runs from one UTC midnight snapshot to the next; the day of the
+    last snapshot runs to the live equity and is ``partial`` (null PnL without quotes).
+    Each day counts its fills and sums its funding and LLM spend (the attempts' for the
+    daily account, the signals' for the intraday one; unknown costs count as zero)."""
+    start = ledger.get("validation_start")
+    series = ledger.equity_series(start) if start is not None else []
+    if not series:
+        return {"days": [], "months": [], "market": market.status()}
+    positions = ledger.positions()
+    live = _marked(ledger, positions, {inst: _quote(market, inst) for inst in positions})
+    fills_by_day = Counter(_day_of(f.ts) for f in ledger.fills(start))
+    funding_by_day: Counter = Counter()
+    for ts, amount in ledger.db.execute("SELECT ts, amount FROM funding WHERE ts >= ?", (start,)):
+        funding_by_day[_day_of(ts)] += amount
+    costs = ledger.signal_costs(start) if account.intraday else ledger.costs(start)
+    cost_by_day: Counter = Counter()
+    for ts, cost in costs:
+        cost_by_day[_day_of(ts)] += cost or 0.0
+    days = []
+    for (ts, open_), following in zip(series, [*series[1:], None], strict=True):
+        close = following[1] if following else live
+        days.append({
+            "date": datetime.fromtimestamp(ts / 1000, UTC).date().isoformat(),
+            "start_ts": _iso(ts),
+            "open": open_,
+            "close": close,
+            "pnl": close - open_ if close is not None else None,
+            "pct": (close - open_) / open_ if close is not None else None,
+            "fills": fills_by_day.get(ts, 0),
+            "funding": funding_by_day.get(ts, 0.0),
+            "llm_cost": cost_by_day.get(ts, 0.0),
+            "partial": following is None,
+        })
+    return {
+        "days": days[::-1][:limit],
+        "months": _months(days)[::-1],
+        "market": market.status(),
+    }
+
+
+def _day_of(ts: int) -> int:
+    """The UTC midnight that starts the day of ``ts``, in milliseconds."""
+    return ts - ts % DAY_MS
+
+
+def _months(days: list[dict]) -> list[dict]:
+    """The days (oldest first) by calendar month: equity at the month's first midnight
+    to its last day's close, oldest month first; ``partial`` while the month has the
+    day in progress."""
+    out: list[dict] = []
+    for day in days:
+        month = day["date"][:7]
+        if not out or out[-1]["month"] != month:
+            out.append({
+                "month": month, "open": day["open"], "close": None, "pnl": None, "pct": None,
+                "days": 0, "partial": False,
+            })
+        current, close = out[-1], day["close"]
+        current.update(
+            close=close,
+            pnl=close - current["open"] if close is not None else None,
+            pct=(close - current["open"]) / current["open"] if close is not None else None,
+            days=current["days"] + 1,
+            partial=day["partial"],
+        )
     return out
 
 

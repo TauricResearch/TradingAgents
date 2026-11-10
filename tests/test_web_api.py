@@ -230,6 +230,61 @@ def test_equity_has_no_points_before_the_validation_period(tmp_path):
     assert body["live"]["equity"] == 10_000.0
 
 
+def test_daily_runs_midnight_to_midnight_and_the_last_day_to_the_live_equity(tmp_path):
+    body = build(tmp_path).get("/api/accounts/paper/daily").json()
+    assert body["market"]["ok"] is True
+    # Newest first: the day of the last snapshot (10,050) runs to the live 10,020 and is
+    # partial; the two before run between their snapshots. The day's fills, funding and
+    # LLM spend are the ones timed within it: the fill and the attempts of 01-09 are not.
+    assert body["days"] == [
+        {
+            "date": "2026-01-12", "start_ts": "2026-01-12T00:00:00Z", "open": 10_050.0,
+            "close": pytest.approx(10_020.0), "pnl": pytest.approx(-30.0),
+            "pct": pytest.approx(-30 / 10_050), "fills": 0, "funding": 0.0, "llm_cost": 0.0,
+            "partial": True,
+        },
+        {
+            "date": "2026-01-11", "start_ts": "2026-01-11T00:00:00Z", "open": 10_100.0,
+            "close": 10_050.0, "pnl": pytest.approx(-50.0), "pct": pytest.approx(-50 / 10_100),
+            "fills": 0, "funding": 0.0, "llm_cost": 0.0, "partial": False,
+        },
+        {
+            "date": "2026-01-10", "start_ts": "2026-01-10T00:00:00Z", "open": 10_000.0,
+            "close": 10_100.0, "pnl": pytest.approx(100.0), "pct": pytest.approx(0.01),
+            "fills": 1, "funding": pytest.approx(0.16), "llm_cost": pytest.approx(1.5),
+            "partial": False,
+        },
+    ]
+    # The month opens at its first midnight and closes where its last day does.
+    assert body["months"] == [{
+        "month": "2026-01", "open": 10_000.0, "close": pytest.approx(10_020.0),
+        "pnl": pytest.approx(20.0), "pct": pytest.approx(0.002), "days": 3, "partial": True,
+    }]
+
+
+def test_daily_takes_a_limit_and_is_empty_before_the_validation_period(tmp_path):
+    client = build(tmp_path)
+    body = client.get("/api/accounts/paper/daily?limit=2").json()
+    assert [d["date"] for d in body["days"]] == ["2026-01-12", "2026-01-11"]
+    assert len(body["months"]) == 1  # the months are over every day, not the page
+    assert client.get("/api/accounts/paper/daily?limit=0").status_code == 422
+    empty = build(tmp_path / "fresh", validated=False).get("/api/accounts/paper/daily").json()
+    assert empty == {"days": [], "months": [], "market": {"ok": True, "error": None, "since": None}}
+
+
+def test_daily_without_quotes_leaves_the_day_in_progress_unpriced(tmp_path):
+    okx = DownOKX()
+    okx.down = True
+    body = build(tmp_path, okx).get("/api/accounts/paper/daily").json()
+    today, yesterday = body["days"][:2]
+    assert today["close"] is None and today["pnl"] is None and today["pct"] is None
+    assert today["partial"] is True and today["open"] == 10_050.0
+    assert yesterday["pnl"] == pytest.approx(-50.0)  # the snapshots need no quote
+    [month] = body["months"]
+    assert month["close"] is None and month["pnl"] is None and month["days"] == 3
+    assert body["market"]["ok"] is False
+
+
 def test_fills_newest_first_with_since_and_limit(tmp_path):
     client = build(tmp_path)
     fills = client.get("/api/accounts/paper/fills").json()
@@ -928,3 +983,13 @@ def test_intraday_equity_nets_the_signals_spend(tmp_path):
     assert [p["strategy_net"] for p in body["points"]] == [10_000.0, 10_099.5, 10_049.5]
     assert [p["equal_weight"] for p in body["points"]] == [10_000.0, pytest.approx(10_100.0), None]
     assert [p["btc"] for p in body["points"]] == [10_000.0, pytest.approx(10_100.0), None]
+
+
+def test_intraday_daily_takes_the_llm_spend_from_the_signals(tmp_path):
+    body = build_intraday(tmp_path).get("/api/accounts/intraday/daily").json()
+    # 01-10 has the two signals of that midnight: 0.5 and one of unknown cost, which
+    # counts as nothing; the signals before the validation period are not asked.
+    assert [(d["date"], d["llm_cost"], d["fills"]) for d in body["days"]] == [
+        ("2026-01-12", 0.0, 0), ("2026-01-11", 0.0, 0), ("2026-01-10", 0.5, 0),
+    ]
+    assert body["days"][0]["close"] == pytest.approx(10_030.0)  # long 0.03 from 78,000 at 79,000

@@ -133,6 +133,10 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     def equity(account: AccountDep, ledger: LedgerDep):
         return data.equity(account, ledger, market)
 
+    @app.get("/api/accounts/{account_id}/daily")
+    def daily(account: AccountDep, ledger: LedgerDep, limit: Limit = 400):
+        return data.daily(account, ledger, market, limit)
+
     @app.get("/api/accounts/{account_id}/fills")
     def fills(account: AccountDep, ledger: LedgerDep, since: Since = None, limit: Limit = 500):
         return data.fills(account, ledger, _since_ms(since), limit)
