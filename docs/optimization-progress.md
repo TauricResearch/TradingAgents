@@ -2,7 +2,7 @@
 
 Issue 在 [kissman911/tradingagents-crypto-trader](https://github.com/kissman911/tradingagents-crypto-trader/issues)。审计报告：[audit-2026-11.md](audit-2026-11.md)。
 流程：每个 Issue 一个分支（`cursor/issue-<n>-<slug>-6e50`）→ 改动 + 测试 → ruff / pytest / tsc / oxlint / build → 自审 → 合入 `crypto-trader` → 推 `backup` → 验收通过才关 Issue。
-mini 上的部署（`git pull`、`launchctl kickstart`）由用户执行，按 roadmap 的更新流程。
+mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新流程，每次由用户授权后才做（2026-11-10 07:19 UTC 用户选“全部部署”，已部署 b228b3b）。
 
 状态：triage 待定方案 · ready 可做 · in-progress 进行中 · blocked 阻塞 · review 待验收 · done 已关闭。
 
@@ -41,3 +41,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）由用户执行，按 r
 | 2026-11-10 | #7 | `cursor/issue-7-price-expiry-hint-6e50` → acbfc05（ff） | 步骤 3 完成（CI 42770632478）；全量 1870 通过；步骤 1–2 等到期日，Issue 保持 blocked |
 | 2026-11-10 | #10 | 无提交（仓库维护） | 用户选 A：删 t1/t2/t5/t7 worktree+分支；t6 有未提交改动保留，等用户；Issue blocked |
 | 2026-11-10 | #15 | 新开（复审发现）；`cursor/issue-15-account-backup-6e50` → 044a8be（ff） | 验收通过（CI 42772492468）；全量 1873 通过 |
+| 2026-11-10 | 部署 | mini ea0400e → b228b3b | 用户授权（选 A）；pull + uv 装依赖 + rsync dist + kickstart web；验证：/api/models write_protected=false（未设令牌）、attempts?limit=0 → 422、新 bundle 已服务；第一份备份 ~/Backups/trader/20261110T071951Z；账本在下个整点作业才切 WAL |
