@@ -9,6 +9,7 @@ import pytest
 
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX, hold
 from trader.intraday.paper import HOUR_MS, IntradayPaper, utc_date
+from trader.intraday.settings import Params
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS
 from trader.paper import Paper
@@ -96,10 +97,10 @@ def test_long_flips_a_short_to_a_full_long(ledger):
     assert ledger.fills()[0].qty == pytest.approx(0.2)
 
 
-def test_the_stop_of_a_new_position_uses_the_intraday_multiple(ledger, tmp_path, monkeypatch):
-    # execute reads the constant from its own module, so the patch goes there.
-    monkeypatch.setattr("trader.intraday.paper.STOP_ATR_MULT", 3.0)
-    IntradayPaper(ledger, FakeOKX(), (BTC,)).execute({BTC.research: "Long"}, T0)
+def test_the_stop_of_a_new_position_uses_the_intraday_multiple(ledger, tmp_path):
+    # The multiple is a knob of the engine's Params; the live account runs the default.
+    paper = IntradayPaper(ledger, FakeOKX(), (BTC,), params=Params(stop_mult=3.0))
+    paper.execute({BTC.research: "Long"}, T0)
     pos = ledger.positions()[BTC.swap]
     # unit = 0.01 * 10,000 * 80,000 / (3.0 * 400) = 6,666.67 -> 0.0833 BTC; stop 3 * 400 below
     assert pos.qty == pytest.approx(0.0833)

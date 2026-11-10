@@ -13,21 +13,23 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from trader import rules
-from trader.intraday.settings import (
-    ATR_BAR,
-    ATR_BARS,
-    REBALANCE_THRESHOLD,
-    RISK_PER_UNIT,
-    STOP_ATR_MULT,
-    WEIGHTS,
-)
-from trader.okx import DAY_MS
+from trader.intraday.settings import ATR_BAR, DEFAULT_PARAMS, Params
+from trader.ledger import Ledger
+from trader.okx import DAY_MS, OKX
 from trader.paper import Paper, _move, _stop_alert
+from trader.settings import WATCHLIST, Coin
 
 HOUR_MS = 3_600_000
 
 
 class IntradayPaper(Paper):
+    def __init__(
+        self, ledger: Ledger, okx: OKX, watchlist: tuple[Coin, ...] = WATCHLIST,
+        params: Params = DEFAULT_PARAMS,
+    ):
+        super().__init__(ledger, okx, watchlist)
+        self.params = params
+
     def execute(self, signals: dict[str, str | None], now_ms: int) -> list[str]:
         """Trade each contract toward the target its signal sets; return the alerts.
 
@@ -35,26 +37,27 @@ class IntradayPaper(Paper):
         maps research tickers to "Long", "Short", "Flat", or None for a coin whose
         signal failed, which keeps its position. Does nothing while halted.
 
-        The ATR is measured on the ATR_BARS hourly candles closed before this hour.
-        A stop crossed since the last closed minute fills now; every other stop
-        tightens to STOP_ATR_MULT ATRs from the last price. A Flat signal closes a
-        position however small; any other change below REBALANCE_THRESHOLD units
-        is skipped. The first execution starts the validation period at this UTC
+        The ATR is measured on the ``params.atr_bars`` hourly candles closed before
+        this hour. A stop crossed since the last closed minute fills now; every other
+        stop tightens to ``params.stop_mult`` ATRs from the last price. A Flat signal
+        closes a position however small; any other change below
+        ``params.rebalance_threshold`` units is skipped. The first execution starts the validation period at this UTC
         day's midnight and fixes the baseline at the spot closes of the day before.
         A position in a contract no longer on the watchlist is not traded; its stop
         is managed until it closes the position.
         """
         if self.ledger.get("halted"):
             return []
+        p = self.params
         cash = self.ledger.get("cash")
         positions = self.ledger.positions()
         hour = now_ms - now_ms % HOUR_MS
         quotes = {}
         for inst in self.instruments(positions):
-            hourly = self.okx.bars(inst, ATR_BAR, hour - (ATR_BARS + 5) * HOUR_MS, hour)
+            hourly = self.okx.bars(inst, ATR_BAR, hour - (p.atr_bars + 5) * HOUR_MS, hour)
             atr_value = rules.atr(
                 [b.high for b in hourly], [b.low for b in hourly], [b.close for b in hourly],
-                days=ATR_BARS,
+                days=p.atr_bars,
             )
             quotes[inst] = (self.okx.last_price(inst), atr_value)
 
@@ -67,7 +70,7 @@ class IntradayPaper(Paper):
                 cash += pnl
                 alerts.append(_stop_alert(inst, pos.qty, fill_price, pnl))
             else:
-                candidate = rules.initial_stop(price, pos.qty, atr_value, stop_mult=STOP_ATR_MULT)
+                candidate = rules.initial_stop(price, pos.qty, atr_value, stop_mult=p.stop_mult)
                 pos.stop = rules.tighten(pos.stop, candidate, pos.qty)
 
         equity = cash + sum(p.qty * (quotes[i][0] - p.entry) for i, p in positions.items())
@@ -77,10 +80,10 @@ class IntradayPaper(Paper):
             pos = positions.get(coin.swap)
             currents[coin.swap] = pos.qty * price if pos else 0.0
             units[coin.swap] = rules.unit_notional(
-                equity, atr_value, price, risk=RISK_PER_UNIT, stop_mult=STOP_ATR_MULT
+                equity, atr_value, price, risk=p.risk, stop_mult=p.stop_mult
             )
             targets[coin.swap] = rules.target_notional(
-                signals.get(coin.research), units[coin.swap], currents[coin.swap], weights=WEIGHTS
+                signals.get(coin.research), units[coin.swap], currents[coin.swap], weights=p.weights
             )
         targets = rules.apply_caps(targets, currents, equity)
         trade_date = utc_date(hour)
@@ -88,7 +91,7 @@ class IntradayPaper(Paper):
             inst = coin.swap
             flatten = signals.get(coin.research) == "Flat" and inst in positions
             if not flatten and not rules.needs_trade(
-                targets[inst], currents[inst], units[inst], threshold=REBALANCE_THRESHOLD
+                targets[inst], currents[inst], units[inst], threshold=p.rebalance_threshold
             ):
                 continue
             price, atr_value = quotes[inst]
@@ -102,7 +105,7 @@ class IntradayPaper(Paper):
             fill_price = rules.slipped(price, new_qty - old_qty)
             cash += _move(
                 positions, inst, new_qty, fill_price, atr_value, now_ms, "trade", fills, trade_date,
-                stop_mult=STOP_ATR_MULT,
+                stop_mult=p.stop_mult,
             )
 
         meta, snapshots = {}, []

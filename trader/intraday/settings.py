@@ -7,6 +7,8 @@ here. Machine settings (paths, capital, prices, Telegram) come from
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 # A full position unit loses RISK_PER_UNIT of equity when its stop, STOP_ATR_MULT
 # hourly ATRs from entry, is hit. Half the daily account's risk: there are many
 # more decisions a day.
@@ -29,3 +31,18 @@ SIGNAL_BAR = "15m"   # OKX bar size of the candles in the prompt
 SIGNAL_HOURS = 24    # hours of those candles
 
 DECISION_MINUTE = 3  # the job runs at this minute of every hour (UTC)
+
+
+@dataclass(frozen=True)
+class Params:
+    """The knobs of the intraday rules. The defaults are the constants above, what
+    the live account runs; an evaluation hands the same engine other values."""
+
+    risk: float = RISK_PER_UNIT
+    stop_mult: float = STOP_ATR_MULT
+    atr_bars: int = ATR_BARS
+    weights: dict[str, float] = field(default_factory=lambda: dict(WEIGHTS))
+    rebalance_threshold: float = REBALANCE_THRESHOLD
+
+
+DEFAULT_PARAMS = Params()
