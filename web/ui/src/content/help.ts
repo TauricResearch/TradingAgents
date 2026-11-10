@@ -69,6 +69,9 @@ export type HelpKey =
   | 'funding'
   | 'attempts'
   | 'events'
+  // the demo account (ADR 0008)
+  | 'execution'
+  | 'mirror'
 
 export interface HelpEntry {
   text: string
@@ -285,7 +288,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'history-page',
   },
   fill_reason: {
-    text: `成交原因：调仓（按评级主动调整）、止损（触达止损价自动平仓）、熔断（回撤超 {{kill_drawdown_pct}} 全部平仓）。`,
+    text: `成交原因：调仓（按评级主动调整）、止损（触达止损价自动平仓）、熔断（回撤超 {{kill_drawdown_pct}} 全部平仓）；Demo 账户还有“非程序”，指交易所里不是程序下的成交。`,
     section: 'history-page',
   },
   funding: {
@@ -299,5 +302,13 @@ export const HELP: Record<HelpKey, HelpEntry> = {
   events: {
     text: `影响验证期连续性的重要事件：熔断解除、模型或版本变化（会重置验证期计时）等。`,
     section: 'history-page',
+  },
+  execution: {
+    text: `Demo 账户上一次与 OKX 模拟盘对账的结果：交易所里的权益、持仓、挂着的止损单，以及对不上的地方；不是实时的，每小时作业跑完更新一次。`,
+    section: 'demo',
+  },
+  mirror: {
+    text: `Demo 账户与它跟随的日内模拟账户并排：持仓方向是否一致、同一小时两边成交价的差（滑点，万分之一）、两条累计收益。`,
+    section: 'demo',
   },
 }

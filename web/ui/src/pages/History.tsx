@@ -1,12 +1,13 @@
 import { useSearchParams } from 'react-router-dom'
 import { useAccount } from '../account'
-import type { Attempt, Daily, DailyRow, Fill, FillReason, Funding, LedgerEvent } from '../api'
+import type { Attempt, Daily, DailyRow, Fill, FillReason, Funding, LedgerEvent, Mirror } from '../api'
 import { accountPath } from '../api'
 import type { Column } from '../components/DataTable'
+import { MirrorView } from '../components/MirrorView'
 import { Num } from '../components/Num'
 import { Panel } from '../components/Panel'
 import { RatingChip } from '../components/RatingChip'
-import { StaleNote } from '../components/Status'
+import { ErrorBox, Loading, StaleNote } from '../components/Status'
 import { Table } from '../components/Table'
 import { Tabs } from '../components/Tabs'
 import { Time } from '../components/Time'
@@ -14,7 +15,7 @@ import { daySpan } from '../daily'
 import { fmtDay, fmtInt, fmtPct, fmtQty, fmtSigned, fmtTimeFull, fmtUsd, fmtUsdt } from '../format'
 import { useFetch } from '../hooks'
 
-type TabKey = 'daily' | 'fills' | 'funding' | 'attempts' | 'events'
+type TabKey = 'daily' | 'fills' | 'funding' | 'attempts' | 'events' | 'mirror'
 
 const dailyColumns: Column<DailyRow>[] = [
   {
@@ -40,6 +41,7 @@ const REASON: Record<FillReason, { label: string; cls: string }> = {
   trade: { label: '调仓', cls: 'border-border bg-panel-2 text-muted' },
   stop: { label: '止损', cls: 'border-down/50 bg-down/15 text-down' },
   kill: { label: '熔断', cls: 'border-accent/60 bg-accent/15 text-accent' },
+  manual: { label: '非程序', cls: 'border-down/50 bg-down/15 text-down' },
 }
 
 function ReasonChip({ reason }: { reason: FillReason }) {
@@ -133,22 +135,26 @@ export function History() {
   const daily = { ...dailyRaw, data: dailyRaw.data?.days ?? null }
   const fills = useFetch<Fill[]>(accountPath(account.id, 'fills?limit=500'))
   const funding = useFetch<Funding[]>(accountPath(account.id, 'funding?limit=500'))
-  // The intraday account has no daily research, so nothing to fetch for the attempts tab.
-  const attempts = useFetch<Attempt[]>(account.intraday ? null : accountPath(account.id, 'attempts?limit=500'))
+  // The intraday and demo accounts have no daily research, so nothing to fetch for the attempts tab.
+  const research = !account.intraday && !account.demo
+  const attempts = useFetch<Attempt[]>(research ? accountPath(account.id, 'attempts?limit=500') : null)
   const events = useFetch<LedgerEvent[]>(accountPath(account.id, 'events?limit=500'))
+  // The demo account beside the intraday account it follows (ADR 0008).
+  const mirror = useFetch<Mirror>(account.demo ? accountPath(account.id, 'mirror?limit=500') : null)
 
   const tabs = [
     { key: 'daily' as const, label: '每日收益', count: daily.data?.length },
     { key: 'fills' as const, label: '成交', count: fills.data?.length },
     { key: 'funding' as const, label: '资金费', count: funding.data?.length },
     { key: 'attempts' as const, label: '研判记录', count: attempts.data?.length },
+    { key: 'mirror' as const, label: '与日内对照', count: mirror.data?.trades.length },
     { key: 'events' as const, label: '事件', count: events.data?.length },
-  ].filter((t) => !(account.intraday && t.key === 'attempts'))
+  ].filter((t) => (t.key === 'attempts' ? research : t.key === 'mirror' ? account.demo : true))
   // A tab in the URL that is not among this account's tabs falls back to the fills.
   const active: TabKey = tabs.find((t) => t.key === raw)?.key ?? 'fills'
-  const current = { daily, fills, funding, attempts, events }[active]
-  // An intraday fill's date is the UTC day of its hour, not a research day.
-  const fillCols = account.intraday
+  const current = { daily, fills, funding, attempts, events, mirror }[active]
+  // An intraday or demo fill's date is the UTC day of its hour, not a research day.
+  const fillCols = account.intraday || account.demo
     ? fillColumns.map((c) => (c.key === 'trade_date' ? { ...c, header: 'UTC 日' } : c))
     : fillColumns
 
@@ -182,6 +188,14 @@ export function History() {
           <Table state={attempts} columns={attemptColumns} rowKey={(a, i) => `${a.trade_date}-${a.coin}-${a.ts}-${i}`} />
         )}
         {active === 'events' && <Table state={events} columns={eventColumns} rowKey={(e, i) => `${e.ts}-${i}`} />}
+        {active === 'mirror' &&
+          (mirror.error && !mirror.data ? (
+            <ErrorBox error={mirror.error} onRetry={mirror.refresh} />
+          ) : !mirror.data ? (
+            <Loading />
+          ) : (
+            <MirrorView mirror={mirror.data} />
+          ))}
       </Panel>
     </div>
   )

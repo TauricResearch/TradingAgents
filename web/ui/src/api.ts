@@ -16,6 +16,8 @@ export interface Account {
   watchlist: WatchlistEntry[]
   /** The hourly-signal account (ADR 0006): no rating settlement, no monthly budget cap. */
   intraday: boolean
+  /** The account that executes on the exchange (ADR 0008), following the intraday signals: no LLM spend of its own. */
+  demo: boolean
 }
 
 export interface Perf {
@@ -119,9 +121,10 @@ export interface Overview {
   today: Today
   totals: Totals
   performance: Performance
-  llm: LlmUsage
+  /** Null for the demo account, which makes no LLM calls of its own. */
+  llm: LlmUsage | null
   positions: Position[]
-  /** Null for the intraday account, which has signals instead of daily research. */
+  /** Null for the intraday account, which has signals instead of daily research, and for the demo account. */
   latest: Latest | null
   market: MarketStatus
 }
@@ -177,7 +180,8 @@ export interface Daily {
   market: MarketStatus
 }
 
-export type FillReason = 'trade' | 'stop' | 'kill'
+/** `manual` only on the demo account: a fill on the exchange the program did not make (ADR 0008). */
+export type FillReason = 'trade' | 'stop' | 'kill' | 'manual'
 
 export interface Fill {
   ts: string
@@ -491,3 +495,93 @@ export const accountPath = (id: string, tail: string): string =>
 
 export const researchPath = (coin: string, tradeDate: string): string =>
   `/api/research/${encodeURIComponent(coin)}/${encodeURIComponent(tradeDate)}`
+
+/** One position as the exchange reported it at the demo account's last reconciliation (ADR 0008). */
+export interface ExchangePosition {
+  inst: string
+  coin: string | null
+  /** Signed contracts: positive long, negative short. */
+  contracts: number | null
+  avg_price: number | null
+  unrealized: number | null
+  leverage: number | null
+  margin_mode: string | null
+  liquidation_price: number | null
+  /** The stop the ledger keeps for it; the exchange-side order is in `stops`. */
+  stop: number | null
+}
+
+/** One conditional stop order pending on the exchange. */
+export interface PendingStop {
+  inst: string
+  coin: string | null
+  side: 'buy' | 'sell' | null
+  contracts: number | null
+  trigger: number | null
+  client_id: string | null
+}
+
+/** The demo account's last reconciliation with the exchange; nothing here is live, `synced_at` says how old it is. */
+export interface Execution {
+  synced_at: string | null
+  equity: number | null
+  cash: number | null
+  halted: boolean | null
+  /** The intraday hour the demo last followed. */
+  decided_hour: string | null
+  problems: string[]
+  positions: ExchangePosition[]
+  stops: PendingStop[]
+}
+
+export interface MirrorSide {
+  qty: number
+  entry: number
+  stop: number | null
+}
+
+export interface MirrorPosition {
+  inst: string
+  coin: string
+  demo: MirrorSide | null
+  intraday: MirrorSide | null
+  same_side: boolean
+}
+
+export interface MirrorFill {
+  ts: string
+  qty: number
+  price: number
+  fee: number
+}
+
+/** One demo trade beside the intraday fill of the same hour and contract. */
+export interface MirrorTrade {
+  hour: string
+  inst: string
+  coin: string | null
+  demo: MirrorFill
+  intraday: MirrorFill | null
+  /** Basis points, positive when the demo did worse than the intraday price; null without a match. */
+  slippage_bps: number | null
+}
+
+export interface MirrorPoint {
+  ts: string
+  demo: number | null
+  intraday: number | null
+}
+
+/** The demo account beside the intraday account it follows. */
+export interface Mirror {
+  positions: MirrorPosition[]
+  trades: MirrorTrade[]
+  equity: MirrorPoint[]
+  summary: {
+    trades: number
+    matched: number
+    avg_slippage_bps: number | null
+    demo_return: number | null
+    intraday_return: number | null
+  }
+}

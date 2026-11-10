@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 import { useAccount } from '../account'
-import type { Accuracy, Daily, Equity, Today } from '../api'
+import type { Accuracy, Daily, Equity, Execution, Today } from '../api'
 import { accountPath } from '../api'
 import { AccuracyCard } from '../components/AccuracyCard'
 import { DailyPnlChart } from '../components/DailyPnlChart'
 import { EquityChart } from '../components/EquityChart'
+import { ExecutionCard } from '../components/ExecutionCard'
 import { Help } from '../components/Help'
 import { Kpi, KpiStrip } from '../components/Kpi'
 import { LatestCards } from '../components/LatestCards'
@@ -39,8 +40,13 @@ export function Overview() {
   const { account, overview } = useAccount()
   const equity = useFetch<Equity>(accountPath(account.id, 'equity'), REFRESH_MS)
   const daily = useFetch<Daily>(accountPath(account.id, `daily?limit=${CHART_DAYS}`), REFRESH_MS)
-  // The intraday account settles no ratings, so there is no accuracy to fetch.
-  const accuracy = useFetch<Accuracy>(account.intraday ? null : accountPath(account.id, 'accuracy'), REFRESH_MS * 5)
+  // The intraday and demo accounts settle no ratings, so there is no accuracy to fetch.
+  const accuracy = useFetch<Accuracy>(
+    account.intraday || account.demo ? null : accountPath(account.id, 'accuracy'),
+    REFRESH_MS * 5,
+  )
+  // The demo account's last reconciliation with the exchange (ADR 0008).
+  const execution = useFetch<Execution>(account.demo ? accountPath(account.id, 'execution') : null, REFRESH_MS)
 
   if (overview.error && !overview.data) return <ErrorBox error={overview.error} onRetry={overview.refresh} />
   if (!overview.data) return <Loading />
@@ -163,10 +169,10 @@ export function Overview() {
           ) : !equity.data ? (
             <Loading />
           ) : (
-            <EquityChart points={equity.data.points} />
+            <EquityChart points={equity.data.points} strategyName={account.demo ? '策略（交易所权益）' : undefined} />
           )}
           <div className="mt-2 border-t border-border pt-1">
-            <PerfTable performance={ov.performance} />
+            <PerfTable performance={ov.performance} strategyLabel={account.demo ? '策略（交易所权益）' : undefined} />
           </div>
         </Panel>
 
@@ -185,11 +191,24 @@ export function Overview() {
               </Panel>
             )
           )}
+          {account.demo && (
+            <Panel title="执行对账" help="execution" className="flex-1" aside={<StaleNote error={execution.error} />}>
+              {execution.error && !execution.data ? (
+                <ErrorBox error={execution.error} onRetry={execution.refresh} />
+              ) : !execution.data ? (
+                <Loading />
+              ) : (
+                <ExecutionCard execution={execution.data} />
+              )}
+            </Panel>
+          )}
           {/* The `?` text is about the monthly cap, which the intraday account does not have. */}
-          <Panel title="LLM 费用" help={account.intraday ? undefined : 'llm_cost'}>
-            <LlmCard llm={ov.llm} intraday={account.intraday} />
-          </Panel>
-          {!account.intraday && (
+          {ov.llm && (
+            <Panel title="LLM 费用" help={account.intraday ? undefined : 'llm_cost'}>
+              <LlmCard llm={ov.llm} intraday={account.intraday} />
+            </Panel>
+          )}
+          {!account.intraday && !account.demo && (
             <Panel title="评级准确度" help="accuracy" className="flex-1" aside={<StaleNote error={accuracy.error} />}>
               {accuracy.error && !accuracy.data ? (
                 <ErrorBox error={accuracy.error} onRetry={accuracy.refresh} />

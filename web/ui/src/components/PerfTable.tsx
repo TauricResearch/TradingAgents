@@ -42,7 +42,8 @@ function cells(p: Perf | null) {
 }
 
 /** Strategy performance against the baselines: the validation metrics, under the chart. */
-export function PerfTable({ performance }: { performance: Performance }) {
+/** `strategyLabel` names the strategy row; the demo account's equity is the exchange's, with no LLM spend to take off. */
+export function PerfTable({ performance, strategyLabel }: { performance: Performance; strategyLabel?: string }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse whitespace-nowrap text-[12px]">
@@ -65,7 +66,7 @@ export function PerfTable({ performance }: { performance: Performance }) {
             <tr key={r.key} className="border-t border-border/60">
               <td className="px-2 py-1">
                 <span className="mr-2 inline-block h-0.5 w-3 align-middle" style={{ background: r.color }} />
-                {r.label}
+                {r.key === 'strategy' && strategyLabel ? strategyLabel : r.label}
               </td>
               {cells(performance[r.key])}
             </tr>

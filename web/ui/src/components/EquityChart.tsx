@@ -19,9 +19,7 @@ const SERIES = [
   { key: 'btc', name: 'BTC 持有', color: 'var(--color-line-btc)' },
 ] as const
 
-const NAMES: Record<string, string> = Object.fromEntries(SERIES.map((s) => [s.key, s.name]))
-
-function ChartTooltip({ active, payload, label }: TooltipContentProps) {
+function ChartTooltip({ active, payload, label, names }: TooltipContentProps & { names: Record<string, string> }) {
   if (!active || !payload || payload.length === 0) return null
   return (
     <div className="rounded-sm border border-border bg-panel px-2 py-1.5 text-[11px] shadow-none">
@@ -30,7 +28,7 @@ function ChartTooltip({ active, payload, label }: TooltipContentProps) {
         <div key={String(p.dataKey)} className="flex items-center justify-between gap-4">
           <span className="flex items-center gap-1.5">
             <span className="inline-block size-2" style={{ background: p.color }} />
-            {NAMES[String(p.dataKey)] ?? String(p.name)}
+            {names[String(p.dataKey)] ?? String(p.name)}
           </span>
           <span className="num text-fg">{typeof p.value === 'number' ? fmtUsdt(p.value) : '—'}</span>
         </div>
@@ -64,7 +62,11 @@ function yTicks(points: EquityPoint[]): number[] {
   return ticks
 }
 
-export function EquityChart({ points }: { points: EquityPoint[] }) {
+/** `strategyName` labels the strategy line; the demo account's equity is the exchange's, with no LLM spend to take off. */
+export function EquityChart({ points, strategyName }: { points: EquityPoint[]; strategyName?: string }) {
+  const names: Record<string, string> = Object.fromEntries(
+    SERIES.map((s) => [s.key, s.key === 'strategy_net' && strategyName ? strategyName : s.name]),
+  )
   const ticks = useMemo(() => yTicks(points), [points])
 
   if (points.length < 2) {
@@ -97,7 +99,7 @@ export function EquityChart({ points }: { points: EquityPoint[] }) {
           tickLine={false}
         />
         <Tooltip
-          content={ChartTooltip}
+          content={(props) => <ChartTooltip {...props} names={names} />}
           cursor={{ stroke: 'var(--color-muted)', strokeDasharray: '2 2' }}
           isAnimationActive={false}
           itemSorter={(item) => SERIES.findIndex((s) => s.key === item.dataKey)}
@@ -115,7 +117,7 @@ export function EquityChart({ points }: { points: EquityPoint[] }) {
             key={s.key}
             type="monotone"
             dataKey={s.key}
-            name={s.name}
+            name={names[s.key]}
             stroke={s.color}
             strokeWidth={s.key === 'strategy_net' ? 2 : 1.25}
             dot={false}
