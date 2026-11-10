@@ -14,8 +14,7 @@ import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-
-from trader.intraday.types import SignalResult
+from typing import Protocol
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -38,6 +37,11 @@ CREATE TABLE IF NOT EXISTS signals (
     id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, coin TEXT NOT NULL, signal TEXT,
     conviction INTEGER, reason TEXT, error TEXT, tokens_in INTEGER, tokens_out INTEGER,
     cost_usd REAL);
+CREATE INDEX IF NOT EXISTS fills_ts ON fills (ts);
+CREATE INDEX IF NOT EXISTS attempts_ts ON attempts (ts);
+CREATE INDEX IF NOT EXISTS attempts_trade_date_coin ON attempts (trade_date, coin);
+CREATE INDEX IF NOT EXISTS signals_ts ON signals (ts);
+CREATE INDEX IF NOT EXISTS signals_coin_id ON signals (coin, id);
 """
 
 BUDGET_ERROR = "budget: monthly LLM cap reached"
@@ -61,6 +65,19 @@ class Fill:
     trade_date: str | None = None
 
 
+class SignalLike(Protocol):
+    """What ``record_signal`` stores of an hourly decision; the intraday module's
+    ``SignalResult`` has these fields, the ledger does not depend on it."""
+
+    signal: str | None
+    conviction: int | None
+    reason: str
+    error: str | None
+    tokens_in: int
+    tokens_out: int
+    cost_usd: float | None
+
+
 class Ledger:
     def __init__(self, path: Path, readonly: bool = False):
         self.path = path
@@ -78,6 +95,9 @@ class Ledger:
         # The research phase writes attempts while an hourly replay may hold a
         # write transaction; the timeout lets one wait for the other.
         self.db = sqlite3.connect(path, timeout=30, isolation_level=None)
+        # Write-ahead logging, persistent in the file: the web API's readers no longer
+        # wait on a writer's commit, and a writer not on theirs.
+        self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
 
     # -- meta ---------------------------------------------------------------
@@ -166,9 +186,10 @@ class Ledger:
         ).fetchone() is not None
 
     def fills(self, since_ms: int = 0) -> list[Fill]:
+        """The fills since ``since_ms`` in time order, booking order within a time."""
         rows = self.db.execute(
             "SELECT ts, inst, qty, price, fee, reason, trade_date FROM fills"
-            " WHERE ts >= ? ORDER BY id", (since_ms,),
+            " WHERE ts >= ? ORDER BY ts, id", (since_ms,),
         )
         return [Fill(*row) for row in rows]
 
@@ -238,7 +259,7 @@ class Ledger:
 
     # -- intraday signals ---------------------------------------------------
 
-    def record_signal(self, ts: int, coin: str, result: SignalResult) -> None:
+    def record_signal(self, ts: int, coin: str, result: SignalLike) -> None:
         self.db.execute(
             "INSERT INTO signals (ts, coin, signal, conviction, reason, error, tokens_in,"
             " tokens_out, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
