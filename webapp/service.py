@@ -460,7 +460,8 @@ class RunManager:
 
             run.phase = "Recording the decision"
             graph.record_decision(
-                selections["ticker"], selections["analysis_date"], final_state
+                selections["ticker"], selections["analysis_date"], final_state,
+                portfolio=portfolio,
             )
             graph.clear_checkpoint_on_success(
                 selections["ticker"],

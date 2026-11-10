@@ -187,6 +187,13 @@ class TestNoOrderReachesTheBroker:
         gate = ExecutionGate(analysis_as_of="2026-11-08")
 
         # No stale filings, no conflicts, portfolio present, fresh signal.
+        # A certified registry is now required for approval (§4), so the valid
+        # path supplies one: without a certified metric the gate blocks.
+        from tradingagents.dataflows.math.run_registry import (
+            RunInputs,
+            build_run_registry,
+        )
+
         record, decision = evaluate_decision(
             "BRK-B", "2026-11-08",
             _state(plan="Entry 556.00, stop 542.50, ATR 9.408."),
@@ -195,6 +202,9 @@ class TestNoOrderReachesTheBroker:
             equity=100_000.0, cash=100_000.0, risk_budget=1_000.0,
             max_symbol_exposure=0.05,
             trigger_met=True, market_open=True,
+            metric_registry=build_run_registry(
+                RunInputs(price=556.0, sma200=500.0,
+                          book_value_per_share=350.0)),
         )
         _route_to_broker(record, decision, gate, broker, quantity=5)
 

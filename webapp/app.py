@@ -150,7 +150,16 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"status": "ok", "today": today()}
+        """Liveness plus what build is actually serving (§2 of the P1 task).
+
+        The data lineage audit could not tell from the outside whether a restart
+        had happened: a process started before a merge keeps its old modules.
+        Reporting the commit and the moment this process loaded makes a stale
+        deployment visible instead of guessed at.
+        """
+        from tradingagents.build_info import build_info
+
+        return {"status": "ok", "today": today(), "build": build_info()}
 
     @app.get("/api/options")
     def options() -> dict:

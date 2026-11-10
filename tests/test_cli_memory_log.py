@@ -56,7 +56,7 @@ class _FakeGraph:
         self.calls.append(("create_run_state", ticker, trade_date))
         return {"messages": [], "company_of_interest": ticker}
 
-    def record_decision(self, ticker, trade_date, final_state):
+    def record_decision(self, ticker, trade_date, final_state, portfolio=None):
         self.calls.append(("record_decision", ticker, trade_date, final_state.get("final_trade_decision")))
 
     def get_graph_args(self, callbacks=None):

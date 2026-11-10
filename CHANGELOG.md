@@ -21,6 +21,159 @@ Istruzioni per l'agente AI:
 
 ### Added
 
+- **Every analysis keeps its own record.** `dataflows/run_record.py` writes one
+  file per run under `results_dir/<ticker>/runs/`, addressed by a unique run id
+  (UTC timestamp, ticker, random suffix). Each record carries the run id, the
+  analysis and creation timestamps, the git commit, a build id, the service
+  start time, the Python version, the loaded-validator status, the model
+  configuration, the input snapshot and portfolio, the SEC filings known at the
+  analysis date, the metric registry, the agents' reports, the decision, the
+  risk assessment and the Execution Gate verdict. Records are written
+  owner-only, credentials are redacted, long agent reports are truncated with
+  the truncation recorded, and an existing record is never replaced.
+- **Retention is explicit and bounded.** `run_record_keep` (default `None`,
+  keeps everything) prunes oldest-first per instrument and always keeps the
+  newest record; `run_record_max_text_chars` (default 20,000) caps each stored
+  report.
+- **`/api/health` identifies the running code.** The payload now reports
+  `build.commit`, `build.build_id`, `build.service_started_at`, the interpreter
+  version and a per-component `validators` map stating whether the math engine,
+  valuation, technical, registry, extraction, risk engine, execution gate and
+  arithmetic guard are loaded and expose their expected callables. No paths,
+  environment values or credentials are exposed.
+- **End-to-end reliability suite.** A frozen BRK-B fixture
+  (`tests/fixtures/brkb_2026_11_09.py`) supplies Q3 2026 SEC figures, prices,
+  indicators, an intraday snapshot and a simulated book, alongside expected
+  values computed independently of the code. `tests/test_p4_e2e_brkb.py` drives
+  the whole pipeline over it, `tests/test_p4_determinism.py` repeats the run five
+  times and proves the certified mathematics does not move,
+  `tests/test_p4_negative.py` injects ten named defects and asserts each is
+  caught and never authorized, and `tests/test_p4_execution_boundary.py` spies
+  on the gate and asserts no order is created for an invalid plan.
+- **Deployment verification procedure.** `docs/DEPLOYMENT_VERIFICATION.md`
+  documents how to compare a deployment's target commit against the running
+  process, how to rehearse in an isolated environment, which checks gate the
+  restart, and the rollback path. The restart step is marked as requiring
+  explicit authorization and no script performs it.
+- **A dedicated CI job for the end-to-end suites.** `e2e-reliability` runs the
+  P4, P3, P2 and P1 reliability tests offline on one interpreter, so a P0
+  failure is legible in the checks list rather than buried in the regression
+  job's output.
+
+- **The math engine now runs inside a real analysis.** A finished run reads the
+  labelled figures its analysts stated, computes the valuation multiples with
+  the deterministic engine, and hands the result to the Execution Gate as a
+  certified-metric registry. A multiple quoted in a report is now checked
+  against a computation instead of being taken at its word, and a figure the
+  model authored is marked `LLM_CLAIMED` — reported, never certified.
+- **`dataflows/math/extraction.py`** reads the labelled valuation figures out of
+  the finished reports (price-to-book, EPS trailing and forward, book value per
+  share, consolidated revenue), keeping the label it matched as provenance and
+  applying the modelled scale, so "105,647 million" and "359,5599" are read as
+  the numbers they are.
+- **Portfolio input accepts an equity figure.** `PortfolioContext` carries
+  `equity`, the capital base the exposure caps are a fraction of, distinct from
+  the free cash balance. Sizing is computed from the run's own portfolio rather
+  than skipped.
+- **XBRL concepts keep their meaning.** `dataflows/vendors/concept_resolution.py`
+  classifies revenue tags as consolidated, contract, segment or component, and
+  `sec_edgar._as_of_with_provenance` records the concept, accession, form, period,
+  unit and dimensions with each figure. Candidate tags are ordered by **meaning
+  before spelling**, so a filer's consolidated total outranks a component however
+  the tags are listed. Asking for consolidated revenue from a filer that reports
+  only contract revenue now returns *missing* with the rejected candidate named,
+  rather than substituting the subset.
+- **Bar finality travels with the price.** `dataflows/vendors/bar_finality.py`
+  reports `EOD_CONFIRMED`, `EOD_PENDING_CONFIRMATION`, `INTRADAY_PARTIAL`,
+  `STALE` or `UNKNOWN`, with session date, exchange timezone, observation and
+  source timestamps, last confirmed close, source and calendar. It uses the
+  existing exchange calendar, so holidays and 13:00 closes are honoured. The
+  verified market snapshot now states the bar's finality and, when provisional,
+  instructs the agent not to quote it as a close or derive an end-of-day signal
+  from it.
+
+### Changed
+
+- **A trailing P/E is only certified on a reconciled EPS.** The multiple is
+  registered after the EPS reconciliation, so a price-to-earnings built on a
+  vendor EPS whose denominator is unknown is `UNSUPPORTED` rather than
+  `VERIFIED`. Previously the audit could certify a P/E while marking the EPS
+  behind it unverifiable.
+- **Sizing is attempted whenever a plan has numbers.** The engine runs with a
+  missing budget or missing equity instead of being skipped, so the refusal
+  names its own cause (`RISK_BUDGET_MISSING`, `PORTFOLIO_CONTEXT_MISSING`)
+  instead of being reported as an unrelated gate reason. The audit's
+  `qty_proposed` and `planned_risk` are populated when a size exists.
+
+### Fixed
+
+- **A misspelt portfolio field fails at the edge.** `PortfolioContext` rejects
+  unknown keys instead of ignoring them: an earlier revision dropped `equity`
+  silently, which left every plan unsized with no visible cause.
+- **The metric registry is populated for real runs.** Extraction feeds
+  `build_run_registry`, which previously read only state keys no node wrote, so
+  every valuation metric came out `NOT_COMPUTABLE` and no figure was ever
+  checked.
+- **A numeric capture group that can be absent no longer raises.** The forward
+  EPS pattern alternates between a plain and a tabular shape; reading a fixed
+  group made extraction throw whenever the second shape matched.
+- **`359,5599` is read as a decimal, not as 3,595,599.** Four or more digits
+  after a comma cannot be a thousands group, and treating it as one inflated a
+  per-share value by four orders of magnitude.
+
+- **XBRL concepts keep their meaning.** `dataflows/vendors/concept_resolution.py`
+  classifies revenue tags as consolidated, contract, segment or component, and
+  `sec_edgar._as_of_with_provenance` records the concept, accession, form, period,
+  unit and dimensions with each figure. Candidate tags are ordered by **meaning
+  before spelling**, so a filer's consolidated total outranks a component however
+  the tags are listed. Asking for consolidated revenue from a filer that reports
+  only contract revenue now returns *missing* with the rejected candidate named,
+  rather than substituting the subset.
+- **Bar finality travels with the price.** `dataflows/vendors/bar_finality.py`
+  reports `EOD_CONFIRMED`, `EOD_PENDING_CONFIRMATION`, `INTRADAY_PARTIAL`,
+  `STALE` or `UNKNOWN`, with session date, exchange timezone, observation and
+  source timestamps, last confirmed close, source and calendar. It uses the
+  existing exchange calendar, so holidays and 13:00 closes are honoured. The
+  verified market snapshot now states the bar's finality and, when provisional,
+  instructs the agent not to quote it as a close or derive an end-of-day signal
+  from it.
+
+### Fixed
+
+- Berkshire's Q3 2026 revenue resolved to 74,322 (contract revenue) because the
+  tag list put a component before `Revenues`, and the resolver kept the first tag
+  that reported a period. The filing states 105,647 as the consolidated total;
+  that is what the row now reports, and the YoY growth against 94,972 is 11.24%.
+  A component is still identifiable as contract revenue, never renamed as the
+  total.
+- A daily candle read during the session was presented as a verified close. The
+  2026-11-09 reports at 18:37, 19:24 and 21:01 Rome (12:37, 13:24, 15:01 New
+  York) all fell inside the session and are now labelled `INTRADAY_PARTIAL`.
+
+- **A metric registry reaches the Execution Gate.** `record_decision` built no
+  registry, so the claims validator could verify nothing and every run blocked
+  with `NUMERIC_CLAIM_UNVERIFIABLE` — the F6 defect the data lineage audit
+  found. `dataflows/math/run_registry.py` now builds a registry per run from the
+  engine's own computations and `_evaluate_reliability` supplies it. A run with
+  no certified metric blocks with `NO_CERTIFIED_METRIC`.
+- **Report generation and execution authorization are separate outcomes.** A
+  run whose numbers cannot be certified still produces a report explaining the
+  problem (`COMPLETED` / `COMPLETED_WITH_WARNINGS` / `FAILED`) while the order is
+  refused (`APPROVED` / `BLOCKED` / `NOT_APPLICABLE`). A `WAIT` is
+  `NOT_APPLICABLE`, not a refusal.
+- **Build identification in the health endpoint.** `/api/health` reports the
+  commit it was built from and the moment the process loaded its modules. A
+  process started before a deployment keeps its old code, and start time alone
+  could not prove which code was live; the two identifiers together make a stale
+  service visible.
+
+### Fixed
+
+- A metric that could not be computed (`NOT_COMPUTABLE`) no longer counts as a
+  contradiction. It stays unusable — and a decision resting on no certified
+  metric is blocked — but a missing input is a gap to report, not a wrong figure
+  to stop on. Treating the two alike is what made every run fail.
+
 - **Deterministic arithmetic validator (P0-B).** New module
   (`tradingagents/dataflows/arithmetic.py`): percentage moves and distances
   from reference levels are computed as

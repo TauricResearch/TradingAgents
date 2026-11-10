@@ -236,10 +236,20 @@ class TestCorrectNumbersPass:
 
     def test_the_same_plan_never_sends_twice(self):
         """Idempotency: a retry cannot duplicate the simulated order."""
+        from tradingagents.dataflows.math.run_registry import (
+            RunInputs,
+            build_run_registry,
+        )
+
         state = _state(plan="Entry 557.00, stop 547.40, ATR 9.408.")
         record, decision = evaluate_decision(
             TICKER, TRADE_DATE, state, snapshot_id="e2e-idem",
             trigger_met=True, stated_atr_distance=1.02, **BOOK,
+            # §4: approval needs a certified metric, so this idempotency test
+            # supplies one rather than relying on an uncertified approval.
+            metric_registry=build_run_registry(
+                RunInputs(price=557.0, sma200=500.0,
+                          book_value_per_share=350.0)),
         )
         broker = MockPaperBroker()
         gate = ExecutionGate(analysis_as_of=TRADE_DATE)

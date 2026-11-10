@@ -226,7 +226,7 @@ class _FakeGraph:
             "final_trade_decision": "- **Rating**: Buy\n\nAdd on weakness.",
         }
 
-    def record_decision(self, ticker, trade_date, final_state):
+    def record_decision(self, ticker, trade_date, final_state, portfolio=None):
         self.saved["decision"] = (ticker, trade_date)
 
     def clear_checkpoint_on_success(self, *args, **kwargs):

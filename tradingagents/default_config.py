@@ -89,6 +89,14 @@ def build_default_config() -> dict:
         # the oldest resolved entries are pruned once this limit is exceeded.
         # Pending entries are never pruned. None disables rotation entirely.
         "memory_log_max_entries": None,
+        # How many run records to keep per instrument (§2 of P4). ``None``
+        # keeps every run: an audit trail that ages out unasked is not a trail,
+        # so pruning happens only when a number is set here.
+        "run_record_keep": None,
+        # Characters of each agent report kept in a run record. A full report
+        # per run, times many runs, is what fills a disk; the head is what a
+        # reader checks first and the truncation is recorded, never hidden.
+        "run_record_max_text_chars": 20_000,
         # LLM settings
         "usage_db_path": os.path.join(_TRADINGAGENTS_HOME, "usage.sqlite"),
         "llm_provider": "openai",

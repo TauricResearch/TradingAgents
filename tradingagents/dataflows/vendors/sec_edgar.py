@@ -161,13 +161,42 @@ def _as_of(facts: dict, tags: tuple[str, ...], as_of_date: str, spans: tuple[tup
     USD/shares, and scaling those alike would print a real figure as zero. A
     duration fact (revenue, cash flow) must cover one of ``spans``; an instant
     fact (a balance) has no span and serves any.
+
+    Tags are ordered by **meaning** before spelling (``concept_resolution``): a
+    consolidated figure outranks a component even when the component's tag was
+    listed first. Before that ordering, Berkshire's Q3 revenue resolved to
+    contract revenue (74,322) and the consolidated total (105,647) was never
+    consulted — the F1 defect of the data lineage audit.
     """
+    values, unit, _ = _as_of_with_provenance(
+        facts, tags, as_of_date, spans, forms)
+    return values, unit
+
+
+def _as_of_with_provenance(
+    facts: dict, tags: tuple[str, ...], as_of_date: str,
+    spans: tuple[tuple[int, int], ...], forms: tuple[str, ...] = (),
+) -> tuple[dict, str, dict]:
+    """As ``_as_of``, plus the tag each period's figure came from.
+
+    The third element maps ``(period end, span index)`` to a
+    ``TagProvenance``, so a caller can ask *what* a figure measures — the
+    information ``_as_of`` previously discarded at the vendor boundary.
+    """
+    from tradingagents.dataflows.vendors.concept_resolution import (
+        TagProvenance,
+        ordered_tags,
+        scope_of,
+    )
+
     values: dict[tuple[str, int], float] = {}
+    provenance: dict[tuple[str, int], TagProvenance] = {}
     chosen_unit = "USD"
-    # Tags are tried in order and a period keeps the first one that reports it:
-    # filers renamed lines over the years, so one tag covers only part of the
-    # history. Values are never added across tags, which would double count.
-    for tag in tags:
+    # Tags are tried in meaning order and a period keeps the first one that
+    # reports it: filers renamed lines over the years, so one tag covers only
+    # part of the history. Values are never added across tags, which would
+    # double count.
+    for tag in ordered_tags(tags):
         for unit, unit_values in ((facts.get(tag) or {}).get("units", {})).items():
             latest: dict[tuple[str, int], dict] = {}
             covered: set[tuple[str, int]] = set()   # periods a filing of ``forms`` reports
@@ -185,7 +214,20 @@ def _as_of(facts: dict, tags: tuple[str, ...], as_of_date: str, spans: tuple[tup
             if latest:
                 chosen_unit = unit
                 values.update({key: fact["val"] for key, fact in latest.items()})
-    return dict(sorted(values.items())), chosen_unit
+                for key, fact in latest.items():
+                    provenance[key] = TagProvenance(
+                        concept=tag,
+                        scope=scope_of(tag),
+                        accession=fact.get("accn"),
+                        form=fact.get("form"),
+                        period_start=fact.get("start"),
+                        period_end=fact.get("end"),
+                        unit=unit,
+                        # ``companyfacts`` facts carry no axis: a dimensioned
+                        # figure appears as a separate concept or not at all.
+                        dimensions=(),
+                    )
+    return dict(sorted(values.items())), chosen_unit, provenance
 
 
 def _statement(kind: str, ticker: str, freq: str, as_of_date: str, title: str) -> str:

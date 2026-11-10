@@ -209,12 +209,21 @@ def test_older_periods_fall_back_to_the_tag_the_filer_used_then():
 
 @pytest.mark.unit
 def test_a_period_reported_under_two_tags_takes_the_preferred_one_not_both():
+    """The consolidated tag wins over a component, whatever order they are listed in.
+
+    This test previously asserted the opposite — 999, the contract-revenue
+    figure, because the older resolver kept whichever tag appeared first. That
+    ordering is the F1 defect the data lineage audit found: Berkshire's Q3
+    revenue read 74,322 (contract) when the filing also states 105,647
+    (consolidated). Meaning now outranks spelling, so the same fixture yields
+    111.
+    """
     facts = {"Revenues": {"units": {"USD": [_fact("2024-09-28", 111, "2024-11-01", start="2023-09-30")]}},
              "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
                  _fact("2024-09-28", 999, "2024-11-01", start="2023-09-30")]}}}
     values, _ = sec_edgar._as_of(facts, ("RevenueFromContractWithCustomerExcludingAssessedTax",
                                          "Revenues"), "2026-01-01", ((300, 400),))
-    assert values == {("2024-09-28", 0): 999}
+    assert values == {("2024-09-28", 0): 111}
 
 
 @pytest.mark.unit
