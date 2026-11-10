@@ -5,7 +5,6 @@
 **Draft date:** 2026-11-11, Asia/Hong_Kong (UTC+08:00).  
 **Target baseline:** TradingAgents v0.7.1.  
 **Requirements input:** `requirements-draft(10 11 2026).md`, including Member A's 2026-11-10 21:43 revision.  
-**Ownership input:** `Deliverables-and-Ownership.pdf`, especially pages 1–4.
 
 ## 1. Purpose and authority
 
