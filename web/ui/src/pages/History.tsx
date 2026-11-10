@@ -59,6 +59,24 @@ const fillColumns: Column<Fill>[] = [
   { key: 'qty', header: '数量', align: 'right', render: (f) => <Num value={f.qty} fmt={fmtQty} /> },
   { key: 'price', header: '价格', align: 'right', render: (f) => fmtUsdt(f.price) },
   { key: 'fee', header: '手续费', align: 'right', render: (f) => fmtUsdt(f.fee, 4) },
+  {
+    key: 'realized_net',
+    header: '已实现（扣费）',
+    help: 'fill_pnl',
+    align: 'right',
+    render: (f) => (
+      <span title={`扣费前 ${fmtSigned(f.realized)}`}>
+        {f.realized === 0 ? <span className="text-muted">{fmtSigned(f.realized_net)}</span> : <Num value={f.realized_net} fmt={fmtSigned} />}
+      </span>
+    ),
+  },
+  {
+    key: 'position_after',
+    header: '成交后持仓',
+    help: 'position_after',
+    align: 'right',
+    render: (f) => (f.position_after === 0 ? <span className="text-muted">平</span> : <Num value={f.position_after} fmt={fmtQty} />),
+  },
   { key: 'reason', header: '原因', help: 'fill_reason', render: (f) => <ReasonChip reason={f.reason} /> },
   {
     key: 'trade_date',
@@ -144,6 +162,12 @@ export function History() {
           <span className="num flex flex-wrap items-center gap-x-3">
             <StaleNote error={current.error} />
             {active === 'daily' && <span>UTC 日 · 北京 08:00 起 · 盈亏不含 AI 费用</span>}
+            {active === 'fills' && fills.data && fills.data.length > 0 && (
+              <span>
+                所列 {fills.data.length} 笔已实现（扣费）合计{' '}
+                <Num value={fills.data.reduce((sum, f) => sum + f.realized_net, 0)} fmt={fmtSigned} />
+              </span>
+            )}
           </span>
         }
         title={tabs.find((t) => t.key === active)?.label}

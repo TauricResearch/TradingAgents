@@ -188,6 +188,12 @@ export interface Fill {
   fee: number
   reason: FillReason
   trade_date: string | null
+  /** PnL this fill realized against the average entry, before its fee; 0 when it opens or adds. */
+  realized: number
+  /** `realized` less `fee`: what the fill added to the cash. */
+  realized_net: number
+  /** The signed position the fill left; 0 when it closed. */
+  position_after: number
 }
 
 export interface Funding {

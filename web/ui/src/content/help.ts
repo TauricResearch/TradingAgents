@@ -64,6 +64,8 @@ export type HelpKey =
   | 'daily'
   | 'fills'
   | 'fill_reason'
+  | 'fill_pnl'
+  | 'position_after'
   | 'funding'
   | 'attempts'
   | 'events'
@@ -271,7 +273,15 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'history-page',
   },
   fills: {
-    text: `所有成交记录：时间、合约、方向、数量、成交价、手续费，按时间倒序排列。`,
+    text: `所有成交记录：时间、合约、方向、数量、成交价、手续费、这笔实现的盈亏和成交后的持仓，按时间倒序排列。右上角是所列成交的已实现合计（扣费）。`,
+    section: 'history-page',
+  },
+  fill_pnl: {
+    text: `这笔成交实现的盈亏，已扣手续费（悬停看扣费前）。开仓或加仓不实现盈亏，只有手续费（灰色）；减仓按平掉的部分乘（成交价 − 开仓均价），平仓或反手按原持仓全部计。由成交记录按账户的记账规则重新算出；所有成交的合计加上资金费，就是总览的“已实现盈亏”。`,
+    section: 'history-page',
+  },
+  position_after: {
+    text: `这笔成交之后该合约的持仓：正为多、负为空，“平”表示已全部平掉。把同一合约的成交从下往上读，就是仓位的演变。`,
     section: 'history-page',
   },
   fill_reason: {
