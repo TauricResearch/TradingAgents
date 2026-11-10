@@ -1,0 +1,418 @@
+"""The offline evaluation (Issue #27): the history store, the historical market, the
+replay of the intraday engine over recorded signals, and signal quality."""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable
+
+import pytest
+
+from trader.evaluation import signals as sq
+from trader.evaluation.history import HOUR_MS, MINUTE_MS, HistoryStore, bar_ms
+from trader.evaluation.market import HistoricalOKX
+from trader.evaluation.replay import (
+    Policy,
+    Signal,
+    describe,
+    parse_grid,
+    replay,
+    signals_from_json,
+    signals_from_ledger,
+)
+from trader.intraday.settings import DEFAULT_PARAMS, Params
+from trader.ledger import Ledger
+from trader.okx import Bar, ContractSpec, FundingEvent, OKXError
+from trader.settings import WATCHLIST, Coin, Settings
+
+BTC = Coin(research="BTC-USD", swap="BTC-USDT-SWAP", spot="BTC-USDT")
+SPEC = ContractSpec(contract_value=0.001, lot_size=1.0, min_size=1.0, tick_size=0.1)
+DAY0 = 1_767_225_600_000           # 2026-01-01 00:00 UTC
+T0 = DAY0 + 24 * HOUR_MS           # the replays start here, a day of history behind them
+
+
+@pytest.fixture
+def store(tmp_path) -> HistoryStore:
+    return HistoryStore(tmp_path / "history.sqlite")
+
+
+def price_path(hours: int, trend: float = 0.0, crash_at: int | None = None) -> Callable[[int], float]:
+    """Price per minute since DAY0: 50,000 drifting ``trend`` per hour, dropping 5% at
+    minute ``crash_at`` and staying there."""
+    def price(minute: int) -> float:
+        p = 50_000.0 * (1 + trend * minute / 60)
+        return p * 0.95 if crash_at is not None and minute >= crash_at else p
+    return price
+
+
+def load(store: HistoryStore, price: Callable[[int], float], hours: int, inst: str = BTC.swap) -> None:
+    """Fill the store with ``hours`` hours of minute and hourly candles from DAY0 built
+    on ``price``; every minute's range is 0.1% either side of it."""
+    minutes = []
+    for i in range(hours * 60):
+        p = price(i)
+        minutes.append(Bar(DAY0 + i * MINUTE_MS, p, p * 1.001, p * 0.999, p))
+    hourly = []
+    for h in range(hours):
+        chunk = minutes[h * 60:(h + 1) * 60]
+        hourly.append(Bar(
+            DAY0 + h * HOUR_MS, chunk[0].open, max(b.high for b in chunk),
+            min(b.low for b in chunk), chunk[-1].close,
+        ))
+    end = DAY0 + hours * HOUR_MS
+    store.put_bars(inst, "1m", minutes, DAY0, end)
+    store.put_bars(inst, "1H", hourly, DAY0, end)
+    store.put_funding(inst, [FundingEvent(DAY0 + 8 * HOUR_MS * k, 0.0001) for k in range(1, hours // 8)], DAY0, end)
+    store.put_spec(inst, SPEC)
+
+
+# -- the history store -------------------------------------------------------
+
+class FakeOKX:
+    def __init__(self):
+        self.calls: list[tuple] = []
+
+    def bars(self, inst, bar, start_ms, end_ms):
+        self.calls.append(("bars", inst, bar, start_ms, end_ms))
+        step = bar_ms(bar)
+        return [Bar(t, 1.0, 2.0, 0.5, 1.5) for t in range(start_ms, end_ms, step)]
+
+    def funding(self, inst, start_ms, end_ms):
+        self.calls.append(("funding", inst, start_ms, end_ms))
+        return [FundingEvent(t, 0.0001) for t in range(start_ms, end_ms, 8 * HOUR_MS)]
+
+    def contract_spec(self, inst):
+        self.calls.append(("spec", inst))
+        return SPEC
+
+
+def test_the_store_fetches_only_the_gaps_of_a_range(store):
+    okx = FakeOKX()
+    now = DAY0 + 10 * HOUR_MS
+    assert store.ensure_bars(okx, BTC.swap, "1H", DAY0, DAY0 + 4 * HOUR_MS, now) == 4
+    assert store.ensure_bars(okx, BTC.swap, "1H", DAY0 + 6 * HOUR_MS, DAY0 + 8 * HOUR_MS, now) == 2
+    okx.calls.clear()
+    # Asking for the whole span only fetches the hole and the tail.
+    assert store.ensure_bars(okx, BTC.swap, "1H", DAY0, DAY0 + 9 * HOUR_MS, now) == 3
+    assert okx.calls == [
+        ("bars", BTC.swap, "1H", DAY0 + 4 * HOUR_MS, DAY0 + 6 * HOUR_MS),
+        ("bars", BTC.swap, "1H", DAY0 + 8 * HOUR_MS, DAY0 + 9 * HOUR_MS),
+    ]
+    assert store.coverage(BTC.swap, "1H") == [(DAY0, DAY0 + 9 * HOUR_MS)]
+    assert len(store.bars(BTC.swap, "1H", DAY0, DAY0 + 9 * HOUR_MS)) == 9
+    okx.calls.clear()
+    assert store.ensure_bars(okx, BTC.swap, "1H", DAY0, DAY0 + 9 * HOUR_MS, now) == 0
+    assert okx.calls == []
+
+
+def test_the_store_never_marks_candles_not_closed_yet_as_fetched(store):
+    okx = FakeOKX()
+    now = DAY0 + 2 * HOUR_MS + 30 * MINUTE_MS  # the 02:00 candle is still open
+    store.ensure_bars(okx, BTC.swap, "1H", DAY0, DAY0 + 5 * HOUR_MS, now)
+    assert okx.calls == [("bars", BTC.swap, "1H", DAY0, DAY0 + 2 * HOUR_MS)]
+    assert store.coverage(BTC.swap, "1H") == [(DAY0, DAY0 + 2 * HOUR_MS)]
+    # Later, the rest is fetched.
+    store.ensure_bars(okx, BTC.swap, "1H", DAY0, DAY0 + 5 * HOUR_MS, DAY0 + 6 * HOUR_MS)
+    assert store.coverage(BTC.swap, "1H") == [(DAY0, DAY0 + 5 * HOUR_MS)]
+
+
+def test_funding_and_specs_are_cached_the_same_way(store):
+    okx = FakeOKX()
+    now = DAY0 + 48 * HOUR_MS
+    assert store.ensure_funding(okx, BTC.swap, DAY0, DAY0 + 24 * HOUR_MS, now) == 3
+    assert store.ensure_funding(okx, BTC.swap, DAY0, DAY0 + 24 * HOUR_MS, now) == 0
+    assert [e.ts for e in store.funding(BTC.swap, DAY0, DAY0 + 9 * HOUR_MS)] == [DAY0, DAY0 + 8 * HOUR_MS]
+    assert store.spec(BTC.swap) is None
+    assert store.ensure_spec(okx, BTC.swap) == SPEC
+    assert store.ensure_spec(okx, BTC.swap) == SPEC
+    assert okx.calls.count(("spec", BTC.swap)) == 1
+
+
+def test_an_unknown_bar_size_is_refused():
+    with pytest.raises(ValueError, match="unknown bar size"):
+        bar_ms("3m")
+
+
+# -- the historical market ---------------------------------------------------
+
+def test_the_historical_market_only_knows_what_had_closed_by_then(store):
+    load(store, price_path(48), 48)
+    market = HistoricalOKX(store, DAY0 + 5 * HOUR_MS + 3 * MINUTE_MS)
+    hourly = market.bars(BTC.swap, "1H", DAY0, DAY0 + 48 * HOUR_MS)
+    assert [b.ts for b in hourly][-1] == DAY0 + 4 * HOUR_MS  # 05:00 is still open at 05:03
+    minutes = market.bars(BTC.swap, "1m", DAY0 + 5 * HOUR_MS, DAY0 + 6 * HOUR_MS)
+    assert [b.ts for b in minutes] == [DAY0 + 5 * HOUR_MS + k * MINUTE_MS for k in range(3)]
+    # The last price is the close of the 05:02 candle, the last one closed at 05:03.
+    assert market.last_price(BTC.swap) == minutes[-1].close
+    assert market.contract_spec(BTC.swap) == SPEC
+    assert [e.ts for e in market.funding(BTC.swap, DAY0, DAY0 + 48 * HOUR_MS)] == []
+    market.at(DAY0 + 8 * HOUR_MS)
+    assert [e.ts for e in market.funding(BTC.swap, DAY0, DAY0 + 48 * HOUR_MS)] == [DAY0 + 8 * HOUR_MS]
+
+
+def test_the_historical_market_refuses_what_the_store_lacks(store):
+    market = HistoricalOKX(store, DAY0 + HOUR_MS)
+    with pytest.raises(OKXError, match="no 1m candle"):
+        market.last_price(BTC.swap)
+    with pytest.raises(OKXError, match="no contract spec"):
+        market.contract_spec(BTC.swap)
+
+
+# -- replaying the engine ----------------------------------------------------
+
+def run(store, signals, start_ms, end_ms, **kwargs):
+    """A replay of the one-coin watchlist the synthetic history covers."""
+    return replay(store, signals, start_ms, end_ms, watchlist=(BTC,), **kwargs)
+
+
+def test_a_replay_trades_the_signals_hour_by_hour_with_the_real_engine(store):
+    load(store, price_path(72, trend=0.002), 72)  # up 0.2% an hour, no dips
+    signals = [
+        Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 2),
+        Signal(T0 + 20 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Flat", 1),
+    ]
+    result = run(store, signals, T0, T0 + 24 * HOUR_MS, capital=10_000.0)
+    assert [(f.reason, f.qty > 0) for f in result.fills] == [("trade", True), ("trade", False)]
+    assert result.fills[0].ts == T0 + 2 * HOUR_MS + 5 * MINUTE_MS   # the minute after the signal
+    assert result.fills[1].ts == T0 + 20 * HOUR_MS + 5 * MINUTE_MS
+    # Long 10,000 USDT (the coin cap) through an 18-hour, 3.6% rise, less fees and slippage.
+    m = result.metrics()
+    assert 0.03 < m["return"] < 0.037
+    assert m["trades"] == 2 and m["stops"] == 0 and m["hours"] == 24 and not m["halted"]
+    assert m["fees"] > 0 and m["turnover"] > 19_000
+    assert m["max_drawdown"] < 0.002
+    assert len(result.daily) == 2  # the validation start and the midnight after it
+    assert m["sharpe"] is None   # too few days
+
+
+def test_an_hour_without_a_signal_keeps_the_position(store):
+    load(store, price_path(72, trend=0.002), 72)
+    signals = [Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 2)]
+    result = run(store, signals, T0, T0 + 10 * HOUR_MS)
+    assert len(result.fills) == 1
+    assert result.equity[-1][1] > result.equity[2][1]
+    assert all(0.9 < e < 1.1 for e in result.exposure[2:])
+
+
+def test_a_stop_out_in_the_replay_is_the_engines(store):
+    # The 5% crash at hour 30 (minute 1,800 since DAY0) is a stop fill at 2.5 ATRs.
+    load(store, price_path(72, crash_at=30 * 60), 72)
+    signals = [Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 3)]
+    result = run(store, signals, T0, T0 + 12 * HOUR_MS)
+    assert [f.reason for f in result.fills] == ["trade", "stop"]
+    assert result.fills[1].ts == DAY0 + 30 * HOUR_MS
+    assert result.metrics()["return"] < -0.02
+
+
+def test_the_cooldown_policy_keeps_a_stopped_coin_flat_for_a_while(store):
+    load(store, price_path(72, crash_at=30 * 60), 72)
+    longs = [Signal(T0 + h * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 3) for h in range(2, 14)]
+    plain = run(store, longs, T0, T0 + 14 * HOUR_MS)
+    cooled = run(store, longs, T0, T0 + 14 * HOUR_MS, policy=Policy(stop_cooldown_hours=4))
+    # Without a cooldown the Long of hour 06 (the crash hour) re-enters at once (and
+    # the engine later trims the position as the crash widens the ATR).
+    assert [f.reason for f in plain.fills[:3]] == ["trade", "stop", "trade"]
+    assert plain.fills[2].ts == T0 + 6 * HOUR_MS + 5 * MINUTE_MS
+    # With one, the coin stays flat four hours after the stop at 06:00 and re-enters at 10:05.
+    assert [f.reason for f in cooled.fills[:3]] == ["trade", "stop", "trade"]
+    assert cooled.fills[2].ts == T0 + 10 * HOUR_MS + 5 * MINUTE_MS
+    assert not any(T0 + 6 * HOUR_MS < f.ts < T0 + 10 * HOUR_MS for f in cooled.fills)
+
+
+def test_the_flip_policy_ignores_a_weak_reversal(store):
+    load(store, price_path(72, trend=0.002), 72)
+    signals = [
+        Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 3),
+        Signal(T0 + 5 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Short", 1),
+        Signal(T0 + 8 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Short", 2),
+    ]
+    plain = run(store, signals, T0, T0 + 10 * HOUR_MS)
+    strict = run(store, signals, T0, T0 + 10 * HOUR_MS, policy=Policy(flip_min_conviction=2))
+    # Following every signal, the account reverses at 05:05 (and rebalances later as
+    # the unit moves); requiring conviction 2 for a reversal, it holds until 08:05.
+    assert [f.ts for f in plain.fills[:2]] == [T0 + 2 * HOUR_MS + 5 * MINUTE_MS, T0 + 5 * HOUR_MS + 5 * MINUTE_MS]
+    assert [f.ts for f in strict.fills[:2]] == [T0 + 2 * HOUR_MS + 5 * MINUTE_MS, T0 + 8 * HOUR_MS + 5 * MINUTE_MS]
+    assert plain.fills[1].qty < 0 and strict.fills[1].qty < 0
+
+
+def test_conviction_weights_size_the_tiers_differently(store):
+    load(store, price_path(72, trend=0.002), 72)
+    weak = [Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 1)]
+    strong = [Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 3)]
+    policy = Policy(conviction_weights=(0.25, 0.5, 1.0))
+    small = run(store, weak, T0, T0 + 4 * HOUR_MS, policy=policy, params=Params(risk=0.002))
+    big = run(store, strong, T0, T0 + 4 * HOUR_MS, policy=policy, params=Params(risk=0.002))
+    # Four times the size, give or take the whole contracts each rounds down to.
+    assert big.fills[0].qty == pytest.approx(4 * small.fills[0].qty, abs=4 * SPEC.contract_value)
+    assert policy.labels() == {"Flat": 0.0, "Long1": 0.25, "Short1": -0.25, "Long2": 0.5,
+                               "Short2": -0.5, "Long3": 1.0, "Short3": -1.0}
+
+
+def test_other_params_reach_the_engine(store):
+    load(store, price_path(72, trend=0.002), 72)
+    signals = [Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 2)]
+    tiny = run(store, signals, T0, T0 + 4 * HOUR_MS, params=Params(risk=0.001))
+    tinier = run(store, signals, T0, T0 + 4 * HOUR_MS, params=Params(risk=0.001, stop_mult=5.0))
+    assert tinier.fills[0].qty == pytest.approx(tiny.fills[0].qty / 2, abs=SPEC.contract_value)
+
+
+def test_a_replay_can_keep_its_ledger(store, tmp_path):
+    load(store, price_path(72, trend=0.002), 72)
+    signals = [Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 2)]
+    path = tmp_path / "kept.sqlite"
+    run(store, signals, T0, T0 + 4 * HOUR_MS, ledger_path=path)
+    assert len(Ledger(path).fills()) == 1
+
+
+# -- signal sources and grids ------------------------------------------------
+
+def test_signals_come_from_a_ledger_or_a_json_file(tmp_path):
+    ledger = Ledger(tmp_path / "intraday.sqlite")
+    ledger.initialize(10_000.0, T0)
+    for k, (label, conviction) in enumerate([("Long", 2), (None, None), ("Flat", 1)]):
+        ledger.db.execute(
+            "INSERT INTO signals (ts, coin, signal, conviction) VALUES (?, ?, ?, ?)",
+            (T0 + k * HOUR_MS, BTC.research, label, conviction),
+        )
+    assert signals_from_ledger(tmp_path / "intraday.sqlite", T0, T0 + 2 * HOUR_MS) == [
+        Signal(T0, BTC.research, "Long", 2), Signal(T0 + HOUR_MS, BTC.research, None, None),
+    ]
+    path = tmp_path / "signals.json"
+    path.write_text(json.dumps([{"ts": T0, "coin": "BTC-USD", "signal": "Short", "conviction": 3},
+                                {"ts": T0 + 1, "coin": "ETH-USD"}]))
+    assert signals_from_json(path) == [Signal(T0, "BTC-USD", "Short", 3), Signal(T0 + 1, "ETH-USD", None, None)]
+
+
+def test_a_grid_is_every_combination_of_the_specs():
+    grid = parse_grid(["stop_mult=2,3", "atr_bars=10"], ["conviction_weights=off,0.5/1/1", "flip_min_conviction=2"])
+    assert len(grid) == 4
+    assert grid[0] == (Params(stop_mult=2.0, atr_bars=10), Policy(flip_min_conviction=2))
+    assert grid[-1] == (Params(stop_mult=3.0, atr_bars=10),
+                        Policy(conviction_weights=(0.5, 1.0, 1.0), flip_min_conviction=2))
+    assert parse_grid([], []) == [(DEFAULT_PARAMS, Policy())]
+    assert describe(*grid[-1]) == "stop_mult=3 atr_bars=10 conviction_weights=0.5/1/1 flip_min_conviction=2"
+    assert describe(DEFAULT_PARAMS, Policy()) == "默认"
+
+
+@pytest.mark.parametrize("params, policies, message", [
+    (["slippage=0.1"], [], "unknown param"),
+    ([], ["cooldown=4"], "unknown policy knob"),
+    (["risk"], [], "expected name=value"),
+    ([], ["conviction_weights=1/2"], "w1/w2/w3"),
+])
+def test_a_bad_grid_spec_is_refused(params, policies, message):
+    with pytest.raises(ValueError, match=message):
+        parse_grid(params, policies)
+
+
+# -- signal quality ------------------------------------------------------------
+
+def test_outcomes_are_the_moves_after_each_signal_in_its_direction(store):
+    load(store, price_path(72, trend=0.01), 72)  # +1% an hour
+    signals = [
+        Signal(T0 + 4 * MINUTE_MS, BTC.research, "Long", 2),
+        Signal(T0 + HOUR_MS + 4 * MINUTE_MS, BTC.research, "Short", 1),
+        Signal(T0 + 2 * HOUR_MS, BTC.research, "Flat", 1),
+        Signal(T0 + 3 * HOUR_MS, BTC.research, None, None),
+        Signal(T0 + 3 * HOUR_MS, "DOGE-USD", "Long", 3),
+    ]
+    out = sq.outcomes(store, signals, {BTC.research: BTC.swap})
+    assert [o.direction for o in out] == ["Long", "Short", "Flat"]
+    price = price_path(72, trend=0.01)
+    # Decided at 00:05: the 00:04 candle's close (minute 1,444 since DAY0) against
+    # the 01:04 candle's; the Short's move counts the other way.
+    assert out[0].price == price(1444)
+    assert out[0].returns[1] == pytest.approx(price(1504) / price(1444) - 1)
+    assert out[1].returns[1] == pytest.approx(-(price(1564) / price(1504) - 1))
+    assert out[2].returns[24] == pytest.approx(price(3000) / price(1560) - 1)
+    rows = sq.summarize(sq.directional(out), sq.by_direction)
+    assert [(r.group, r.count) for r in rows] == [("Long", 1), ("Short", 1)]
+    assert rows[0].hit_rate[4] == 1.0 and rows[1].hit_rate[4] == 0.0
+    assert rows[0].mean_bps[1] > 70 and rows[1].median_bps[1] < -70
+    by_coin = sq.summarize(out, sq.by_coin)
+    assert [(r.group, r.count) for r in by_coin] == [(BTC.research, 3)]
+    assert [r.group for r in sq.summarize(out, sq.by_conviction)] == ["信心 2", "信心 1"]
+
+
+def test_an_outcome_past_the_end_of_the_history_is_unknown(store):
+    load(store, price_path(26), 26)
+    out = sq.outcomes(store, [Signal(T0 + HOUR_MS, BTC.research, "Long", 2)], {BTC.research: BTC.swap})
+    assert out[0].returns[1] is not None and out[0].returns[24] is None
+    row = sq.summarize(out, sq.by_direction)[0]
+    assert row.hit_rate[24] is None and row.mean_bps[24] is None
+
+
+def test_flips_count_the_changes_of_mind():
+    series = ["Long", "Long", None, "Short", "Flat", "Long", "Long", "Long"]
+    signals = [Signal(T0 + k * HOUR_MS, BTC.research, s, 2) for k, s in enumerate(series)]
+    (row,) = sq.flips(signals)
+    assert (row.hours, row.long, row.short, row.flat, row.missing) == (8, 5, 1, 1, 1)
+    assert row.reversals == 2       # Long -> Short, then Short -> Long (Flat between not counted)
+    assert row.changes == 3         # Long|Short|Flat|Long
+    assert row.mean_run == pytest.approx(7 / 4)
+
+
+# -- the command line --------------------------------------------------------
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    monkeypatch.setenv("TRADER_HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("TRADER_CAPITAL", raising=False)
+    from trader.evaluation.cli import store_path
+    store = HistoryStore(store_path(Settings.from_env()))
+    for coin in WATCHLIST:
+        load(store, price_path(72, trend=0.002), 72, inst=coin.swap)
+    signals = [
+        {"ts": T0 + 2 * HOUR_MS + 4 * MINUTE_MS, "coin": c.research, "signal": "Long", "conviction": 2}
+        for c in WATCHLIST
+    ] + [{"ts": T0 + 10 * HOUR_MS + 4 * MINUTE_MS, "coin": WATCHLIST[0].research, "signal": "Flat", "conviction": 1}]
+    (tmp_path / "signals.json").write_text(json.dumps(signals))
+    return tmp_path
+
+
+def test_the_replay_command_runs_a_grid_from_the_cache_and_writes_the_report(home):
+    from typer.testing import CliRunner
+
+    from trader.__main__ import app
+
+    out = home / "report.md"
+    result = CliRunner().invoke(app, [
+        "evaluate", "replay", "2026-01-02", "2026-01-02T12:00", "--no-fetch",
+        "--signals-json", str(home / "signals.json"), "--out", str(out),
+        "--param", "stop_mult=2.5,3", "--policy", "conviction_weights=off,0.5/1/1",
+    ])
+    assert result.exit_code == 0, result.output
+    text = out.read_text()
+    assert text.startswith("# 日内规则层回放")
+    assert "4 个配置" in text and "| 默认 |" in text and "stop_mult=3 conviction_weights=0.5/1/1" in text
+    assert text.count("\n| ") >= 5  # the header, the rule and four configurations
+
+
+def test_the_signals_command_reports_the_signal_quality(home):
+    from typer.testing import CliRunner
+
+    from trader.__main__ import app
+
+    out = home / "signals.md"
+    result = CliRunner().invoke(app, [
+        "evaluate", "signals", "2026-01-02", "2026-01-03", "--no-fetch",
+        "--signals-json", str(home / "signals.json"), "--out", str(out),
+    ])
+    assert result.exit_code == 0, result.output
+    text = out.read_text()
+    assert "## 按方向" in text and "| Long | 3 |" in text and "| Flat | 1 |" in text
+    assert "## 换向" in text and f"| {WATCHLIST[0].research} | 2 |" in text
+
+
+def test_a_period_without_signals_fails_the_replay_command(home):
+    from typer.testing import CliRunner
+
+    from trader.__main__ import app
+
+    result = CliRunner().invoke(app, [
+        "evaluate", "replay", "2026-01-02T20:00", "2026-01-02T22:00", "--no-fetch",
+        "--signals-json", str(home / "signals.json"),
+    ])
+    assert result.exit_code == 1 and "没有信号" in result.output
+    bad = CliRunner().invoke(app, ["evaluate", "replay", "2026-01-02", "2026-01-01", "--no-fetch"])
+    assert bad.exit_code != 0 and "结束时间要晚于开始时间" in bad.output

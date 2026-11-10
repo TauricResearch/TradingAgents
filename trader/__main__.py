@@ -1,6 +1,7 @@
 """Command line: python -m trader init | daily | mark | report | resume | backup, the
-intraday account's python -m trader intraday init | run | report | resume, and the demo
-account's python -m trader demo check | init | run | sync | report | resume (ADR 0008)."""
+intraday account's python -m trader intraday init | run | report | resume, the demo
+account's python -m trader demo check | init | run | sync | report | resume (ADR 0008),
+and the offline evaluation's python -m trader evaluate fetch | replay | signals."""
 
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from dotenv import find_dotenv, load_dotenv
 from trader import backup as account_backup, jobs, report
 from trader.demo import job as demo_job, report as demo_report
 from trader.demo.account import DemoAccount
+from trader.evaluation.cli import evaluate_app
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
@@ -30,6 +32,7 @@ intraday_app = typer.Typer(add_completion=False, no_args_is_help=True)
 app.add_typer(intraday_app, name="intraday")
 demo_app = typer.Typer(add_completion=False, no_args_is_help=True)
 app.add_typer(demo_app, name="demo")
+app.add_typer(evaluate_app, name="evaluate")
 
 DEMO_ENV = "TRADER_OKX_DEMO_KEY / TRADER_OKX_DEMO_SECRET / TRADER_OKX_DEMO_PASSPHRASE"
 
