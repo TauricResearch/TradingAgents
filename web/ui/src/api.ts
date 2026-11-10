@@ -239,7 +239,12 @@ export interface Signal {
   tokens_in: number
   tokens_out: number
   cost_usd: number | null
+  /** Demo account only: what it did about this signal in its hour; null before the account existed. */
+  followed?: Followed | null
 }
+
+/** The demo account's hourly outcome for a signal it follows (ADR 0008). */
+export type Followed = 'executed' | 'no_change' | 'skipped' | 'blocked' | 'failed' | 'pending'
 
 export interface RatingStats {
   count: number

@@ -177,7 +177,7 @@ export function Overview() {
         </Panel>
 
         <div className="flex flex-col gap-3">
-          {account.intraday ? (
+          {account.intraday || account.demo ? (
             <LatestSignals />
           ) : (
             ov.latest && (

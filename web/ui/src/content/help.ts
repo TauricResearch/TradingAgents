@@ -72,6 +72,7 @@ export type HelpKey =
   // the demo account (ADR 0008)
   | 'execution'
   | 'mirror'
+  | 'followed'
 
 export interface HelpEntry {
   text: string
@@ -309,6 +310,10 @@ export const HELP: Record<HelpKey, HelpEntry> = {
   },
   mirror: {
     text: `Demo 账户与它跟随的日内模拟账户并排：持仓方向是否一致、同一小时两边成交价的差（滑点，万分之一）、两条累计收益。`,
+    section: 'demo',
+  },
+  followed: {
+    text: `Demo 账户自己不做研判，这里是它跟随的日内账户的信号（同一张表），“Demo 执行”是它在那个小时做了什么：已执行（有成交）、无需调仓、未赶上（等不到决定）、对账阻塞、下单失败、待处理。每小时第 10 分运行后更新。`,
     section: 'demo',
   },
 }

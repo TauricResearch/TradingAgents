@@ -14,12 +14,13 @@ const NAV = [
   { to: '/settings', label: '设置', end: false },
 ]
 
-/** The intraday account's page of hourly signals, listed right after the research. */
+/** The hourly signals, listed right after the research: the intraday account's own, the demo account's followed ones. */
 const SIGNALS_NAV = { to: '/signals', label: '信号', end: false }
 
 export function TopBar() {
   const { account, accounts, select, overview } = useAccount()
-  const nav = account.intraday ? NAV.flatMap((n) => (n.to === '/research' ? [n, SIGNALS_NAV] : [n])) : NAV
+  const nav =
+    account.intraday || account.demo ? NAV.flatMap((n) => (n.to === '/research' ? [n, SIGNALS_NAV] : [n])) : NAV
   const ov = overview.data
   const halted = ov?.halted ?? account.halted
   const bar = useRef<HTMLElement>(null)

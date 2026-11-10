@@ -37,7 +37,7 @@ function Shell({ account, accounts, select }: ShellProps) {
           <Route path="/" element={<OverviewPage />} />
           <Route path="/research" element={<Research />} />
           <Route path="/research/:coin/:date" element={<ResearchDetail />} />
-          {account.intraday && <Route path="/signals" element={<Signals />} />}
+          {(account.intraday || account.demo) && <Route path="/signals" element={<Signals />} />}
           <Route path="/history" element={<History />} />
           <Route path="/guide" element={<Guide />} />
           <Route path="/settings" element={<Settings />} />
