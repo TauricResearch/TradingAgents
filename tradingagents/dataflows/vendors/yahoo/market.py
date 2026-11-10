@@ -14,6 +14,51 @@ from tradingagents.dataflows.vendors.yahoo.ohlcv import _assert_ohlcv_not_stale,
 
 logger = logging.getLogger(__name__)
 
+# Sessions of history each served indicator's window spans. stockstats starts
+# every window with whatever rows exist (min_periods=1), so without this a
+# "200 SMA" of a stock listed 60 sessions ago is its 60-session mean.
+_SESSIONS_NEEDED = {
+    "close_10_ema": 10,
+    "close_50_sma": 50,
+    "close_200_sma": 200,
+    "boll": 20,
+    "boll_ub": 20,
+    "boll_lb": 20,
+    # A 12- less a 26-session EMA; the signal line is a 9-session EMA of that
+    # difference, so it spans 26 + 9 - 1 sessions.
+    "macd": 26,
+    "macds": 34,
+    "macdh": 34,
+    # RSI-14 and MFI-14 average 14 changes from one session to the next, which
+    # take 15 sessions; stockstats prints a placeholder 0.5 MFI until then.
+    # ATR-14 averages 14 true ranges, and by Wilder's convention the first
+    # session's true range is its high less its low, so 14 sessions suffice.
+    "rsi": 15,
+    "mfi": 15,
+    "atr": 14,
+    "vwma": 14,
+}
+
+
+def indicator_values(df: pd.DataFrame, indicator: str) -> pd.Series:
+    """``indicator`` per session, indexed by date, NaN until its window is full.
+
+    ``df`` is an OHLCV frame with a ``Date`` column, wrapped or not.
+    """
+    ordered = wrap(df.sort_values("Date"))
+    values = ordered[indicator].copy()  # triggers the stockstats calculation
+    values.index = ordered["Date"]
+    values.iloc[: _SESSIONS_NEEDED.get(indicator, 1) - 1] = float("nan")
+    return values
+
+
+def _warmup_text(indicator: str, have: int) -> str | None:
+    """Why ``indicator`` has no value with ``have`` sessions, or None if it can have one."""
+    needed = _SESSIONS_NEEDED.get(indicator, 1)
+    if have < needed:
+        return f"N/A: needs {needed} sessions of history, {have} available"
+    return None
+
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -212,20 +257,17 @@ def _get_stock_stats_bulk(
     Fetches data once and calculates indicator for all available dates.
     Returns dict mapping date strings to indicator values.
     """
-    from stockstats import wrap
-
     data = load_ohlcv(symbol, as_of_date)
-    df = wrap(data)
-    df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-
-    df[indicator]  # This triggers stockstats to calculate the indicator
+    values = indicator_values(data, indicator)
 
     result_dict = {}
-    for _, row in df.iterrows():
-        date_str = row["Date"]
-        indicator_value = row[indicator]
+    for have, (date, indicator_value) in enumerate(values.items(), start=1):
+        date_str = pd.Timestamp(date).strftime("%Y-%m-%d")
+        warmup = _warmup_text(indicator, have)
 
-        if pd.isna(indicator_value):
+        if warmup:
+            result_dict[date_str] = warmup
+        elif pd.isna(indicator_value):
             result_dict[date_str] = "N/A"
         else:
             result_dict[date_str] = str(indicator_value)
@@ -280,15 +322,14 @@ def get_stock_stats(
     ],
 ):
     data = load_ohlcv(symbol, as_of_date)
-    df = wrap(data)
-    df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
+    values = indicator_values(data, indicator)
     as_of_str = pd.to_datetime(as_of_date).strftime("%Y-%m-%d")
 
-    df[indicator]  # trigger stockstats to calculate the indicator
-    matching_rows = df[df["Date"].str.startswith(as_of_str)]
+    dates = pd.to_datetime(values.index).strftime("%Y-%m-%d")
+    matching = (dates == as_of_str).nonzero()[0]
 
-    if not matching_rows.empty:
-        indicator_value = matching_rows[indicator].values[0]
-        return indicator_value
+    if matching.size:
+        position = int(matching[0])
+        return _warmup_text(indicator, position + 1) or values.iloc[position]
     else:
         return "N/A: Not a trading day (weekend or holiday)"

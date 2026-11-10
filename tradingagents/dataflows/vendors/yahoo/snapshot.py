@@ -13,11 +13,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 import pandas as pd
-from stockstats import wrap
 
 from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.symbols import normalize_symbol
 from tradingagents.dataflows.vendors.yahoo.common import price_text
+from tradingagents.dataflows.vendors.yahoo.market import _SESSIONS_NEEDED, indicator_values
 from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
@@ -71,20 +71,23 @@ def build_verified_market_snapshot(
     indicators: Iterable[str] | None = None,
 ) -> str:
     """Render a ground-truth snapshot: latest OHLCV row, indicators, recent closes."""
-    # `df` keeps the original capitalized OHLCV columns (Open/High/Low/Close/
-    # Volume); stockstats `wrap()` lowercases columns and adds indicator
-    # columns, so read raw prices from `df` and indicators from `stock_df`.
     df = _verified_rows(symbol, as_of_date)
-    stock_df = wrap(df.copy())
 
     selected = tuple(indicators or DEFAULT_SNAPSHOT_INDICATORS)
-    indicator_values: dict[str, str] = {}
+    latest_values: dict[str, str] = {}
     for name in selected:
         try:
-            stock_df[name]  # triggers stockstats calculation
-            indicator_values[name] = _fmt(stock_df.iloc[-1][name])
+            latest_value = indicator_values(df, name).iloc[-1]
         except Exception as exc:  # noqa: BLE001 — one bad indicator shouldn't sink the snapshot
-            indicator_values[name] = f"N/A ({type(exc).__name__})"
+            latest_values[name] = f"N/A ({type(exc).__name__})"
+            continue
+        # The model quotes this table as exact, so say why a value is missing:
+        # a bare N/A reads like a data fault rather than too short a history.
+        needed = _SESSIONS_NEEDED.get(name, 1)
+        if len(df) < needed:
+            latest_values[name] = f"N/A (needs {needed} sessions, {len(df)} available)"
+        else:
+            latest_values[name] = _fmt(latest_value)
 
     latest = df.iloc[-1]
     latest_date = _fmt(latest["Date"])
@@ -108,7 +111,7 @@ def build_verified_market_snapshot(
 
     lines += ["", "### Verified technical indicators (latest row)", "",
               "| Indicator | Value |", "|---|---:|"]
-    for name, value in indicator_values.items():
+    for name, value in latest_values.items():
         lines.append(f"| {name} | {value} |")
 
     lines += ["", f"### Recent verified closes (last {len(recent)} rows)", "",
