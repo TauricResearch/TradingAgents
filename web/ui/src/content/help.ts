@@ -18,6 +18,8 @@ export type HelpKey =
   | 'notional_total'
   | 'total_pnl'
   | 'exposure'
+  | 'daily_pnl'
+  | 'monthly'
   // validation metrics
   | 'cumulative'
   | 'annualized_net'
@@ -59,6 +61,7 @@ export type HelpKey =
   | 's_decision'
   | 'tokens'
   // history tabs
+  | 'daily'
   | 'fills'
   | 'fill_reason'
   | 'funding'
@@ -109,6 +112,14 @@ export const HELP: Record<HelpKey, HelpEntry> = {
   },
   exposure: {
     text: `各合约名义价值占全部持仓的比例，绿为多头、红为空头；一眼看出资金压在哪个币、哪个方向。`,
+    section: 'overview-page',
+  },
+  daily_pnl: {
+    text: `每一天的盈亏 = 当天 UTC 零点（北京 08:00）的净值到次日零点净值之差，最右侧浅色柱是今天（到当前净值为止，还在变化）。绿为赚、红为亏；悬停看期初、期末、成交笔数和资金费。不含 AI 研判费用。`,
+    section: 'overview-page',
+  },
+  monthly: {
+    text: `按自然月（UTC）汇总的收益：期初是当月第一天零点的净值，期末是下月零点或当前净值，收益率按期初计；“进行中”表示本月还没结束。逐日明细在历史页的“每日收益”标签。`,
     section: 'overview-page',
   },
   cumulative: {
@@ -253,6 +264,10 @@ export const HELP: Record<HelpKey, HelpEntry> = {
   },
   tokens: {
     text: `本次研判消耗的 token 数量（输入 / 输出）和对应的美元费用；多次尝试分别记录。`,
+    section: 'history-page',
+  },
+  daily: {
+    text: `验证期逐日收益，最新的一天在最上面。每一行是一个 UTC 日（北京 08:00 到次日 08:00）：期初/期末是零点快照的净值，盈亏和 % 是两者之差，另列当天成交笔数、资金费和 AI 研判费用（费用不计入盈亏）。“进行中”的一行是今天，期末取当前净值。`,
     section: 'history-page',
   },
   fills: {

@@ -141,6 +141,42 @@ export interface Equity {
   market: MarketStatus
 }
 
+/** One UTC day of the validation period: midnight snapshot to the next, the last one to the live equity. */
+export interface DailyRow {
+  /** The UTC date the day starts on. */
+  date: string
+  start_ts: string
+  open: number
+  /** Null for the day in progress while OKX gives no quote; `pnl` and `pct` with it. */
+  close: number | null
+  pnl: number | null
+  pct: number | null
+  fills: number
+  funding: number
+  llm_cost: number
+  /** The day in progress: `close` is the live equity. */
+  partial: boolean
+}
+
+export interface MonthRow {
+  /** "2026-11" */
+  month: string
+  open: number
+  close: number | null
+  pnl: number | null
+  pct: number | null
+  days: number
+  partial: boolean
+}
+
+export interface Daily {
+  /** Newest first. */
+  days: DailyRow[]
+  /** Newest first, over every day regardless of the page. */
+  months: MonthRow[]
+  market: MarketStatus
+}
+
 export type FillReason = 'trade' | 'stop' | 'kill'
 
 export interface Fill {

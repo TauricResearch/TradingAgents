@@ -1,19 +1,23 @@
+import { Link } from 'react-router-dom'
 import { useAccount } from '../account'
-import type { Accuracy, Equity, Today } from '../api'
+import type { Accuracy, Daily, Equity, Today } from '../api'
 import { accountPath } from '../api'
 import { AccuracyCard } from '../components/AccuracyCard'
+import { DailyPnlChart } from '../components/DailyPnlChart'
 import { EquityChart } from '../components/EquityChart'
 import { Help } from '../components/Help'
 import { Kpi, KpiStrip } from '../components/Kpi'
 import { LatestCards } from '../components/LatestCards'
 import { LatestSignals } from '../components/LatestSignals'
 import { LlmCard } from '../components/LlmCard'
+import { MonthlyTable } from '../components/MonthlyTable'
 import { Num } from '../components/Num'
 import { Panel } from '../components/Panel'
 import { PerfTable } from '../components/PerfTable'
 import { ExposureBar, PositionsTable } from '../components/PositionsTable'
 import { ErrorBox, Loading, MarketNote, StaleNote } from '../components/Status'
 import { Welcome } from '../components/Welcome'
+import { CHART_DAYS } from '../daily'
 import { fmtDate, fmtDay, fmtDrawdown, fmtNum, fmtPct, fmtSigned, fmtTime, fmtTimeFull, fmtUsdt, tone } from '../format'
 import { useFetch } from '../hooks'
 
@@ -34,6 +38,7 @@ function todayNote(today: Today) {
 export function Overview() {
   const { account, overview } = useAccount()
   const equity = useFetch<Equity>(accountPath(account.id, 'equity'), REFRESH_MS)
+  const daily = useFetch<Daily>(accountPath(account.id, `daily?limit=${CHART_DAYS}`), REFRESH_MS)
   // The intraday account settles no ratings, so there is no accuracy to fetch.
   const accuracy = useFetch<Accuracy>(account.intraday ? null : accountPath(account.id, 'accuracy'), REFRESH_MS * 5)
 
@@ -89,6 +94,37 @@ export function Overview() {
         <ExposureBar positions={ov.positions} totals={t} />
         <PositionsTable positions={ov.positions} totals={t} />
       </Panel>
+
+      <div className="grid gap-3 xl:grid-cols-3">
+        <Panel
+          title={`每日盈亏 · 最近 ${CHART_DAYS} 天`}
+          help="daily_pnl"
+          className="xl:col-span-2"
+          aside={
+            <span className="num flex flex-wrap items-center gap-x-3">
+              <StaleNote error={daily.error} />
+              <span>UTC 日 · 北京 08:00 起 · 浅色为进行中</span>
+            </span>
+          }
+        >
+          {daily.error && !daily.data ? (
+            <ErrorBox error={daily.error} onRetry={daily.refresh} />
+          ) : !daily.data ? (
+            <Loading />
+          ) : (
+            <DailyPnlChart days={daily.data.days} />
+          )}
+        </Panel>
+        <Panel title="月度收益" help="monthly" flush aside={<Link to="/history?tab=daily" className="hover:text-fg">逐日明细 →</Link>}>
+          {daily.error && !daily.data ? (
+            <ErrorBox error={daily.error} onRetry={daily.refresh} />
+          ) : !daily.data ? (
+            <Loading />
+          ) : (
+            <MonthlyTable months={daily.data.months} />
+          )}
+        </Panel>
+      </div>
 
       <div className="grid gap-3 xl:grid-cols-3">
         <Panel
