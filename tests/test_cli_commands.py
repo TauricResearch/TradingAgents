@@ -195,7 +195,7 @@ def test_login_and_logout_chatgpt_do_not_run_an_analysis(runner, monkeypatch):
     assert signed_in.exit_code == 0 and "Signed in to ChatGPT as a@example.com" in signed_in.output
     signed_out = runner.invoke(m.app, ["logout", "chatgpt"])
     assert signed_out.exit_code == 0 and "Signed out of ChatGPT" in signed_out.output
-    assert runner.invoke(m.app, ["login", "claude"]).exit_code != 0
+    assert runner.invoke(m.app, ["login", "gemini"]).exit_code != 0   # a provider with no plan to sign in to
     assert calls == []
 
 

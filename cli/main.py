@@ -11,7 +11,7 @@ from cli.prompts import filter_analysts_for_asset_type, parse_analysts
 from cli.run import run_analysis
 from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
+from tradingagents.llm_clients.factory import PLAN_PROVIDERS
 from tradingagents.portfolio import load_portfolio
 
 # prompt_toolkit's win32 output module is importable only on Windows (it asserts
@@ -161,12 +161,26 @@ def backtest(
 
 
 # The plans `login` and `logout` take: the providers signed in to, not keyed.
-Plan = StrEnum("Plan", {name: name for name in SIGNED_IN_PROVIDERS})
+Plan = StrEnum("Plan", {name: name for name in PLAN_PROVIDERS})
+
+
+def _claude_plan(act, done: str, not_done: str | None = None) -> None:
+    """Sign in to or out of the Claude plan, which is Claude Code's own sign-in."""
+    from tradingagents.llm_clients import claude_plan
+
+    try:
+        outcome = act(claude_plan)
+    except (claude_plan.ClaudePlanError, ImportError) as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+    console.print(done.format(escape(str(outcome))) if outcome else not_done)
 
 
 @app.command()
 def login(plan: Annotated[Plan, typer.Argument(help="The plan to sign in with")]):
-    """Sign in with your ChatGPT Plus or Pro plan, for the chatgpt provider."""
+    """Sign in with your ChatGPT or Claude plan, for the chatgpt and claude providers."""
+    if plan == "claude":
+        return _claude_plan(lambda claude: claude.sign_in(), "[green]Signed in to Claude as {}.[/green]")
     from tradingagents.llm_clients import chatgpt_auth
 
     try:
@@ -181,7 +195,11 @@ def login(plan: Annotated[Plan, typer.Argument(help="The plan to sign in with")]
 
 @app.command()
 def logout(plan: Annotated[Plan, typer.Argument(help="The plan to sign out of")]):
-    """Sign out of your ChatGPT plan: revoke this machine's access and forget it."""
+    """Sign out of a plan. ChatGPT: revoke this machine's access and forget it.
+    Claude: sign Claude Code out on this machine, since the sign-in is its own."""
+    if plan == "claude":
+        return _claude_plan(lambda claude: claude.sign_out(), "Signed out of Claude Code on this machine.",
+                            "Not signed in to Claude.")
     from tradingagents.llm_clients import chatgpt_auth
 
     outcome = chatgpt_auth.sign_out()

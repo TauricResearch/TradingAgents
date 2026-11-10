@@ -225,6 +225,9 @@ MODEL_OPTIONS: ProviderModeOptions = {
     "chatgpt": _CUSTOM_ONLY,
 }
 
+# A Claude plan serves Anthropic's models under the same IDs.
+MODEL_OPTIONS["claude"] = MODEL_OPTIONS["anthropic"]
+
 
 def get_model_options(provider: str, mode: str) -> list[ModelOption]:
     """Return shared model options for a provider and selection mode."""
@@ -242,6 +245,7 @@ LEGACY_MODELS: dict[str, list[str]] = {
     "qwen": ["qwen3.7-max", "qwen3.7-plus", "qwen3.6-max", "qwen3.6-plus"],
     "anthropic": ["claude-opus-5", "claude-fable-5", "claude-opus-4-8", "claude-opus-4-7"],
 }
+LEGACY_MODELS["claude"] = LEGACY_MODELS["anthropic"]
 
 
 def get_known_models() -> dict[str, list[str]]:
