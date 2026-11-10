@@ -749,18 +749,81 @@ def attempts(ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
 def signals(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
     """The intraday account's hourly signals, newest first. The daily account has none:
     []. Its ledger is not asked, as a reader does not create the signals table and a
-    ledger from before it lacks it."""
+    ledger from before it lacks it. The demo account's are followed_signals."""
     if not account.intraday:
         return []
-    return [
-        {
-            "ts": _iso(ts), "coin": coin, "signal": signal, "conviction": conviction,
-            "reason": reason, "error": error, "tokens_in": tokens_in, "tokens_out": tokens_out,
-            "cost_usd": cost,
-        }
-        for ts, coin, signal, conviction, reason, error, tokens_in, tokens_out, cost
-        in ledger.signals(since_ms, limit)
-    ]
+    return [_signal(row) for row in ledger.signals(since_ms, limit)]
+
+
+def _signal(row: tuple) -> dict:
+    ts, coin, signal, conviction, reason, error, tokens_in, tokens_out, cost = row
+    return {
+        "ts": _iso(ts), "coin": coin, "signal": signal, "conviction": conviction,
+        "reason": reason, "error": error, "tokens_in": tokens_in, "tokens_out": tokens_out,
+        "cost_usd": cost,
+    }
+
+
+# What the demo's events of an hour say it did about that hour's signals: an order that
+# failed, was refused or did not fill names its contract; a skipped hour (no intraday
+# decision in time) and a blocked one (the reconciliation found problems) are whole.
+_FOLLOWED_BY_EVENT = {
+    "order_failed": "failed", "order_refused": "failed", "order_pending": "failed",
+    "skipped": "skipped", "problem": "blocked",
+}
+
+
+def followed_signals(
+    account: Account, ledger: Ledger, source: Ledger, since_ms: int, limit: int,
+) -> list[dict]:
+    """GET /api/accounts/demo/signals: the intraday signals the demo account follows
+    (ADR 0008), newest first, each with ``followed``, what the demo did about it that
+    hour: executed (a trade of that contract filled), no_change (the hour was handled,
+    nothing to trade), skipped, blocked, failed (see _FOLLOWED_BY_EVENT), pending (the
+    demo has not handled that hour yet) or None (before the demo account existed)."""
+    rows = source.signals(since_ms, limit)
+    if not rows:
+        return []
+    born = ledger.get("processed_to")
+    born_hour = born - born % HOUR_MS if born is not None else None
+    decided = ledger.get("decided_hour")
+    first_hour = min(row[0] for row in rows) // HOUR_MS * HOUR_MS
+    swaps = {coin.research: coin.swap for coin in account.watchlist}
+    executed = {
+        (fill.ts - fill.ts % HOUR_MS, fill.inst) for fill in ledger.fills(first_hour) if fill.reason == "trade"
+    }
+    by_contract: dict[tuple[int, str], str] = {}
+    by_hour: dict[int, str] = {}
+    for ts, kind, text in ledger.db.execute(
+        "SELECT ts, kind, text FROM events WHERE ts >= ? ORDER BY id", (first_hour,)
+    ):
+        status = _FOLLOWED_BY_EVENT.get(kind)
+        if status is None:
+            continue
+        hour = ts - ts % HOUR_MS
+        if status == "failed":
+            for inst in swaps.values():
+                if inst in text:
+                    by_contract[(hour, inst)] = status
+        else:
+            by_hour[hour] = status
+
+    def followed(ts: int, coin: str) -> str | None:
+        hour = ts - ts % HOUR_MS
+        inst = swaps.get(coin)
+        if born_hour is None or hour < born_hour:
+            return None
+        if (hour, inst) in executed:
+            return "executed"
+        if (hour, inst) in by_contract:
+            return by_contract[(hour, inst)]
+        if hour in by_hour:
+            return by_hour[hour]
+        if decided is None or hour > decided:
+            return "pending"
+        return "no_change"
+
+    return [{**_signal(row), "followed": followed(row[0], row[1])} for row in rows]
 
 
 def accuracy(account: Account) -> dict:

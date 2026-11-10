@@ -5,7 +5,8 @@ account it follows."""
 import pytest
 
 from tests.test_trader_paper import BTC, DAY0, T0
-from tests.test_web_api import MINUTE, build, build_intraday
+from tests.test_web_api import HOUR, MINUTE, SIGNALS, build, build_intraday
+from trader.intraday.types import SignalResult
 from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS
 from trader.settings import Settings
@@ -71,7 +72,6 @@ def test_demo_equity_is_the_exchanges_without_any_llm_netting(tmp_path):
     ]
     daily = client.get("/api/accounts/demo/daily").json()
     assert [d["llm_cost"] for d in daily["days"]] == [0.0, 0.0, 0.0]
-    assert client.get("/api/accounts/demo/signals").json() == []
     (fill,) = client.get("/api/accounts/demo/fills").json()
     assert (fill["coin"], fill["qty"], fill["fee"], fill["realized_net"]) == ("BTC-USD", 0.02, 0.78, -0.78)
 
@@ -175,3 +175,61 @@ def test_execution_and_mirror_belong_to_the_demo_account_only(tmp_path):
     # The mirror needs the intraday ledger beside the demo's.
     response = build_demo(tmp_path / "alone", with_intraday=False).get("/api/accounts/demo/mirror")
     assert response.status_code == 404 and "intraday" in response.json()["detail"]
+
+
+# -- the signals it follows -------------------------------------------------------
+
+
+def test_demo_signals_are_the_intraday_ones_with_what_the_demo_did_each_hour(tmp_path):
+    """Hour by hour after the fixture's (BTC executed at T0+7min, decided_hour DAY0):
+    01:00 the reconciliation found a problem, 02:00 no decision came in time, 03:00 the
+    ETH order failed and the SOL one was refused while BTC needed nothing, 04:00 is not
+    handled yet; the signals from before the demo account existed carry None."""
+    client = build_demo(tmp_path)
+    settings = Settings(home=tmp_path)
+    long = SignalResult("Long", 2, "up", None, 100, 10, 0.1)
+    intraday = Ledger(settings.intraday_ledger_path)
+    for hour in (1, 2, 3, 4):
+        for coin in ("BTC-USD", "ETH-USD", "SOL-USD"):
+            intraday.record_signal(DAY0 + hour * HOUR + 3 * MINUTE, coin, long)
+    intraday.db.close()
+    demo = Ledger(settings.demo_ledger_path)
+    with demo.transaction():
+        demo.add_event(DAY0 + HOUR + 10 * MINUTE, "problem", PROBLEM)
+        demo.add_event(DAY0 + 2 * HOUR + 25 * MINUTE, "skipped", "日内账户到 02:25 还没决定 02:00 这个小时，demo 本小时不交易")
+        demo.add_event(DAY0 + 3 * HOUR + 10 * MINUTE, "order_failed", "下单失败：ETH-USDT-SWAP +3 张：/api/v5/trade/order failed with code 51008: Insufficient balance")
+        demo.add_event(DAY0 + 3 * HOUR + 10 * MINUTE, "order_refused", "拒绝下单：SOL-USDT-SWAP 变动 +40 名义 6,000 USDT 超过净值 10,000 的 0.5 倍，可能是算错了")
+        demo.add_event(DAY0 + 3 * HOUR + 10 * MINUTE, "order", "BTC-USDT-SWAP +0 张")
+    demo.commit(positions=demo.positions(), cash=demo.get("cash"), meta={"decided_hour": DAY0 + 3 * HOUR})
+    demo.db.close()
+
+    rows = client.get("/api/accounts/demo/signals").json()
+    assert len(rows) == len(SIGNALS) + 12 and rows[0]["ts"] == "2026-01-10T04:03:00Z"
+    assert set(rows[0]) == {
+        "ts", "coin", "signal", "conviction", "reason", "error", "tokens_in", "tokens_out", "cost_usd", "followed"
+    }
+    followed = {(r["ts"][11:16], r["coin"][:3]): r["followed"] for r in rows if r["ts"] >= "2026-01-10"}
+    assert {k: v for k, v in followed.items() if k[0] >= "01:00"} == {
+        ("04:03", "BTC"): "pending", ("04:03", "ETH"): "pending", ("04:03", "SOL"): "pending",
+        ("03:03", "BTC"): "no_change", ("03:03", "ETH"): "failed", ("03:03", "SOL"): "failed",
+        ("02:03", "BTC"): "skipped", ("02:03", "ETH"): "skipped", ("02:03", "SOL"): "skipped",
+        ("01:03", "BTC"): "blocked", ("01:03", "ETH"): "blocked", ("01:03", "SOL"): "blocked",
+    }
+    # The fixture's hour: the BTC trade filled at 00:37, ETH needed nothing.
+    assert followed[("00:00", "BTC")] == "executed" and followed[("00:00", "ETH")] == "no_change"
+    # Before the demo account existed (its ledger opened at T0): nothing to say.
+    before = [r["followed"] for r in rows if r["ts"] < "2026-01-10"]
+    assert len(before) == 3 and before == [None, None, None]
+
+
+def test_demo_signals_honour_since_and_limit_and_are_empty_without_any(tmp_path):
+    client = build_demo(tmp_path)
+    rows = client.get("/api/accounts/demo/signals", params={"limit": 2}).json()
+    assert [(r["coin"], r["followed"]) for r in rows] == [("ETH-USD", "no_change"), ("BTC-USD", "executed")]
+    rows = client.get("/api/accounts/demo/signals", params={"since": "2026-01-10T00:00:00Z"}).json()
+    assert len(rows) == 2
+    assert client.get("/api/accounts/demo/signals", params={"limit": 0}).status_code == 422
+    fresh = build_demo(tmp_path / "fresh", with_intraday=True)
+    Ledger(Settings(home=tmp_path / "fresh").intraday_ledger_path).db.execute("DELETE FROM signals").connection.commit()
+    assert fresh.get("/api/accounts/demo/signals").json() == []
+

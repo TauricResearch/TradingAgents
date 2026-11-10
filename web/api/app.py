@@ -147,6 +147,9 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
 
     @app.get("/api/accounts/{account_id}/signals")
     def signals(account: AccountDep, ledger: LedgerDep, since: Since = None, limit: Limit = 500):
+        if account.demo:  # the intraday signals it follows, with what it did about each
+            with _open(accounts["intraday"]) as source:
+                return data.followed_signals(account, ledger, source, _since_ms(since), limit)
         return data.signals(account, ledger, _since_ms(since), limit)
 
     @app.get("/api/accounts/{account_id}/events")
