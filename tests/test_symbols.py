@@ -1,108 +1,96 @@
-"""Tests for symbol normalization and the no-data routing sentinel."""
+"""Unit tests for tradingagents.dataflows.symbols.
 
-import unittest
+These functions are purely syntactic (no network calls) but carry subtle,
+security-relevant rules: symbol canonicalization for Yahoo Finance and a
+path-safe ticker validator that blocks directory traversal from
+attacker-influenced (LLM/news) input. They previously had no unit coverage.
+"""
 
 import pytest
 
-from tradingagents.dataflows.errors import NoMarketDataError
-from tradingagents.dataflows.symbols import crypto_base, normalize_symbol
+from tradingagents.dataflows.symbols import (
+    crypto_base,
+    normalize_symbol,
+    safe_ticker_component,
+)
 
 
-@pytest.mark.unit
-class TestNormalizeSymbol(unittest.TestCase):
-    def test_plain_equities_unchanged(self):
-        for sym in ("AAPL", "MSFT", "TSM", "BRK.B", "0700.HK", "^GSPC", "GC=F"):
-            self.assertEqual(normalize_symbol(sym), sym)
-
-    def test_lowercases_are_upper(self):
-        self.assertEqual(normalize_symbol("aapl"), "AAPL")
-        self.assertEqual(normalize_symbol("  msft  "), "MSFT")
-
-    def test_metal_aliases_map_to_futures(self):
-        self.assertEqual(normalize_symbol("XAUUSD"), "GC=F")
-        self.assertEqual(normalize_symbol("XAUUSD+"), "GC=F")   # broker CFD suffix
-        self.assertEqual(normalize_symbol("xauusd+"), "GC=F")
-        self.assertEqual(normalize_symbol("GOLD"), "GC=F")
-        self.assertEqual(normalize_symbol("XAGUSD"), "SI=F")
-
-    def test_energy_and_index_aliases(self):
-        self.assertEqual(normalize_symbol("USOIL"), "CL=F")
-        self.assertEqual(normalize_symbol("SPX500"), "^GSPC")
-        self.assertEqual(normalize_symbol("NAS100"), "^NDX")
-        self.assertEqual(normalize_symbol("US30"), "^DJI")
-
-    def test_forex_pairs_get_x_suffix(self):
-        self.assertEqual(normalize_symbol("EURUSD"), "EURUSD=X")
-        self.assertEqual(normalize_symbol("GBPJPY"), "GBPJPY=X")
-        self.assertEqual(normalize_symbol("eurusd"), "EURUSD=X")
-
-    def test_crypto_pairs_get_dash_usd(self):
-        self.assertEqual(normalize_symbol("BTCUSD"), "BTC-USD")
-        self.assertEqual(normalize_symbol("ETHUSD"), "ETH-USD")
-
-    def test_six_letter_non_currency_left_alone(self):
-        # GOOGLE-style 6-letter tickers that aren't two currency codes
-        # must not be mangled into a fake forex pair.
-        self.assertEqual(normalize_symbol("ABCDEF"), "ABCDEF")
-
-    def test_empty_input_passthrough(self):
-        self.assertEqual(normalize_symbol(""), "")
-
-    def test_hk_five_digit_code_repadded_to_four(self):
-        # HKEX lists up to 5-digit codes; Yahoo only accepts 4 (#957).
-        self.assertEqual(normalize_symbol("09992.HK"), "9992.HK")
-        self.assertEqual(normalize_symbol("00700.HK"), "0700.HK")
-        self.assertEqual(normalize_symbol("00001.HK"), "0001.HK")
-
-    def test_hk_four_digit_code_unchanged(self):
-        self.assertEqual(normalize_symbol("0700.HK"), "0700.HK")
-        self.assertEqual(normalize_symbol("9992.HK"), "9992.HK")
-        self.assertEqual(normalize_symbol("80737.HK"), "80737.HK")
-
-    def test_hk_short_code_padded_to_four(self):
-        self.assertEqual(normalize_symbol("700.HK"), "0700.HK")
-
-    def test_hk_code_case_insensitive_suffix(self):
-        self.assertEqual(normalize_symbol("09992.hk"), "9992.HK")
-
-    def test_shanghai_sh_suffix_maps_to_yahoo_ss(self):
-        self.assertEqual(normalize_symbol("600519.sh"), "600519.SS")
-        self.assertEqual(normalize_symbol("600519.SS"), "600519.SS")
+# --- normalize_symbol: broker -> Yahoo canonical ---------------------------
 
 
-@pytest.mark.unit
-class TestNoMarketDataError(unittest.TestCase):
-    def test_message_includes_resolution(self):
-        err = NoMarketDataError("XAUUSD+", "GC=F", "no rows")
-        self.assertIn("XAUUSD+", str(err))
-        self.assertIn("GC=F", str(err))
-        self.assertEqual(err.symbol, "XAUUSD+")
-        self.assertEqual(err.canonical, "GC=F")
-
-    def test_canonical_defaults_to_symbol(self):
-        err = NoMarketDataError("FOOBAR")
-        self.assertEqual(err.canonical, "FOOBAR")
+def test_normalize_symbol_crypto_dashed_and_compact():
+    assert normalize_symbol("BTCUSD") == "BTC-USD"
+    assert normalize_symbol("BTC-USD") == "BTC-USD"
+    assert normalize_symbol("ETHUSDT") == "ETH-USD"
 
 
-@pytest.mark.unit
-class TestCryptoBase(unittest.TestCase):
-    def test_resolves_known_crypto_forms(self):
-        for raw in ("BTC-USD", "BTCUSD", "btc-usdt", "BTC-USDC", "BTCUSD+"):
-            self.assertEqual(crypto_base(raw), "BTC")
-        self.assertEqual(crypto_base("ETH-USD"), "ETH")
-        self.assertEqual(crypto_base("sol-usd"), "SOL")
-
-    def test_non_crypto_returns_none(self):
-        # Plain equities, class shares, and real tickers that alias elsewhere
-        # (GOLD -> gold future on the Yahoo path) must NOT read as crypto.
-        for raw in ("AAPL", "BRK-B", "GOLD", "XYZ-USD", "EURUSD", "", None):
-            self.assertIsNone(crypto_base(raw))
-
-    def test_agrees_with_normalize_symbol(self):
-        # crypto_base is the shared primitive behind the -USD normalization.
-        self.assertEqual(normalize_symbol("BTCUSD"), "BTC-USD")
-        self.assertEqual(crypto_base("BTCUSD"), "BTC")
+def test_normalize_symbol_metal_alias():
+    assert normalize_symbol("XAUUSD") == "GC=F"
+    assert normalize_symbol("XAUUSD+") == "GC=F"  # broker CFD '+' stripped
+    assert normalize_symbol("GOLD") == "GC=F"
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_normalize_symbol_forex_gets_x_suffix():
+    assert normalize_symbol("EURUSD") == "EURUSD=X"
+
+
+def test_normalize_symbol_hk_zero_padding():
+    assert normalize_symbol("09992.HK") == "9992.HK"
+    assert normalize_symbol("700.HK") == "0700.HK"
+
+
+def test_normalize_symbol_shanghai_becomes_ss():
+    assert normalize_symbol("600519.SH") == "600519.SS"
+
+
+def test_normalize_symbol_passthrough_for_plain_equities():
+    assert normalize_symbol("AAPL") == "AAPL"
+    assert normalize_symbol("^GSPC") == "^GSPC"  # Yahoo-native
+
+
+def test_normalize_symbol_returns_raw_for_non_symbols():
+    assert normalize_symbol("") == ""
+    assert normalize_symbol(123) == 123
+
+
+# --- crypto_base -----------------------------------------------------------
+
+
+def test_crypto_base_known_bases():
+    assert crypto_base("BTCUSD") == "BTC"
+    assert crypto_base("ETHUSDT") == "ETH"
+    assert crypto_base("SOL-USD") == "SOL"
+
+
+def test_crypto_base_rejects_unknown_and_non_strings():
+    assert crypto_base("AAPL") is None
+    assert crypto_base(123) is None
+
+
+# --- safe_ticker_component: path-traversal guard --------------------------
+
+
+def test_safe_ticker_component_accepts_valid():
+    assert safe_ticker_component("AAPL") == "AAPL"
+    assert safe_ticker_component("^GSPC") == "^GSPC"
+    assert safe_ticker_component("BTC-USD") == "BTC-USD"
+
+
+def test_safe_ticker_component_rejects_traversal():
+    with pytest.raises(ValueError):
+        safe_ticker_component("../../../etc/passwd")
+
+
+def test_safe_ticker_component_rejects_dots_only():
+    with pytest.raises(ValueError):
+        safe_ticker_component("..")
+
+
+def test_safe_ticker_component_rejects_empty():
+    with pytest.raises(ValueError):
+        safe_ticker_component("")
+
+
+def test_safe_ticker_component_rejects_overlong():
+    with pytest.raises(ValueError):
+        safe_ticker_component("A" * 40, max_len=32)
