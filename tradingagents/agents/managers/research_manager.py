@@ -23,7 +23,8 @@ def create_research_manager(llm):
         # the graph-package import cycle triggered by agents/__init__).
         from tradingagents.graph.context_budget import compact_from_config
 
-        injected_history = compact_from_config(history, get_config()).text
+        bounded = compact_from_config(history, get_config())
+        injected_history = bounded.text
 
         investment_debate_state = state["investment_debate_state"]
 
@@ -76,6 +77,7 @@ Write these sections, in this order, starting with the recommendation on its own
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": investment_plan,
+            "debate_context_stats": bounded.metrics(),
         }
 
     return research_manager_node

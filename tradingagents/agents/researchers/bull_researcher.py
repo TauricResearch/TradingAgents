@@ -69,6 +69,9 @@ Use this information to deliver a compelling bull argument, refute the bear's co
             "count": investment_debate_state["count"] + 1,
         }
 
-        return {"investment_debate_state": new_investment_debate_state}
+        return {
+            "investment_debate_state": new_investment_debate_state,
+            "debate_context_stats": bounded.metrics(),
+        }
 
     return bull_node

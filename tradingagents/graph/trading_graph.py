@@ -461,6 +461,7 @@ class TradingAgentsGraph:
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
             "final_rating": run_rating(final_state),
+            "debate_context_stats": final_state.get("debate_context_stats"),
             "run_settings": self.run_settings(),
         }
 

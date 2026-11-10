@@ -43,6 +43,14 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
             lines.append("- Data vendors: " + ", ".join(f"{k} {v}" for k, v in vendors.items()))
     if final_state.get("memory_note"):
         lines.append(f"- Memory log: {final_state['memory_note']}")
+    stats = final_state.get("debate_context_stats")
+    if isinstance(stats, dict) and stats:
+        lines.append(
+            f"- Debate context ({stats.get('mode', '?')}): "
+            f"~{stats.get('token_estimate', 0)} tokens injected, "
+            f"{stats.get('saved_chars', 0)} chars saved "
+            f"({stats.get('saved_ratio', 0) * 100:.1f}% of {stats.get('original_chars', 0)})"
+        )
     return "\n".join(lines) + "\n\n"
 
 

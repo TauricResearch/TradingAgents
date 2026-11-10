@@ -55,6 +55,17 @@ class BoundedHistory:
             return 0.0
         return self.saved_chars / self.original_chars
 
+    def metrics(self) -> dict:
+        """A plain-dict summary for state/report/logs (JSON-serialisable)."""
+        return {
+            "mode": self.mode,
+            "original_chars": self.original_chars,
+            "compacted_chars": self.compacted_chars,
+            "saved_chars": self.saved_chars,
+            "saved_ratio": round(self.saved_ratio, 4),
+            "token_estimate": self.token_estimate,
+        }
+
 
 def estimate_tokens(text: str) -> int:
     """Rough token count for ``text`` (chars / 4), the RE.md estimator."""

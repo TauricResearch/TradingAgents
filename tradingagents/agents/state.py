@@ -59,6 +59,9 @@ class AgentState(MessagesState):
         InvestDebateState, "Current state of the debate on if to invest or not"
     ]
     investment_plan: Annotated[str, "Investment plan from the Research Manager"]
+    debate_context_stats: Annotated[
+        dict, "R1: bounded-context compaction metrics for the debate history (token estimate, chars saved)"
+    ]
 
     trader_investment_plan: Annotated[str, "Transaction proposal from the Trader"]
 

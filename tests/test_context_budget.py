@@ -138,6 +138,58 @@ def test_summarize_elides_middle_with_marker_and_caps():
         assert "[... earlier debate elided ...]" in out.text
 
 
+@pytest.mark.unit
+def test_metrics_dict_is_serialisable_and_has_token_estimate():
+    out = build_bounded_history(_history(4), mode="truncate", max_chars=600, max_turns=2)
+    metrics = out.metrics()
+    assert metrics["mode"] == "truncate"
+    assert metrics["token_estimate"] == out.token_estimate
+    assert metrics["compacted_chars"] <= 600
+    assert 0.0 <= metrics["saved_ratio"] <= 1.0
+    import json
+
+    json.dumps(metrics)  # must not raise
+
+
+@pytest.mark.unit
+def test_researcher_returns_context_stats():
+    llm = MagicMock()
+    llm.invoke.return_value = MagicMock(content="arg")
+    state = {
+        "company_of_interest": "AAPL", "asset_type": "stock",
+        "market_report": "m", "sentiment_report": "s",
+        "news_report": "n", "fundamentals_report": "f",
+        "investment_debate_state": {
+            "history": _history(5), "bull_history": "", "bear_history": "",
+            "current_response": "", "count": 0,
+        },
+    }
+    result = create_bull_researcher(llm)(state)
+    stats = result["debate_context_stats"]
+    assert "token_estimate" in stats
+    assert stats["mode"] in ("truncate", "summarize", "none")
+
+
+@pytest.mark.unit
+def test_report_header_shows_context_stats():
+    from tradingagents.reporting import write_report_tree
+
+    final_state = {
+        "trade_date": "2024-05-10",
+        "debate_context_stats": {
+            "mode": "truncate", "token_estimate": 120, "saved_chars": 900,
+            "saved_ratio": 0.6, "original_chars": 1500,
+        },
+    }
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = write_report_tree(final_state, "AAPL", tmp, settings=None, html=False)
+        text = path.read_text(encoding="utf-8")
+    assert "Debate context (truncate)" in text
+    assert "~120 tokens" in text
+
+
 # --- invalid / edge ---------------------------------------------------------
 
 @pytest.mark.unit
