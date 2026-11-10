@@ -197,12 +197,18 @@ def test_funding_takes_the_realized_rate_and_falls_back_to_the_funding_rate():
     assert events == [FundingEvent(settlement(0), -0.0002), FundingEvent(settlement(1), 0.0003)]
 
 
-def test_contract_spec_reads_ctval_lotsz_and_minsz():
-    row = {"instId": "TEST-USDT-SWAP", "ctVal": "0.1", "lotSz": "0.01", "minSz": "0.05"}
+def test_contract_spec_reads_ctval_lotsz_minsz_and_ticksz():
+    row = {"instId": "TEST-USDT-SWAP", "ctVal": "0.1", "lotSz": "0.01", "minSz": "0.05", "tickSz": "0.1"}
     session = FakeSession({("/api/v5/public/instruments", None): [row]})
     spec = OKX(session).contract_spec("TEST-USDT-SWAP")
-    assert spec == ContractSpec(contract_value=0.1, lot_size=0.01, min_size=0.05)
+    assert spec == ContractSpec(contract_value=0.1, lot_size=0.01, min_size=0.05, tick_size=0.1)
     assert session.calls[0][1] == {"instType": "SWAP", "instId": "TEST-USDT-SWAP"}
+
+
+def test_contract_spec_without_a_tick_size_reads_zero():
+    row = {"instId": "TEST-USDT-SWAP", "ctVal": "0.1", "lotSz": "0.01", "minSz": "0.05"}
+    session = FakeSession({("/api/v5/public/instruments", None): [row]})
+    assert OKX(session).contract_spec("TEST-USDT-SWAP").tick_size == 0.0
 
 
 def test_last_price_reads_last_from_the_ticker():

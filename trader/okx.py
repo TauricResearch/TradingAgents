@@ -47,6 +47,7 @@ class ContractSpec:
     contract_value: float  # coins per contract (OKX ctVal)
     lot_size: float        # contract-count increment (lotSz)
     min_size: float        # smallest order, in contracts (minSz)
+    tick_size: float = 0.0 # price increment (tickSz); 0 when unknown
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,7 @@ class OKX:
             contract_value=float(row["ctVal"]),
             lot_size=float(row["lotSz"]),
             min_size=float(row["minSz"]),
+            tick_size=float(row.get("tickSz") or 0.0),
         )
 
     def last_price(self, inst_id: str) -> float:

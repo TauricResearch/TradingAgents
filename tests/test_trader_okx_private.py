@@ -357,9 +357,12 @@ def test_close_position_cancels_its_closing_orders_and_ignores_no_position():
         (("POST", "/api/v5/trade/close-position"),
          {"code": "50113", "msg": "Invalid signature", "data": []}),
     ])
+    okx.close_position("BTC-USDT-SWAP", client_id="kil1btc")
     okx.close_position("BTC-USDT-SWAP")
-    okx.close_position("BTC-USDT-SWAP")
-    assert json.loads(session.calls[0][2]) == {"instId": "BTC-USDT-SWAP", "mgnMode": "cross", "autoCxl": True}
+    assert json.loads(session.calls[0][2]) == {
+        "instId": "BTC-USDT-SWAP", "mgnMode": "cross", "autoCxl": True, "clOrdId": "kil1btc",
+    }
+    assert "clOrdId" not in json.loads(session.calls[1][2])
     with pytest.raises(OKXPrivateError):
         okx.close_position("BTC-USDT-SWAP")
 

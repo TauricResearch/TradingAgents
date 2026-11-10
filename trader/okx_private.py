@@ -295,12 +295,15 @@ class OKXPrivate:
             for r in rows
         ]
 
-    def close_position(self, inst: str, margin_mode: str = "cross") -> None:
+    def close_position(self, inst: str, margin_mode: str = "cross", client_id: str | None = None) -> None:
         """Close the whole position at market and cancel the orders that were closing
-        it; a no-op error (51023, no position) is swallowed."""
+        it; ``client_id`` names the closing order's fills. A no-op error (51023, no
+        position) is swallowed."""
+        body = {"instId": inst, "mgnMode": margin_mode, "autoCxl": True}
+        if client_id:
+            body["clOrdId"] = client_id
         try:
-            self._post("/api/v5/trade/close-position",
-                       {"instId": inst, "mgnMode": margin_mode, "autoCxl": True})
+            self._post("/api/v5/trade/close-position", body)
         except OKXPrivateError as exc:
             if exc.code != "51023":
                 raise
