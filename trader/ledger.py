@@ -185,6 +185,12 @@ class Ledger:
             "SELECT 1 FROM executions WHERE trade_date = ?", (trade_date,)
         ).fetchone() is not None
 
+    def net_fills(self) -> dict[str, float]:
+        """What the fills add up to per instrument: the position they explain for an
+        account that started flat."""
+        rows = self.db.execute("SELECT inst, SUM(qty) FROM fills GROUP BY inst")
+        return {inst: round(qty, 12) for inst, qty in rows}
+
     def fills(self, since_ms: int = 0) -> list[Fill]:
         """The fills since ``since_ms`` in time order, booking order within a time."""
         rows = self.db.execute(

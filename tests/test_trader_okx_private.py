@@ -336,9 +336,42 @@ def fill_row(bill_id, ts, **over):
     return row
 
 
-def fills_path(limit, after=None):
-    path = f"/api/v5/trade/fills-history?instType=SWAP&begin={T0}&end={T0 + 1000}&limit={limit}"
+def fills_path(limit, after=None, begin=T0, end=T0 + 1000, endpoint="fills"):
+    path = f"/api/v5/trade/{endpoint}?instType=SWAP&begin={begin}&end={end}&limit={limit}"
     return path if after is None else f"{path}&after={after}"
+
+
+DAY = 86_400_000
+RECENT_FROM = T0 - okx_private.RECENT_FILLS_MS  # the clock is T0: the live endpoint covers from here
+
+
+def test_fills_within_three_days_come_from_the_live_endpoint_only():
+    okx, session = client([(("GET", fills_path(100)), [fill_row(5, T0 + 900)])])
+    assert [f.bill_id for f in okx.fills(T0, T0 + 1000)] == ["5"]
+    assert [c[1].split("?")[0] for c in session.calls] == ["/api/v5/trade/fills"]
+
+
+def test_fills_older_than_three_days_come_from_the_history_merged_with_the_live_ones():
+    okx, session = client([
+        (("GET", fills_path(100, begin=T0 - 4 * DAY, end=RECENT_FROM, endpoint="fills-history")),
+         [fill_row(2, T0 - 4 * DAY + 500), fill_row(1, T0 - 4 * DAY + 100)]),
+        (("GET", fills_path(100, begin=RECENT_FROM, end=T0 + 1000)),
+         [fill_row(3, T0 + 900), fill_row(2, T0 - 4 * DAY + 500)]),  # bill 2 in both: once
+    ])
+    fills = okx.fills(T0 - 4 * DAY, T0 + 1000)
+    assert [f.bill_id for f in fills] == ["1", "2", "3"]
+    assert [c[1].split("?")[0] for c in session.calls] == [
+        "/api/v5/trade/fills-history", "/api/v5/trade/fills"
+    ]
+
+
+def test_a_window_entirely_older_than_three_days_reads_the_history_only():
+    okx, session = client([
+        (("GET", fills_path(100, begin=T0 - 5 * DAY, end=T0 - 4 * DAY, endpoint="fills-history")),
+         [fill_row(1, T0 - 5 * DAY + 100)]),
+    ])
+    assert [f.bill_id for f in okx.fills(T0 - 5 * DAY, T0 - 4 * DAY)] == ["1"]
+    assert len(session.calls) == 1
 
 
 def test_fills_page_by_bill_id_and_come_back_oldest_first_within_the_window(monkeypatch):

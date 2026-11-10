@@ -13,7 +13,7 @@ from trader.demo import account as account_module
 from trader.demo.account import DemoAccount
 from trader.demo.settings import ORDER_POLL_SECONDS, ORDER_POLLS
 from trader.intraday.paper import HOUR_MS
-from trader.ledger import Ledger
+from trader.ledger import Fill, Ledger
 from trader.okx import DAY_MS, FundingEvent
 from trader.okx_private import (
     AccountConfig,
@@ -457,6 +457,57 @@ def test_a_position_the_fills_do_not_explain_is_a_problem_and_the_exchange_wins(
     ]
     assert ledger.positions()[BTC.swap].qty == pytest.approx(0.3)
     assert ledger.positions()[BTC.swap].stop == 79_000.0  # same side: the stop is kept
+
+
+def test_a_fill_reported_late_settles_the_unexplained_position_instead_of_counting_twice(
+    account, ledger, exchange
+):
+    go_long(account, exchange)
+    exchange.book[BTC.swap] = [30.0, 80_000.0]  # the exchange shows 0.3 BTC, its fill not yet
+    result = account.sync(T0 + HOUR_MS)
+    assert len(result.problems) == 1
+    exchange.now = T0 + HOUR_MS + 60_000
+    exchange.fill_rows.append(ExchangeFill(
+        "late", "tlate", "9009", "trd1btc", BTC.swap, "buy", 20.0, 80_000.0, -0.64, exchange.now
+    ))
+    result = account.sync(T0 + 2 * HOUR_MS)
+    assert result.problems == []
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.3)
+    assert ledger.net_fills() == {BTC.swap: pytest.approx(0.3)}
+    late = [f for f in ledger.fills(T0 + HOUR_MS) if f.reason == "trade"]
+    assert [(f.qty, f.fee) for f in late] == [(pytest.approx(0.2), pytest.approx(0.64))]
+
+
+def test_a_fill_the_exchange_stamps_after_our_clock_is_still_this_syncs(account, ledger, exchange):
+    # The exchange's clock runs 2 s ahead of ours: the fill of an order just awaited
+    # carries a time past our now. The sync must still book it (2026-11-10 13:10Z).
+    go_long(account, exchange)
+    exchange.now = T0 + HOUR_MS + 2_000
+    exchange._fill(BTC.swap, 10.0, "trd2btc")
+    result = account.sync(T0 + HOUR_MS)
+    assert result.problems == []
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.2)
+    assert [f.qty for f in ledger.fills(T0 + HOUR_MS)] == [pytest.approx(0.1)]
+
+
+def test_a_position_still_unexplained_at_the_next_sync_stays_a_problem(account, ledger, exchange):
+    go_long(account, exchange)
+    exchange.book[BTC.swap] = [30.0, 80_000.0]
+    account.sync(T0 + HOUR_MS)
+    result = account.sync(T0 + 2 * HOUR_MS)
+    assert result.problems == [
+        "账本与交易所持仓不一致：BTC-USDT-SWAP 账本推算 +0.1，交易所 +0.3，已按交易所为准"
+    ]
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.3)
+
+
+def test_the_fills_add_up_per_instrument(ledger):
+    ledger.commit(positions={}, cash=0.0, fills=[
+        Fill(T0, BTC.swap, 0.1, 80_000.0, 0.4, "trade", "2026-01-01"),
+        Fill(T0 + 1, BTC.swap, -0.04, 81_000.0, 0.2, "stop", "2026-01-01"),
+        Fill(T0 + 2, "ETH-USDT-SWAP", -1.5, 2_000.0, 0.1, "trade", "2026-01-01"),
+    ])
+    assert ledger.net_fills() == {BTC.swap: pytest.approx(0.06), "ETH-USDT-SWAP": -1.5}
 
 
 def test_a_position_not_at_the_designed_leverage_is_a_problem(account, exchange):

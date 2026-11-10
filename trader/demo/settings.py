@@ -16,6 +16,10 @@ ORDER_POLL_SECONDS = 1.0
 KILL_SETTLE_SECONDS = 3.0  # pause between a kill's close orders and the sync that books them
 
 SYNC_OVERLAP_MS = 10 * 60_000  # each sync re-reads this far before the last one, deduplicating by bill id
+# The exchange stamps fills and bills with its own clock, which can run seconds ahead of
+# ours (the mini's was 1-3 s behind on 2026-11-10 and a sync cut off two fills it had
+# just awaited): a sync reads this far past its own now. Overlap and bill ids cover the rest.
+CLOCK_SKEW_MS = 60_000
 ALERT_INTERVAL_MS = 6 * 3_600_000  # a failing run or a standing problem alerts at most this often
 
 # Client order id prefixes: how a fill is attributed when it comes back from the exchange.

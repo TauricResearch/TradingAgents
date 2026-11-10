@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 from trader import rules
 from trader.demo.settings import (
+    CLOCK_SKEW_MS,
     KILL_PREFIX,
     LEVERAGE,
     MARGIN_MODE,
@@ -130,8 +131,9 @@ class DemoAccount:
     def sync(self, now_ms: int, desired_stops: dict[str, float | None] | None = None) -> Sync:
         """Read the exchange into the ledger and judge whether the account may trade.
 
-        Fills and funding bills since the last sync (less SYNC_OVERLAP_MS, deduplicated
-        by bill id in meta ``booked_bills``) are booked; a fill the program did not
+        Fills and funding bills since the last sync (less SYNC_OVERLAP_MS, up to
+        CLOCK_SKEW_MS past now, deduplicated by bill id in meta ``booked_bills``) are
+        booked; a fill the program did not
         cause is booked as MANUAL and is a problem. The positions become the
         exchange's, each keeping the stop the ledger tracked for it (or the one in
         ``desired_stops``, set by an execution). A position the booked fills do not
@@ -149,7 +151,8 @@ class DemoAccount:
         begin = since - SYNC_OVERLAP_MS
         booked: dict[str, int] = ledger.get("booked_bills") or {}
         fills, funding, problems, alerts = [], [], [], []
-        for f in self.private.fills(begin, now_ms + 1):
+        end = now_ms + CLOCK_SKEW_MS
+        for f in self.private.fills(begin, end):
             if f.bill_id in booked:
                 continue
             qty = f.contracts * self.spec(f.inst).contract_value * (1 if f.side == "buy" else -1)
@@ -161,7 +164,7 @@ class DemoAccount:
             # OKX reports a paid fee as negative; the ledger keeps fees as costs.
             fills.append(Fill(f.ts, f.inst, round(qty, 12), f.price, -f.fee, reason, utc_date(f.ts)))
             booked[f.bill_id] = f.ts
-        for b in self.private.funding_bills(begin, now_ms + 1):
+        for b in self.private.funding_bills(begin, end):
             if b.bill_id in booked:
                 continue
             funding.append((b.ts, b.inst, self._funding_rate(b.inst, b.ts), b.amount))
@@ -179,7 +182,11 @@ class DemoAccount:
                 problems.append(
                     f"{inst} 在交易所是 {p.margin_mode} {p.leverage:g}×，不是设计的 {MARGIN_MODE} {LEVERAGE}×"
                 )
-        implied = {inst: p.qty for inst, p in old.items()}
+        # The position the fills explain is what all booked fills add up to (the
+        # account started flat), not the last position plus the new fills: a fill the
+        # exchange reports late then settles the position taken from the exchange
+        # without it, instead of counting on top of it.
+        implied = ledger.net_fills()
         for f in fills:
             implied[f.inst] = implied.get(f.inst, 0.0) + f.qty
         for inst in sorted(set(implied) | set(positions)):

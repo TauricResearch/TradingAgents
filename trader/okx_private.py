@@ -37,6 +37,8 @@ PROBE_ORDER_ID = "1"  # OKX order ids are 18-digit; this one can never exist
 DUPLICATE_CLIENT_ID = "51016"  # OKX's code for a clOrdId / algoClOrdId that already exists
 TIMESTAMP_EXPIRED = "50102"    # the request's timestamp was more than 30 s off OKX's clock
 _PAGE = 100                    # rows per page; the most fills and bills endpoints give
+_DAY_MS = 86_400_000
+RECENT_FILLS_MS = 3 * _DAY_MS - 3_600_000  # the span the three-day fills endpoint is sure to hold
 _TIMEOUT = 10
 
 
@@ -298,9 +300,24 @@ class OKXPrivate:
         return _order(self._get("/api/v5/trade/order", **params)[0])
 
     def fills(self, begin_ms: int, end_ms: int) -> list[ExchangeFill]:
-        """Swap fills with ``begin_ms <= ts < end_ms``, oldest first, from the three-month
-        fills history."""
-        rows = self._pages("/api/v5/trade/fills-history", {"instType": "SWAP"}, begin_ms, end_ms)
+        """Swap fills with ``begin_ms <= ts < end_ms``, oldest first.
+
+        The three-day endpoint is the one OKX keeps for recently filled orders (and
+        the one with the room in its rate limit); the three-month history is for
+        catching up after a long gap. So the part of the window within RECENT_FILLS_MS
+        of now is read from the three-day endpoint and only the part older than that
+        from the history, merged by bill id.
+        """
+        recent_from = int(self.clock() * 1000) - RECENT_FILLS_MS
+        rows: dict[str, dict] = {}
+        if begin_ms < recent_from:
+            for r in self._pages("/api/v5/trade/fills-history", {"instType": "SWAP"},
+                                 begin_ms, min(end_ms, recent_from)):
+                rows[r["billId"]] = r
+        if end_ms > recent_from:
+            for r in self._pages("/api/v5/trade/fills", {"instType": "SWAP"},
+                                 max(begin_ms, recent_from), end_ms):
+                rows[r["billId"]] = r
         return [
             ExchangeFill(
                 bill_id=r["billId"], trade_id=r["tradeId"], order_id=r["ordId"],
@@ -308,7 +325,7 @@ class OKXPrivate:
                 contracts=_float(r["fillSz"]), price=_float(r["fillPx"]), fee=_float(r["fee"]),
                 ts=int(r["ts"]),
             )
-            for r in rows
+            for r in sorted(rows.values(), key=lambda r: (int(r["ts"]), int(r["billId"])))
         ]
 
     def close_position(self, inst: str, margin_mode: str = "cross", client_id: str | None = None) -> None:
