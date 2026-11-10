@@ -121,6 +121,72 @@ def test_a_signal_that_fails_is_recorded_and_keeps_the_position(env):
     assert not any(t.startswith("日内 · ") for t in inbox.sent)
 
 
+@pytest.mark.parametrize("error, again", [
+    ("AnthropicOverloadedError: Error code: 529 - {'error': {'type': 'overloaded_error'}}", True),
+    ("AnthropicConnectionError: Connection error.", True),
+    ("RateLimitError: Error code: 429 - too many requests", True),
+    ("APITimeoutError: Request timed out.", True),
+    ("InternalServerError: Error code: 500", True),
+    ("ReadTimeout: HTTPSConnectionPool(host='www.okx.com'): Read timed out.", True),
+    ("AuthenticationError: Error code: 401 - invalid x-api-key", False),
+    ("BadRequestError: Error code: 400 - prompt is too long", False),
+    ("ValueError: no signal in the answer", False),
+    (None, False),
+])
+def test_which_failures_are_worth_another_try(error, again):
+    assert job.transient(error) is again
+
+
+class AnthropicOverloadedError(Exception):
+    """Named like the SDK's: its text is what the job classifies as transient."""
+
+
+def test_a_transient_failure_is_asked_again_within_the_hour(env):
+    settings, ledger = env
+    signaler = FakeSignaler({BTC.research: [AnthropicOverloadedError("Error code: 529"), "Long"]})
+    paper, inbox, sleeps = IntradayPaper(ledger, FakeOKX(), (BTC,)), Inbox(), []
+    job.run(settings, paper, inbox, signaler, now_fn=clock(NOW), sleep=sleeps.append)
+    assert [call[0] for call in signaler.calls] == ["BTC-USD", "BTC-USD"]
+    assert sleeps == [job.SIGNAL_RETRY_WAIT_SECONDS]
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.1)  # the second answer counts
+    recorded = [(row[2], row[5]) for row in ledger.signals()]  # newest first: (signal, error)
+    assert recorded == [("Long", None), (None, "AnthropicOverloadedError: Error code: 529")]
+    assert ledger.get("outage_hours", 0) == 0
+
+
+def test_retries_stop_at_the_limit_and_other_failures_are_not_retried(env):
+    settings, ledger = env
+    signaler = FakeSignaler({
+        BTC.research: [AnthropicOverloadedError("Error code: 529")] * 3,
+        ETH.research: [RuntimeError("boom")],
+    })
+    paper, inbox, sleeps = IntradayPaper(ledger, FakeOKX(), (BTC, ETH)), Inbox(), []
+    job.run(settings, paper, inbox, signaler, now_fn=clock(NOW), sleep=sleeps.append)
+    assert [call[0] for call in signaler.calls] == ["BTC-USD", "ETH-USD", "BTC-USD", "BTC-USD"]
+    assert sleeps == [job.SIGNAL_RETRY_WAIT_SECONDS] * job.SIGNAL_RETRIES
+    assert ledger.positions() == {} and len(ledger.signals()) == 4
+    assert ledger.get("outage_hours") == 1  # every coin failed: counted, not yet alerted
+    assert not any("日内信号" in text for text in inbox.sent)
+
+
+def test_hours_of_total_failure_alert_once_and_the_recovery_is_announced(env):
+    settings, ledger = env
+    failing = [RuntimeError("boom")] * 3 + ["Flat"]
+    signaler = FakeSignaler({BTC.research: failing})
+    paper, inbox = IntradayPaper(ledger, FakeOKX(), (BTC,)), Inbox()
+    for hours in range(4):
+        job.run(settings, paper, inbox, signaler, now_fn=clock(NOW + timedelta(hours=hours)))
+    outage = [text for text in inbox.sent if "日内信号" in text]
+    # Hour 1 only counts; hour 2 alerts; hour 3 is within the alert interval; hour 4 recovers.
+    assert len(outage) == 2
+    assert outage[0].startswith("日内信号已连续 2 个整点全部失败") and "RuntimeError: boom" in outage[0]
+    assert outage[1] == "日内信号已恢复，此前连续 3 个整点全部失败。"
+    assert ledger.get("outage_hours") == 0
+    assert ledger.get("intraday_alerted_at") == T0 + HOUR_MS
+    kinds = [row[0] for row in ledger.db.execute("SELECT kind FROM events ORDER BY ts").fetchall()]
+    assert kinds == ["signal_outage", "signal_recovered"]
+
+
 def test_two_coins_are_decided_and_messaged_together(env):
     signaler = FakeSignaler({BTC.research: ["Long"], ETH.research: ["Short"]})
     paper, inbox = run(env, signaler, watchlist=(BTC, ETH))
