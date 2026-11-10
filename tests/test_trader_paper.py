@@ -283,3 +283,17 @@ def test_a_failed_replay_changes_nothing(ledger):
         )
     assert ledger.get("processed_to") == T0
     assert ledger.positions()[BTC.swap].qty == 0.04
+
+
+def test_execute_and_replay_record_the_marks_for_a_report_without_okx(ledger):
+    paper = Paper(ledger, FakeOKX(last=80_000.0), (BTC,))
+    paper.execute("2026-01-09", {BTC.research: "Buy"}, T0)
+    assert ledger.get("marks") == {BTC.swap: 80_000.0}  # the quote the execution traded at
+
+    okx = FakeOKX(minute=minutes(T0 - MINUTE_MS, [80_000, 80_500, 81_000]))
+    Paper(ledger, okx, (BTC,)).replay(T0 + 3 * MINUTE_MS)
+    assert ledger.get("marks") == {BTC.swap: 81_000.0}  # the last close replayed
+
+    equity, unavailable = Paper(ledger, FakeOKX(last=82_000.0), (BTC,)).equity_now()
+    entry = ledger.positions()[BTC.swap].entry
+    assert (equity, unavailable) == (pytest.approx(ledger.get("cash") + 0.04 * (82_000 - entry)), False)

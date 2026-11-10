@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from trader import rules
 from trader.ledger import Fill, Ledger, Position
-from trader.okx import DAY_MS, MINUTE_MS, OKX
+from trader.okx import DAY_MS, MINUTE_MS, OKX, REQUEST_ERRORS
 from trader.settings import ATR_DAYS, KILL_DRAWDOWN, STOP_ATR_MULT, WATCHLIST, Coin
 
 STALL_MS = 10 * MINUTE_MS
@@ -32,6 +32,18 @@ class Paper:
         return self.ledger.get("cash") + sum(
             p.qty * (prices[inst] - p.entry) for inst, p in self.ledger.positions().items()
         )
+
+    def equity_now(self) -> tuple[float, bool]:
+        """Equity at OKX's last prices, for a report. A contract OKX gives no price for
+        (REQUEST_ERRORS) is marked at its last mark (meta ``marks``, else its entry), and
+        the flag says so: a report must go out even when OKX is down."""
+        marks, prices, unavailable = self.ledger.get("marks") or {}, {}, False
+        for inst, pos in self.ledger.positions().items():
+            try:
+                prices[inst] = self.okx.last_price(inst)
+            except REQUEST_ERRORS:
+                prices[inst], unavailable = marks.get(inst, pos.entry), True
+        return self.equity(prices), unavailable
 
     def replay(self, now_ms: int) -> list[str]:
         """Replay the minutes closed since the last replay; return the alerts raised."""
@@ -105,9 +117,17 @@ class Paper:
                 snapshots.append((t + MINUTE_MS, equity))
         self.ledger.commit(
             positions=positions, cash=cash, fills=fills, funding=funding, snapshots=snapshots,
-            meta={"peak": peak, "halted": halted, "processed_to": stop_at},
+            meta={
+                "peak": peak, "halted": halted, "processed_to": stop_at,
+                "marks": self.marks(last_close),
+            },
         )
         return alerts
+
+    def marks(self, latest: dict[str, float]) -> dict[str, float]:
+        """Meta ``marks``, the last price each contract was marked at, with ``latest``
+        applied: what prices the account when OKX cannot be asked (the daily report)."""
+        return {**(self.ledger.get("marks") or {}), **latest}
 
     def execute(self, trade_date: str, ratings: dict[str, str | None], now_ms: int) -> list[str]:
         """Trade each contract toward the target its rating sets; return the alerts.
@@ -172,7 +192,8 @@ class Paper:
                 positions, inst, new_qty, fill_price, atr_value, now_ms, "trade", fills, trade_date
             )
 
-        meta, snapshots = {}, []
+        meta = {"marks": self.marks({inst: price for inst, (price, _) in quotes.items()})}
+        snapshots = []
         if self.ledger.get("validation_start") is None:
             # The validation period starts with this trade date: the baseline buys
             # at the closes the research saw, and equity is marked as it stood.

@@ -17,6 +17,9 @@ from trader.okx import DAY_MS
 from trader.report import baselines, performance_line
 from trader.settings import Coin
 
+# Appended to an equity figure marked at the last marks because OKX gave no price.
+UNAVAILABLE = "（行情暂不可用，按最近一次标记价计）"
+
 
 def hourly(
     paper: IntradayPaper, hour: int, signals: dict[str, str | None], fills: list[Fill]
@@ -32,8 +35,8 @@ def hourly(
             action = "；".join(_fill_text(f) for f in own)
             signal = signals.get(coin.research) or "无信号"
             lines.append(f"{_name(coin)}：{signal} → {action}；{_held(positions.get(coin.swap))}")
-    equity = paper.equity({inst: paper.okx.last_price(inst) for inst in positions})
-    lines.append(f"净值 {equity:,.2f} USDT")
+    equity, unavailable = paper.equity_now()
+    lines.append(f"净值 {equity:,.2f} USDT{UNAVAILABLE if unavailable else ''}")
     return "\n".join(lines)
 
 
@@ -47,8 +50,7 @@ def daily(paper: IntradayPaper, day: str, now_ms: int) -> str:
     ledger = paper.ledger
     day_start = int(datetime.fromisoformat(day).replace(tzinfo=UTC).timestamp() * 1000)
     day_end = day_start + DAY_MS
-    positions = ledger.positions()
-    equity = paper.equity({inst: paper.okx.last_price(inst) for inst in positions})
+    equity, unavailable = paper.equity_now()
     lines = [f"日内盘日报 · {day}"]
     if ledger.get("halted"):
         lines.append("⚠ 熔断中：不求信号、不交易。确认后运行 python -m trader intraday resume 恢复。")
@@ -60,7 +62,7 @@ def daily(paper: IntradayPaper, day: str, now_ms: int) -> str:
     peak = ledger.get("peak")
     lines.append(
         f"净值 {equity:,.2f} USDT，{change}，"
-        f"回撤 {rules.drawdown(equity, peak):.1%}（峰值 {peak:,.2f}）"
+        f"回撤 {rules.drawdown(equity, peak):.1%}（峰值 {peak:,.2f}）{UNAVAILABLE if unavailable else ''}"
     )
     reasons = [f.reason for f in ledger.fills(day_start) if f.ts < day_end]
     lines.append(
