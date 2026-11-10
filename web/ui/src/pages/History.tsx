@@ -92,8 +92,8 @@ export function History() {
   const fills = useFetch<Fill[]>(accountPath(account.id, 'fills?limit=500'))
   const funding = useFetch<Funding[]>(accountPath(account.id, 'funding?limit=500'))
   // The intraday account has no daily research, so nothing to fetch for the attempts tab.
-  const attempts = useFetch<Attempt[]>(account.intraday ? null : accountPath(account.id, 'attempts'))
-  const events = useFetch<LedgerEvent[]>(accountPath(account.id, 'events'))
+  const attempts = useFetch<Attempt[]>(account.intraday ? null : accountPath(account.id, 'attempts?limit=500'))
+  const events = useFetch<LedgerEvent[]>(accountPath(account.id, 'events?limit=500'))
 
   const tabs = [
     { key: 'fills' as const, label: '成交', count: fills.data?.length },

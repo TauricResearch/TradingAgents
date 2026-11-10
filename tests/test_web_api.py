@@ -240,6 +240,20 @@ def test_funding_events_and_attempts(tmp_path):
     assert attempts[0]["error"] == BUDGET_ERROR and attempts[0]["cost_usd"] is None
 
 
+def test_events_and_attempts_take_since_and_limit(tmp_path):
+    client = build(tmp_path)
+    events = client.get("/api/accounts/paper/events", params={"limit": 1}).json()
+    assert [e["kind"] for e in events] == ["resume"]  # the newest
+    since = client.get("/api/accounts/paper/events", params={"since": "2026-01-10T00:31:00Z"})
+    assert [e["kind"] for e in since.json()] == ["resume"]
+    attempts = client.get("/api/accounts/paper/attempts", params={"limit": 2}).json()
+    assert [(a["coin"], a["rating"]) for a in attempts] == [("ETH-USD", None), ("BTC-USD", "Sell")]
+    since = client.get("/api/accounts/paper/attempts", params={"since": "2026-01-10T00:20:00Z"})
+    assert [(a["coin"], a["rating"]) for a in since.json()] == [("ETH-USD", None), ("BTC-USD", "Sell")]
+    for route in ("events", "attempts"):
+        assert client.get(f"/api/accounts/paper/{route}", params={"limit": 0}).status_code == 422
+
+
 def test_accuracy_is_zero_without_a_memory_log_and_scored_with_one(tmp_path):
     client = build(tmp_path)
     assert client.get("/api/accounts/paper/accuracy").json() == {
@@ -266,6 +280,25 @@ def test_research_index_merges_the_records_with_the_attempts(tmp_path):
         {"coin": "BTC-USD", "trade_date": "2026-01-08", "rating": "Hold", "cost_usd": 2.0,
          "tokens_in": 80, "tokens_out": 40},
     ]
+
+
+def test_research_index_reads_a_record_file_once_until_it_changes(tmp_path, monkeypatch):
+    reads = []
+    read_rating = data._read_rating
+    monkeypatch.setattr(data, "_read_rating", lambda path: reads.append(path) or read_rating(path))
+    client = build(tmp_path)
+    first = client.get("/api/research").json()
+    assert len(reads) == 3  # one per record
+    assert client.get("/api/research").json() == first
+    assert len(reads) == 3  # served from the cache
+    record(tmp_path, "SOL-USD", "2026-01-09", final_rating="Overweight")  # rewritten
+    rows = client.get("/api/research").json()
+    assert len(reads) == 4 and [r["rating"] for r in rows if r["coin"] == "SOL-USD"] == ["Overweight"]
+    sol = tmp_path / "logs" / "SOL-USD" / "x" / "full_states_log_2026-01-09.json"
+    assert sol in data._RATINGS
+    sol.unlink()
+    assert [r["coin"] for r in client.get("/api/research").json()] == ["BTC-USD", "BTC-USD"]
+    assert sol not in data._RATINGS  # a gone record is forgotten
 
 
 def test_research_record_is_served_as_written(tmp_path):

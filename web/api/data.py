@@ -571,15 +571,20 @@ def funding(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list
     ]
 
 
-def events(ledger: Ledger) -> list[dict]:
-    rows = ledger.db.execute("SELECT ts, kind, text FROM events ORDER BY id DESC")
+def events(ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
+    """The events since ``since_ms``, newest first, at most ``limit``."""
+    rows = ledger.db.execute(
+        "SELECT ts, kind, text FROM events WHERE ts >= ? ORDER BY id DESC LIMIT ?",
+        (since_ms, limit),
+    )
     return [{"ts": _iso(ts), "kind": kind, "text": text} for ts, kind, text in rows]
 
 
-def attempts(ledger: Ledger) -> list[dict]:
+def attempts(ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
+    """The research attempts since ``since_ms``, newest first, at most ``limit``."""
     rows = ledger.db.execute(
         "SELECT trade_date, coin, ts, rating, error, tokens_in, tokens_out, cost_usd"
-        " FROM attempts ORDER BY id DESC"
+        " FROM attempts WHERE ts >= ? ORDER BY id DESC LIMIT ?", (since_ms, limit),
     )
     return [
         {
@@ -629,16 +634,23 @@ def accuracy(account: Account) -> dict:
 # -- research -----------------------------------------------------------------
 
 
+# A record's final rating by path, with the (mtime, size) of the file it was read
+# from: a record is written once, so the index reads each file once, not per request.
+_RATINGS: dict[Path, tuple[tuple[int, int], str | None]] = {}
+
+
 def research_index(account: Account, ledger: Ledger) -> list[dict]:
     """Every research record, newest trade date first and in watchlist order within a
     date. The rating is the record's, else the attempts'; cost and tokens are the attempts'."""
     totals = _attempt_totals(ledger)
     rank = {coin.research: i for i, coin in enumerate(account.watchlist)}
     rows = []
+    seen = set()
     for path in account.results_dir.glob("*/**/full_states_log_*.json"):
         match = RECORD_NAME.match(path.name)
         if not match:
             continue
+        seen.add(path)
         coin, trade_date = path.relative_to(account.results_dir).parts[0], match.group(1)
         total = totals.get((trade_date, coin)) or {}
         rows.append({
@@ -649,12 +661,29 @@ def research_index(account: Account, ledger: Ledger) -> list[dict]:
             "tokens_in": total.get("tokens_in"),
             "tokens_out": total.get("tokens_out"),
         })
+    for gone in [p for p in _RATINGS if p not in seen and p.is_relative_to(account.results_dir)]:
+        del _RATINGS[gone]
     rows.sort(key=lambda r: (rank.get(r["coin"], len(rank)), r["coin"]))
     rows.sort(key=lambda r: r["trade_date"], reverse=True)
     return rows
 
 
 def _final_rating(path: Path) -> str | None:
+    """The record's final rating, read from the file once per (mtime, size) of it."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    version = (stat.st_mtime_ns, stat.st_size)
+    hit = _RATINGS.get(path)
+    if hit is not None and hit[0] == version:
+        return hit[1]
+    rating = _read_rating(path)
+    _RATINGS[path] = (version, rating)
+    return rating
+
+
+def _read_rating(path: Path) -> str | None:
     try:
         record = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):  # being written, or not a record

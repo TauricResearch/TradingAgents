@@ -146,12 +146,12 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
         return data.signals(account, ledger, _since_ms(since), limit)
 
     @app.get("/api/accounts/{account_id}/events")
-    def events(ledger: LedgerDep):
-        return data.events(ledger)
+    def events(ledger: LedgerDep, since: Since = None, limit: Limit = 500):
+        return data.events(ledger, _since_ms(since), limit)
 
     @app.get("/api/accounts/{account_id}/attempts")
-    def attempts(ledger: LedgerDep):
-        return data.attempts(ledger)
+    def attempts(ledger: LedgerDep, since: Since = None, limit: Limit = 500):
+        return data.attempts(ledger, _since_ms(since), limit)
 
     @app.get("/api/accounts/{account_id}/accuracy")
     def accuracy(account: AccountDep):
