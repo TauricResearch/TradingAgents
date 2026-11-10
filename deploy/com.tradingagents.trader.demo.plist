@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the hourly job of the demo account (ADR 0008) on a Mac.
+  @REPO_DIR@ and @HOME@ are filled in at install time, as for the other agents
+  (see docs/roadmap.md). The account must exist: python -m trader demo init, with the
+  demo key in .env (TRADER_OKX_DEMO_KEY / _SECRET / _PASSPHRASE).
+
+  Runs at :10 every hour, after the intraday job's :03. Each run reads the exchange
+  back into the ledger, tightens the stops on the exchange, waits (up to 15 minutes)
+  for the intraday account to decide the hour, follows its signals with market orders
+  on OKX's simulated trading, and sends the alerts, the hour's fills and, on the
+  first run of a UTC day, the summary of the day before. A tick missed while the Mac
+  slept fires once on wake; the stops were on the exchange the whole time.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tradingagents.trader.demo</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@REPO_DIR@/.venv/bin/python</string>
+    <string>-m</string>
+    <string>trader</string>
+    <string>demo</string>
+    <string>run</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@REPO_DIR@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key>
+    <string>UTC</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>10</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>@HOME@/Library/Logs/trader/demo.log</string>
+  <key>StandardErrorPath</key>
+  <string>@HOME@/Library/Logs/trader/demo.log</string>
+</dict>
+</plist>

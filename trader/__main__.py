@@ -1,6 +1,6 @@
 """Command line: python -m trader init | daily | mark | report | resume | backup, the
 intraday account's python -m trader intraday init | run | report | resume, and the demo
-account's python -m trader demo check (ADR 0008)."""
+account's python -m trader demo check | init | run | sync | report | resume (ADR 0008)."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ import typer
 from dotenv import find_dotenv, load_dotenv
 
 from trader import backup as account_backup, jobs, report
+from trader.demo import job as demo_job, report as demo_report
+from trader.demo.account import DemoAccount
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
@@ -174,13 +176,7 @@ def demo_main() -> None:
 def demo_check() -> None:
     """Read the simulated account's mode, permissions, USDT balance and positions
     with the key in .env; places nothing."""
-    try:
-        settings = Settings.from_env()
-    except ValueError as exc:  # some of the three variables are set, not all
-        _fail(str(exc))
-    if settings.okx_demo is None:
-        _fail(f"先在 .env 里设 {DEMO_ENV}（OKX 模拟交易的 API，只勾“交易”权限）")
-    client = OKXPrivate(settings.okx_demo)
+    _, client = _demo_client()
     try:
         config = client.account_config()
         balance = client.balance()
@@ -208,6 +204,85 @@ def demo_check() -> None:
         typer.echo("注意：现货账户模式不能交易合约，请在 OKX 模拟盘把账户模式改成单币种保证金或以上。")
 
 
+@demo_app.command("init")
+def demo_init() -> None:
+    """Open the demo account on the simulated exchange's USDT balance: the account must
+    be flat with no pending orders; it is put in net mode at cross LEVERAGE."""
+    settings, client = _demo_client()
+    ledger = Ledger(settings.demo_ledger_path)
+    if ledger.initialized:
+        _fail(f"{settings.demo_ledger_path} 里已经有账户了")
+    if not settings.intraday_ledger_path.exists():
+        _fail("demo 跟随日内账户的信号，先要有日内账户：python -m trader intraday init")
+    account = DemoAccount(ledger, OKX(), client)
+    try:
+        if client.positions():
+            _fail("模拟账户里还有持仓，先在 OKX 平掉再 init")
+        if client.pending_stops():
+            _fail("模拟账户里还挂着条件单，先在 OKX 撤掉再 init")
+        notes = account.setup()
+        balance = client.balance()
+    except REQUEST_ERRORS as exc:
+        _fail(f"OKX 模拟盘没有应答：{jobs.error_text(exc)}")
+    if balance.cash <= 0:
+        _fail("模拟账户里没有 USDT，先在 OKX 模拟盘领取资金")
+    now_ms = _now_ms()
+    ledger.initialize(balance.cash, now_ms)
+    ledger.set("summarized_day", utc_date(now_ms))
+    ledger.set("setup_done", True)
+    for note in notes:
+        ledger.add_event(now_ms, "setup", note)
+        typer.echo(note)
+    typer.echo(f"demo 账户已建立：本金 {balance.cash:,.2f} USDT（模拟账户钱包余额），账本在 {settings.demo_ledger_path}")
+
+
+@demo_app.command("run")
+def demo_run() -> None:
+    """Sync, keep the stops, follow this hour's intraday signals on the exchange, report.
+    Run hourly after the intraday job."""
+    settings, account, notifier, intraday = _open_demo(require_utc=True)
+    demo_job.run(settings, account, notifier, intraday)
+
+
+@demo_app.command("sync")
+def demo_sync() -> None:
+    """Read the exchange into the ledger now and print what it found; trades nothing."""
+    settings, account, _, _ = _open_demo()
+    with locked(settings.demo_lock_path):
+        result = account.sync(_now_ms())
+    typer.echo(
+        f"权益 {result.equity:,.2f} USDT，钱包 {result.cash:,.2f}，持仓 {len(result.positions)} 个，"
+        f"挂着的止损单 {len(result.stops)} 张，新记成交 {len(result.fills)} 笔"
+    )
+    for inst, pos in result.positions.items():
+        stop = f"{pos.stop:,.2f}" if pos.stop is not None else "未知"
+        typer.echo(f"  {inst} {pos.qty:+g} @ {pos.entry:,.2f}，止损 {stop}")
+    for text in result.problems:
+        typer.echo(f"  问题：{text}")
+    for text in result.alerts:
+        typer.echo(f"  {text}")
+
+
+@demo_app.command("report")
+def demo_report_command() -> None:
+    """Print the demo account's performance since its first execution."""
+    _, account, _, _ = _open_demo()
+    typer.echo(demo_report.full(account))
+
+
+@demo_app.command("resume")
+def demo_resume() -> None:
+    """Lift the demo account's kill switch, after you have checked why it tripped."""
+    settings, account, notifier, _ = _open_demo()
+    if not account.ledger.get("halted"):
+        _fail("demo 账户没有处于熔断")
+    with locked(settings.demo_lock_path):
+        if account.sync(_now_ms()).positions:
+            _fail("交易所里还有持仓，平掉再解除熔断")
+        account.resume(_now_ms())
+    notifier.send("demo 账户熔断已解除，下一小时恢复交易。")
+
+
 def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:
     settings = Settings.from_env()
     notifier = Notifier(settings)
@@ -232,6 +307,32 @@ def _open_intraday(require_utc: bool = False) -> tuple[Settings, IntradayPaper, 
     if not ledger.initialized:
         _fail("还没有日内模拟账户，先运行 python -m trader intraday init")
     return settings, IntradayPaper(ledger, OKX()), notifier
+
+
+def _demo_client() -> tuple[Settings, OKXPrivate]:
+    """The settings and the signed client of the demo key in .env."""
+    try:
+        settings = Settings.from_env()
+    except ValueError as exc:  # some of the three variables are set, not all
+        _fail(str(exc))
+    if settings.okx_demo is None:
+        _fail(f"先在 .env 里设 {DEMO_ENV}（OKX 模拟交易的 API，只勾“交易”权限）")
+    return settings, OKXPrivate(settings.okx_demo)
+
+
+def _open_demo(require_utc: bool = False) -> tuple[Settings, DemoAccount, Notifier, Ledger]:
+    settings, client = _demo_client()
+    notifier = Notifier(settings)
+    if require_utc and time.localtime().tm_gmtoff != 0:
+        notifier.send("trader 不在 UTC 时区运行，已退出。请用 TZ=UTC 启动。")
+        _fail("trader must run with TZ=UTC")
+    ledger = Ledger(settings.demo_ledger_path)
+    if not ledger.initialized:
+        _fail("还没有 demo 账户，先运行 python -m trader demo init")
+    if not settings.intraday_ledger_path.exists():
+        _fail("没有日内账本可跟随：python -m trader intraday init")
+    intraday = Ledger(settings.intraday_ledger_path, readonly=True)
+    return settings, DemoAccount(ledger, OKX(), client), notifier, intraday
 
 
 def _fail(message: str) -> None:
