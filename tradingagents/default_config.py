@@ -142,13 +142,17 @@ def build_default_config() -> dict:
         "global_news_article_limit": 10,      # max articles for global/macro news
         "global_news_lookback_days": 7,       # macro news lookback window
         # Search queries used by get_global_news for macro headlines. Extend or
-        # replace to broaden geographic / sector coverage.
+        # replace to broaden geographic / sector coverage. Each query is matched
+        # as a phrase in headlines, so keep them short: a long string of
+        # keywords matches no headline and returns nothing.
         "global_news_queries": [
-            "Federal Reserve interest rates inflation",
-            "S&P 500 earnings GDP economic outlook",
-            "geopolitical risk trade war sanctions",
-            "ECB Bank of England BOJ central bank policy",
-            "oil commodities supply chain energy",
+            "Federal Reserve",
+            "inflation",
+            "stock market",
+            "geopolitical",
+            "tariffs",
+            "central bank",
+            "oil prices",
         ],
         # Data vendor configuration
         # Category-level configuration (default for all tools in category).

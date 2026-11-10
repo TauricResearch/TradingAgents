@@ -321,8 +321,8 @@ def test_global_news_empty_feed_for_a_past_window_is_unavailable(monkeypatch):
 
 @pytest.mark.unit
 def test_global_news_does_not_infer_coverage_from_a_stale_search_hit(monkeypatch):
-    # Global news merges fuzzy searches; one old hit before the window says
-    # nothing about the days in between, so the window stays unavailable.
+    # Global news merges several topic searches; one old hit before the
+    # window says nothing about the days in between, so it stays unavailable.
     stale = {"title": "STALE", "publisher": "P", "link": "l", "providerPublishTime": _epoch("2025-01-01")}
     fresh = {"title": "FRESH", "publisher": "P", "link": "l", "providerPublishTime": _epoch("2025-06-01")}
 
@@ -387,6 +387,27 @@ def test_the_article_limit_still_caps_what_is_returned(monkeypatch):
     out = ynews.get_global_news_yfinance("2025-05-09", look_back_days=7, limit=3)
 
     assert out.count("### ") == 3
+
+
+@pytest.mark.unit
+def test_global_news_asks_yahoo_for_the_phrase_not_a_fuzzy_match(monkeypatch):
+    """A fuzzy search answers with the news of whatever ticker Yahoo matches.
+
+    "Federal Reserve interest rates inflation" came back as Take-Two's GTA VI
+    news, so the macro report was written from one company's headlines.
+    """
+    calls = []
+
+    class FakeSearch:
+        def __init__(self, *a, **k):
+            calls.append(k)
+            self.news = []
+
+    monkeypatch.setattr(ynews.yf, "Search", FakeSearch)
+    ynews.get_global_news_yfinance("2025-05-09", look_back_days=7, limit=10)
+
+    assert calls
+    assert all(k["enable_fuzzy_query"] is False for k in calls)
 
 
 @pytest.mark.unit

@@ -167,10 +167,12 @@ def get_global_news_yfinance(
     seen_titles = set()
 
     for query in search_queries:
+        # A fuzzy search swaps the words for the closest ticker and answers
+        # with that company's news; a phrase search matches the headlines.
         found = yf_retry(lambda q=query: yf.Search(
             query=q,
             news_count=limit,
-            enable_fuzzy_query=True,
+            enable_fuzzy_query=False,
         ).news)
 
         for article in found or []:
@@ -193,7 +195,7 @@ def get_global_news_yfinance(
     # Nothing fell inside the window -> say so rather than return an
     # empty-bodied report (#993).
     if not news_str:
-        # Results merge several fuzzy searches, so their timestamps prove no
+        # Results merge several topic searches, so their timestamps prove no
         # continuous coverage; judge the window against the present only.
         gap = coverage_gap((), start_date, as_of_date, "Yahoo Finance global news", "market news")
         return gap or f"No global news found between {start_date} and {as_of_date}"
