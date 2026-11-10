@@ -25,7 +25,7 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 15 | 账户目录备份命令（WAL 后 cp 不安全） | P2 | done | — | `trader/backup.py` + `python -m trader backup DEST [--with-logs]`：SQLite 备份 API 一致快照，副本单文件；roadmap 补备份/恢复说明 | `tests/test_trader_backup.py` 3 个测试；CI 42772492468 绿 | 复审第 2 批时发现；是否排定时备份由用户定 |
 | 16 | 总览首屏改成资产卡（用户反馈看板可读性差） | P1 | done | — | overview 加 capital/today/totals、持仓加 unrealized_pct；首屏七格资产卡（总资产、今日盈亏 UTC 日注北京 08:00、未实现、已实现、现金、名义/杠杆、累计）；持仓面板第二排 + 敞口分布条 + 浮盈% + 合计行；验证期指标下移；悬停时间加北京钟；指南/帮助同步 | `tests/test_web_api.py` 补 4 处断言 + 1 个新测试（零点快照未写时的起点）；tsc/oxlint/build；本机预览 1280 宽首屏；CI 42780888213 绿 | 用户拍板：UTC 为主旁注北京时间；交易盈亏不含 LLM 费用；待用户授权后部署 mini |
 | 17 | 每日/每月收益（/daily、柱状图、历史页标签） | P1 | done | #16 | 新接口 `GET /api/accounts/{id}/daily?limit=400`（按 UTC 日：open/close/pnl/pct/fills/funding/llm_cost/partial + months，最后一天到实时净值，无报价为 null）；总览持仓下“每日盈亏 · 最近 30 天”红绿柱（今天浅色，悬停 UTC/北京跨度）+ 月度收益表；历史页“每日收益”标签（期初/期末/盈亏/%/成交/资金费/AI 费用）；指南/帮助同步 | `tests/test_web_api.py` 4 个新测试；全量 1878 通过；tsc/oxlint/build 通过；本机预览核对 | 已关闭（CI 42785452087）；未部署 mini，与 #16 一起等授权 |
-| 18 | 成交的已实现盈亏（只读回算） | P2 | ready | — | `fills` 按持仓均价回放补 realized/realized_net/position_after，规则同 `paper._move`；历史页成交表加两列 + 合计 | 待做：与 `_move` 对照；sum(realized−fee)+funding == cash−capital | 用户拍板：不改账本，需对账时再考虑记账 |
+| 18 | 成交的已实现盈亏（只读回算） | P2 | done | — | `fills` 每行加 realized/realized_net/position_after，每次请求用 `paper._move` 从首笔回算（不改账本）；历史页成交表加“已实现（扣费）”“成交后持仓”两列 + 所列合计；帮助/指南说明与总览已实现的差额是资金费 | 测试：减仓/反手/平仓与 `_move` 对照；真实 execute+replay 验证 Σ(realized−fee)+funding == cash−capital；全量 1880 通过；tsc/oxlint/build 通过 | 已关闭（CI 42787102174）；未部署 mini，与 #16/#17 一起等授权 |
 
 ## 执行记录
 
@@ -47,3 +47,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | 部署 | mini ea0400e → b228b3b | 用户授权（选 A）；pull + uv 装依赖 + rsync dist + kickstart web；验证：/api/models write_protected=false（未设令牌）、attempts?limit=0 → 422、新 bundle 已服务；第一份备份 ~/Backups/trader/20261110T071951Z；账本在下个整点作业才切 WAL |
 | 2026-11-10 | #16 | 用户反馈后 grill 需求，开 #16/#17/#18；`cursor/issue-16-asset-card-6e50` → 74d7a72 + aee6294（ff） | 验收通过（CI 42780888213）；全量 1874 通过，tsc/oxlint/build 通过；本机预览核对首屏；未部署 mini |
 | 2026-11-10 | #17 | `cursor/issue-17-daily-returns-6e50` → 954f728（API）+ 0c95e3e（UI）（ff） | 验收通过（CI 42785452087）；全量 1878 通过，tsc/oxlint/build 通过；本机预览（临时账本补假快照）核对总览与历史页；未部署 mini |
+| 2026-11-10 | #18 | `cursor/issue-18-fill-pnl-6e50` → 6d27baa（API）+ de98f2b（UI）（ff） | 验收通过（CI 42787102174）；全量 1880 通过，tsc/oxlint/build 通过；本机预览核对成交表；未部署 mini |
