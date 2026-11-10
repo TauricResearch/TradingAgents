@@ -28,6 +28,7 @@ from cli.prompts import (
     filter_analysts_for_asset_type,
     normalize_ticker_symbol,
 )
+from tradingagents import __version__
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.api_key_env import get_api_key_env
@@ -156,15 +157,25 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
         had happened: a process started before a merge keeps its old modules.
         Reporting the commit and the moment this process loaded makes a stale
         deployment visible instead of guessed at.
+
+        ``version`` is the package version the page shows in its header, so a
+        browser tab can be matched to the build it is served by; ``build`` adds
+        the commit and the load time, which tell a stale process apart.
         """
         from tradingagents.build_info import build_info
 
-        return {"status": "ok", "today": today(), "build": build_info()}
+        return {
+            "status": "ok",
+            "today": today(),
+            "version": __version__,
+            "build": build_info(),
+        }
 
     @app.get("/api/options")
     def options() -> dict:
         """Everything the form needs to render, in one round trip."""
         return {
+            "version": __version__,
             "providers": _providers(),
             "analysts": [
                 {

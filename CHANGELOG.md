@@ -19,8 +19,14 @@ Istruzioni per l'agente AI:
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-11-10
+
 ### Added
 
+- **Version badge in the web console.** The page header shows the running
+  version (e.g. `v0.8.0`) as a pill, and `/api/health` and `/api/options`
+  return it as `version`, so a browser tab can be matched to the build it is
+  served by. The start-up line of `python -m webapp` names the same version.
 - **Every analysis keeps its own record.** `dataflows/run_record.py` writes one
   file per run under `results_dir/<ticker>/runs/`, addressed by a unique run id
   (UTC timestamp, ticker, random suffix). Each record carries the run id, the

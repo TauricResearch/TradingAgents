@@ -103,19 +103,47 @@ The specification defines the acceptance details and P0/P1/P2 severity. Dependen
 3. **Tests**: exact commands, pass/fail/not-run counts and known baseline failures.
 4. **Safety**: proof that live trading remains disabled; Gate behavior where relevant.
 5. **Compatibility**: migration or API impacts, if any.
-6. **CHANGELOG**: update `CHANGELOG.md` under `[Unreleased]` with only completed, user-visible changes; do not list planned features as delivered.
-7. **Git**: commit(s), push status and PR URL if created.
+6. **Version and CHANGELOG**: the `X.Y.Z` digit chosen and why, the dated release section it closed, and the entries it holds; do not list planned features as delivered.
+7. **Git**: commit(s), tag `vX.Y.Z`, push status and PR URL if created.
 8. **Open issues and next phase**: concise prioritized blockers.
 
 Do not claim a Pull Request was created without a real URL or tool confirmation. Do not claim CI passed without its actual result.
 
-## 10. Changelog and release versioning
+## 10. Versioning, changelog and release
+
+### 10.1 The version scheme
+
+The version is `X.Y.Z` and every development changes it. The three digits are not decoration: they say how big the change is.
+
+| Digit | Name | Scope of the change | Examples |
+|---|---|---|---|
+| `Z` | small change (PATCH) | Fixes, documentation, internal refactors, copy and styling, a UI tweak — nothing new to learn | Wrong stop price shown, a typo in a hint, a faster query |
+| `Y` | medium change (MINOR) | A new capability or a compatible extension — new endpoint, new validation, new panel, a completed reliability phase | Version pill in the console, a new data-quality gate |
+| `X` | large change (MAJOR) | Something a user must adapt to — removed or renamed API, changed config/env contract, changed on-disk format, changed decision vocabulary, a rewritten subsystem | Removing an endpoint, renaming a `TRADINGAGENTS_*` variable |
+
+Choose the digit from the change itself, not from its line count: a one-line rename of a public env var is `X`, a thousand-line internal refactor that no user notices is `Z`. When a change fits two levels, take the higher one.
+
+Nothing accumulates in `[Unreleased]` across sessions: each development closes its own dated release section, so `CHANGELOG.md` and the version always describe the same code. Do not bump a digit without saying which one and why in the commit body.
+
+### 10.2 Keeping the version and the release in step
+
+The version has one source, `tradingagents.__version__` (read by the build through `dynamic` in `pyproject.toml`), and every consumer follows it. A version change touches **all** of these in the same commit or Pull Request:
+
+1. **`tradingagents/__init__.py`**: `__version__` — the only place the number is written. Never add a second literal elsewhere.
+2. **`CHANGELOG.md`**: the new dated section (`## [X.Y.Z] — YYYY-MM-DD`) holding the entries this change delivers, with a fresh empty `[Unreleased]` left above it for the next one.
+3. **The webapp**: nothing to edit — the page header pill and the `/api/health` / `/api/options` `version` field read `__version__`, so they show the new value as soon as the file changes. Verify they do.
+4. **Git**: commit `release: X.Y.Z` (or include the bump in the feature commit with `feat:`/`fix:` and name the version in the body), then an annotated tag `vX.Y.Z`. The tag is local until the user authorizes the push; never invent or move a published tag.
+
+`run_settings()["version"]` writes the same value into every saved report and state log, so a report can always be traced to the code that produced it.
+
+### 10.3 Changelog rules
 
 - Maintain the repository-root `CHANGELOG.md` using the **Keep a Changelog** categories (`Added`, `Changed`, `Fixed`, `Security`, etc.).
-- Update the `[Unreleased]` section as part of each relevant feature, fix, or documentation Pull Request. Document only behavior and changes actually implemented in that PR, not the roadmap or merely requested work.
+- Document only behaviour actually implemented in that change, not the roadmap or merely requested work.
 - If a PR is not merged, its changelog entry remains part of that branch; `custom` must describe only merged changes.
-- Do not create or advance a version number/tag without explicit authorization. On an authorized release, move verified `[Unreleased]` entries into a dated version section and preserve existing history.
+- Preserve existing history: never rewrite, renumber or re-date a section that has already shipped.
 - Prefer concise, user-impacting entries and link to PRs/issues when known; never invent PR identifiers, links or release dates.
+- Do not create or advance a published version, tag or release without explicit authorization.
 
 ## 11. Recommended starting task
 
