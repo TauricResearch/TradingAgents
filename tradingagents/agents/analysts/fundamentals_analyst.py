@@ -5,6 +5,7 @@ from tradingagents.agents.context import get_instrument_context_from_state, get_
 from tradingagents.agents.tools import (
     get_balance_sheet,
     get_cashflow,
+    get_company_officers,
     get_fundamentals,
     get_income_statement,
     get_insider_transactions,
@@ -17,6 +18,7 @@ TOOLS = (
     get_cashflow,
     get_income_statement,
     get_insider_transactions,
+    get_company_officers,
 )
 
 
@@ -29,6 +31,9 @@ def create_fundamentals_analyst(llm):
             "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
             + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements, and `get_insider_transactions` for recent insider buying and selling."
+            + " This desk backs small companies for the people who run them, so two sections are required in the report."
+            + " First, 'Survival': from the statements, state the cash position, the cash burned per quarter, the runway in quarters that leaves, the debt and when it falls due, and how the share count has changed over the periods you have, since repeated share issues dilute existing owners. Say plainly when a figure cannot be derived."
+            + " Second, 'People and ownership': for a company registered in Norway (a ticker ending in .OL usually is), call `get_company_officers` with the company's legal name as `get_fundamentals` gives it, and check that the entry it returns is this company and not a similarly named one. Report who chairs the board, who the CEO is, how recently the board changed, any bankruptcy or liquidation flag, and whether insiders have been buying or selling. The register lists who holds each role today and nothing about their past, so do not state a career history, earlier companies or track record for any person unless a tool returned it; write 'not available from the tools' instead."
             + get_language_instruction()
         )
 
