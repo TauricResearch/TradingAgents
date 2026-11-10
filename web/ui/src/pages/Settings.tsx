@@ -10,10 +10,10 @@ import type {
   Tier,
   TierSelection,
 } from '../api'
-import { ApiError, postJson } from '../api'
+import { ApiError, postJson, rememberWriteToken, writeToken } from '../api'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { DataTable, type Column } from '../components/DataTable'
-import { ModelPicker } from '../components/ModelPicker'
+import { CONTROL, ModelPicker } from '../components/ModelPicker'
 import { Panel } from '../components/Panel'
 import { ErrorBox, Loading } from '../components/Status'
 import { fmtTime, fmtTimeFull } from '../format'
@@ -66,6 +66,9 @@ function changeLine(label: string, before: TierSelection, after: TierSelection, 
 }
 
 function failureText(e: unknown): string {
+  if (e instanceof ApiError && e.status === 401) {
+    return '令牌无效或缺失：在“写保护令牌”里填入服务器 TRADER_WEB_TOKEN 的值后重试。'
+  }
   if (e instanceof ApiError) return `保存失败（HTTP ${e.status}）：${e.message}`
   return `保存失败，连不上后端：${e instanceof Error ? e.message : String(e)}`
 }
@@ -141,9 +144,29 @@ function Current({ current, providers }: { current: CurrentModels; providers: Pr
   )
 }
 
+/** The write token the server wants (TRADER_WEB_TOKEN), kept for this tab only. */
+function WriteToken({ token, onChange }: { token: string; onChange: (token: string) => void }) {
+  return (
+    <label htmlFor="write-token" className="flex flex-col gap-1 text-[11px] text-muted">
+      <span>写保护令牌：服务器 TRADER_WEB_TOKEN 的值，只存在这个标签页里，关掉就没了</span>
+      <input
+        id="write-token"
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        value={token}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="未填时保存会被拒绝（401）"
+        className={`${CONTROL} num w-full max-w-sm`}
+      />
+    </label>
+  )
+}
+
 function SwitchForm({ data, onSaved }: { data: ModelsResponse; onSaved: (next: ModelsResponse) => void }) {
   const { current, providers } = data
   const [drafts, setDrafts] = useState<Drafts>(() => draftsOf(current))
+  const [token, setToken] = useState(writeToken)
   const [attempted, setAttempted] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -232,6 +255,20 @@ function SwitchForm({ data, onSaved }: { data: ModelsResponse; onSaved: (next: M
         <div role="alert" className="rounded-sm border border-down/50 bg-down/10 px-3 py-2 text-[12px] text-down">
           {failure}
         </div>
+      )}
+
+      {data.write_protected ? (
+        <WriteToken
+          token={token}
+          onChange={(next) => {
+            setToken(next)
+            rememberWriteToken(next)
+          }}
+        />
+      ) : (
+        <p className="text-[11px] text-muted">
+          未设置写保护：能打开这个看板的设备都能改这里的设置。要加门槛，在服务器的 .env 里设 TRADER_WEB_TOKEN 后重启 web。
+        </p>
       )}
 
       <div className="flex items-center justify-end gap-3">

@@ -30,7 +30,7 @@
 
 - 仓库用只读部署密钥拉取（`core.sshCommand` 已配）。更新流程：本地提交并推到 `backup`，然后 `ssh macmini 'cd ~/Projects/TradingAgents && git pull -q && uv pip install -q --python .venv/bin/python -e ".[dev,web]"'`；前端改了要在本地 `npm run build` 后 `rsync -a --delete web/ui/dist/ macmini:~/Projects/TradingAgents/web/ui/dist/`，再 `launchctl kickstart -k gui/$(id -u)/com.tradingagents.trader.web`。
 - `.env` 单独用 scp 同步，不进 git。
-- 日志在 mini 的 `~/Library/Logs/trader/`。看板只绑 mini 本机回环，tailnet 里的设备够不到 8000 端口。手机和其他设备走 `tailscale serve`：已在 mini 上执行 `/Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 8000`（配置由 Tailscale 保存，只对 tailnet 可见，不是 funnel），访问 `https://kissmanmac-mini.tailffe2e0.ts.net`，不带端口；关掉用 `tailscale serve --https=443 off`。也可以 `ssh -L 8000:127.0.0.1:8000 macmini` 转发。看板没有登录，tailnet 里 ACL 放行的设备都能调 `POST /api/settings/llm`（ADR 0007）。
+- 日志在 mini 的 `~/Library/Logs/trader/`。看板只绑 mini 本机回环，tailnet 里的设备够不到 8000 端口。手机和其他设备走 `tailscale serve`：已在 mini 上执行 `/Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 8000`（配置由 Tailscale 保存，只对 tailnet 可见，不是 funnel），访问 `https://kissmanmac-mini.tailffe2e0.ts.net`，不带端口；关掉用 `tailscale serve --https=443 off`。也可以 `ssh -L 8000:127.0.0.1:8000 macmini` 转发。看板没有登录；在 mini 的 `.env` 里设 `TRADER_WEB_TOKEN`（任意长随机串）并 kickstart web 后，`POST /api/settings/llm` 必须带 `Authorization: Bearer <令牌>`，设置页会要令牌（只存在浏览器标签页里）；不设则 tailnet 里 ACL 放行的设备都能调它（ADR 0007，Issue #14）。
 - 待做：mini 上 `sudo pmset -a sleep 0`（当前靠其他进程阻止睡眠）。
 
 ## 阶段 1：验证期，4 到 8 周

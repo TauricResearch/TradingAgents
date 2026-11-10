@@ -200,7 +200,8 @@ def models(settings: Settings, accounts: dict[str, Account]) -> dict:
     model with its official price, that price's source, date and note, and the modes it
     is offered for; a current model the catalog lacks is appended to its provider,
     ``in_catalog`` false. ``history`` is settings.json's, newest first, HISTORY_SHOWN
-    entries at most.
+    entries at most. ``write_protected`` is whether POST /api/settings/llm wants the
+    Bearer token of TRADER_WEB_TOKEN.
     """
     config = build_config(settings)
     current = {
@@ -217,6 +218,7 @@ def models(settings: Settings, accounts: dict[str, Account]) -> dict:
         },
         "providers": _providers(current),
         "history": (saved or {}).get("history", [])[:HISTORY_SHOWN],
+        "write_protected": settings.web_token is not None,
     }
 
 

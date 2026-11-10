@@ -328,6 +328,8 @@ export interface ModelsResponse {
   providers: ProviderInfo[]
   /** Newest first, at most 20. */
   history: ModelChange[]
+  /** Whether POST /api/settings/llm wants the server's TRADER_WEB_TOKEN as a Bearer token. */
+  write_protected: boolean
 }
 
 /** A tier as saved: the price is required. */
@@ -361,11 +363,39 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T>
   return (await res.json()) as T
 }
 
-/** POST a JSON body to the same-origin API; throws ApiError carrying the server's `detail` on non-2xx. */
+/** Where the write token the user typed is kept: this tab only, gone when it closes. */
+export const WRITE_TOKEN_KEY = 'trader.web_token'
+
+export function writeToken(): string {
+  try {
+    return sessionStorage.getItem(WRITE_TOKEN_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function rememberWriteToken(token: string): void {
+  try {
+    if (token) sessionStorage.setItem(WRITE_TOKEN_KEY, token)
+    else sessionStorage.removeItem(WRITE_TOKEN_KEY)
+  } catch {
+    // storage unavailable (private mode, quota): the token lives in the form only
+  }
+}
+
+/**
+ * POST a JSON body to the same-origin API, with the write token (when one is kept) as a
+ * Bearer token; throws ApiError carrying the server's `detail` on non-2xx.
+ */
 export async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const token = writeToken()
   const res = await fetch(path, {
     method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(body),
   })
   if (!res.ok) {

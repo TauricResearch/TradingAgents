@@ -11,12 +11,13 @@ the client-side routes falling back to its index.html.
 # No ``from __future__ import annotations``: FastAPI reads the route signatures at
 # definition time, and the dependency aliases are locals of ``create_app``.
 
+import secrets
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Path as PathParam, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
@@ -59,7 +60,10 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     accounts = data.accounts(settings)
     market = data.Market(okx or OKX())
     app = FastAPI(title="TradingAgents trader")
-    app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["GET", "POST"])
+    app.add_middleware(
+        CORSMiddleware, allow_origins=ORIGINS, allow_methods=["GET", "POST"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
 
     # A quote OKX cannot give is null in the routes that degrade (overview, equity);
     # anywhere else it is a 503 naming the cause, not a 500 with a traceback.
@@ -100,7 +104,22 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     def models():
         return data.models(Settings.with_overrides(settings.home), accounts)
 
-    @app.post("/api/settings/llm")
+    def _write_auth(authorization: Annotated[str | None, Header()] = None) -> None:
+        """The write endpoint's gate: with TRADER_WEB_TOKEN set, the request must carry
+        it as ``Authorization: Bearer <token>``; without it, anyone who reaches the
+        API may write (the loopback-only deployment of ADR 0005)."""
+        if settings.web_token is None:
+            return
+        scheme, _, token = (authorization or "").partition(" ")
+        if scheme.lower() != "bearer" or not secrets.compare_digest(
+            token.strip().encode(), settings.web_token.encode()
+        ):
+            raise HTTPException(
+                401, "令牌无效或缺失：需要 TRADER_WEB_TOKEN 的值作为 Bearer 令牌",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    @app.post("/api/settings/llm", dependencies=[Depends(_write_auth)])
     def set_llm(choice: LLMChoice):
         llm, chosen = _validated(choice)
         overrides.save(settings.home, llm, chosen, note="web", now=datetime.now(UTC))

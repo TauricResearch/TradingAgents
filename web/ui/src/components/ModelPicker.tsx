@@ -12,7 +12,7 @@ import {
   type Invalid,
 } from '../llmSettings'
 
-const CONTROL =
+export const CONTROL =
   'min-w-0 rounded-sm border border-border bg-bg px-2 py-1 text-[13px] text-fg focus:border-accent focus:outline-none aria-invalid:border-down'
 
 interface Props {

@@ -644,6 +644,30 @@ def test_a_misshapen_switch_is_422(tmp_path, llm_env, body):
     assert not (tmp_path / "settings.json").exists()
 
 
+def test_without_a_token_the_switch_is_open_and_says_so(tmp_path, llm_env):
+    client = build(tmp_path)
+    assert client.get("/api/models").json()["write_protected"] is False
+    assert client.post("/api/settings/llm", json=SWITCH).status_code == 200
+
+
+def test_with_a_token_the_switch_wants_it_as_a_bearer_token(tmp_path, llm_env, monkeypatch):
+    monkeypatch.setenv("TRADER_WEB_TOKEN", "s3cret ")  # Settings strips it
+    build(tmp_path)
+    client = TestClient(create_app(Settings.with_overrides(tmp_path), CountingOKX()))
+    assert client.get("/api/models").json()["write_protected"] is True
+    for headers in ({}, {"Authorization": "Bearer wrong"}, {"Authorization": "Basic s3cret"}):
+        response = client.post("/api/settings/llm", json=SWITCH, headers=headers)
+        assert response.status_code == 401, headers
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+        assert "令牌" in response.json()["detail"] and "s3cret" not in response.text
+    assert not (tmp_path / "settings.json").exists()
+    response = client.post("/api/settings/llm", json=SWITCH, headers={"Authorization": "Bearer s3cret"})
+    assert response.status_code == 200, response.text
+    assert (tmp_path / "settings.json").exists()
+    # Reads never want the token.
+    assert client.get("/api/accounts/paper/overview").status_code == 200
+
+
 # -- the intraday account (ADR 0006) --------------------------------------------
 
 MONTH0 = int(datetime(2026, 1, 1, tzinfo=UTC).timestamp() * 1000)

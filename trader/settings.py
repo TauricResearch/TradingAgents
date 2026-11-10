@@ -108,6 +108,7 @@ class Settings:
     telegram_token: str | None = None
     telegram_chat_id: str | None = None
     llm: dict | None = None  # the "llm" object of settings.json; None without the file
+    web_token: str | None = None  # the dashboard's write endpoint wants it as a Bearer token
 
     @property
     def ledger_path(self) -> Path:
@@ -163,4 +164,5 @@ class Settings:
             telegram_token=os.getenv("TRADER_TELEGRAM_TOKEN") or None,
             telegram_chat_id=os.getenv("TRADER_TELEGRAM_CHAT_ID") or None,
             llm=data["llm"] if data else None,
+            web_token=os.getenv("TRADER_WEB_TOKEN", "").strip() or None,
         )
