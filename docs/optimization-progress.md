@@ -66,3 +66,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | 部署 #23 + #24 | mini 2a7a8f9 → 03aa7b0 | 用户授权（选 A）；pull + uv + rsync dist + kickstart web；/、demo 和 intraday 的 /signals 均 200，demo 信号页显示 12:03Z 三条日内信号并标「下单失败」（即 12:10Z 的 50123）；未重启 daily/intraday/mark/demo |
 | 2026-11-10 | #25 | 用户要求信号记录显示北京时间；`cursor/issue-25-signals-beijing-time-6e50` → 854008c（ff） | 验收通过（CI 42822807972）；tsc/eslint/build 干净；未部署 mini |
 | 2026-11-10 | #26 | 13:10Z demo 首次下单后对账漏了 ETH/SOL 成交；`cursor/issue-26-demo-fills-latency-6e50` → a123dce（ff） | 全量 1968 通过，新增 7 测（两接口分段/合并、迟到成交抵消、持续不解释仍报、时钟偏差、net_fills）；ADR 0008 补记；等授权部署 |
+| 2026-11-10 | 部署 #25 + #26 | mini 03aa7b0 → 15ad42f | 用户授权（选 A，13:46Z）；pull + uv + rsync dist + kickstart web；/、demo signals、execution 均 200；未重启 daily/intraday/mark/demo；等 14:10Z 对账验证 #26 |
