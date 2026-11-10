@@ -133,6 +133,15 @@ class Settings:
     def intraday_lock_path(self) -> Path:
         return self.home / "intraday" / "trader.lock"
 
+    # The demo account (ADR 0008) likewise.
+    @property
+    def demo_ledger_path(self) -> Path:
+        return self.home / "demo" / "ledger.sqlite"
+
+    @property
+    def demo_lock_path(self) -> Path:
+        return self.home / "demo" / "trader.lock"
+
     @classmethod
     def from_env(cls) -> Settings:
         """The environment's settings with TRADER_HOME/settings.json applied."""

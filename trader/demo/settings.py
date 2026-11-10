@@ -1,0 +1,24 @@
+"""How the demo account trades on the exchange (ADR 0008). Its sizing, stop and
+rebalance constants are the intraday account's (``trader.intraday.settings``): the
+demo makes the same decisions, only the fills are real."""
+
+from __future__ import annotations
+
+MARGIN_MODE = "cross"  # one margin pool, as the paper accounts size against total equity
+LEVERAGE = 3           # the exchange's gate: the rules themselves stop at MAX_GROSS_EXPOSURE (2x)
+
+RUN_MINUTE = 10               # the job runs at this minute of every hour (UTC); intraday decides at :03
+INTRADAY_WAIT_MS = 15 * 60_000  # how long a run waits for the intraday account to decide the hour
+INTRADAY_POLL_SECONDS = 60
+
+ORDER_POLLS = 10         # how many times a placed market order is looked up before giving up
+ORDER_POLL_SECONDS = 1.0
+KILL_SETTLE_SECONDS = 3.0  # pause between a kill's close orders and the sync that books them
+
+SYNC_OVERLAP_MS = 10 * 60_000  # each sync re-reads this far before the last one, deduplicating by bill id
+ALERT_INTERVAL_MS = 6 * 3_600_000  # a failing run or a standing problem alerts at most this often
+
+# Client order id prefixes: how a fill is attributed when it comes back from the exchange.
+TRADE_PREFIX = "trd"
+STOP_PREFIX = "stp"
+KILL_PREFIX = "kil"
