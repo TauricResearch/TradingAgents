@@ -26,6 +26,10 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 16 | 总览首屏改成资产卡（用户反馈看板可读性差） | P1 | done | — | overview 加 capital/today/totals、持仓加 unrealized_pct；首屏七格资产卡（总资产、今日盈亏 UTC 日注北京 08:00、未实现、已实现、现金、名义/杠杆、累计）；持仓面板第二排 + 敞口分布条 + 浮盈% + 合计行；验证期指标下移；悬停时间加北京钟；指南/帮助同步 | `tests/test_web_api.py` 补 4 处断言 + 1 个新测试（零点快照未写时的起点）；tsc/oxlint/build；本机预览 1280 宽首屏；CI 42780888213 绿 | 用户拍板：UTC 为主旁注北京时间；交易盈亏不含 LLM 费用；已部署 mini（db7a7d0，11-10 09:05Z） |
 | 17 | 每日/每月收益（/daily、柱状图、历史页标签） | P1 | done | #16 | 新接口 `GET /api/accounts/{id}/daily?limit=400`（按 UTC 日：open/close/pnl/pct/fills/funding/llm_cost/partial + months，最后一天到实时净值，无报价为 null）；总览持仓下“每日盈亏 · 最近 30 天”红绿柱（今天浅色，悬停 UTC/北京跨度）+ 月度收益表；历史页“每日收益”标签（期初/期末/盈亏/%/成交/资金费/AI 费用）；指南/帮助同步 | `tests/test_web_api.py` 4 个新测试；全量 1878 通过；tsc/oxlint/build 通过；本机预览核对 | 已关闭（CI 42785452087）；已部署 mini（db7a7d0，11-10 09:05Z） |
 | 18 | 成交的已实现盈亏（只读回算） | P2 | done | — | `fills` 每行加 realized/realized_net/position_after，每次请求用 `paper._move` 从首笔回算（不改账本）；历史页成交表加“已实现（扣费）”“成交后持仓”两列 + 所列合计；帮助/指南说明与总览已实现的差额是资金费 | 测试：减仓/反手/平仓与 `_move` 对照；真实 execute+replay 验证 Σ(realized−fee)+funding == cash−capital；全量 1880 通过；tsc/oxlint/build 通过 | 已关闭（CI 42787102174）；已部署 mini（db7a7d0，11-10 09:05Z） |
+| 19 | ADR 0008 + OKX 私有接口客户端（模拟盘） | P1 | done | — | 用户决定验证期内并行建执行层、demo 跟日内账户；`trader/okx_private.py` 签名/模拟盘标头/账户配置/持仓模式/杠杆/余额/持仓/市价单/查单/成交历史分页/条件止损单/一键平仓/资金费账单，`simulated=False` 直接拒绝；`Settings.okx_demo`（TRADER_OKX_DEMO_*，repr 掩码）；`python -m trader demo check` 只读 | `tests/test_trader_okx_private.py` 28 个（录制应答、已知签名向量、密钥不出现在输出）；CI 42797907343 | 执行层第 1/4 张票 |
+| 20 | Demo 执行器（对账优先、跟日内信号下单、交易所侧止损、熔断） | P1 | ready | #19 | `trader/demo/`：sync 把交易所余额/持仓/成交/资金费/条件单写进独立账本；日内 `decided_hour` 到位后按同一套仓位规则下市价单（clOrdId 幂等）并重挂止损；KILL 一键平仓；CLI init/run/sync/report/resume；launchd :10 | 仿真交易所覆盖开/加/反手/平/缺信号/止损触发/资金费/跨零点/熔断/重跑/对不上账 | 待做 |
+| 21 | 看板接入 demo 账户 | P2 | ready | #20 | accounts 加 demo；`/execution` 对账快照接口；总览“执行对账”面板；历史页“与日内模拟对照”标签 | API 测试 + tsc/lint/build | 待做 |
+| 22 | Demo 并行验收（mini 部署、7 个交易日对照报告） | P2 | blocked | #20 #21 | mini 装密钥 → demo check → init → launchd；跑满 7 个交易日出 `docs/reports/demo-parallel-run.md` | 每小时按时运行；报告入库、结论进 roadmap | 等用户在 OKX 模拟盘建 API 并写进 mini 的 .env，再授权部署 |
 
 ## 执行记录
 
@@ -49,3 +53,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | #17 | `cursor/issue-17-daily-returns-6e50` → 954f728（API）+ 0c95e3e（UI）（ff） | 验收通过（CI 42785452087）；全量 1878 通过，tsc/oxlint/build 通过；本机预览（临时账本补假快照）核对总览与历史页；未部署 mini |
 | 2026-11-10 | #18 | `cursor/issue-18-fill-pnl-6e50` → 6d27baa（API）+ de98f2b（UI）（ff） | 验收通过（CI 42787102174）；全量 1880 通过，tsc/oxlint/build 通过；本机预览核对成交表；未部署 mini |
 | 2026-11-10 | 部署 | mini a60bd57 → db7a7d0 | 用户授权（选 A）；pull + uv 装依赖 + rsync dist + kickstart web；验证：/api/accounts 200、/daily 有逐日行、/fills 有 realized 字段、overview 有 today/totals、新 bundle index-DETK1jZP 已服务；部署时 mini 与本机都连不上 OKX（intraday 09:03Z、mark 09:07Z 失败，08:03Z 还正常），看板显示行情横幅，属外部网络，未处理 |
+| 2026-11-10 | #19 | `cursor/issue-19-okx-private-client-6e50` → cbb1dfb（ADR 0008 + roadmap）+ 2b75fc5（客户端 + demo check）（ff） | 验收通过（CI 42797907343）；全量 1907 通过；用户 11-10 决定：并行建执行层到 OKX Demo，demo 跟日内账户，其余按推荐（全仓/单向/3×/交易所止损/模拟余额为本金/mini）；开 #19–#22 |
