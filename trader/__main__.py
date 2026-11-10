@@ -1,16 +1,17 @@
-"""Command line: python -m trader init | daily | mark | report | resume, and the intraday
-account's python -m trader intraday init | run | report | resume."""
+"""Command line: python -m trader init | daily | mark | report | resume | backup, and the
+intraday account's python -m trader intraday init | run | report | resume."""
 
 from __future__ import annotations
 
 import logging
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import typer
 from dotenv import find_dotenv, load_dotenv
 
-from trader import jobs, report
+from trader import backup as account_backup, jobs, report
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
@@ -81,6 +82,28 @@ def resume() -> None:
     with locked(settings.lock_path):
         paper.resume(_now_ms())
     notifier.send("熔断已解除，下一次 daily 恢复交易。")
+
+
+@app.command()
+def backup(
+    dest: Path,
+    with_logs: bool = typer.Option(False, "--with-logs", help="也拷贝 logs/ 下的研究记录"),
+) -> None:
+    """Copy the account directory (the ledgers, settings, memory) into DEST/<UTC time>/.
+
+    The ledgers are snapshotted through SQLite, which is consistent while a job writes;
+    copying ledger.sqlite by hand is not, as the latest commits sit in its -wal file.
+    """
+    settings = Settings.from_env()
+    try:
+        target, copied = account_backup.backup(settings.home, dest, with_logs)
+    except (FileNotFoundError, FileExistsError) as exc:
+        _fail(str(exc))
+    typer.echo(f"已备份到 {target}")
+    for rel, size in copied:
+        typer.echo(f"  {rel}  {size:,} B")
+    if not settings.intraday_ledger_path.exists():
+        typer.echo("  （没有日内账本，跳过）")
 
 
 @intraday_app.callback()
