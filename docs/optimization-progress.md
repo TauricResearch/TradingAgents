@@ -31,6 +31,7 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 21 | 看板接入 demo 账户 | P2 | done | #20 | accounts 含 demo；`/api/accounts/demo/execution`（上次对账：权益/钱包/持仓含杠杆、强平价、止损/挂着的止损单/问题/熔断）和 `/mirror`（与日内并排：持仓方向、逐小时成交与滑点 bp、两边累计收益），非 demo 账户 404；UI：顶栏 Demo、总览「执行对账」面板替代 LLM 面板、策略系列标「策略（交易所权益）」、历史页「与日内对照」页签、成交原因「非程序」、帮助 execution/mirror、指南第 10 节 | `tests/test_web_api_demo.py` 9 个；全量 1955；tsc/eslint/vite build；本机合成账本预览三处页面 | 已关（CI 42805364239）；提交 3964584 + 9c35252；未部署 mini，等 #22 |
 | 22 | Demo 并行验收（mini 部署、7 个交易日对照报告） | P2 | in-progress | #20 #21 | 2026-11-10 11:53Z 用户授权（选 A）后部署：mini → 2a7a8f9、web 重启；`demo check` 通过（跨币种保证金、net、read+trade）；`demo init` 本金 5,000 USDT；launchd demo 作业已加载（:10） | 每小时按时运行；跑满 7 个交易日出 `docs/reports/demo-parallel-run.md`，结论进 roadmap | 观察中；首次运行 12:10Z |
 | 23 | demo check/init 用探针验证 API key 的交易权限（50123 到首次下单才暴露） | P2 | done | #20 | `OKXPrivate.check_trade_permission`：撤一张不存在的订单，50xxx 即权限不足，51400 即能下单；check 打印结论，init 先探再改设置；账户模式档位用 OKX 现名（合约模式）；下单预检接口不能用（只对跨币种/组合保证金开放） | +4 测试，全量 1959；mini 真 key 验过两种结果 | 已关（CI 42816890344）；提交 e7f8dbe；未部署 mini |
+| 24 | Demo 账户显示它跟随的日内信号及每小时执行结果（切到 Demo 信号页为空） | P2 | done | #22 | `followed_signals`：读日内账本的信号，按小时对照 Demo 的成交/事件标 executed / no_change / skipped / blocked / failed / pending；前端 Demo 有「信号」页和总览「最近信号」，「Demo 执行」芯片代替 token 成本列 |
 
 ## 执行记录
 
@@ -59,3 +60,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | #21 | `cursor/issue-21-dashboard-demo-6e50` → 3964584（web api）+ 9c35252（ui）（ff） | 验收通过（CI 42805364239）；全量 1955 通过；本机合成账本预览了总览/历史/指南；未部署 mini |
 | 2026-11-10 | 部署 + #22 | mini db7a7d0 → 2a7a8f9 | 用户授权（选 A）；pull + uv + rsync dist + kickstart web；模拟盘账户模式原为现货，用户改成跨币种保证金后 `demo check`/`demo init`（本金 5,000）通过；装并加载 com.tradingagents.trader.demo；/api/accounts/demo/{overview,execution,mirror} 200；daily/intraday/mark 未动 |
 | 2026-11-10 | #23 | 首次 demo 运行暴露（三笔单 50123）后新开；`cursor/issue-23-demo-precheck-6e50` → e7f8dbe（ff） | 验收通过（CI 42816890344）；全量 1959 通过；用户已把 key 权限补上、账户模式改为合约模式，模拟盘 13:10Z 起正常下单；未部署 mini |
+| 2026-11-10 | #24 | 用户反馈「切到 demo 信号不见了」后新开；`cursor/issue-24-demo-followed-signals-6e50` → 65dc8e7 + 20400c2（ff） | 验收通过（CI 42819046917）；全量 1961 通过，tsc/eslint/build 干净；本地合成账本预览六种芯片正常；未部署 mini |
