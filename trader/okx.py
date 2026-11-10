@@ -18,6 +18,7 @@ DAY_MS = 86_400_000
 # Rows per page. OKX cuts a larger limit down to 300 on candles and 400 on funding.
 _CANDLE_PAGE = 300
 _FUNDING_PAGE = 400
+_OI_PAGE = 100  # open-interest-history serves at most 100 rows a page
 _PAGE_PAUSE = 0.1  # seconds between pages; history-candles allows about 20 requests per 2 s
 _RETRY_PAUSES = (1, 2)  # seconds before the second and third try of a request that failed
 
@@ -54,6 +55,14 @@ class ContractSpec:
 class FundingEvent:
     ts: int      # settlement time in UTC milliseconds
     rate: float  # realized rate; positive means longs pay shorts
+
+
+@dataclass(frozen=True)
+class OpenInterest:
+    """Open interest of a swap at ``ts`` (the start of a period), in USD."""
+
+    ts: int
+    usd: float
 
 
 @dataclass(frozen=True)
@@ -146,6 +155,21 @@ class OKX:
             raise OKXError(f"OKX has no open interest for {inst_id}")
         return float(rows[0]["oiUsd"])
 
+    def open_interest_history(
+        self, inst_id: str, period: str, start_ms: int, end_ms: int
+    ) -> list[OpenInterest]:
+        """Open interest of a swap per ``period`` ("1H", "1D", ...) with
+        ``start_ms <= ts < end_ms``, oldest first, from
+        /api/v5/rubik/stat/contracts/open-interest-history, which pages by ``end``
+        rather than ``after``."""
+        params = {"instId": inst_id, "period": period, "limit": _OI_PAGE}
+        rows = self._history(
+            "/api/v5/rubik/stat/contracts/open-interest-history", params, start_ms, end_ms,
+            ts_key=0, cursor_key="end",
+        )
+        # A row is [ts, oi, oiCcy, oiUsd].
+        return [OpenInterest(int(r[0]), float(r[3])) for r in rows]
+
     def _get(self, path: str, **params) -> list:
         """``data`` of a GET to ``path``.
 
@@ -177,7 +201,8 @@ class OKX:
         return body["data"]
 
     def _history(
-        self, path: str, params: dict, start_ms: int, end_ms: int, ts_key: int | str
+        self, path: str, params: dict, start_ms: int, end_ms: int, ts_key: int | str,
+        cursor_key: str = "after",
     ) -> list:
         """Rows of a newest-first endpoint with ``start_ms <= ts < end_ms``, oldest first,
         one per timestamp; ``row[ts_key]`` is a row's timestamp.
@@ -185,13 +210,16 @@ class OKX:
         ``after`` asks OKX for the rows strictly older than it, so each page picks up
         just before the oldest row of the page before. Paging stops once a page
         reaches ``start_ms`` or comes back empty; a page with no row older than its
-        cursor would be requested forever, so it raises OKXError instead.
+        cursor would be requested forever, so it raises OKXError instead. The rubik
+        endpoints call the cursor ``end`` and may include the row at it, so that
+        cursor is sent one millisecond earlier.
         """
         rows = {}
         after = end_ms
         while True:
             cursor = after
-            page = self._get(path, **params, after=cursor)
+            sent = cursor if cursor_key == "after" else cursor - 1
+            page = self._get(path, **params, **{cursor_key: sent})
             for row in page:
                 ts = int(row[ts_key])
                 if start_ms <= ts < end_ms:

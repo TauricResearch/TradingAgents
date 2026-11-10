@@ -1,4 +1,4 @@
-"""python -m trader evaluate fetch | replay | signals: the offline evaluation."""
+"""python -m trader evaluate fetch | replay | rerun | signals: the offline evaluation."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import typer
 
 from trader.evaluation import report as md, signals as sq
 from trader.evaluation.history import HOUR_MS, HistoryStore
+from trader.evaluation.market import HistoricalOKX
 from trader.evaluation.replay import (
     Signal,
     parse_grid,
@@ -17,6 +18,10 @@ from trader.evaluation.replay import (
     signals_from_json,
     signals_from_ledger,
 )
+from trader.evaluation.rerun import cache_summary, rerun
+from trader.intraday.settings import SIGNAL_BAR, SIGNAL_HOURS
+from trader.intraday.signal import Signaler
+from trader.ledger import Ledger
 from trader.okx import OKX
 from trader.settings import WATCHLIST, Settings
 
@@ -57,19 +62,33 @@ def _range(start: str, end: str | None) -> tuple[int, int]:
     return start_ms, end_ms
 
 
-def fill(store: HistoryStore, start_ms: int, end_ms: int, bars: tuple[str, ...] = ("1m", "1H")) -> None:
-    """Fetch what the store lacks for a replay or signal study of ``[start_ms, end_ms)``."""
+def fill(
+    store: HistoryStore, start_ms: int, end_ms: int, bars: tuple[str, ...] = ("1m", "1H"),
+    for_rerun: bool = False,
+) -> None:
+    """Fetch what the store lacks for a replay or signal study of ``[start_ms, end_ms)``;
+    ``for_rerun`` adds what the signal's prompt reads (its bars, funding ahead, open
+    interest)."""
     okx, now = OKX(), _now_ms()
+    if for_rerun:
+        bars = (*bars, SIGNAL_BAR)
     for coin in WATCHLIST:
         store.ensure_spec(okx, coin.swap)
         for bar in bars:
             lookback = ATR_LOOKBACK_HOURS * HOUR_MS if bar == "1H" else 2 * HOUR_MS
+            if bar == SIGNAL_BAR:
+                lookback = (SIGNAL_HOURS + 1) * HOUR_MS
             n = store.ensure_bars(okx, coin.swap, bar, start_ms - lookback, end_ms + FORWARD_HOURS * HOUR_MS, now)
             if n:
                 typer.echo(f"{coin.swap} {bar}: 补了 {n} 根 K 线")
-        n = store.ensure_funding(okx, coin.swap, start_ms - HOUR_MS, end_ms + HOUR_MS, now)
+        ahead = 17 * HOUR_MS if for_rerun else HOUR_MS  # the prompt reads the settlement after the hour
+        n = store.ensure_funding(okx, coin.swap, start_ms - HOUR_MS, end_ms + ahead, now)
         if n:
             typer.echo(f"{coin.swap} 资金费: 补了 {n} 次结算")
+        if for_rerun:
+            n = store.ensure_open_interest(okx, coin.swap, start_ms - 3 * HOUR_MS, end_ms, now)
+            if n:
+                typer.echo(f"{coin.swap} 持仓量: 补了 {n} 个小时点")
 
 
 def _signals(settings: Settings, ledger: Path | None, signals_json: Path | None,
@@ -138,6 +157,51 @@ def replay_command(
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(md.document("日内规则层回放", sections))
         typer.echo(f"报告写到 {out}")
+
+
+@evaluate_app.command("rerun")
+def rerun_command(
+    start: str = typer.Argument(..., help="开始（UTC）"),
+    end: str | None = typer.Argument(None, help="结束（UTC），缺省到当前整点"),
+    cache: Annotated[Path | None, typer.Option(
+        help="存信号的账本文件，缺省为 TRADER_HOME/evaluation/rerun-<模型>-<提示词>.sqlite；"
+             "可直接作为 replay/signals 的 --ledger"
+    )] = None,
+    budget: Annotated[float | None, typer.Option(help="本次最多花多少美元，花到即停（可续跑）")] = None,
+    workers: int = typer.Option(3, help="同时问模型的币数"),
+    capital: float = typer.Option(10_000.0, help="引擎起始资金 USDT"),
+    no_fetch: bool = typer.Option(False, "--no-fetch", help="不补拉行情，只用缓存"),
+) -> None:
+    """Ask the live signal (same prompt, same model) what it would have said each hour
+    of the period, with the engine trading its answers; cached, resumable, budgeted."""
+    settings = Settings.from_env()
+    start_ms, end_ms = _range(start, end)
+    store = HistoryStore(store_path(settings))
+    if not no_fetch:
+        fill(store, start_ms, end_ms, for_rerun=True)
+    market = HistoricalOKX(store, start_ms)
+    signaler = Signaler(settings, market)
+    print_ = signaler.fingerprint()
+    path = cache or store_path(settings).with_name(f"rerun-{print_['model']}-{print_['prompt']}.sqlite")
+    ledger = Ledger(path)
+    before = cache_summary(ledger)
+    typer.echo(f"模型 {print_['model']}，提示词 {print_['prompt']}；缓存 {path}："
+               f"已有 {before['hours']} 小时 {before['signals']} 条信号，累计 {before['cost_usd']:.2f} 美元")
+    result, stats, stopped = rerun(
+        store, ledger, signaler, market, start_ms, end_ms, budget_usd=budget, workers=workers,
+        watchlist=WATCHLIST, capital=capital, log=typer.echo,
+    )
+    typer.echo(
+        f"本次：{stats.hours} 小时，{stats.calls} 次调用（{stats.failures} 次失败），"
+        f"复用 {stats.cached} 条，花费 {stats.spent:.2f} 美元"
+    )
+    for line in stats.errors[-10:]:
+        typer.echo(f"  失败：{line}", err=True)
+    if stopped is not None:
+        typer.echo(f"提前停止：{stopped}", err=True)
+        raise typer.Exit(2)
+    assert result is not None
+    typer.echo(md.replay_table([(result.params, result.policy, result)]))
 
 
 @evaluate_app.command("signals")

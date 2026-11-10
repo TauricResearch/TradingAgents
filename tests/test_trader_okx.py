@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from trader import okx
-from trader.okx import OKX, Bar, ContractSpec, FundingEvent, FundingRate, OKXError
+from trader.okx import OKX, Bar, ContractSpec, FundingEvent, FundingRate, OKXError, OpenInterest
 
 CANDLES = "/api/v5/market/history-candles"
 FUNDING = "/api/v5/public/funding-rate-history"
@@ -48,7 +48,7 @@ class FakeResponse:
 
 
 class FakeSession:
-    """Serves each page once, keyed by (path, after cursor): a list is the ``data``
+    """Serves each page once, keyed by (path, after or end cursor): a list is the ``data``
     of a successful answer, a dict the whole body, a FakeResponse the answer as is.
     ``failures`` go out first instead, one per call whatever it asks for: an Exception
     is raised, a FakeResponse returned. Records every call."""
@@ -65,7 +65,7 @@ class FakeSession:
         if self.failures:
             page = self.failures.pop(0)
         else:
-            page = self.pages.pop((path, params.get("after")))
+            page = self.pages.pop((path, params.get("after", params.get("end"))))
         if isinstance(page, Exception):
             raise page
         if isinstance(page, FakeResponse):
@@ -185,6 +185,25 @@ def test_funding_pages_back_by_funding_time(sleeps):
     events = OKX(session).funding("BTC-USDT-SWAP", settlement(1), settlement(6))
     assert [e.ts for e in events] == [settlement(i) for i in range(1, 6)]
     assert session.calls[0][1] == {"instId": "BTC-USDT-SWAP", "limit": 400, "after": settlement(6)}
+    assert sleeps == [okx._PAGE_PAUSE]
+
+
+OI_HISTORY = "/api/v5/rubik/stat/contracts/open-interest-history"
+
+
+def oi_row(ts, usd):
+    return [str(ts), "12345", "12.345", str(usd)]
+
+
+def test_open_interest_history_pages_back_by_an_end_cursor_sent_a_millisecond_early(sleeps):
+    hour = lambda i: 1_767_225_600_000 + i * 3_600_000  # noqa: E731
+    session = FakeSession({
+        (OI_HISTORY, hour(6) - 1): [oi_row(hour(i), 100.0 + i) for i in (5, 4, 3)],
+        (OI_HISTORY, hour(3) - 1): [oi_row(hour(i), 100.0 + i) for i in (2, 1, 0)],
+    })
+    points = OKX(session).open_interest_history("BTC-USDT-SWAP", "1H", hour(1), hour(6))
+    assert points == [OpenInterest(hour(i), 100.0 + i) for i in range(1, 6)]
+    assert session.calls[0][1] == {"instId": "BTC-USDT-SWAP", "period": "1H", "limit": 100, "end": hour(6) - 1}
     assert sleeps == [okx._PAGE_PAUSE]
 
 

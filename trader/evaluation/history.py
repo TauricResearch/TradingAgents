@@ -9,11 +9,12 @@ range only fetches what is missing.
 from __future__ import annotations
 
 import sqlite3
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from trader.okx import OKX, Bar, ContractSpec, FundingEvent
+from trader.okx import OKX, Bar, ContractSpec, FundingEvent, OpenInterest
 
 MINUTE_MS = 60_000
 HOUR_MS = 3_600_000
@@ -23,6 +24,8 @@ _BAR_MS = {"1m": MINUTE_MS, "5m": 5 * MINUTE_MS, "15m": 15 * MINUTE_MS, "1H": HO
            "4H": 4 * HOUR_MS, "1Dutc": DAY_MS}
 
 FUNDING = "funding"  # the coverage table's name for the funding series
+OPEN_INTEREST = "oi"  # and for the hourly open-interest series
+OI_PERIOD = "1H"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS bars (
@@ -32,6 +35,10 @@ CREATE TABLE IF NOT EXISTS bars (
 );
 CREATE TABLE IF NOT EXISTS funding (
     inst TEXT NOT NULL, ts INTEGER NOT NULL, rate REAL NOT NULL,
+    PRIMARY KEY (inst, ts)
+);
+CREATE TABLE IF NOT EXISTS open_interest (
+    inst TEXT NOT NULL, ts INTEGER NOT NULL, usd REAL NOT NULL,
     PRIMARY KEY (inst, ts)
 );
 CREATE TABLE IF NOT EXISTS covered (
@@ -56,25 +63,34 @@ class HistoryStore:
     def __init__(self, path: Path):
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(path, isolation_level=None)
-        self.db.executescript(SCHEMA)
+        # A rerun reads the store from a few worker threads at once (one per coin);
+        # the lock keeps one statement at a time on the shared connection.
+        self.db = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
+        self.lock = threading.RLock()
+        with self.lock:
+            self.db.executescript(SCHEMA)
+
+    def _query(self, sql: str, params: tuple) -> list:
+        with self.lock:
+            return self.db.execute(sql, params).fetchall()
 
     @contextmanager
     def _transaction(self) -> Iterator[None]:
         # Autocommit mode: one explicit transaction per batch, not one per row.
-        self.db.execute("BEGIN")
-        try:
-            yield
-        except BaseException:
-            self.db.execute("ROLLBACK")
-            raise
-        self.db.execute("COMMIT")
+        with self.lock:
+            self.db.execute("BEGIN")
+            try:
+                yield
+            except BaseException:
+                self.db.execute("ROLLBACK")
+                raise
+            self.db.execute("COMMIT")
 
     # -- reading -------------------------------------------------------------
 
     def bars(self, inst: str, bar: str, start_ms: int, end_ms: int) -> list[Bar]:
         """Stored candles with ``start_ms <= ts < end_ms``, oldest first."""
-        rows = self.db.execute(
+        rows = self._query(
             "SELECT ts, open, high, low, close FROM bars"
             " WHERE inst = ? AND bar = ? AND ts >= ? AND ts < ? ORDER BY ts",
             (inst, bar, start_ms, end_ms),
@@ -84,32 +100,39 @@ class HistoryStore:
     def last_close(self, inst: str, bar: str, before_ms: int) -> float | None:
         """Close of the last stored candle of size ``bar`` that opened before
         ``before_ms``; None when there is none."""
-        row = self.db.execute(
+        rows = self._query(
             "SELECT close FROM bars WHERE inst = ? AND bar = ? AND ts < ? ORDER BY ts DESC LIMIT 1",
             (inst, bar, before_ms),
-        ).fetchone()
-        return None if row is None else row[0]
+        )
+        return rows[0][0] if rows else None
 
     def funding(self, inst: str, start_ms: int, end_ms: int) -> list[FundingEvent]:
         """Stored settlements with ``start_ms <= ts < end_ms``, oldest first."""
-        rows = self.db.execute(
+        rows = self._query(
             "SELECT ts, rate FROM funding WHERE inst = ? AND ts >= ? AND ts < ? ORDER BY ts",
             (inst, start_ms, end_ms),
         )
         return [FundingEvent(*row) for row in rows]
 
+    def open_interest(self, inst: str, start_ms: int, end_ms: int) -> list[OpenInterest]:
+        rows = self._query(
+            "SELECT ts, usd FROM open_interest WHERE inst = ? AND ts >= ? AND ts < ? ORDER BY ts",
+            (inst, start_ms, end_ms),
+        )
+        return [OpenInterest(*row) for row in rows]
+
     def spec(self, inst: str) -> ContractSpec | None:
-        row = self.db.execute(
+        rows = self._query(
             "SELECT contract_value, lot_size, min_size, tick_size FROM specs WHERE inst = ?", (inst,)
-        ).fetchone()
-        return None if row is None else ContractSpec(*row)
+        )
+        return ContractSpec(*rows[0]) if rows else None
 
     def coverage(self, inst: str, series: str) -> list[tuple[int, int]]:
         """The fetched ranges of ``series`` (a bar size or FUNDING), merged, oldest first."""
-        rows = self.db.execute(
+        rows = self._query(
             "SELECT start, end FROM covered WHERE inst = ? AND series = ? ORDER BY start",
             (inst, series),
-        ).fetchall()
+        )
         return _merge(rows)
 
     def gaps(self, inst: str, series: str, start_ms: int, end_ms: int) -> list[tuple[int, int]]:
@@ -147,12 +170,21 @@ class HistoryStore:
             )
             self._cover(inst, FUNDING, start_ms, end_ms)
 
+    def put_open_interest(self, inst: str, points: list[OpenInterest], start_ms: int, end_ms: int) -> None:
+        with self._transaction():
+            self.db.executemany(
+                "INSERT OR REPLACE INTO open_interest (inst, ts, usd) VALUES (?, ?, ?)",
+                [(inst, p.ts, p.usd) for p in points],
+            )
+            self._cover(inst, OPEN_INTEREST, start_ms, end_ms)
+
     def put_spec(self, inst: str, spec: ContractSpec) -> None:
-        self.db.execute(
-            "INSERT OR REPLACE INTO specs (inst, contract_value, lot_size, min_size, tick_size)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (inst, spec.contract_value, spec.lot_size, spec.min_size, spec.tick_size),
-        )
+        with self.lock:
+            self.db.execute(
+                "INSERT OR REPLACE INTO specs (inst, contract_value, lot_size, min_size, tick_size)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (inst, spec.contract_value, spec.lot_size, spec.min_size, spec.tick_size),
+            )
 
     def _cover(self, inst: str, series: str, start_ms: int, end_ms: int) -> None:
         rows = self.db.execute(
@@ -187,6 +219,17 @@ class HistoryStore:
             events = okx.funding(inst, s, e)
             self.put_funding(inst, events, s, e)
             fetched += len(events)
+        return fetched
+
+    def ensure_open_interest(self, okx: OKX, inst: str, start_ms: int, end_ms: int, now_ms: int) -> int:
+        """Fetch the hourly open interest of ``[start_ms, end_ms)`` the store lacks; the
+        current hour's point is not final, so coverage stops at the hour."""
+        closed = min(end_ms, now_ms - now_ms % HOUR_MS)
+        fetched = 0
+        for s, e in self.gaps(inst, OPEN_INTEREST, start_ms, closed):
+            points = okx.open_interest_history(inst, OI_PERIOD, s, e)
+            self.put_open_interest(inst, points, s, e)
+            fetched += len(points)
         return fetched
 
     def ensure_spec(self, okx: OKX, inst: str) -> ContractSpec:

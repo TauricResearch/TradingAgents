@@ -9,8 +9,11 @@ which is what the live job would have seen a few seconds into the minute.
 
 from __future__ import annotations
 
-from trader.evaluation.history import MINUTE_MS, HistoryStore, bar_ms
-from trader.okx import Bar, ContractSpec, FundingEvent, OKXError
+from trader.evaluation.history import HOUR_MS, MINUTE_MS, HistoryStore, bar_ms
+from trader.okx import Bar, ContractSpec, FundingEvent, FundingRate, OKXError
+
+FUNDING_PERIOD_MS = 8 * HOUR_MS
+OI_STALE_MS = 3 * HOUR_MS  # an open-interest point older than this is no reading
 
 
 class HistoricalOKX:
@@ -37,6 +40,27 @@ class HistoricalOKX:
 
     def funding(self, inst_id: str, start_ms: int, end_ms: int) -> list[FundingEvent]:
         return self.store.funding(inst_id, start_ms, min(end_ms, self.now_ms + 1))
+
+    def funding_rate(self, inst_id: str) -> FundingRate:
+        """The funding of the period running at ``now_ms``, as near as history allows:
+        the rate that settled at the end of that period stands for the current rate
+        (live, OKX shows an estimate that converges to it), and the forecast of the
+        period after is unknown (None). OKXError without a settlement after ``now_ms``."""
+        events = self.store.funding(inst_id, self.now_ms + 1, self.now_ms + 2 * FUNDING_PERIOD_MS)
+        if not events:
+            raise OKXError(f"no funding settlement of {inst_id} after {self.now_ms} in the history store")
+        settles = events[0]
+        return FundingRate(
+            rate=settles.rate, time=settles.ts, next_rate=None, next_time=settles.ts + FUNDING_PERIOD_MS
+        )
+
+    def open_interest(self, inst_id: str) -> float:
+        """The last hourly open-interest reading at or before ``now_ms``; OKXError when
+        the store has none within OI_STALE_MS."""
+        points = self.store.open_interest(inst_id, self.now_ms - OI_STALE_MS, self.now_ms + 1)
+        if not points:
+            raise OKXError(f"no open interest of {inst_id} near {self.now_ms} in the history store")
+        return points[-1].usd
 
     def contract_spec(self, inst_id: str) -> ContractSpec:
         spec = self.store.spec(inst_id)

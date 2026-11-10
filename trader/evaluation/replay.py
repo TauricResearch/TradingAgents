@@ -11,6 +11,7 @@ from __future__ import annotations
 import itertools
 import json
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -19,11 +20,16 @@ from trader.evaluation.history import HOUR_MS, MINUTE_MS, HistoryStore
 from trader.evaluation.market import HistoricalOKX
 from trader.intraday.paper import IntradayPaper
 from trader.intraday.settings import DECISION_MINUTE, DEFAULT_PARAMS, Params
-from trader.ledger import Fill, Ledger
+from trader.ledger import Fill, Ledger, Position
 from trader.okx import OKXError
 from trader.settings import WATCHLIST, Coin
 
 DIRECTIONS = ("Long", "Short")
+
+# Makes the hour's signals on the spot: (decision time, the market as of then, the
+# positions held) -> signals. A rerun (Issue #28) passes one; a replay of recorded
+# signals passes none.
+SignalerFn = Callable[[int, "HistoricalOKX", dict[str, Position]], list["Signal"]]
 
 
 @dataclass(frozen=True)
@@ -142,11 +148,16 @@ def replay(
     store: HistoryStore, signals: list[Signal], start_ms: int, end_ms: int, *,
     params: Params = DEFAULT_PARAMS, policy: Policy = DEFAULT_POLICY,
     watchlist: tuple[Coin, ...] = WATCHLIST, capital: float = 10_000.0,
-    ledger_path: Path | None = None,
+    ledger_path: Path | None = None, signaler: SignalerFn | None = None,
+    market: HistoricalOKX | None = None,
 ) -> Result:
     """Run the intraday engine from ``start_ms`` to ``end_ms`` (whole hours, UTC) on
     ``signals``, each hour deciding on the signals recorded in that hour, at the
     minute after the last of them (``DECISION_MINUTE`` when the hour has none).
+
+    With a ``signaler`` the hour's signals are made at ``DECISION_MINUTE`` instead,
+    after the hour's minutes are replayed, seeing the positions held then, as the live
+    job does; ``signals`` is then ignored.
 
     The ledger the engine books into is a scratch file (``ledger_path`` to keep it).
     """
@@ -164,7 +175,8 @@ def replay(
         positions={}, cash=capital, snapshots=[(start, capital)],
         meta={"validation_start": start, "baseline_ref": {}},
     )
-    market = HistoricalOKX(store, start)
+    market = market if market is not None else HistoricalOKX(store, start)
+    market.at(start)
     engine_params = params if policy.conviction_weights is None else replace(params, weights=policy.labels())
     paper = IntradayPaper(ledger, market, watchlist, params=engine_params)
     overlay = _Overlay(policy)
@@ -177,16 +189,21 @@ def replay(
 
     seen_fills = 0
     for hour in range(start, end, HOUR_MS):
-        hourly = by_hour.get(hour, [])
-        latest: dict[str, Signal] = {s.coin: s for s in hourly}  # the last one per coin
-        now = max((s.ts for s in hourly), default=hour + DECISION_MINUTE * MINUTE_MS)
-        now = min(now - now % MINUTE_MS + MINUTE_MS, hour + HOUR_MS - MINUTE_MS)
+        hourly = [] if signaler is not None else by_hour.get(hour, [])
+        if signaler is not None or not hourly:
+            now = hour + DECISION_MINUTE * MINUTE_MS
+        else:
+            now = max(s.ts for s in hourly)
+            now = min(now - now % MINUTE_MS + MINUTE_MS, hour + HOUR_MS - MINUTE_MS)
         market.at(now)
         paper.replay(now)
         for f in ledger.fills()[seen_fills:]:
             if f.reason == "stop" and f.inst in by_coin:
                 overlay.stopped_out(by_coin[f.inst], f.ts)
         seen_fills = len(ledger.fills())
+        if signaler is not None:
+            hourly = signaler(now, market, ledger.positions())
+        latest: dict[str, Signal] = {s.coin: s for s in hourly}  # the last one per coin
         labels = overlay.apply(list(latest.values()), now)
         if labels:
             paper.execute(labels, now)
