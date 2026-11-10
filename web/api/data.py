@@ -305,6 +305,7 @@ def _model(model_id: str, label: str, in_catalog: bool) -> dict:
         "price": [price.input, price.output] if price else None,
         "price_source": price.source if price else None,
         "price_as_of": price.as_of if price else None,
+        "price_until": price.until if price else None,
         "price_note": _price_note(price),
         "in_catalog": in_catalog,
     }

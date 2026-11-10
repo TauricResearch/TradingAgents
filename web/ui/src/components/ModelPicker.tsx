@@ -8,6 +8,7 @@ import {
   priceFields,
   samePrice,
   selectionOf,
+  stalePrice,
   type Draft,
   type Invalid,
 } from '../llmSettings'
@@ -34,6 +35,8 @@ interface Note {
   warn: boolean
   /** The price table's remark, appended to the official price. */
   remark?: string | null
+  /** The official price is past its end date or long unread: it has to be checked. */
+  stale?: string | null
 }
 
 /** Where the price in the fields comes from, under them. */
@@ -45,7 +48,14 @@ function priceNote(draft: Draft, listed: ModelInfo | undefined, price: Price | n
   if (listed?.price) {
     const shown = samePrice(price, listed.price) ? '' : ` ${fmtPricePair(listed.price)}`
     const asOf = listed.price_as_of ? ` · 截至 ${fmtDate(listed.price_as_of)}` : ''
-    return { text: `官方定价${shown}${asOf}`, href: listed.price_source, warn: false, remark: listed.price_note }
+    const today = new Date().toISOString().slice(0, 10)
+    return {
+      text: `官方定价${shown}${asOf}`,
+      href: listed.price_source,
+      warn: false,
+      remark: listed.price_note,
+      stale: stalePrice(listed, today),
+    }
   }
   if (listed) {
     const text = missing ? '官方定价表里没有这个模型，单价要手填' : '官方定价表里没有这个模型'
@@ -178,6 +188,7 @@ export function ModelPicker({ tier, label, providers, current, draft, onChange, 
             <span className={note.warn ? 'text-accent' : undefined}>{note.text}</span>
           )}
           {note.remark && ` · ${note.remark}`}
+          {note.stale && <span className="text-accent"> · {note.stale}</span>}
         </div>
         {invalid && (invalid.input || invalid.output) && (
           <span className="text-[11px] text-down">填写输入和输出单价：不小于 0 的数字</span>

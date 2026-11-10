@@ -537,20 +537,24 @@ def test_models_shows_the_env_models_priced_by_the_table_and_the_catalog(tmp_pat
     assert sonnet["price"] == [2.0, 10.0] and sonnet["price_as_of"] == "2026-11-07"
     assert sonnet["price_source"].startswith("https://")
     assert sonnet["price_note"] == OFFICIAL["claude-sonnet-5"].note  # the table has a remark
+    assert sonnet["price_until"] is None  # open-ended
+    promo = next(m for m in provider(body, "openai")["models"] if m["id"] == "gpt-5.6")
+    assert promo["price_until"] == "2026-11-30"  # a promotional rate names its last day
     opus = next(m for m in anthropic["models"] if m["id"] == "claude-opus-5-5")
     assert opus["price"] == [4.0, 20.0] and opus["price_note"] is None  # priced, nothing to say
     unpriced = next(m for m in provider(body, "google")["models"] if m["id"] == "gemini-3.5-flash")
     assert (
-        unpriced["price"], unpriced["price_source"], unpriced["price_as_of"], unpriced["price_note"]
-    ) == (None,) * 4
+        unpriced["price"], unpriced["price_source"], unpriced["price_as_of"], unpriced["price_note"],
+        unpriced["price_until"],
+    ) == (None,) * 5
 
     # The current models the catalog lacks follow their provider's list, priced by the table.
     assert anthropic["models"][-2:] == [
         {"id": ENV_QUICK, "label": ENV_QUICK, "modes": ["quick"], "price": [0.1, 0.5],
-         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07",
+         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07", "price_until": None,
          "price_note": HAIKU_NOTE, "in_catalog": False},
         {"id": ENV_DEEP, "label": ENV_DEEP, "modes": ["deep"], "price": [2.0, 10.0],
-         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07",
+         "price_source": sonnet["price_source"], "price_as_of": "2026-11-07", "price_until": None,
          "price_note": None, "in_catalog": False},
     ]
 

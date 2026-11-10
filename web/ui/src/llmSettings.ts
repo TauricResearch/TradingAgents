@@ -1,7 +1,7 @@
 // The settings page's LLM form (ADR 0007): one draft per tier, and the helpers its parts share.
 
 import type { ModelInfo, Price, ProviderInfo, Tier, TierSelection } from './api'
-import { fmtNum, fmtUsd } from './format'
+import { fmtDate, fmtNum, fmtUsd } from './format'
 
 export const TIERS: { key: Tier; label: string }[] = [
   { key: 'deep', label: '深度' },
@@ -81,3 +81,18 @@ export function fmtPrice(x: number): string {
 
 /** "$5.00 / $25.00": input / output. */
 export const fmtPricePair = (price: Price): string => `${fmtPrice(price[0])} / ${fmtPrice(price[1])}`
+
+/** Days after which an official price unread since is shown as to be checked (ADR 0007). */
+export const STALE_PRICE_DAYS = 90
+
+/** Why a listed price is to be checked, for `today` (an ISO date); null while it is current. */
+export function stalePrice(listed: ModelInfo, today: string): string | null {
+  if (listed.price_until && listed.price_until < today) {
+    return `该价格 ${fmtDate(listed.price_until)} 已到期，待核对官网`
+  }
+  if (listed.price_as_of) {
+    const days = (Date.parse(today) - Date.parse(listed.price_as_of)) / 86_400_000
+    if (days > STALE_PRICE_DAYS) return `价格读取已超过 ${STALE_PRICE_DAYS} 天，待核对官网`
+  }
+  return null
+}

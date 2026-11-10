@@ -49,6 +49,16 @@ def test_every_price_names_its_page_and_the_day_it_was_read():
         assert read_on <= date.today(), model_id
 
 
+def test_a_rate_with_an_end_date_names_it_after_the_day_it_was_read():
+    ending = {model_id: price for model_id, price in OFFICIAL.items() if price.until}
+    assert {"gpt-5.6-sol", "gpt-5.6", "gemini-3.8-flash"} <= set(ending)
+    for model_id, price in ending.items():
+        until = date.fromisoformat(price.until)
+        assert until.isoformat() == price.until, model_id
+        assert until >= date.fromisoformat(price.as_of), model_id
+        assert price.note, model_id  # what applies after it, or that the page does not say
+
+
 def test_lookup_finds_a_model_by_a_dotted_or_provider_prefixed_id():
     sonnet = OFFICIAL["claude-sonnet-5-5"]
     assert lookup("claude-sonnet-5.5") is sonnet

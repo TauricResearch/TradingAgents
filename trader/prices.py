@@ -40,6 +40,7 @@ class Price:
     source: str     # the official pricing page the numbers were read from
     as_of: str      # YYYY-MM-DD the page was read
     note: str = ""  # tier taken, currency conversion, anything a reader should know
+    until: str | None = None  # YYYY-MM-DD the last day the rate holds, when the page says
 
 
 _CNY_PER_USD = 7.2
@@ -71,11 +72,13 @@ OFFICIAL: dict[str, Price] = {
         4.0, 20.0, _OPENAI, "2026-11-07",
         "Promotional rate, available until 2026-11-30; the page does not give the rate after "
         "it. Short-context rate (up to 272K input tokens); longer prompts $8/$30.",
+        until="2026-11-30",
     ),
     "gpt-5.6": Price(
         4.0, 20.0, "https://developers.openai.com/api/docs/models/gpt-5.6", "2026-11-07",
         "Alias that routes to gpt-5.6-sol, at its price: promotional until 2026-11-30, for "
         "prompts up to 272K input tokens (longer: $8/$30).",
+        until="2026-11-30",
     ),
     "gpt-5.6-terra": Price(
         2.0, 12.0, _OPENAI, "2026-11-07",
@@ -135,6 +138,7 @@ OFFICIAL: dict[str, Price] = {
     "gemini-3.8-flash": Price(
         0.75, 3.75, _GOOGLE, "2026-11-07",
         "Rate through 2026-12-31; $1.50/$7.50 from 2027-01-01.",
+        until="2026-12-31",
     ),
     "gemini-3.5-flash-lite": Price(0.3, 2.5, _GOOGLE, "2026-11-07"),
     "gemini-3.1-flash-lite": Price(

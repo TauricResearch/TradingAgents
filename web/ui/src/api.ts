@@ -299,6 +299,8 @@ export interface ModelInfo {
   /** URL of the official price page. */
   price_source: string | null
   price_as_of: string | null
+  /** The last day the rate holds (a promotion's end), when the price page says; else null. */
+  price_until: string | null
   /** The price table's remark on the price, e.g. the tier it is or when a promotion ends. */
   price_note: string | null
   /** Listed by the upstream catalog; false for a configured model the catalog lacks. */

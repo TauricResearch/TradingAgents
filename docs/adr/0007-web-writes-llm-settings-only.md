@@ -8,4 +8,4 @@
 
 - 看板没有登录，只绑本机回环；写入面可用 `TRADER_WEB_TOKEN` 加一道 Bearer 令牌门槛（设了就必须带，没设就开放，`GET /api/models` 的 `write_protected` 说明当前是哪种），适合 tailnet 内的自用；产品阶段开放给用户前，仍要先加登录和审计。
 - `Settings.from_env` 和 `build_config` 多一层覆盖来源，`.env` 只剩下密钥和默认值的作用。
-- 官方定价表要人工维护，表里要带 `as_of` 日期，过期的价格要能在界面上看出来。
+- 官方定价表要人工维护，表里要带读取日期 `as_of`，有截止日的价格（促销价）要带 `until`；设置页的模型选择器对截止日已过、或 `as_of` 超过 90 天的价格标出“待核对官网”（`llmSettings.ts` 的 `stalePrice`）。
