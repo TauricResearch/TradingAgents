@@ -22,6 +22,7 @@ mini 上的部署（`git pull`、`launchctl kickstart`）由用户执行，按 r
 | 12 | ledger 索引/WAL/反向依赖 | P3 | done | — | SCHEMA 5 个索引；写端 `journal_mode=WAL`；`fills()` 按 (ts, id) 排序；`SignalLike` Protocol 替代 intraday 导入 | `tests/test_trader_layering.py` 9 个测试；CI 42769530175 绿 | 手工备份账本要用 `.backup`，不能只 cp 主文件 |
 | 13 | events/attempts 分页、research_index 缓存 | P3 | done | — | `since`/`limit`（默认 500）；`final_rating` 按 (mtime, size) 缓存；History 页显式传 limit | 2 个新测试；CI 42770062493 绿 | 部署要重启 web |
 | 14 | 写端点认证 | P2 | done | — | `Settings.web_token`；`_write_auth` 依赖；`/api/models.write_protected`；UI 令牌框（sessionStorage） | 2 个新测试 + 真服务器 curl；CI 42767234724 绿 | 部署：.env 加 TRADER_WEB_TOKEN + kickstart web（不用改 plist） |
+| 15 | 账户目录备份命令（WAL 后 cp 不安全） | P2 | done | — | `trader/backup.py` + `python -m trader backup DEST [--with-logs]`：SQLite 备份 API 一致快照，副本单文件；roadmap 补备份/恢复说明 | `tests/test_trader_backup.py` 3 个测试；CI 42772492468 绿 | 复审第 2 批时发现；是否排定时备份由用户定 |
 
 ## 执行记录
 
@@ -39,3 +40,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）由用户执行，按 r
 | 2026-11-10 | #13 | `cursor/issue-13-web-pagination-rating-cache-6e50` → 7aac9bb（ff） | 验收通过（CI 42770062493）；全量 1869 通过，tsc/oxlint/build 通过 |
 | 2026-11-10 | #7 | `cursor/issue-7-price-expiry-hint-6e50` → acbfc05（ff） | 步骤 3 完成（CI 42770632478）；全量 1870 通过；步骤 1–2 等到期日，Issue 保持 blocked |
 | 2026-11-10 | #10 | 无提交（仓库维护） | 用户选 A：删 t1/t2/t5/t7 worktree+分支；t6 有未提交改动保留，等用户；Issue blocked |
+| 2026-11-10 | #15 | 新开（复审发现）；`cursor/issue-15-account-backup-6e50` → 044a8be（ff） | 验收通过（CI 42772492468）；全量 1873 通过 |
