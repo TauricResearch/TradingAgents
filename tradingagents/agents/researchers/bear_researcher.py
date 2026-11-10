@@ -34,6 +34,8 @@ Key points to focus on:
 
 - Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
 - Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
+- Survival: For a small company, press on how many quarters of cash it has left, what debt falls due and when, and how often it has issued new shares, since every issue dilutes the owners already in.
+- People: Question the people running it where the reports give grounds: a board or CEO that changed recently, insiders selling, thin insider ownership. Do not invent a history for anyone.
 - Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
 - Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
 - Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.

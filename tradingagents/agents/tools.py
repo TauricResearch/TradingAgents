@@ -12,6 +12,7 @@ from langgraph.prebuilt import InjectedState
 from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.router import no_data_available, route_to_vendor, vendor_unavailable
+from tradingagents.dataflows.vendors import brreg
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 
@@ -227,6 +228,26 @@ def get_insider_transactions(
         str: A report of insider transaction data
     """
     return route_to_vendor("get_insider_transactions", ticker, trade_date or None)
+
+
+@tool
+def get_company_officers(
+    company_name: Annotated[str, "the company's legal name as registered in Norway, e.g. 'Kitron ASA'"],
+) -> str:
+    """
+    Retrieve who runs a Norwegian company: board members, CEO and auditor, with
+    founding date, industry and any bankruptcy or liquidation flag, from the
+    Brønnøysund Register Centre. Only companies registered in Norway are covered.
+    The register is current-only, so the roles are today's, not as of a past date.
+    Args:
+        company_name (str): The company's legal name, e.g. 'Kitron ASA'
+    Returns:
+        str: A report of the company's registered officers
+    """
+    try:
+        return brreg.get_company_officers(company_name)
+    except VendorUnavailableError as e:
+        return vendor_unavailable("get_company_officers", str(e))
 
 
 @tool
