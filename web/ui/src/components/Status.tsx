@@ -1,4 +1,5 @@
-import { ApiError } from '../api'
+import { ApiError, type MarketStatus } from '../api'
+import { fmtTime } from '../format'
 
 export function Loading({ label = '加载中…' }: { label?: string }) {
   return (
@@ -41,6 +42,25 @@ export function ErrorBox({ error, onRetry }: { error: Error; onRetry?: () => voi
           重试
         </button>
       )}
+    </div>
+  )
+}
+
+/**
+ * Banner while the API gets no quotes from OKX: prices shown are the last ones it
+ * got, and what it never got shows as "—". Nothing while the market is fine.
+ */
+export function MarketNote({ market }: { market: MarketStatus | undefined }) {
+  if (!market || market.ok) return null
+  return (
+    <div
+      className="rounded-sm border border-accent/50 bg-accent/10 px-3 py-1.5 text-[12px] text-fg"
+      role="status"
+      title={market.error ?? undefined}
+    >
+      <span className="font-medium text-accent">行情暂不可用</span>
+      {market.since && <span className="num text-muted">（自 {fmtTime(market.since)} 起连不上 OKX）</span>}
+      ：净值和现价按最后拿到的报价显示，没拿到过的显示“—”；账本里的现金、持仓、成交不受影响。
     </div>
   )
 }

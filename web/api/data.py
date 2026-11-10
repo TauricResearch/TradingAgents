@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -18,10 +19,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import requests
+
 from trader import jobs, overrides, prices, report, rules, settings as strategy_constants
 from trader.intraday import report as intraday_report
 from trader.ledger import Ledger
-from trader.okx import DAY_MS, OKX, Bar
+from trader.okx import DAY_MS, OKX, Bar, OKXError
 from trader.paper import Paper
 from trader.research import build_config
 from trader.settings import BENCHMARK, BUDGET_LEARNING_DAYS, WATCHLIST, Coin, Settings
@@ -32,6 +35,10 @@ from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 
 PRICE_TTL = 30       # seconds a last price is reused
 BARS_TTL = 10 * 60   # seconds a daily candle series is reused
+FAILURE_TTL = 20     # seconds OKX is left alone after a request to it failed
+# What a failed OKX request raises: the client's own error, or requests' for a
+# connection that failed, timed out or answered with a status it retried out on.
+MARKET_ERRORS = (requests.RequestException, OKXError)
 RECORD_NAME = re.compile(r"^full_states_log_(\d{4}-\d{2}-\d{2})\.json$")
 
 
@@ -78,12 +85,26 @@ def open_ledger(account: Account) -> Iterator[Ledger]:
         ledger.db.close()
 
 
+class MarketUnavailable(RuntimeError):
+    """OKX could not be asked and no earlier answer is held; ``Market.status`` says why."""
+
+
 class Market:
-    """OKX quotes behind a TTL cache: a last price for PRICE_TTL, candles for BARS_TTL."""
+    """OKX quotes behind a TTL cache: a last price for PRICE_TTL, candles for BARS_TTL.
+
+    When a request to OKX fails (MARKET_ERRORS), the value fetched before, however
+    old, is served instead, OKX is left alone for FAILURE_TTL, and ``status`` reports
+    the failure until a request succeeds again; a quote never fetched raises
+    MarketUnavailable. One request at a time: FastAPI calls this from worker threads.
+    """
 
     def __init__(self, okx: OKX):
         self.okx = okx
+        self._lock = threading.Lock()
         self._cache: dict[tuple, tuple[float, object]] = {}  # key -> (expires at, value)
+        self._failed_at: float | None = None  # monotonic time of the last failure, else None
+        self._failed_since_ms: int | None = None  # when the failures began, UTC milliseconds
+        self._error: str | None = None
 
     def last_price(self, inst: str) -> float:
         return self._cached(("last", inst), PRICE_TTL, lambda: self.okx.last_price(inst))
@@ -92,13 +113,41 @@ class Market:
         key = ("bars", inst, bar, start_ms, end_ms)
         return self._cached(key, BARS_TTL, lambda: self.okx.bars(inst, bar, start_ms, end_ms))
 
+    def status(self) -> dict:
+        """``{"ok": True}`` after a request to OKX succeeded last; else ``ok`` False with
+        the ``error`` and ``since`` when the failures began (ISO 8601)."""
+        with self._lock:
+            if self._failed_at is None:
+                return {"ok": True, "error": None, "since": None}
+            return {"ok": False, "error": self._error, "since": _iso(self._failed_since_ms)}
+
     def _cached(self, key: tuple, ttl: float, fetch: Callable[[], object]):
-        hit = self._cache.get(key)
-        if hit and hit[0] > time.monotonic():
-            return hit[1]
-        value = fetch()
-        self._cache[key] = (time.monotonic() + ttl, value)
-        return value
+        with self._lock:
+            now = time.monotonic()
+            hit = self._cache.get(key)
+            if hit and hit[0] > now:
+                return hit[1]
+            if self._failed_at is not None and now - self._failed_at < FAILURE_TTL:
+                return self._stale(hit)
+            try:
+                value = fetch()
+            except MARKET_ERRORS as exc:
+                self._failed_at = time.monotonic()
+                if self._failed_since_ms is None:
+                    self._failed_since_ms = _ms(_now())
+                self._error = f"{type(exc).__name__}: {exc}"[:200]
+                return self._stale(hit)
+            self._failed_at = self._failed_since_ms = self._error = None
+            if key[0] == "bars":  # one candle series per instrument and bar size
+                for old in [k for k in self._cache if k[:3] == key[:3] and k != key]:
+                    del self._cache[old]
+            self._cache[key] = (time.monotonic() + ttl, value)
+            return value
+
+    def _stale(self, hit: tuple[float, object] | None):
+        if hit is None:
+            raise MarketUnavailable(self._error)
+        return hit[1]
 
 
 # -- strategy -----------------------------------------------------------------
@@ -283,15 +332,24 @@ def summary(account: Account) -> dict:
 
 
 def overview(account: Account, ledger: Ledger, market: Market) -> dict:
+    """GET /api/accounts/{id}/overview. What needs a quote OKX cannot give right now is
+    null (``equity``, ``drawdown``, a position's price fields, the baselines); ``market``
+    says whether OKX answered (``Market.status``). The ledger's own figures always show."""
     now = _now()
     trade_date = jobs.trade_date_for(now)
     paper = Paper(ledger, market, account.watchlist)
     positions = ledger.positions()
-    prices = {inst: market.last_price(inst) for inst in positions}
-    equity, peak = paper.equity(prices), ledger.get("peak")
+    prices = {inst: _quote(market, inst) for inst in positions}
+    equity = _marked(ledger, positions, prices)
+    peak = ledger.get("peak")
     series = _net_equity(account, ledger)
     values = [v for _, v in series]
-    equal, btc = report.baselines(paper, [t for t, _ in series], values[0]) if series else ([], [])
+    try:
+        equal, btc = (
+            report.baselines(paper, [t for t, _ in series], values[0]) if series else ([], [])
+        )
+    except MarketUnavailable:
+        equal, btc = [], []
     if account.intraday:  # spend in the signals table, no budget and no ratings (ADR 0006)
         llm, latest = _intraday_llm(ledger, now), None
     else:
@@ -312,7 +370,7 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
         "equity": equity,
         "cash": ledger.get("cash"),
         "peak": peak,
-        "drawdown": rules.drawdown(equity, peak),
+        "drawdown": rules.drawdown(equity, peak) if equity is not None else None,
         "halted": ledger.get("halted"),
         "processed_to": _iso(ledger.get("processed_to")),
         "validation_start": _iso(ledger.get("validation_start")),
@@ -327,7 +385,25 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
             _position(account, inst, pos, prices[inst]) for inst, pos in positions.items()
         ],
         "latest": latest,
+        "market": market.status(),
     }
+
+
+def _quote(market: Market, inst: str) -> float | None:
+    """The last price of ``inst``; None when OKX cannot give one now."""
+    try:
+        return market.last_price(inst)
+    except MarketUnavailable:
+        return None
+
+
+def _marked(ledger: Ledger, positions: dict, prices: dict[str, float | None]) -> float | None:
+    """Cash plus the positions marked at ``prices``; None when a price is missing."""
+    if any(price is None for price in prices.values()):
+        return None
+    return ledger.get("cash") + sum(
+        p.qty * (prices[inst] - p.entry) for inst, p in positions.items()
+    )
 
 
 def _net_equity(account: Account, ledger: Ledger) -> list[tuple[int, float]]:
@@ -369,7 +445,8 @@ def _performance(values: list[float]) -> dict | None:
     }
 
 
-def _position(account: Account, inst: str, pos, price: float) -> dict:
+def _position(account: Account, inst: str, pos, price: float | None) -> dict:
+    """One open position; the fields priced at ``price`` are null without one."""
     return {
         "inst": inst,
         "coin": account.coin_of(inst),
@@ -377,9 +454,11 @@ def _position(account: Account, inst: str, pos, price: float) -> dict:
         "entry": pos.entry,
         "stop": pos.stop,
         "price": price,
-        "notional": abs(pos.qty) * price,
-        "unrealized": pos.qty * (price - pos.entry),
-        "stop_distance": abs(pos.stop - price) / price if pos.stop is not None else None,
+        "notional": abs(pos.qty) * price if price is not None else None,
+        "unrealized": pos.qty * (price - pos.entry) if price is not None else None,
+        "stop_distance": (
+            abs(pos.stop - price) / price if pos.stop is not None and price is not None else None
+        ),
     }
 
 
@@ -424,21 +503,30 @@ def _attempt_totals(ledger: Ledger) -> dict[tuple[str, str], dict]:
 
 
 def equity(account: Account, ledger: Ledger, market: Market) -> dict:
-    """The midnight equity of the validation period against the baselines, and live equity."""
-    paper = Paper(ledger, market, account.watchlist)
-    live = paper.equity({inst: market.last_price(inst) for inst in ledger.positions()})
+    """The midnight equity of the validation period against the baselines, and live
+    equity. Without quotes from OKX the live equity and the baselines are null and
+    ``market`` says so; the midnight series is the ledger's and always shows."""
+    positions = ledger.positions()
+    live = _marked(ledger, positions, {inst: _quote(market, inst) for inst in positions})
     start = ledger.get("validation_start")
     raw = ledger.equity_series(start) if start is not None else []
     points = []
     if raw:
         net = _net_equity(account, ledger)  # the same midnights, less the LLM spend
-        baselines = _baselines(market, account.watchlist, [t for t, _ in raw], net[0][1])
+        try:
+            baselines = _baselines(market, account.watchlist, [t for t, _ in raw], net[0][1])
+        except MarketUnavailable:
+            baselines = [(None, None)] * len(raw)
         points = [
             {"ts": _iso(ts), "strategy": value, "strategy_net": net_value,
              "equal_weight": equal, "btc": btc}
             for (ts, value), (_, net_value), (equal, btc) in zip(raw, net, baselines, strict=True)
         ]
-    return {"points": points, "live": {"ts": _iso(_ms(_now())), "equity": live}}
+    return {
+        "points": points,
+        "live": {"ts": _iso(_ms(_now())), "equity": live},
+        "market": market.status(),
+    }
 
 
 def _baselines(

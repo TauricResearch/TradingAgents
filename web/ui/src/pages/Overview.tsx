@@ -11,7 +11,7 @@ import { Num } from '../components/Num'
 import { Panel } from '../components/Panel'
 import { PerfTable } from '../components/PerfTable'
 import { PositionsTable } from '../components/PositionsTable'
-import { ErrorBox, Loading, StaleNote } from '../components/Status'
+import { ErrorBox, Loading, MarketNote, StaleNote } from '../components/Status'
 import { Welcome } from '../components/Welcome'
 import { fmtDate, fmtDrawdown, fmtNum, fmtPct, fmtSigned, fmtTime, fmtUsdt, tone } from '../format'
 import { useFetch } from '../hooks'
@@ -30,12 +30,17 @@ export function Overview() {
 
   const ov = overview.data
   const perf = ov.performance.strategy
-  const unrealized = ov.positions.reduce((acc, p) => acc + p.unrealized, 0)
+  // Null once a position has no quote: a partial sum would read as the whole.
+  const unrealized = ov.positions.reduce<number | null>(
+    (acc, p) => (acc === null || p.unrealized === null ? null : acc + p.unrealized),
+    0,
+  )
   const noteFor = (x: number | null | undefined, ok = '') => (x === null || x === undefined ? INSUFFICIENT : ok)
 
   return (
     <div className="flex flex-col gap-3">
       <Welcome />
+      <MarketNote market={ov.market} />
       <KpiStrip>
         <Kpi label="净值 USDT" value={fmtUsdt(ov.equity)} note={`现金 ${fmtUsdt(ov.cash)}`} help="equity" />
         <Kpi

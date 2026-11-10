@@ -4,6 +4,7 @@ import sqlite3
 from datetime import UTC, datetime
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
 
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
@@ -315,6 +316,94 @@ def test_quotes_are_cached_between_requests(tmp_path):
         client.get("/api/accounts/paper/equity")
     assert okx.calls.count(("last", BTC.swap)) == 1
     assert sum(1 for kind, _ in okx.calls if kind == "bars") == 3  # one spot series per coin
+
+
+class DownOKX(CountingOKX):
+    """CountingOKX whose every request fails like an unreachable host while ``down``."""
+
+    def __init__(self):
+        super().__init__()
+        self.down = False
+
+    def last_price(self, inst):
+        if self.down:
+            self.calls.append(("last", inst))
+            raise requests.ConnectionError("Host is down")
+        return super().last_price(inst)
+
+    def bars(self, inst, bar, start_ms, end_ms):
+        if self.down:
+            self.calls.append(("bars", inst))
+            raise requests.ConnectionError("Host is down")
+        return super().bars(inst, bar, start_ms, end_ms)
+
+
+def test_overview_and_equity_degrade_when_okx_is_down_from_the_start(tmp_path):
+    okx = DownOKX()
+    okx.down = True
+    client = build(tmp_path, okx)
+
+    response = client.get("/api/accounts/paper/overview")
+    assert response.status_code == 200
+    body = response.json()
+    # What needs a quote is null; the ledger's own figures still show.
+    assert body["equity"] is None and body["drawdown"] is None
+    assert body["cash"] == 10_000.0 and body["peak"] == 10_000.0 and body["days"] == 2
+    assert body["performance"]["strategy"]["cumulative"] == pytest.approx(0.00485)
+    assert body["performance"]["equal_weight"] is None and body["performance"]["btc"] is None
+    [position] = body["positions"]
+    assert position["qty"] == -0.02 and position["entry"] == 80_000.0
+    assert position["stop"] == 85_000.0
+    assert position["price"] is None and position["notional"] is None
+    assert position["unrealized"] is None and position["stop_distance"] is None
+    assert body["market"] == {
+        "ok": False, "error": "ConnectionError: Host is down", "since": "2026-01-10T00:30:00Z",
+    }
+
+    equity = client.get("/api/accounts/paper/equity").json()
+    assert equity["live"]["equity"] is None and equity["market"]["ok"] is False
+    assert [p["strategy"] for p in equity["points"]] == [10_000.0, 10_100.0, 10_050.0]
+    assert all(p["equal_weight"] is None and p["btc"] is None for p in equity["points"])
+    # OKX was asked once, for the price, and is left alone for FAILURE_TTL after that.
+    assert okx.calls == [("last", BTC.swap)]
+
+
+def test_a_failed_quote_serves_the_last_one_until_okx_answers_again(tmp_path, monkeypatch):
+    clock = [1_000.0]
+    monkeypatch.setattr(data.time, "monotonic", lambda: clock[0])
+    okx = DownOKX()
+    client = build(tmp_path, okx)
+    fresh = client.get("/api/accounts/paper/overview").json()
+    assert fresh["equity"] == pytest.approx(10_020.0)
+    assert fresh["market"] == {"ok": True, "error": None, "since": None}
+
+    okx.down = True
+    clock[0] += data.PRICE_TTL + 1  # the price expired, and asking for it again fails
+    stale = client.get("/api/accounts/paper/overview").json()
+    assert stale["equity"] == pytest.approx(10_020.0)  # marked at the last price known
+    assert stale["positions"][0]["price"] == 79_000.0
+    assert stale["performance"]["btc"]["cumulative"] == pytest.approx(0.01)  # cached candles
+    assert stale["market"]["ok"] is False and stale["market"]["since"] == "2026-01-10T00:30:00Z"
+    asked = len(okx.calls)
+    clock[0] += data.FAILURE_TTL - 1
+    client.get("/api/accounts/paper/overview")
+    assert len(okx.calls) == asked  # within FAILURE_TTL OKX is not asked
+
+    okx.down = False
+    clock[0] += 2
+    back = client.get("/api/accounts/paper/overview").json()
+    assert back["market"] == {"ok": True, "error": None, "since": None}
+    assert okx.calls[asked:] == [("last", BTC.swap)]
+
+
+def test_a_market_failure_outside_the_degrading_routes_is_a_503(tmp_path, monkeypatch):
+    def unreachable(*args, **kwargs):
+        raise requests.ConnectionError("Host is down")
+
+    monkeypatch.setattr(data, "overview", unreachable)
+    response = build(tmp_path).get("/api/accounts/paper/overview")
+    assert response.status_code == 503
+    assert response.json()["detail"].endswith("ConnectionError: Host is down")
 
 
 def test_the_web_never_writes_the_ledger(tmp_path):

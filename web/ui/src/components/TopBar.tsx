@@ -97,7 +97,7 @@ export function TopBar() {
           <span className="text-muted">
             回撤
             <Help k="drawdown" align="end" className="mx-1" />
-            <span className={`num ${ov && ov.drawdown > 0 ? 'text-down' : 'text-fg'}`}>
+            <span className={`num ${ov?.drawdown != null && ov.drawdown > 0 ? 'text-down' : 'text-fg'}`}>
               {fmtDrawdown(ov?.drawdown)}
             </span>
           </span>
