@@ -30,6 +30,7 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 20 | Demo 执行器（对账优先、跟日内信号下单、交易所侧止损、熔断） | P1 | done | #19 | `trader/demo/{account,job,report,settings}.py`：sync 以交易所为准入账（余额/持仓/成交/资金费/条件单，成交按 clOrdId 前缀归因），日内 `decided_hour` 到位后按同一套仓位规则下市价单（clOrdId 幂等、51016 回读），止损为交易所侧 reduce-only 条件单只收紧，熔断 close-position + 撤单 + halted；CLI `demo init|run|sync|report|resume`；launchd :10 等日内 :03 最多 15 分钟；顺带 `ContractSpec.tick_size`、`close_position(client_id=)` | 新增 39 个测试（仿真交易所）：开/加/反手/平/缺信号/止损触发对账/资金费/跨零点/熔断+resume/重跑幂等/对不上账跳过并限频告警/等决策超时/日内熔断跟随/CLI；全量 1946 通过；CI 42801935532 | 2026-11-10 完成（2d9c258、d415851、6fc8bf2）；未部署 mini，等 #22 |
 | 21 | 看板接入 demo 账户 | P2 | done | #20 | accounts 含 demo；`/api/accounts/demo/execution`（上次对账：权益/钱包/持仓含杠杆、强平价、止损/挂着的止损单/问题/熔断）和 `/mirror`（与日内并排：持仓方向、逐小时成交与滑点 bp、两边累计收益），非 demo 账户 404；UI：顶栏 Demo、总览「执行对账」面板替代 LLM 面板、策略系列标「策略（交易所权益）」、历史页「与日内对照」页签、成交原因「非程序」、帮助 execution/mirror、指南第 10 节 | `tests/test_web_api_demo.py` 9 个；全量 1955；tsc/eslint/vite build；本机合成账本预览三处页面 | 已关（CI 42805364239）；提交 3964584 + 9c35252；未部署 mini，等 #22 |
 | 22 | Demo 并行验收（mini 部署、7 个交易日对照报告） | P2 | in-progress | #20 #21 | 2026-11-10 11:53Z 用户授权（选 A）后部署：mini → 2a7a8f9、web 重启；`demo check` 通过（跨币种保证金、net、read+trade）；`demo init` 本金 5,000 USDT；launchd demo 作业已加载（:10） | 每小时按时运行；跑满 7 个交易日出 `docs/reports/demo-parallel-run.md`，结论进 roadmap | 观察中；首次运行 12:10Z |
+| 23 | demo check/init 用探针验证 API key 的交易权限（50123 到首次下单才暴露） | P2 | done | #20 | `OKXPrivate.check_trade_permission`：撤一张不存在的订单，50xxx 即权限不足，51400 即能下单；check 打印结论，init 先探再改设置；账户模式档位用 OKX 现名（合约模式）；下单预检接口不能用（只对跨币种/组合保证金开放） | +4 测试，全量 1959；mini 真 key 验过两种结果 | 已关（CI 42816890344）；提交 e7f8dbe；未部署 mini |
 
 ## 执行记录
 
@@ -57,3 +58,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | #20 | `cursor/issue-20-demo-executor-6e50` → 2d9c258（okx tick/clOrdId）+ d415851（demo account/report）+ 6fc8bf2（job/CLI/plist/roadmap）（ff） | 验收通过（CI 42801935532）；全量 1946 通过；测试抓到并修了一个 bug（熔断后再次对账时丢失熔断告警）；未部署 mini |
 | 2026-11-10 | #21 | `cursor/issue-21-dashboard-demo-6e50` → 3964584（web api）+ 9c35252（ui）（ff） | 验收通过（CI 42805364239）；全量 1955 通过；本机合成账本预览了总览/历史/指南；未部署 mini |
 | 2026-11-10 | 部署 + #22 | mini db7a7d0 → 2a7a8f9 | 用户授权（选 A）；pull + uv + rsync dist + kickstart web；模拟盘账户模式原为现货，用户改成跨币种保证金后 `demo check`/`demo init`（本金 5,000）通过；装并加载 com.tradingagents.trader.demo；/api/accounts/demo/{overview,execution,mirror} 200；daily/intraday/mark 未动 |
+| 2026-11-10 | #23 | 首次 demo 运行暴露（三笔单 50123）后新开；`cursor/issue-23-demo-precheck-6e50` → e7f8dbe（ff） | 验收通过（CI 42816890344）；全量 1959 通过；用户已把 key 权限补上、账户模式改为合约模式，模拟盘 13:10Z 起正常下单；未部署 mini |
