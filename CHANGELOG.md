@@ -19,12 +19,14 @@ Istruzioni per l'agente AI:
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-11-10
+
 ### Added
 
 - **Version badge in the web console.** The page header shows the running
-  version (`v0.7.1`) as a pill, and `/api/health` and `/api/options` return it
-  as `version`, so a browser tab can be matched to the build it is served by.
-  The start-up line of `python -m webapp` names the same version.
+  version (e.g. `v0.8.0`) as a pill, and `/api/health` and `/api/options`
+  return it as `version`, so a browser tab can be matched to the build it is
+  served by. The start-up line of `python -m webapp` names the same version.
 - **Deterministic arithmetic validator (P0-B).** New module
   (`tradingagents/dataflows/arithmetic.py`): percentage moves and distances
   from reference levels are computed as
