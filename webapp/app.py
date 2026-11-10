@@ -28,6 +28,7 @@ from cli.prompts import (
     filter_analysts_for_asset_type,
     normalize_ticker_symbol,
 )
+from tradingagents import __version__
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.api_key_env import get_api_key_env
@@ -150,12 +151,13 @@ def create_app(manager: RunManager | None = None, results_dir: Path | None = Non
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"status": "ok", "today": today()}
+        return {"status": "ok", "today": today(), "version": __version__}
 
     @app.get("/api/options")
     def options() -> dict:
         """Everything the form needs to render, in one round trip."""
         return {
+            "version": __version__,
             "providers": _providers(),
             "analysts": [
                 {

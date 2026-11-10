@@ -31,6 +31,7 @@ const els = {
   start: document.getElementById("start"),
   cancel: document.getElementById("cancel"),
   serverState: document.getElementById("server-state"),
+  appVersion: document.getElementById("app-version"),
   refreshOptions: document.getElementById("refresh-options"),
 
   runEmpty: document.getElementById("run-empty"),
@@ -279,6 +280,8 @@ async function loadOptions() {
   try {
     const data = await api("/api/options");
     state.options = data;
+    els.appVersion.textContent = `v${data.version}`;
+    els.appVersion.title = `TradingAgents ${data.version}, served by this process`;
     state.providers = new Map(data.providers.map((p) => [p.key, p]));
 
     els.date.value = data.defaults.today;
@@ -317,6 +320,7 @@ async function loadOptions() {
   } catch (error) {
     els.serverState.textContent = "offline";
     els.serverState.className = "pill pill-failed";
+    els.appVersion.textContent = "v?";
     showFormError(`Could not load the options: ${error.message}`);
   }
 }

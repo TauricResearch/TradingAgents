@@ -87,6 +87,12 @@ class TestApi:
         assert [a["key"] for a in options["analysts"]] == ["market", "social", "news", "fundamentals"]
         assert {d["value"] for d in options["depths"]} == {1, 3, 5}
 
+    def test_health_and_options_report_the_served_version(self, client):
+        from tradingagents import __version__
+
+        assert client.get("/api/health").json()["version"] == __version__
+        assert client.get("/api/options").json()["version"] == __version__
+
     def test_models_follow_the_shared_catalog(self, client):
         body = client.get("/api/models/deepseek").json()
         assert body["quick"] and body["deep"]

@@ -12,6 +12,8 @@ from __future__ import annotations
 import os
 import sys
 
+from tradingagents import __version__
+
 LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
@@ -41,7 +43,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    print(f"TradingAgents web console: http://{host}:{port}/  (Ctrl-C to stop)")
+    print(
+        f"TradingAgents web console v{__version__}: http://{host}:{port}/  (Ctrl-C to stop)"
+    )
     uvicorn.run(
         "webapp.app:app",
         host=host,
