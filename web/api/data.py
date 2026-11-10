@@ -22,9 +22,9 @@ from pathlib import Path
 
 from trader import jobs, overrides, prices, report, rules, settings as strategy_constants
 from trader.intraday import report as intraday_report
-from trader.ledger import Ledger
+from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, Bar
-from trader.paper import Paper
+from trader.paper import Paper, _move
 from trader.research import build_config
 from trader.settings import BENCHMARK, BUDGET_LEARNING_DAYS, WATCHLIST, Coin, Settings
 from tradingagents.backtest import BacktestSummary, summarize
@@ -665,13 +665,33 @@ def _months(days: list[dict]) -> list[dict]:
     return out
 
 
+def _replayed(ledger: Ledger) -> list[tuple[Fill, float, float]]:
+    """Every fill with the PnL it realized and the signed position it left, in time
+    order. The ledger only stores the fills, so they are booked again from the first
+    one with the account's own rule (``paper._move``: weighted average entry, a
+    reduce realizes on the part closed, a flip on all of the old side)."""
+    positions: dict[str, Position] = {}
+    out: list[tuple[Fill, float, float]] = []
+    for f in ledger.fills():
+        old = positions[f.inst].qty if f.inst in positions else 0.0
+        new = old + f.qty
+        if abs(new) < 1e-9:  # a closing fill is the position rounded, not its negation to the bit
+            new = 0.0
+        # _move returns realized less the fee it computes on the same notional; add it back.
+        net = _move(positions, f.inst, new, f.price, 0.0, f.ts, f.reason, [])
+        out.append((f, net + rules.fee((new - old) * f.price), new))
+    return out
+
+
 def fills(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
+    rows = [row for row in _replayed(ledger) if row[0].ts >= since_ms][-limit:]
     return [
         {
             "ts": _iso(f.ts), "inst": f.inst, "coin": account.coin_of(f.inst), "qty": f.qty,
             "price": f.price, "fee": f.fee, "reason": f.reason, "trade_date": f.trade_date,
+            "realized": realized, "realized_net": realized - f.fee, "position_after": after,
         }
-        for f in reversed(ledger.fills(since_ms)[-limit:])
+        for f, realized, after in reversed(rows)
     ]
 
 

@@ -7,10 +7,12 @@ import pytest
 import requests
 from fastapi.testclient import TestClient
 
-from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
+from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX, minutes
+from trader import rules
 from trader.intraday.types import SignalResult
 from trader.ledger import BUDGET_ERROR, Fill, Ledger, Position
-from trader.okx import DAY_MS, Bar
+from trader.okx import DAY_MS, Bar, FundingEvent
+from trader.paper import Paper, _move
 from trader.prices import OFFICIAL
 from trader.settings import Settings
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -289,14 +291,79 @@ def test_fills_newest_first_with_since_and_limit(tmp_path):
     client = build(tmp_path)
     fills = client.get("/api/accounts/paper/fills").json()
     assert [f["trade_date"] for f in fills] == ["2026-01-09", "2026-01-08"]
+    # Selling 0.02 of the 0.04 bought at 79,000 realizes 0.02 * 1,000 and leaves 0.02.
     assert fills[0] == {
         "ts": "2026-01-10T00:30:00Z", "inst": "BTC-USDT-SWAP", "coin": "BTC-USD", "qty": -0.02,
         "price": 80_000.0, "fee": 0.8, "reason": "trade", "trade_date": "2026-01-09",
+        "realized": pytest.approx(20.0), "realized_net": pytest.approx(19.2),
+        "position_after": pytest.approx(0.02),
     }
+    assert fills[1]["realized"] == 0.0
+    assert fills[1]["realized_net"] == pytest.approx(-1.58)
+    assert fills[1]["position_after"] == pytest.approx(0.04)
     since = client.get("/api/accounts/paper/fills", params={"since": "2026-01-10T00:00:00Z"})
     assert [f["trade_date"] for f in since.json()] == ["2026-01-09"]
+    # A page that starts later still books from the first fill: the PnL does not change.
+    assert since.json()[0]["realized"] == pytest.approx(20.0)
     assert len(client.get("/api/accounts/paper/fills", params={"limit": 1}).json()) == 1
     assert client.get("/api/accounts/paper/fills", params={"since": "yesterday"}).status_code == 422
+
+
+def test_fill_pnl_follows_the_account_rule_through_a_flip_and_a_close(tmp_path):
+    settings = Settings(home=tmp_path)
+    ledger = Ledger(settings.ledger_path)
+    ledger.initialize(10_000.0, T0)
+    fills = [
+        Fill(T0, BTC.swap, 0.04, 79_000.0, 1.58, "trade", "2026-01-09"),         # open long
+        Fill(T0 + HOUR, BTC.swap, -0.06, 80_000.0, 2.4, "trade", "2026-01-10"),  # flip to short
+        Fill(T0 + 2 * HOUR, BTC.swap, 0.02, 78_000.0, 0.78, "stop", None),      # close short
+    ]
+    ledger.commit(positions={}, cash=10_000.0 + 80.0 - 4.76, fills=fills)
+    ledger.db.close()
+    client = TestClient(create_app(settings, CountingOKX()))
+
+    rows = client.get("/api/accounts/paper/fills").json()[::-1]
+    # The flip realizes the whole long, 0.04 * (80,000 - 79,000), and opens the short
+    # at 80,000; closing it at 78,000 realizes -0.02 * (78,000 - 80,000).
+    assert [r["realized"] for r in rows] == [0.0, pytest.approx(40.0), pytest.approx(40.0)]
+    assert [r["position_after"] for r in rows] == [
+        pytest.approx(0.04), pytest.approx(-0.02), 0.0,
+    ]
+    assert [r["realized_net"] for r in rows] == [
+        pytest.approx(-1.58), pytest.approx(37.6), pytest.approx(39.22),
+    ]
+    # The same fills through the account's own booking give the same numbers.
+    positions, booked = {}, []
+    for f in fills:
+        old = positions[f.inst].qty if f.inst in positions else 0.0
+        booked.append(_move(positions, f.inst, old + f.qty, f.price, 0.0, f.ts, f.reason, []))
+    assert [r["realized"] - rules.fee(r["qty"] * r["price"]) for r in rows] == pytest.approx(booked)
+
+
+def test_fill_pnl_and_funding_add_up_to_the_cash_the_account_made(tmp_path):
+    settings = Settings(home=tmp_path)
+    ledger = Ledger(settings.ledger_path)
+    ledger.initialize(10_000.0, T0)
+    okx = FakeOKX(
+        minute=minutes(T0 - MINUTE, [80_000, 79_000, (78_000, 78_000, 74_000, 76_000)]),
+        funding=[FundingEvent(T0 + MINUTE, 0.0001)],
+    )
+    paper = Paper(ledger, okx, (BTC,))
+    paper.execute("2026-01-09", {BTC.research: "Buy"}, T0)  # 0.04 long at 80,040, stop 75,040
+    paper.replay(T0 + 3 * MINUTE)                             # the third minute's low fills the stop
+    cash, funding = ledger.get("cash"), ledger.funding_total()
+    ledger.db.close()
+    client = TestClient(create_app(settings, CountingOKX()))
+
+    rows = client.get("/api/accounts/paper/fills").json()
+    assert [r["reason"] for r in rows] == ["stop", "trade"]
+    stop_price = 75_040 * 0.9995
+    assert rows[0]["realized"] == pytest.approx(0.04 * (stop_price - 80_040))
+    assert rows[0]["position_after"] == 0.0
+    assert rows[1]["realized"] == 0.0
+    assert funding == pytest.approx(-0.04 * 79_000 * 0.0001)
+    # Realized less fees, plus funding, is exactly what the account's cash gained.
+    assert sum(r["realized_net"] for r in rows) + funding == pytest.approx(cash - 10_000.0)
 
 
 def test_funding_events_and_attempts(tmp_path):
