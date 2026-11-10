@@ -103,7 +103,7 @@ def build(tmp_path, okx=None, validated=True):
 
 def test_accounts_lists_the_paper_account_first(tmp_path):
     accounts = build(tmp_path).get("/api/accounts").json()
-    assert [a["id"] for a in accounts] == ["paper", "intraday"]
+    assert [a["id"] for a in accounts] == ["paper", "intraday", "demo"]
     account = accounts[0]
     assert account["id"] == "paper" and account["kind"] == "paper"
     assert account["capital"] == 10_000.0
@@ -899,8 +899,9 @@ def build_intraday(tmp_path, okx=None, validated=True, signals=SIGNALS):
 
 def test_accounts_flags_the_intraday_account(tmp_path):
     accounts = build(tmp_path).get("/api/accounts").json()
-    assert [(a["id"], a["kind"], a["intraday"]) for a in accounts] == [
-        ("paper", "paper", False), ("intraday", "paper", True)
+    assert [(a["id"], a["kind"], a["intraday"], a["demo"]) for a in accounts] == [
+        ("paper", "paper", False, False), ("intraday", "paper", True, False),
+        ("demo", "demo", False, True),
     ]
 
 
@@ -970,7 +971,7 @@ def test_signals_without_a_ledger_is_404(tmp_path):
     response = build(tmp_path).get("/api/accounts/intraday/signals")  # only the paper ledger exists
     assert response.status_code == 404 and "ledger" in response.json()["detail"]
     empty = TestClient(create_app(Settings(home=tmp_path / "empty"), CountingOKX()))
-    for account in ("paper", "intraday"):
+    for account in ("paper", "intraday", "demo"):
         response = empty.get(f"/api/accounts/{account}/signals")
         assert response.status_code == 404 and "ledger" in response.json()["detail"]
     assert empty.get("/api/accounts/live/signals").status_code == 404

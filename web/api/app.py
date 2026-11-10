@@ -161,6 +161,24 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     def accuracy(account: AccountDep):
         return data.accuracy(account)
 
+    # The demo account executes on the exchange (ADR 0008): its last reconciliation,
+    # and how it compares with the intraday account whose signals it follows.
+    def _demo(account: AccountDep) -> data.Account:
+        if not account.demo:
+            raise HTTPException(404, f"account {account.id!r} does not execute on an exchange")
+        return account
+
+    DemoDep = Annotated[data.Account, Depends(_demo)]
+
+    @app.get("/api/accounts/{account_id}/execution")
+    def execution(account: DemoDep, ledger: LedgerDep):
+        return data.execution(account, ledger)
+
+    @app.get("/api/accounts/{account_id}/mirror")
+    def mirror(account: DemoDep, ledger: LedgerDep, limit: Limit = 500):
+        with _open(accounts["intraday"]) as source:
+            return data.mirror(account, ledger, source, limit)
+
     # The research records are the paper account's; an account would enter the
     # path once there is more than one.
     @app.get("/api/research")
