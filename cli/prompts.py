@@ -13,6 +13,7 @@ from cli.display import console
 from cli.models import AnalystType, AssetType
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.llm_clients.api_key_env import get_api_key_env
+from tradingagents.llm_clients.factory import PLAN_PROVIDERS
 from tradingagents.llm_clients.model_catalog import get_model_options
 from tradingagents.llm_clients.openai_client import OPENAI_COMPATIBLE_PROVIDERS, SIGNED_IN_PROVIDERS
 
@@ -389,6 +390,7 @@ def _llm_provider_table() -> list[tuple[str, str, str | None]]:
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
         ("ChatGPT (Plus or Pro plan)", "chatgpt", "https://api.openai.com/v1"),
+        ("Claude (Pro or Max plan)", "claude", None),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
@@ -457,12 +459,13 @@ def select_llm_provider(default=None) -> tuple[str, str | None]:
     base = (default or "").split("-cn")[0]
     choices = []
     for display, provider_key, url in PROVIDERS:
-        if provider_key in SIGNED_IN_PROVIDERS:
+        if provider_key in PLAN_PROVIDERS:
             continue
         choices.append(questionary.Choice(display, value=(provider_key, url)))
         if provider_key == "anthropic":
-            choices.append(questionary.Choice("Subscription (use your ChatGPT plan)", value=_SUBSCRIPTION))
-    preselected = _SUBSCRIPTION if base in SIGNED_IN_PROVIDERS else next(
+            choices.append(questionary.Choice("Subscription (use your ChatGPT or Claude plan)",
+                                              value=_SUBSCRIPTION))
+    preselected = _SUBSCRIPTION if base in PLAN_PROVIDERS else next(
         ((key, url) for _, key, url in PROVIDERS if key == base), None
     )
 
@@ -482,7 +485,7 @@ def select_llm_provider(default=None) -> tuple[str, str | None]:
         choice = questionary.select(
             "Select your subscription:",
             choices=[questionary.Choice(display, value=(key, url))
-                     for display, key, url in PROVIDERS if key in SIGNED_IN_PROVIDERS],
+                     for display, key, url in PROVIDERS if key in PLAN_PROVIDERS],
             style=_MENU_STYLE,
         ).ask()
         if choice is None:
@@ -663,14 +666,37 @@ def confirm_ollama_endpoint(url: str) -> None:
         )
 
 
+def _ensure_claude_plan() -> None:
+    """Make sure Claude Code is signed in with a Claude plan before the run, offering to sign in now."""
+    from tradingagents.llm_clients import claude_plan
+
+    try:
+        account = claude_plan.require_plan()
+    except ImportError as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+    except claude_plan.ClaudePlanError as exc:
+        if not sys.stdin.isatty():
+            console.print(f"[red]{escape(str(exc))}[/red]")
+            raise typer.Exit(code=1) from None
+        console.print(f"\n[yellow]{escape(str(exc))}[/yellow]")
+        login = [sys.executable, "-P", "-m", "cli.main", "login", "claude"]
+        if subprocess.run(login).returncode != 0:
+            raise typer.Exit(code=1) from None
+        account = claude_plan.status()
+    console.print(f"[green]✓ Using your Claude plan:[/green] {escape(account.get('email') or '')}")
+
+
 def ensure_signed_in(provider: str) -> None:
     """Make sure a plan provider's sign-in works before the run, offering to sign in now.
 
     Signing in runs as its own process (``tradingagents login chatgpt``), so its
     read of a pasted address ends with it and never takes a later answer."""
+    if provider.lower() == "claude":
+        return _ensure_claude_plan()
     if provider.lower() not in SIGNED_IN_PROVIDERS:
         return
-    from tradingagents.llm_clients import chatgpt_auth  # the one signed-in provider
+    from tradingagents.llm_clients import chatgpt_auth  # OpenAI's sign-in, kept by TradingAgents
 
     try:
         chatgpt_auth.access_token()

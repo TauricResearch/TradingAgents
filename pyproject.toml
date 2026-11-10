@@ -41,6 +41,11 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+# A Claude Pro or Max plan, through the Claude Agent SDK and the Claude Code it
+# ships. Optional because of its size: pip install "tradingagents[claude]".
+claude = [
+    "claude-agent-sdk>=0.2.180",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"

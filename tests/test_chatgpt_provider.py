@@ -98,7 +98,7 @@ def test_chatgpt_is_offered_under_subscription_after_anthropic():
     titles = shown[0][1]
     assert titles.index("Anthropic") + 1 == titles.index(next(t for t in titles if t.startswith("Subscription")))
     assert not any(t.startswith("ChatGPT") for t in titles)
-    assert shown[1][1] == ["ChatGPT (Plus or Pro plan)"]
+    assert shown[1][1] == ["ChatGPT (Plus or Pro plan)", "Claude (Pro or Max plan)"]
     assert (provider, url) == ("chatgpt", "https://api.openai.com/v1")
 
 
