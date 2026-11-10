@@ -410,6 +410,60 @@ def test_global_news_asks_yahoo_for_the_phrase_not_a_fuzzy_match(monkeypatch):
     assert all(k["enable_fuzzy_query"] is False for k in calls)
 
 
+def _topic_search(pages):
+    """A Yahoo search answering each query with ``pages[query]``."""
+    class FakeSearch:
+        def __init__(self, *a, query=None, **k):
+            self.news = pages.get(query, [])
+
+    return FakeSearch
+
+
+@pytest.mark.unit
+def test_every_topic_contributes_before_one_fills_the_limit(monkeypatch):
+    """The first topic's search filled the limit and the rest were never asked.
+
+    Every default query returns a full page, so the macro report covered only
+    the first topic in the config.
+    """
+    pages = {q: [{"title": f"{q} {i}", "publisher": "P", "link": "l",
+                  "providerPublishTime": _epoch("2025-05-08")} for i in range(10)]
+             for q in ("A", "B", "C")}
+    monkeypatch.setattr(ynews.yf, "Search", _topic_search(pages))
+    monkeypatch.setattr(ynews, "get_config", lambda: {
+        "global_news_lookback_days": 7, "global_news_article_limit": 6,
+        "global_news_queries": ["A", "B", "C"],
+    })
+
+    out = ynews.get_global_news_yfinance("2025-05-09")
+
+    titles = [line[4:].removesuffix(" (source: P)") for line in out.splitlines() if line.startswith("### ")]
+    assert titles == ["A 0", "B 0", "C 0", "A 1", "B 1", "C 1"]
+
+
+@pytest.mark.unit
+def test_an_article_found_by_two_topics_is_listed_once(monkeypatch):
+    """Topics overlap (an inflation headline is often a Federal Reserve one),
+    so the same article must not take two places in the list or spend the
+    budget twice."""
+    def article(title):
+        return {"title": title, "publisher": "P", "link": "l",
+                "providerPublishTime": _epoch("2025-05-08")}
+
+    pages = {"A": [article("SHARED"), article("A only")],
+             "B": [article("SHARED"), article("B only")]}
+    monkeypatch.setattr(ynews.yf, "Search", _topic_search(pages))
+    monkeypatch.setattr(ynews, "get_config", lambda: {
+        "global_news_lookback_days": 7, "global_news_article_limit": 3,
+        "global_news_queries": ["A", "B"],
+    })
+
+    out = ynews.get_global_news_yfinance("2025-05-09")
+
+    titles = [line[4:].removesuffix(" (source: P)") for line in out.splitlines() if line.startswith("### ")]
+    assert titles == ["SHARED", "A only", "B only"]
+
+
 @pytest.mark.unit
 @pytest.mark.parametrize("field", ["title", "summary", "provider", "canonicalUrl", "pubDate"])
 def test_an_article_with_a_null_field_is_read_with_its_default(field):

@@ -10,7 +10,7 @@ Changes that need action when upgrading are listed under "Upgrading from" in the
 
 ### Fixed
 
-- Global news is about the topics it searches for: Yahoo answered the default queries with the news of an unrelated ticker. (#1678)
+- Global news is about the topics it searches for: Yahoo answered the default queries with the news of an unrelated ticker, and one topic no longer fills the whole list. (#1678)
 
 ## [0.7.1] — 2026-10-27
 

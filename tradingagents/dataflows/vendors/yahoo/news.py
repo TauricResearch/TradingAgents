@@ -2,6 +2,7 @@
 
 import contextlib
 from datetime import UTC, datetime
+from itertools import chain, zip_longest
 
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
@@ -163,8 +164,8 @@ def get_global_news_yfinance(
     start_dt = curr_dt - relativedelta(days=look_back_days)
     start_date = start_dt.strftime("%Y-%m-%d")
 
-    in_window_news = []
-    seen_titles = set()
+    # Each topic's in-window articles, in the order Yahoo ranked them.
+    per_query = []
 
     for query in search_queries:
         # A fuzzy search swaps the words for the closest ticker and answers
@@ -175,22 +176,30 @@ def get_global_news_yfinance(
             enable_fuzzy_query=False,
         ).news)
 
+        in_window_news = []
         for article in found or []:
             # Window first: the limit counts what the run may read, so an
-            # out-of-window article must not spend the budget or cut the
-            # remaining searches short (#1356). Flat articles are filtered
-            # on the same rule, so none can leak future news (#1007).
+            # out-of-window article must not spend the budget (#1356). Flat
+            # articles are filtered on the same rule, so none can leak future
+            # news (#1007).
             data = _extract_article_data(article)
             if not in_window(data["pub_date"], start_dt, curr_dt):
                 continue
-            if data["title"] and data["title"] not in seen_titles:
-                seen_titles.add(data["title"])
+            if data["title"]:
                 in_window_news.append(data)
+        per_query.append(in_window_news)
 
-        if len(in_window_news) >= limit:
-            break
+    # Take one article from each topic in turn: each search fills a page on
+    # its own, so listing them one after another let the first topic fill
+    # the limit and the rest were never read.
+    merged = []
+    seen_titles = set()
+    for data in chain.from_iterable(zip_longest(*per_query)):
+        if data and data["title"] not in seen_titles:
+            seen_titles.add(data["title"])
+            merged.append(data)
 
-    news_str = _format_articles(in_window_news[:limit])
+    news_str = _format_articles(merged[:limit])
 
     # Nothing fell inside the window -> say so rather than return an
     # empty-bodied report (#993).
