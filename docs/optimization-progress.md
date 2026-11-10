@@ -23,6 +23,9 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 13 | events/attempts 分页、research_index 缓存 | P3 | done | — | `since`/`limit`（默认 500）；`final_rating` 按 (mtime, size) 缓存；History 页显式传 limit | 2 个新测试；CI 42770062493 绿 | 部署要重启 web |
 | 14 | 写端点认证 | P2 | done | — | `Settings.web_token`；`_write_auth` 依赖；`/api/models.write_protected`；UI 令牌框（sessionStorage） | 2 个新测试 + 真服务器 curl；CI 42767234724 绿 | 部署：.env 加 TRADER_WEB_TOKEN + kickstart web（不用改 plist） |
 | 15 | 账户目录备份命令（WAL 后 cp 不安全） | P2 | done | — | `trader/backup.py` + `python -m trader backup DEST [--with-logs]`：SQLite 备份 API 一致快照，副本单文件；roadmap 补备份/恢复说明 | `tests/test_trader_backup.py` 3 个测试；CI 42772492468 绿 | 复审第 2 批时发现；是否排定时备份由用户定 |
+| 16 | 总览首屏改成资产卡（用户反馈看板可读性差） | P1 | done | — | overview 加 capital/today/totals、持仓加 unrealized_pct；首屏七格资产卡（总资产、今日盈亏 UTC 日注北京 08:00、未实现、已实现、现金、名义/杠杆、累计）；持仓面板第二排 + 敞口分布条 + 浮盈% + 合计行；验证期指标下移；悬停时间加北京钟；指南/帮助同步 | `tests/test_web_api.py` 补 4 处断言 + 1 个新测试（零点快照未写时的起点）；tsc/oxlint/build；本机预览 1280 宽首屏；CI 42780888213 绿 | 用户拍板：UTC 为主旁注北京时间；交易盈亏不含 LLM 费用；待用户授权后部署 mini |
+| 17 | 每日/每月收益（/daily、柱状图、历史页标签） | P1 | ready | #16 | 新接口 `GET /api/accounts/{id}/daily`（按 UTC 日：open/close/pnl/pct/fills/funding/llm_cost/partial + months）；总览每日盈亏柱状图 + 月度表；历史页“每日收益”标签 | 待做 | 用户拍板按推荐；现在只有 4 天数据 |
+| 18 | 成交的已实现盈亏（只读回算） | P2 | ready | — | `fills` 按持仓均价回放补 realized/realized_net/position_after，规则同 `paper._move`；历史页成交表加两列 + 合计 | 待做：与 `_move` 对照；sum(realized−fee)+funding == cash−capital | 用户拍板：不改账本，需对账时再考虑记账 |
 
 ## 执行记录
 
@@ -42,3 +45,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | #10 | 无提交（仓库维护） | 用户选 A：删 t1/t2/t5/t7 worktree+分支；t6 有未提交改动保留，等用户；Issue blocked |
 | 2026-11-10 | #15 | 新开（复审发现）；`cursor/issue-15-account-backup-6e50` → 044a8be（ff） | 验收通过（CI 42772492468）；全量 1873 通过 |
 | 2026-11-10 | 部署 | mini ea0400e → b228b3b | 用户授权（选 A）；pull + uv 装依赖 + rsync dist + kickstart web；验证：/api/models write_protected=false（未设令牌）、attempts?limit=0 → 422、新 bundle 已服务；第一份备份 ~/Backups/trader/20261110T071951Z；账本在下个整点作业才切 WAL |
+| 2026-11-10 | #16 | 用户反馈后 grill 需求，开 #16/#17/#18；`cursor/issue-16-asset-card-6e50` → 74d7a72 + aee6294（ff） | 验收通过（CI 42780888213）；全量 1874 通过，tsc/oxlint/build 通过；本机预览核对首屏；未部署 mini |
