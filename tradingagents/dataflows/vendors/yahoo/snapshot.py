@@ -11,12 +11,14 @@ claim. Deterministic, no LLM involved.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 
 import pandas as pd
 from stockstats import wrap
 
 from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.symbols import normalize_symbol
+from tradingagents.dataflows.vendors.bar_finality import assess_finality
 from tradingagents.dataflows.vendors.yahoo.common import price_text
 from tradingagents.dataflows.vendors.yahoo.ohlcv import load_ohlcv
 
@@ -91,15 +93,38 @@ def build_verified_market_snapshot(
     window = max(1, min(int(look_back_days), 30))
     recent = df.tail(window)
 
+    # §3 of P2: a price is only a close if its session has settled. The bar's
+    # finality travels with the snapshot so the analyst can label a provisional
+    # figure instead of presenting it as a verified close — the F5 defect, where
+    # 576.74 was called a close at 15:01 New York with the session open.
+    finality = assess_finality(
+        datetime.now(UTC).isoformat(),
+        session_date=latest_date if latest_date != "N/A" else None,
+    )
+
     lines = [
         f"## Verified market data snapshot for {symbol.upper()}",
         "",
         f"- Requested analysis date: {as_of_date}",
         f"- Latest trading row used: {latest_date}",
+        f"- Bar finality: **{finality.finality}**",
+        f"- Last confirmed close: {finality.last_confirmed_close or 'N/A'}",
         "- Rows after the requested analysis date are excluded before verification.",
         "",
         "### Latest verified OHLCV row",
         "",
+    ]
+    if not finality.usable_for_eod:
+        # The instruction, not just the label: an agent told "partial" must not
+        # then quote the figure as a close.
+        lines += [
+            f"> The bar for {latest_date} is **provisional** "
+            f"({finality.reason}). Quote it as an intraday price with its "
+            "observation time, never as a verified close, and do not derive an "
+            "end-of-day signal from it.",
+            "",
+        ]
+    lines += [
         "| Field | Value |",
         "|---|---:|",
     ]

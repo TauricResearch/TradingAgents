@@ -356,12 +356,17 @@ def check_report_consistency(
 
     if reports:
         report.claims = check_reports(reports, computed_metrics or {})
-        # Not-verified claims raise findings so they appear in the
-        # diagnostics, not only in the claims block.
-        for result in report.claims.blocking:
-            # §3: a claimed *rate* the engine disproves gets its own code, so
-            # the audit says which kind of number was wrong, and the finding
-            # records the agent that produced it.
+        # Every claim is reported, but only a contradiction blocks.
+        #
+        # A MISMATCH is the engine disproving a figure the report presents:
+        # nothing downstream can be trusted, so the executable decision stops.
+        # A NOT_CHECKABLE claim is a figure the engine has no value for — which
+        # is not the same as a wrong figure. Treating it as blocking made every
+        # run fail whenever no metric had been computed (the F6 defect the data
+        # lineage audit found): the report is still worth producing, and what
+        # must stop is the *order*, which happens because no usable metric
+        # exists to certify the decision.
+        for result in report.claims.results:
             contradicted = result.verdict.value == "MISMATCH"
             report.findings.append(Finding(
                 kind=(FindingKind.CONTRADICTION
@@ -375,7 +380,7 @@ def check_report_consistency(
                 agents=(result.claim.agent,),
                 values=(str(result.claim.value),
                         result.record.display if result.record else ""),
-                blocks=True,
+                blocks=contradicted,
             ))
 
     report.findings.extend(cross_agent_numeric_consistency(reports or {}, extracted_claims))

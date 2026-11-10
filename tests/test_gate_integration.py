@@ -121,10 +121,24 @@ def test_audit_record_is_written_beside_the_state_log(tmp_path):
     record, _ = evaluate_decision("BRK-B", "2026-11-08", _state(), snapshot_id="s1")
     path = write_audit_record(record, str(tmp_path))
     assert path.exists()
+    # Without a run id the historical name is kept, so existing readers and
+    # the smoke checks that only look for "an audit" still work.
     assert path == tmp_path / "BRK-B" / "reliability_audit" / "audit_2026-11-08.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["ticker"] == "BRK-B"
     assert data["schema_version"] == "1.0"
+
+
+@pytest.mark.unit
+def test_two_runs_of_the_same_day_do_not_overwrite_each_other(tmp_path):
+    """§2 of P4: the dated filename used to lose one analysis per day."""
+    record, _ = evaluate_decision("BRK-B", "2026-11-08", _state(), snapshot_id="s1")
+    first = write_audit_record(record, str(tmp_path), run_id="run-a")
+    second = write_audit_record(record, str(tmp_path), run_id="run-b")
+
+    assert first != second
+    assert first.exists() and second.exists()
+    assert first.name == "audit_2026-11-08_run-a.json"
 
 
 @pytest.mark.unit
@@ -172,7 +186,9 @@ def test_record_decision_attaches_the_verdict_and_writes_the_audit(
     graph.record_decision("BRK-B", "2026-11-08", state)
     assert "execution_action" in state
     audit_dir = tmp_path / "results" / "BRK-B" / "reliability_audit"
-    assert (audit_dir / "audit_2026-11-08.json").exists()
+    # The audit is now run-scoped: the date plus the run id the graph minted.
+    audits = list(audit_dir.glob("audit_2026-11-08_*.json"))
+    assert len(audits) == 1, f"expected one run-scoped audit, got {audits}"
     assert log.stored["ticker"] == "BRK-B"
 
 

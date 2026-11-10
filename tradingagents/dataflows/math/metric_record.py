@@ -104,20 +104,26 @@ class MetricRecord:
 
     @property
     def blocks_decision(self) -> bool:
-        """A critical metric that failed must stop execution, not warn.
+        """Whether this metric's state must stop an *executable* decision.
 
-        A ``MISMATCH`` is the strongest case: the report asserted a figure
-        the engine could disprove, so nothing downstream of it can be
-        trusted. ``REFUSED`` and ``UNSUPPORTED`` block for the same reason —
-        no verified number exists.
+        Blocks when the engine could compute a value and the report
+        contradicts it (``MISMATCH``), or when the record was refused for an
+        inconsistency (``REFUSED``) or had a claim with nothing to check it
+        against (``UNSUPPORTED``).
+
+        Does **not** block on ``NOT_COMPUTABLE``: that status means the inputs
+        were absent, which is a gap to report, not a contradiction to stop. It
+        still prevents the metric from being *used* — ``is_usable`` is false and
+        ``Registry.value`` returns ``None`` — and a decision resting on no
+        certified metric is blocked by ``attach_registry_status``, not here.
+        Treating an absent input as a contradiction is what made every run fail
+        in the F6 defect the data lineage audit found.
         """
-        if self.calculation_status in (
+        return self.calculation_status in (
             CalculationStatus.MISMATCH,
             CalculationStatus.REFUSED,
             CalculationStatus.UNSUPPORTED,
-        ):
-            return True
-        return self.value is None and self.source_status is not SourceStatus.MISSING
+        )
 
     @property
     def display(self) -> str | None:

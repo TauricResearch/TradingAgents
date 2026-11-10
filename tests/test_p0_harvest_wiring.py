@@ -83,12 +83,20 @@ class TestRegistryWiring:
             "investment_plan": "",
             "final_rating": "Hold",
             "final_trade_decision": "**Rating**: Hold\nMaintain.",
+            # A snapshot the engine can certify from, so these tests measure
+            # the harvest wiring rather than the authorisation rule (§4: no
+            # certified metric means no order).
+            "verified_market_snapshot": {"close": 570.89, "sma200": 497.723},
         }
         state.update(reports)
         return state
 
     def test_agreeing_reports_do_not_block(self):
         from tradingagents.dataflows.gate_integration import evaluate_decision
+        from tradingagents.dataflows.math.run_registry import (
+            RunInputs,
+            build_run_registry,
+        )
 
         state = self._state(
             news_report="Q3 2026 buyback of approximately $9.6 billion.",
@@ -96,6 +104,10 @@ class TestRegistryWiring:
         )
         record, decision = evaluate_decision(
             "BRK-B", "2026-11-08", state, snapshot_id="s1",
+            # §4: a certified metric is required for approval. The subject here
+            # is the fact-harvest wiring, so the run is made otherwise sound.
+            metric_registry=build_run_registry(
+                RunInputs(price=570.89, sma200=497.723)),
         )
         assert record.fact_registry is not None
         assert not record.fact_registry.blocks_decision
