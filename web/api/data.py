@@ -340,7 +340,7 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
     positions = ledger.positions()
     prices = {inst: _quote(market, inst) for inst in positions}
     equity = _marked(ledger, positions, prices)
-    peak = ledger.get("peak")
+    capital, cash, peak = ledger.get("capital"), ledger.get("cash"), ledger.get("peak")
     series = _net_equity(account, ledger)
     values = [v for _, v in series]
     try:
@@ -367,13 +367,16 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
         latest = _latest(account, ledger, trade_date)
     return {
         "equity": equity,
-        "cash": ledger.get("cash"),
+        "cash": cash,
+        "capital": capital,
         "peak": peak,
         "drawdown": rules.drawdown(equity, peak) if equity is not None else None,
         "halted": ledger.get("halted"),
         "processed_to": _iso(ledger.get("processed_to")),
         "validation_start": _iso(ledger.get("validation_start")),
         "days": max(len(series) - 1, 0),
+        "today": _today(ledger, equity, now),
+        "totals": _totals(capital, cash, equity, positions, prices),
         "performance": {
             "strategy": _performance(values),
             "equal_weight": _performance(equal),
@@ -403,6 +406,40 @@ def _marked(ledger: Ledger, positions: dict, prices: dict[str, float | None]) ->
     return ledger.get("cash") + sum(
         p.qty * (prices[inst] - p.entry) for inst, p in positions.items()
     )
+
+
+def _today(ledger: Ledger, equity: float | None, now: datetime) -> dict:
+    """The day's PnL: the live equity against the latest midnight snapshot at or before
+    today's UTC midnight. The hourly job writes today's at its first run after midnight;
+    until then the base is yesterday's, and ``since`` says which. Null without a
+    snapshot (``since`` null too) or without the quotes that price ``equity``."""
+    midnight = _ms(now.replace(hour=0, minute=0, second=0, microsecond=0))
+    row = ledger.db.execute(
+        "SELECT ts, equity FROM equity WHERE ts <= ? ORDER BY ts DESC LIMIT 1", (midnight,)
+    ).fetchone()
+    if row is None or equity is None:
+        return {"since": _iso(row[0]) if row else None, "pnl": None, "pct": None}
+    since, base = row
+    return {"since": _iso(since), "pnl": equity - base, "pct": (equity - base) / base}
+
+
+def _totals(
+    capital: float, cash: float, equity: float | None, positions: dict,
+    prices: dict[str, float | None],
+) -> dict:
+    """The account's sums the way an exchange shows them. Realized is what trading has
+    put into the cash since the account opened (fees and funding included); the marked
+    sums are null while a position has no quote: a partial sum would read as the whole."""
+    marked = equity is not None
+    notional = sum(abs(p.qty) * prices[i] for i, p in positions.items()) if marked else None
+    return {
+        "unrealized": equity - cash if marked else None,
+        "notional": notional,
+        "leverage": notional / equity if marked and equity else None,
+        "realized": cash - capital,
+        "pnl": equity - capital if marked else None,
+        "pnl_pct": (equity - capital) / capital if marked else None,
+    }
 
 
 def _net_equity(account: Account, ledger: Ledger) -> list[tuple[int, float]]:
@@ -445,7 +482,10 @@ def _performance(values: list[float]) -> dict | None:
 
 
 def _position(account: Account, inst: str, pos, price: float | None) -> dict:
-    """One open position; the fields priced at ``price`` are null without one."""
+    """One open position; the fields priced at ``price`` are null without one.
+    ``unrealized_pct`` is the return on the position's value at entry, the sign of the
+    side applied, so a short reads positive when the price fell."""
+    unrealized = pos.qty * (price - pos.entry) if price is not None else None
     return {
         "inst": inst,
         "coin": account.coin_of(inst),
@@ -454,7 +494,10 @@ def _position(account: Account, inst: str, pos, price: float | None) -> dict:
         "stop": pos.stop,
         "price": price,
         "notional": abs(pos.qty) * price if price is not None else None,
-        "unrealized": pos.qty * (price - pos.entry) if price is not None else None,
+        "unrealized": unrealized,
+        "unrealized_pct": (
+            unrealized / (abs(pos.qty) * pos.entry) if unrealized is not None else None
+        ),
         "stop_distance": (
             abs(pos.stop - price) / price if pos.stop is not None and price is not None else None
         ),

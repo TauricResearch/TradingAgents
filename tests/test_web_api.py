@@ -128,11 +128,21 @@ def test_strategy_quotes_the_constants_the_trader_runs_on(tmp_path):
 def test_overview_marks_the_account_and_sums_up_the_day(tmp_path):
     body = build(tmp_path).get("/api/accounts/paper/overview").json()
     assert body["equity"] == pytest.approx(10_020.0)  # short 0.02 from 80,000, marked at 79,000
-    assert body["cash"] == 10_000.0 and body["peak"] == 10_000.0
+    assert body["cash"] == 10_000.0 and body["peak"] == 10_000.0 and body["capital"] == 10_000.0
     assert body["drawdown"] == 0.0 and body["halted"] is False
     assert body["processed_to"] == "2026-01-10T00:30:00Z"
     assert body["validation_start"] == "2026-01-10T00:00:00Z"
     assert body["days"] == 2
+
+    # The day is measured from today's midnight snapshot (10,000 at 2026-01-10 00:00).
+    assert body["today"] == {
+        "since": "2026-01-10T00:00:00Z", "pnl": pytest.approx(20.0), "pct": pytest.approx(0.002),
+    }
+    assert body["totals"] == {
+        "unrealized": pytest.approx(20.0), "notional": pytest.approx(1_580.0),
+        "leverage": pytest.approx(1_580 / 10_020), "realized": 0.0,
+        "pnl": pytest.approx(20.0), "pnl_pct": pytest.approx(0.002),
+    }
 
     # Net of the $1.50 spent after the first midnight: 10,000 / 10,098.5 / 10,048.5.
     strategy = body["performance"]["strategy"]
@@ -157,6 +167,7 @@ def test_overview_marks_the_account_and_sums_up_the_day(tmp_path):
     assert position["stop"] == 85_000.0 and position["price"] == 79_000.0
     assert position["notional"] == pytest.approx(1_580.0)
     assert position["unrealized"] == pytest.approx(20.0)
+    assert position["unrealized_pct"] == pytest.approx(20 / 1_600)  # on 0.02 × 80,000 at entry
     assert position["stop_distance"] == pytest.approx(6_000 / 79_000)
 
     latest = body["latest"]
@@ -181,6 +192,24 @@ def test_overview_before_the_validation_period(tmp_path):
     assert body["llm"]["today"] == 0 and body["llm"]["unknown"] is False
     assert body["latest"]["executed"] is False
     assert [c["state"] for c in body["latest"]["coins"]] == ["pending"] * 3
+    # No midnight snapshot yet: no day to measure; the sums over a flat account are zero.
+    assert body["today"] == {"since": None, "pnl": None, "pct": None}
+    assert body["totals"] == {
+        "unrealized": 0.0, "notional": 0.0, "leverage": 0.0, "realized": 0.0, "pnl": 0.0,
+        "pnl_pct": 0.0,
+    }
+
+
+def test_overview_measures_the_day_from_the_last_midnight_written(tmp_path, monkeypatch):
+    # 2026-01-13 00:30: the hourly job has not written the 01-13 midnight yet, so the day
+    # runs from the latest snapshot there is, 01-12's 10,050, and ``since`` says so.
+    monkeypatch.setattr(data, "_now", lambda: datetime(2026, 1, 13, 0, 30, tzinfo=UTC))
+    body = build(tmp_path).get("/api/accounts/paper/overview").json()
+    assert body["equity"] == pytest.approx(10_020.0)
+    assert body["today"] == {
+        "since": "2026-01-12T00:00:00Z", "pnl": pytest.approx(-30.0),
+        "pct": pytest.approx(-30 / 10_050),
+    }
 
 
 def test_equity_aligns_the_baselines_with_the_midnights(tmp_path):
@@ -389,6 +418,14 @@ def test_overview_and_equity_degrade_when_okx_is_down_from_the_start(tmp_path):
     assert position["stop"] == 85_000.0
     assert position["price"] is None and position["notional"] is None
     assert position["unrealized"] is None and position["stop_distance"] is None
+    assert position["unrealized_pct"] is None
+    # The day has its base but no live equity to measure against; the marked sums are
+    # null rather than partial, what the ledger alone gives still shows.
+    assert body["today"] == {"since": "2026-01-10T00:00:00Z", "pnl": None, "pct": None}
+    assert body["totals"] == {
+        "unrealized": None, "notional": None, "leverage": None, "realized": 0.0, "pnl": None,
+        "pnl_pct": None,
+    }
     assert body["market"] == {
         "ok": False, "error": "ConnectionError: Host is down", "since": "2026-01-10T00:30:00Z",
     }
