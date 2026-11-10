@@ -311,3 +311,10 @@ def test_the_rerun_command_reports_an_early_stop(home, monkeypatch):
     ])
     assert done.exit_code == 2, done.output
     assert "提前停止：BudgetExhausted" in done.output
+    # The budget is the cache's total: what the first run spent is gone from it.
+    again = CliRunner().invoke(app, [
+        "evaluate", "rerun", "2026-01-02", "2026-01-02T05:00", "--no-fetch",
+        "--cache", str(home / "rerun.sqlite"), "--budget", str(4.5 * CALL_COST),
+    ])
+    assert again.exit_code == 2, again.output
+    assert "本次还可花 0.00" in again.output and "0 次调用" in again.output

@@ -167,7 +167,9 @@ def rerun_command(
         help="存信号的账本文件，缺省为 TRADER_HOME/evaluation/rerun-<模型>-<提示词>.sqlite；"
              "可直接作为 replay/signals 的 --ledger"
     )] = None,
-    budget: Annotated[float | None, typer.Option(help="本次最多花多少美元，花到即停（可续跑）")] = None,
+    budget: Annotated[float | None, typer.Option(
+        help="这个缓存累计最多花多少美元（含以前跑过的），花到即停；续跑时只花剩下的"
+    )] = None,
     workers: int = typer.Option(3, help="同时问模型的币数"),
     capital: float = typer.Option(10_000.0, help="引擎起始资金 USDT"),
     no_fetch: bool = typer.Option(False, "--no-fetch", help="不补拉行情，只用缓存"),
@@ -187,8 +189,11 @@ def rerun_command(
     before = cache_summary(ledger)
     typer.echo(f"模型 {print_['model']}，提示词 {print_['prompt']}；缓存 {path}："
                f"已有 {before['hours']} 小时 {before['signals']} 条信号，累计 {before['cost_usd']:.2f} 美元")
+    remaining = None if budget is None else max(0.0, budget - before["cost_usd"])
+    if remaining is not None:
+        typer.echo(f"预算 {budget:.2f} 美元，本次还可花 {remaining:.2f}")
     result, stats, stopped = rerun(
-        store, ledger, signaler, market, start_ms, end_ms, budget_usd=budget, workers=workers,
+        store, ledger, signaler, market, start_ms, end_ms, budget_usd=remaining, workers=workers,
         watchlist=WATCHLIST, capital=capital, log=typer.echo,
     )
     typer.echo(
