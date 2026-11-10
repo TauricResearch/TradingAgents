@@ -45,6 +45,18 @@ def test_the_plan_is_reached_with_the_sign_in_never_an_api_key(signed_in, monkey
 
 
 @pytest.mark.unit
+def test_the_plan_binds_tools_sequentially_by_default(signed_in):
+    llm = _llm()
+    tools = [{"type": "function", "function": {"name": "example", "parameters": {"type": "object"}}}]
+    bound = llm.bind_tools(tools)
+
+    assert bound.kwargs["parallel_tool_calls"] is False
+    payload = llm._get_request_payload([HumanMessage(content="test")], **bound.kwargs)
+    assert payload["parallel_tool_calls"] is False
+    assert llm.bind_tools(tools, parallel_tool_calls=True).kwargs["parallel_tool_calls"] is True
+
+
+@pytest.mark.unit
 def test_system_instructions_go_as_developer_and_refused_settings_are_dropped(signed_in, caplog):
     with caplog.at_level(logging.WARNING):
         llm = _llm(temperature=0.3, max_tokens=500)

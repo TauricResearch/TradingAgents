@@ -194,6 +194,16 @@ class ChatGPTPlanChatOpenAI(NormalizedChatOpenAI):
             client.organization = None
             client.project = None
 
+    def bind_tools(self, tools, **kwargs):
+        """Use sequential tool calls on ChatGPT plans unless explicitly overridden.
+
+        The Responses adapter does not receive argument deltas for parallel
+        calls from this endpoint, leaving LangChain's parsed arguments empty.
+        """
+        if kwargs.get("parallel_tool_calls") is None:
+            kwargs["parallel_tool_calls"] = False
+        return super().bind_tools(tools, **kwargs)
+
     def _get_request_payload(self, input_, *, stop=None, **kwargs):
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
         for item in payload.get("input") or []:
