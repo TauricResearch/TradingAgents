@@ -14,7 +14,14 @@ from trader.evaluation import cli as evaluation_cli
 from trader.evaluation.history import HOUR_MS, MINUTE_MS, HistoryStore
 from trader.evaluation.market import HistoricalOKX
 from trader.evaluation.replay import signals_from_ledger
-from trader.evaluation.rerun import MAX_EMPTY_HOURS, Rerun, cache_summary, rerun
+from trader.evaluation.rerun import (
+    MAX_EMPTY_HOURS,
+    RETRIES,
+    RETRY_PAUSE,
+    Rerun,
+    cache_summary,
+    rerun,
+)
 from trader.intraday.signal import NO_RESEARCH, Signaler
 from trader.ledger import Ledger
 from trader.okx import Bar, FundingEvent, FundingRate, OKXError, OpenInterest
@@ -180,13 +187,49 @@ def test_hours_that_cost_nothing_and_gave_nothing_are_not_cached_and_stop_the_ru
     market = HistoricalOKX(store)
     cache = Ledger(tmp_path / "cache.sqlite")
     llm = FakeLLM(error=RuntimeError("the model is down"))
+    pauses = []
     result, stats, stopped = rerun(
         store, cache, signaler(tmp_path, market, llm), market, T0, T0 + 10 * HOUR_MS,
-        watchlist=(BTC,), workers=1,
+        watchlist=(BTC,), workers=1, sleep=pauses.append,
     )
     assert result is None and stopped.startswith("NothingWorks") and "the model is down" in stopped
     assert stats.hours == MAX_EMPTY_HOURS and stats.failures == MAX_EMPTY_HOURS
+    # Every hour was tried RETRIES more times, pausing longer each time, before giving up.
+    assert stats.calls == MAX_EMPTY_HOURS * (RETRIES + 1)
+    assert pauses == [RETRY_PAUSE * 2 ** i for i in range(RETRIES)] * MAX_EMPTY_HOURS
     assert cache_summary(cache)["signals"] == 0
+
+
+class FlakyLLM(FakeLLM):
+    """Fails the first ``outages`` calls, then answers like FakeLLM."""
+
+    def __init__(self, outages: int):
+        super().__init__()
+        self.outages = outages
+
+    def invoke(self, messages):
+        if len(self.calls) < self.outages:
+            self.calls.append(messages)
+            raise RuntimeError("overloaded")
+        return super().invoke(messages)
+
+
+def test_an_hour_whose_calls_failed_for_nothing_is_asked_again_after_a_pause(store, tmp_path):
+    load(store, price_path(30), 30)
+    load_prompt_inputs(store, 30)
+    market = HistoricalOKX(store)
+    cache = Ledger(tmp_path / "cache.sqlite")
+    pauses, lines = [], []
+    result, stats, stopped = rerun(
+        store, cache, signaler(tmp_path, market, FlakyLLM(outages=2)), market, T0, T0 + 2 * HOUR_MS,
+        watchlist=(BTC,), workers=1, sleep=pauses.append, log=lines.append,
+    )
+    assert stopped is None and result is not None
+    assert (stats.hours, stats.calls, stats.failures) == (2, 4, 0)
+    assert stats.spent == pytest.approx(2 * CALL_COST)  # the failed calls cost nothing
+    assert pauses == [RETRY_PAUSE, RETRY_PAUSE * 2]
+    assert sum("retrying in" in line for line in lines) == 2
+    assert cache_summary(cache)["signals"] == 2
 
 
 def test_a_paid_answer_without_a_signal_is_cached_as_a_failure(store, tmp_path):

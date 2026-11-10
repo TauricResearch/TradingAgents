@@ -11,6 +11,8 @@ the cache is itself a signal source for ``replay`` and the signal study.
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -20,10 +22,13 @@ from trader.evaluation.market import HistoricalOKX
 from trader.evaluation.replay import Result, Signal, replay
 from trader.intraday.settings import DEFAULT_PARAMS, Params
 from trader.intraday.signal import Signaler
+from trader.intraday.types import SignalResult
 from trader.ledger import Ledger, Position
 from trader.settings import WATCHLIST, Coin
 
 MAX_EMPTY_HOURS = 3  # this many hours in a row without one usable signal stops the rerun
+RETRIES = 4          # more tries of an hour whose calls failed without costing anything
+RETRY_PAUSE = 15.0   # seconds before the first retry; doubles each time
 
 
 class BudgetExhausted(RuntimeError):
@@ -52,7 +57,7 @@ class Rerun:
     def __init__(
         self, signaler: Signaler, market: HistoricalOKX, cache: Ledger, *,
         watchlist: tuple[Coin, ...] = WATCHLIST, budget_usd: float | None = None,
-        workers: int = 3, log=None,
+        workers: int = 3, log=None, sleep: Callable[[float], None] = time.sleep,
     ):
         self.signaler = signaler
         self.market = market
@@ -61,6 +66,7 @@ class Rerun:
         self.budget = budget_usd
         self.workers = max(1, workers)
         self.log = log or (lambda message: None)
+        self.sleep = sleep
         self.stats = Stats()
         self.empty_hours = 0
         self.clock = datetime.now(UTC)
@@ -88,13 +94,8 @@ class Rerun:
         signals = [Signal(now_ms, coin, s, c) for coin, (s, c) in cached.items()]
         self.stats.cached += len(cached)
         if todo:
-            with ThreadPoolExecutor(self.workers) as pool:
-                results = list(pool.map(
-                    lambda coin: self.signaler.run(coin, now_ms, positions.get(coin.swap)), todo
-                ))
+            results = self._ask(todo, now_ms, positions)
             for coin, result in zip(todo, results, strict=True):
-                self.stats.calls += 1
-                self.stats.spent += result.cost_usd or 0.0
                 if result.signal is None:
                     self.stats.failures += 1
                     self.stats.errors.append(f"{self.clock:%m-%d %H:%M} {coin.research}: {result.error}")
@@ -115,6 +116,30 @@ class Rerun:
             raise NothingWorks("; ".join(self.stats.errors[-MAX_EMPTY_HOURS * len(self.watchlist):]))
         return signals
 
+    def _ask(self, coins: list[Coin], now_ms: int, positions: dict[str, Position]) -> list[SignalResult]:
+        """One answer per coin, the coins asked at once. A call that failed without
+        costing anything (the model unreachable or overloaded) is asked again after a
+        pause, RETRIES times, before the hour counts as empty."""
+        answers: dict[str, SignalResult] = {}
+        pending, pause = list(coins), RETRY_PAUSE
+        for attempt in range(RETRIES + 1):
+            with ThreadPoolExecutor(self.workers) as pool:
+                results = list(pool.map(
+                    lambda coin: self.signaler.run(coin, now_ms, positions.get(coin.swap)), pending
+                ))
+            for coin, result in zip(pending, results, strict=True):
+                self.stats.calls += 1
+                self.stats.spent += result.cost_usd or 0.0
+                answers[coin.research] = result
+            pending = [c for c in pending if answers[c.research].signal is None and not answers[c.research].tokens_in]
+            if not pending or attempt == RETRIES:
+                break
+            self.log(f"{self.clock:%Y-%m-%d %H:%M} {len(pending)} call(s) failed for nothing"
+                     f" ({answers[pending[0].research].error}); retrying in {pause:.0f}s")
+            self.sleep(pause)
+            pause *= 2
+        return [answers[c.research] for c in coins]
+
     def _cached(self, now_ms: int) -> dict[str, tuple[str | None, int | None]]:
         rows = self.cache.db.execute(
             "SELECT coin, signal, conviction FROM signals WHERE ts = ? ORDER BY id", (now_ms,)
@@ -126,14 +151,15 @@ def rerun(
     store: HistoryStore, cache: Ledger, signaler: Signaler, market: HistoricalOKX,
     start_ms: int, end_ms: int, *, budget_usd: float | None = None,
     watchlist: tuple[Coin, ...] = WATCHLIST, workers: int = 3, capital: float = 10_000.0,
-    params: Params = DEFAULT_PARAMS, log=None,
+    params: Params = DEFAULT_PARAMS, log=None, sleep: Callable[[float], None] = time.sleep,
 ) -> tuple[Result | None, Stats, str | None]:
     """Rerun the signal from ``start_ms`` to ``end_ms`` with the engine in the loop.
 
     Returns the replay's result (None when the run stopped early), the run's stats,
     and why it stopped early (None when it did not)."""
     maker = Rerun(
-        signaler, market, cache, watchlist=watchlist, budget_usd=budget_usd, workers=workers, log=log
+        signaler, market, cache, watchlist=watchlist, budget_usd=budget_usd, workers=workers, log=log,
+        sleep=sleep,
     )
     try:
         result = replay(
