@@ -1,5 +1,6 @@
-"""Command line: python -m trader init | daily | mark | report | resume | backup, and the
-intraday account's python -m trader intraday init | run | report | resume."""
+"""Command line: python -m trader init | daily | mark | report | resume | backup, the
+intraday account's python -m trader intraday init | run | report | resume, and the demo
+account's python -m trader demo check (ADR 0008)."""
 
 from __future__ import annotations
 
@@ -16,7 +17,8 @@ from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
 from trader.notify import Notifier
-from trader.okx import OKX
+from trader.okx import OKX, REQUEST_ERRORS
+from trader.okx_private import OKXPrivate
 from trader.paper import Paper
 from trader.research import Researcher
 from trader.settings import Settings
@@ -24,6 +26,10 @@ from trader.settings import Settings
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 intraday_app = typer.Typer(add_completion=False, no_args_is_help=True)
 app.add_typer(intraday_app, name="intraday")
+demo_app = typer.Typer(add_completion=False, no_args_is_help=True)
+app.add_typer(demo_app, name="demo")
+
+DEMO_ENV = "TRADER_OKX_DEMO_KEY / TRADER_OKX_DEMO_SECRET / TRADER_OKX_DEMO_PASSPHRASE"
 
 
 @app.callback()
@@ -157,6 +163,49 @@ def intraday_resume() -> None:
     with locked(settings.intraday_lock_path):
         paper.resume(_now_ms())
     notifier.send("日内账户熔断已解除，下一小时恢复交易。")
+
+
+@demo_app.callback()
+def demo_main() -> None:
+    """The demo account: real orders on OKX's simulated trading (ADR 0008)."""
+
+
+@demo_app.command("check")
+def demo_check() -> None:
+    """Read the simulated account's mode, permissions, USDT balance and positions
+    with the key in .env; places nothing."""
+    try:
+        settings = Settings.from_env()
+    except ValueError as exc:  # some of the three variables are set, not all
+        _fail(str(exc))
+    if settings.okx_demo is None:
+        _fail(f"先在 .env 里设 {DEMO_ENV}（OKX 模拟交易的 API，只勾“交易”权限）")
+    client = OKXPrivate(settings.okx_demo)
+    try:
+        config = client.account_config()
+        balance = client.balance()
+        positions = client.positions()
+        stops = client.pending_stops()
+    except REQUEST_ERRORS as exc:
+        _fail(f"OKX 模拟盘没有应答：{jobs.error_text(exc)}")
+    levels = {"1": "现货", "2": "单币种保证金", "3": "跨币种保证金", "4": "组合保证金"}
+    typer.echo(
+        f"模拟账户可用。持仓模式 {config.position_mode}，"
+        f"账户模式 {levels.get(config.account_level, config.account_level)}，权限 {config.permissions}"
+    )
+    typer.echo(
+        f"USDT 权益 {balance.equity:,.2f}，钱包 {balance.cash:,.2f}，可用 {balance.available:,.2f}，"
+        f"未实现 {balance.unrealized:+,.2f}"
+    )
+    typer.echo(f"持仓 {len(positions)} 个，挂着的止损单 {len(stops)} 张")
+    for p in positions:
+        typer.echo(f"  {p.inst} {p.contracts:+g} 张 @ {p.avg_price:,.2f}，{p.margin_mode} {p.leverage:g}×")
+    for s in stops:
+        typer.echo(f"  止损 {s.inst} {s.side} {s.contracts:g} 张，触发 {s.trigger:,.2f}")
+    if config.position_mode != "net_mode":
+        typer.echo("注意：demo 账户按单向持仓（net_mode）设计，首次运行会切换；要求当时没有持仓和挂单。")
+    if config.account_level == "1":
+        typer.echo("注意：现货账户模式不能交易合约，请在 OKX 模拟盘把账户模式改成单币种保证金或以上。")
 
 
 def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:

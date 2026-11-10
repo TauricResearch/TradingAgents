@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from trader import overrides, prices
+from trader.okx_private import OKXCredentials
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
@@ -109,6 +110,7 @@ class Settings:
     telegram_chat_id: str | None = None
     llm: dict | None = None  # the "llm" object of settings.json; None without the file
     web_token: str | None = None  # the dashboard's write endpoint wants it as a Bearer token
+    okx_demo: OKXCredentials | None = None  # the demo account's API key (ADR 0008); masked repr
 
     @property
     def ledger_path(self) -> Path:
@@ -165,4 +167,5 @@ class Settings:
             telegram_chat_id=os.getenv("TRADER_TELEGRAM_CHAT_ID") or None,
             llm=data["llm"] if data else None,
             web_token=os.getenv("TRADER_WEB_TOKEN", "").strip() or None,
+            okx_demo=OKXCredentials.from_env(),
         )
