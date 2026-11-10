@@ -4,6 +4,7 @@ from tradingagents.agents.context import (
     opponent_argument_or_opening,
     report_or_absent,
 )
+from tradingagents.dataflows.config import get_config
 
 
 def create_bear_researcher(llm):
@@ -11,6 +12,11 @@ def create_bear_researcher(llm):
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
         bear_history = investment_debate_state.get("bear_history", "")
+        # R1: inject a bounded view of the debate history (see bull_researcher).
+        from tradingagents.graph.context_budget import compact_from_config
+
+        bounded = compact_from_config(history, get_config())
+        injected_history = bounded.text
 
         current_response = opponent_argument_or_opening(
             investment_debate_state.get("current_response", ""), "bull analyst"
@@ -45,7 +51,7 @@ Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
-Conversation history of the debate: {history}
+Conversation history of the debate: {injected_history}
 Last bull argument: {current_response}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the {target_label}.
 """ + get_language_instruction()

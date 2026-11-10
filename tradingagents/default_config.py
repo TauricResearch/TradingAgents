@@ -133,6 +133,15 @@ def build_default_config() -> dict:
         "max_debate_rounds": 1,
         "max_risk_discuss_rounds": 1,
         "max_recur_limit": 100,
+        # R1: bounded-context compaction for the investment debate history. The
+        # researchers re-inject the whole history each turn, so it is compacted
+        # before reaching a prompt (the stored history is left intact, so the
+        # report and downstream state are unaffected). See
+        # ``tradingagents/graph/context_budget.py``.
+        "debate_history_compact": True,       # master switch; False = legacy full history
+        "history_compress": "truncate",       # "none" | "truncate" (default) | "summarize"
+        "history_max_chars": 6000,            # hard cap on the injected history
+        "history_max_turns": 4,               # recent turns kept per side (+ opening stance)
         # Rounds of tool calls an analyst may make before it is asked for its report.
         "max_tool_rounds": 20,
         # News / data fetching parameters
