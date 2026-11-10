@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main, 'v[0-9]+.[0-9]+.[0-9]+']
+    # crypto-trader is this fork's integration branch; cursor/** are its issue branches.
+    branches: [main, 'v[0-9]+.[0-9]+.[0-9]+', crypto-trader, 'cursor/**']
   pull_request:
 
 concurrency:
@@ -28,10 +29,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install (with dev extras)
+      - name: Install (with dev and web extras)
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          # web: tests/test_web_api.py imports fastapi at collection time.
+          pip install -e ".[dev,web]"
       - name: Run test suite
         run: pytest -q
 
