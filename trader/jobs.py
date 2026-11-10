@@ -15,7 +15,7 @@ from trader.ledger import BUDGET_ERROR, Ledger, locked
 from trader.notify import Notifier
 from trader.paper import Paper
 from trader.research import Researcher, build_config
-from trader.settings import BUDGET_LEARNING_DAYS, MAX_ATTEMPTS, RETRY_WAIT_SECONDS, Settings
+from trader.settings import BUDGET_LEARNING_DAYS, MAX_ATTEMPTS, RETRY_WAIT_SECONDS, Coin, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,9 @@ def daily(
     trade_date = trade_date_for(now_fn())
     with locked(settings.lock_path):
         alerts = paper.replay(_ms(now_fn()))
-    alerts += check_fingerprint(ledger, fingerprint(build_config(settings)), _ms(now_fn()))
+    alerts += check_fingerprint(
+        ledger, fingerprint(build_config(settings), paper.watchlist), _ms(now_fn())
+    )
     alerts += _check_prices(settings, ledger, trade_date)
     for text in alerts:
         notifier.send(text)
@@ -143,8 +145,9 @@ def budget_cap(ledger: Ledger, trade_date: str) -> float | None:
     return cap
 
 
-def fingerprint(config: dict) -> dict:
-    """What the research under validation runs on: library version, models, code."""
+def fingerprint(config: dict, watchlist: tuple[Coin, ...]) -> dict:
+    """What the research under validation runs on: library version, models, code,
+    and the coins researched."""
     root = Path(tradingagents.__file__).parent
     digest = hashlib.sha256()
     for path in sorted(root.rglob("*.py")):
@@ -155,27 +158,33 @@ def fingerprint(config: dict) -> dict:
         "deep": config["deep_think_llm"],
         "quick": config["quick_think_llm"],
         "code": digest.hexdigest()[:16],
+        "watchlist": sorted(coin.research for coin in watchlist),
     }
 
 
 def check_fingerprint(ledger: Ledger, current: dict, now_ms: int) -> list[str]:
     """Record ``current`` and return an alert when it differs from the stored one.
 
-    A new model or minor version restarts the validation period; a code change
-    within the version (a bug fix) is recorded and the period continues.
+    A new model, minor version or watchlist restarts the validation period; a code
+    change within the version (a bug fix) is recorded and the period continues.
     """
     stored = ledger.get("fingerprint")
     ledger.set("fingerprint", current)
+    if stored is not None and "watchlist" in current and "watchlist" not in stored:
+        # Recorded before the watchlist was part of the fingerprint: the first run
+        # that names it only records it (the pool is taken as unchanged).
+        stored = {**stored, "watchlist": current["watchlist"]}
     if stored is None or stored == current:
         return []
 
     def series(fp: dict) -> tuple:
-        return fp["deep"], fp["quick"], ".".join(fp["version"].split(".")[:2])
+        minor = ".".join(fp["version"].split(".")[:2])
+        return fp["deep"], fp["quick"], minor, fp.get("watchlist")
 
     if series(stored) != series(current):
         ledger.set("validation_start", None)
         ledger.set("baseline_ref", None)
-        text = f"研判的模型或版本变了，验证期从下一次执行起重新计时：{stored} → {current}"
+        text = f"研判的模型、版本或自选池变了，验证期从下一次执行起重新计时：{stored} → {current}"
         ledger.add_event(now_ms, "validation_restart", text)
     else:
         text = f"tradingagents 代码变了（{stored['code']} → {current['code']}），验证期不重新计时"

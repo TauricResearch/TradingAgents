@@ -141,6 +141,20 @@ def test_hold_keeps_the_position_and_only_tightens_the_stop(ledger):
     assert ledger.positions()[BTC.swap].stop == 85_000  # 83,000 would loosen it
 
 
+def test_a_position_in_a_coin_dropped_from_the_watchlist_keeps_its_stop_managed(ledger):
+    eth = Coin("ETH-USD", "ETH-USDT-SWAP", "ETH-USDT")
+    hold(ledger, 0.04, 80_000, 74_000)  # BTC, which the watchlist no longer names
+    Paper(ledger, FakeOKX(last=90_000), (eth,)).execute("2026-01-09", {eth.research: None}, T0)
+    assert ledger.positions()[BTC.swap] == Position(0.04, 80_000, 85_000)  # tightened, not traded
+    assert ledger.fills() == []
+    assert ledger.get("marks") == {BTC.swap: 90_000, eth.swap: 90_000}
+    alerts = Paper(ledger, FakeOKX(last=84_000), (eth,)).execute(
+        "2026-01-10", {eth.research: None}, T0 + DAY_MS
+    )
+    assert ledger.positions() == {} and ledger.fills()[0].reason == "stop"
+    assert len(alerts) == 1 and "BTC-USDT-SWAP" in alerts[0]
+
+
 def test_failed_research_keeps_the_position(ledger):
     hold(ledger, 0.04, 80_000, 75_000)
     Paper(ledger, FakeOKX(), (BTC,)).execute("2026-01-09", {BTC.research: None}, T0)

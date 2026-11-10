@@ -8,6 +8,7 @@ from trader import report
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS, Bar
 from trader.paper import Paper
+from trader.settings import Coin
 
 
 def test_metrics_of_known_series():
@@ -103,3 +104,17 @@ def test_daily_report_with_okx_up_says_nothing_about_the_market(tmp_path):
         DAY0, DAY0, None,
     )
     assert "行情暂不可用" not in text
+
+
+def test_daily_report_prices_the_baseline_only_for_coins_the_period_started_with(tmp_path):
+    eth = Coin("ETH-USD", "ETH-USDT-SWAP", "ETH-USDT")
+    ledger = Ledger(tmp_path / "ledger.sqlite")
+    ledger.initialize(10_000.0, DAY0)
+    ledger.commit(
+        positions={}, cash=10_000.0, snapshots=[(DAY0, 10_000.0)],
+        meta={"validation_start": DAY0, "baseline_ref": {BTC.research: 80_000.0}},
+    )
+    paper = Paper(ledger, FakeOKX(last=82_000.0), (BTC, eth))  # ETH joined after the start
+    states = {c.research: ("done", "Hold") for c in (BTC, eth)}
+    text = report.daily(paper, "2026-01-09", states, DAY0 + DAY_MS, DAY0, None)
+    assert "三币等权现货 +2.50%" in text  # BTC alone: 82,000 / 80,000

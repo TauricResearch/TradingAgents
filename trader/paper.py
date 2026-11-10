@@ -129,12 +129,19 @@ class Paper:
         applied: what prices the account when OKX cannot be asked (the daily report)."""
         return {**(self.ledger.get("marks") or {}), **latest}
 
+    def instruments(self, positions: dict[str, Position]) -> list[str]:
+        """The contracts an execution quotes: the watchlist's, then any other the
+        account still holds (a coin dropped from the watchlist keeps its stop)."""
+        swaps = [coin.swap for coin in self.watchlist]
+        return swaps + [inst for inst in positions if inst not in swaps]
+
     def execute(self, trade_date: str, ratings: dict[str, str | None], now_ms: int) -> list[str]:
         """Trade each contract toward the target its rating sets; return the alerts.
 
         Call right after ``replay``. ``ratings`` maps research tickers to ratings,
         None for a coin whose research failed. Runs once per trade date, and not
-        while halted.
+        while halted. A position in a contract no longer on the watchlist is not
+        traded; its stop is managed until it closes the position.
         """
         if self.ledger.executed(trade_date) or self.ledger.get("halted"):
             return []
@@ -142,14 +149,12 @@ class Paper:
         positions = self.ledger.positions()
         day_start = now_ms - now_ms % DAY_MS
         quotes = {}
-        for coin in self.watchlist:
-            daily = self.okx.bars(
-                coin.swap, "1Dutc", day_start - (ATR_DAYS + 5) * DAY_MS, day_start
-            )
+        for inst in self.instruments(positions):
+            daily = self.okx.bars(inst, "1Dutc", day_start - (ATR_DAYS + 5) * DAY_MS, day_start)
             atr_value = rules.atr(
                 [b.high for b in daily], [b.low for b in daily], [b.close for b in daily]
             )
-            quotes[coin.swap] = (self.okx.last_price(coin.swap), atr_value)
+            quotes[inst] = (self.okx.last_price(inst), atr_value)
 
         alerts, fills = [], []
         # A stop crossed since the last closed minute fills now; every other stop tightens.

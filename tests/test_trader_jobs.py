@@ -222,6 +222,22 @@ def test_a_new_model_or_version_restarts_validation_and_a_code_change_does_not(e
     assert ledger.get("validation_start") is None
 
 
+def test_the_fingerprint_names_the_watchlist_and_a_pool_change_restarts_validation(env):
+    ledger = env[1]
+    config = {"deep_think_llm": "d", "quick_think_llm": "q"}
+    current = jobs.fingerprint(config, (ETH, BTC))
+    assert current["watchlist"] == ["BTC-USD", "ETH-USD"]  # order does not count
+    # A fingerprint recorded before the watchlist was part of it: recorded, no alert, no restart.
+    ledger.set("fingerprint", {k: v for k, v in current.items() if k != "watchlist"})
+    ledger.set("validation_start", 123)
+    assert jobs.check_fingerprint(ledger, current, 0) == []
+    assert ledger.get("fingerprint") == current and ledger.get("validation_start") == 123
+    # The pool changes: the period restarts like it does for a new model.
+    alert = jobs.check_fingerprint(ledger, jobs.fingerprint(config, (BTC,)), 1)[0]
+    assert "自选池" in alert and "从下一次执行起重新计时" in alert
+    assert ledger.get("validation_start") is None and ledger.get("baseline_ref") is None
+
+
 def test_the_trade_date_is_the_previous_utc_day():
     assert jobs.trade_date_for(datetime(2026, 1, 10, 0, 5, tzinfo=UTC)) == "2026-01-09"
     singapore = timezone(timedelta(hours=8))

@@ -41,6 +41,8 @@ class IntradayPaper(Paper):
         position however small; any other change below REBALANCE_THRESHOLD units
         is skipped. The first execution starts the validation period at this UTC
         day's midnight and fixes the baseline at the spot closes of the day before.
+        A position in a contract no longer on the watchlist is not traded; its stop
+        is managed until it closes the position.
         """
         if self.ledger.get("halted"):
             return []
@@ -48,13 +50,13 @@ class IntradayPaper(Paper):
         positions = self.ledger.positions()
         hour = now_ms - now_ms % HOUR_MS
         quotes = {}
-        for coin in self.watchlist:
-            hourly = self.okx.bars(coin.swap, ATR_BAR, hour - (ATR_BARS + 5) * HOUR_MS, hour)
+        for inst in self.instruments(positions):
+            hourly = self.okx.bars(inst, ATR_BAR, hour - (ATR_BARS + 5) * HOUR_MS, hour)
             atr_value = rules.atr(
                 [b.high for b in hourly], [b.low for b in hourly], [b.close for b in hourly],
                 days=ATR_BARS,
             )
-            quotes[coin.swap] = (self.okx.last_price(coin.swap), atr_value)
+            quotes[inst] = (self.okx.last_price(inst), atr_value)
 
         alerts, fills = [], []
         for inst, pos in list(positions.items()):

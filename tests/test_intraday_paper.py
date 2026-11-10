@@ -12,6 +12,7 @@ from trader.intraday.paper import HOUR_MS, IntradayPaper, utc_date
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS
 from trader.paper import Paper
+from trader.settings import Coin
 
 FEE = 0.0005
 
@@ -116,6 +117,14 @@ def test_stops_tighten_to_the_hourly_atr_and_never_loosen(ledger):
     assert ledger.positions()[BTC.swap] == Position(0.1, 80_000, 80_000)  # 81,000 - 1,000
     IntradayPaper(ledger, FakeOKX(last=80_500), (BTC,)).execute({BTC.research: None}, T0 + HOUR_MS)
     assert ledger.positions()[BTC.swap].stop == 80_000  # 79,500 would loosen it
+    assert ledger.fills() == []
+
+
+def test_a_position_in_a_coin_dropped_from_the_watchlist_keeps_its_stop_managed(ledger):
+    eth = Coin("ETH-USD", "ETH-USDT-SWAP", "ETH-USDT")
+    hold(ledger, 0.1, 80_000, 79_500)  # BTC, which the watchlist no longer names
+    IntradayPaper(ledger, FakeOKX(last=81_000), (eth,)).execute({eth.research: None}, T0)
+    assert ledger.positions()[BTC.swap] == Position(0.1, 80_000, 80_000)  # tightened, not traded
     assert ledger.fills() == []
 
 

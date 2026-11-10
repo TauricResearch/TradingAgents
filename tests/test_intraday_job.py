@@ -78,7 +78,7 @@ def test_a_long_signal_is_recorded_traded_and_messaged(env):
     assert signaler.calls == [("BTC-USD", T0, None)]
     assert ledger.positions()[BTC.swap].qty == pytest.approx(0.1)
     assert ledger.get("decided_hour") == DAY0
-    assert ledger.get("fingerprint") == FINGERPRINT
+    assert ledger.get("fingerprint") == {**FINGERPRINT, "watchlist": ["BTC-USD"]}
     assert ledger.signals() == [(T0, "BTC-USD", "Long", 2, "because", None, 100, 20, 0.01)]
     assert ledger.signal_cost_since(0) == (pytest.approx(0.01), False)
     # Cash 10,000 - 4.002 of fee, the position marked 4 under its entry: 9,992.00.
@@ -169,12 +169,24 @@ def test_a_changed_fingerprint_restarts_the_validation_period(env):
     _, inbox = run(env, signaler, now=NOW + timedelta(days=1), okx=okx)
     assert "验证期从下一次执行起重新计时" in inbox.sent[0]
     assert "'v1'" in inbox.sent[0] and "'v2'" in inbox.sent[0]
-    assert ledger.get("fingerprint") == changed
+    assert ledger.get("fingerprint") == {**changed, "watchlist": ["BTC-USD"]}
     # The execution of that hour restarted the period at its day, with a fresh baseline.
     assert ledger.get("validation_start") == DAY0 + DAY_MS
     assert ledger.get("baseline_ref") == {BTC.research: 82_000}
     kinds = ledger.db.execute("SELECT kind FROM events").fetchall()
     assert kinds == [("validation_restart",)]
+
+
+def test_the_fingerprint_names_the_watchlist_and_a_pool_change_restarts_validation(env):
+    ledger = env[1]
+    current = job.fingerprint(FakeSignaler({}), (ETH, BTC))
+    assert current == {**FINGERPRINT, "watchlist": ["BTC-USD", "ETH-USD"]}
+    ledger.set("fingerprint", FINGERPRINT)  # recorded before the watchlist was part of it
+    ledger.set("validation_start", 123)
+    assert job.check_fingerprint(ledger, current, 0) == []
+    assert ledger.get("fingerprint") == current and ledger.get("validation_start") == 123
+    alert = job.check_fingerprint(ledger, job.fingerprint(FakeSignaler({}), (BTC,)), 1)[0]
+    assert "自选池" in alert and ledger.get("validation_start") is None
 
 
 def test_check_fingerprint_records_and_resets(env):

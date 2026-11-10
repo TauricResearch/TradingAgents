@@ -61,7 +61,7 @@ def _run(
     hour = now_ms - now_ms % HOUR_MS
     with locked(settings.intraday_lock_path):
         alerts = paper.replay(now_ms)
-    alerts += check_fingerprint(ledger, signaler.fingerprint(), now_ms)
+    alerts += check_fingerprint(ledger, fingerprint(signaler, paper.watchlist), now_ms)
     for text in alerts:
         notifier.send(text)
 
@@ -91,17 +91,28 @@ def _run(
         ledger.set("summarized_day", today)
 
 
+def fingerprint(signaler, watchlist: tuple[Coin, ...]) -> dict:
+    """What the signals under validation run on: the signaler's fingerprint (model,
+    prompt) and the coins signalled."""
+    return {**signaler.fingerprint(), "watchlist": sorted(coin.research for coin in watchlist)}
+
+
 def check_fingerprint(ledger: Ledger, current: dict, now_ms: int) -> list[str]:
     """Record ``current`` and, when it differs from the stored one, restart the
     validation period and return the alert. Any change restarts it: the signal's
-    fingerprint (model, prompt) has no code-only part, unlike the daily research."""
+    fingerprint (model, prompt, watchlist) has no code-only part, unlike the daily
+    research."""
     stored = ledger.get("fingerprint")
     ledger.set("fingerprint", current)
+    if stored is not None and "watchlist" in current and "watchlist" not in stored:
+        # Recorded before the watchlist was part of the fingerprint: the first run
+        # that names it only records it (the pool is taken as unchanged).
+        stored = {**stored, "watchlist": current["watchlist"]}
     if stored is None or stored == current:
         return []
     ledger.set("validation_start", None)
     ledger.set("baseline_ref", None)
-    text = f"日内信号的模型或提示词变了，验证期从下一次执行起重新计时：{stored} → {current}"
+    text = f"日内信号的模型、提示词或自选池变了，验证期从下一次执行起重新计时：{stored} → {current}"
     ledger.add_event(now_ms, "validation_restart", text)
     return [text]
 

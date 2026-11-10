@@ -157,14 +157,18 @@ def daily(
     if start is not None:
         base = ledger.equity_series(start)[0][1]
         spent, _ = ledger.cost_since(start)
-        ref = ledger.get("baseline_ref")
+        # The baseline holds the coins the period started with; a coin added since
+        # has no reference close and is left out of it.
+        ref = ledger.get("baseline_ref") or {}
+        held = [c for c in paper.watchlist if c.research in ref]
         line = f"验证期累计 {equity / base - 1:+.2%}，扣 LLM 费用后 {(equity - spent) / base - 1:+.2%}"
         try:
-            ratios = [paper.okx.last_price(c.spot) / ref[c.research] for c in paper.watchlist]
+            ratios = [paper.okx.last_price(c.spot) / ref[c.research] for c in held]
         except REQUEST_ERRORS:  # the baseline has no mark to fall back on: left out
             unavailable = True
         else:
-            line += f"；三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}"
+            if ratios:
+                line += f"；三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}"
         lines.append(line)
 
     today, unknown_today = ledger.cost_of(trade_date)
