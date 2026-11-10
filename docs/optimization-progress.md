@@ -33,7 +33,7 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 23 | demo check/init 用探针验证 API key 的交易权限（50123 到首次下单才暴露） | P2 | done | #20 | `OKXPrivate.check_trade_permission`：撤一张不存在的订单，50xxx 即权限不足，51400 即能下单；check 打印结论，init 先探再改设置；账户模式档位用 OKX 现名（合约模式）；下单预检接口不能用（只对跨币种/组合保证金开放） | +4 测试，全量 1959；mini 真 key 验过两种结果 | 已关（CI 42816890344）；提交 e7f8dbe；未部署 mini |
 | 24 | Demo 账户显示它跟随的日内信号及每小时执行结果（切到 Demo 信号页为空） | P2 | done | #22 | `followed_signals`：读日内账本的信号，按小时对照 Demo 的成交/事件标 executed / no_change / skipped / blocked / failed / pending；前端 Demo 有「信号」页和总览「最近信号」，「Demo 执行」芯片代替 token 成本列 |
 | 25 | 信号记录同时显示北京时间 | P3 | done | — | `Time` 组件 `beijing` 属性：信号页和总览「最近信号」在 UTC 后显示「北京 HH:MM」，跨日带日期；其他页面不变 |
-| 26 | demo 对账切掉了交易所时间戳晚于本机“现在”的成交，迟到成交下一小时又重复计 | P1 | review | #22 | 13:10Z 首次真实下单暴露：mini 时钟比 OKX 慢 1～3 s。对账窗口向后放宽 CLOCK_SKEW_MS=60 s；“成交解释的仓位”= `Ledger.net_fills()` 累计和，迟到成交抵消而非叠加；近三天成交读 `/trade/fills` 实时接口，更早读历史；等部署后观察一次对账再关 |
+| 26 | demo 对账切掉了交易所时间戳晚于本机“现在”的成交，迟到成交下一小时又重复计 | P1 | done | #22 | 13:10Z 首次真实下单暴露：mini 时钟比 OKX 慢 1～3 s。对账窗口向后放宽 CLOCK_SKEW_MS=60 s；“成交解释的仓位”= `Ledger.net_fills()` 累计和，迟到成交抵消而非叠加；近三天成交读 `/trade/fills` 实时接口，更早读历史；14:10Z 对账干净、迟到成交补齐、正常交易，已关 |
 
 ## 执行记录
 
@@ -67,3 +67,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | #25 | 用户要求信号记录显示北京时间；`cursor/issue-25-signals-beijing-time-6e50` → 854008c（ff） | 验收通过（CI 42822807972）；tsc/eslint/build 干净；未部署 mini |
 | 2026-11-10 | #26 | 13:10Z demo 首次下单后对账漏了 ETH/SOL 成交；`cursor/issue-26-demo-fills-latency-6e50` → a123dce（ff） | 全量 1968 通过，新增 7 测（两接口分段/合并、迟到成交抵消、持续不解释仍报、时钟偏差、net_fills）；ADR 0008 补记；等授权部署 |
 | 2026-11-10 | 部署 #25 + #26 | mini 03aa7b0 → 15ad42f | 用户授权（选 A，13:46Z）；pull + uv + rsync dist + kickstart web；/、demo signals、execution 均 200；未重启 daily/intraday/mark/demo；等 14:10Z 对账验证 #26 |
+| 2026-11-10 | #26 验收 | mini 15ad42f | 14:10Z 对账 problems=[]，13:10 的 20 笔迟到成交入账，ETH/SOL 按 14:00 信号减仓，止损重挂；关闭 |
