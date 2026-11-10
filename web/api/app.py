@@ -18,7 +18,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
@@ -60,6 +60,11 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     market = data.Market(okx or OKX())
     app = FastAPI(title="TradingAgents trader")
     app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["GET", "POST"])
+
+    # A quote OKX cannot give is null in the routes that degrade (overview, equity);
+    # anywhere else it is a 503 naming the cause, not a 500 with a traceback.
+    for exc_type in (data.MarketUnavailable, *data.MARKET_ERRORS):
+        app.add_exception_handler(exc_type, _market_unavailable)
 
     def _account(account_id: str) -> data.Account:
         if account_id not in accounts:
@@ -172,6 +177,12 @@ class _UIFiles(StaticFiles):
             if exc.status_code != 404 or path.startswith("api/"):
                 raise
             return await super().get_response("index.html", scope)
+
+
+async def _market_unavailable(request, exc: Exception) -> JSONResponse:
+    return JSONResponse(
+        {"detail": f"行情暂不可用（OKX）：{type(exc).__name__}: {str(exc)[:200]}"}, status_code=503
+    )
 
 
 def _since_ms(since: datetime | None) -> int:

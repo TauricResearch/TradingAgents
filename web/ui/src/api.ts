@@ -48,10 +48,18 @@ export interface Position {
   qty: number
   entry: number
   stop: number | null
-  price: number
-  notional: number
-  unrealized: number
+  /** The priced fields are null while OKX gives no quote (see `MarketStatus`). */
+  price: number | null
+  notional: number | null
+  unrealized: number | null
   stop_distance: number | null
+}
+
+/** Whether the API's last request to OKX succeeded; `since` is when the failures began. */
+export interface MarketStatus {
+  ok: boolean
+  error: string | null
+  since: string | null
 }
 
 export type CoinState = 'done' | 'failed' | 'pending'
@@ -77,10 +85,11 @@ export interface Latest {
 }
 
 export interface Overview {
-  equity: number
+  /** Null with `drawdown` while OKX gives no quote for a position (see `market`). */
+  equity: number | null
   cash: number
   peak: number
-  drawdown: number
+  drawdown: number | null
   halted: boolean
   processed_to: string
   validation_start: string | null
@@ -90,6 +99,7 @@ export interface Overview {
   positions: Position[]
   /** Null for the intraday account, which has signals instead of daily research. */
   latest: Latest | null
+  market: MarketStatus
 }
 
 export interface EquityPoint {
@@ -102,7 +112,9 @@ export interface EquityPoint {
 
 export interface Equity {
   points: EquityPoint[]
-  live: { ts: string; equity: number }
+  /** `equity` is null while OKX gives no quote for a position (see `market`). */
+  live: { ts: string; equity: number | null }
+  market: MarketStatus
 }
 
 export type FillReason = 'trade' | 'stop' | 'kill'
