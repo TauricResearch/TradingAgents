@@ -111,3 +111,67 @@ def test_one_cache_file_per_symbol_across_days(tmp_path, monkeypatch):
 
     assert len(downloads) == 3, "each new day refetches"
     assert [p.name for p in tmp_path.iterdir()] == ["AAPL-YFin-data.csv"]
+
+
+# --- #1679: the download window is anchored at as_of_date, not at today --- #
+
+@pytest.mark.unit
+def test_backtest_window_anchors_at_as_of_date(tmp_path, monkeypatch):
+    """A run analyzing 2021-12-25 needs 2017-2021 history for the 200 SMA;
+    anchoring the window at today left it with only the tail (#1679)."""
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: pd.Timestamp("2026-11-11")))
+    spans = []
+
+    def fake_history(self=None, *a, start=None, end=None, **k):
+        spans.append((start, end))
+        dates = pd.bdate_range("2016-11-11", "2026-11-10")
+        return pd.DataFrame({"Close": [1.0] * len(dates)}, index=dates)
+
+    import yfinance as yf
+    monkeypatch.setattr(yf.Ticker, "history", fake_history)
+    ohlcv.load_ohlcv("AAPL", "2021-12-25")
+    assert spans, "cache miss must download"
+    assert spans[0][0] == "2016-12-25", spans  # as_of - 5y, not today - 5y
+    assert spans[0][1] == "2026-11-12", spans  # covers today too, one file serves both
+
+
+@pytest.mark.unit
+def test_young_listing_does_not_refetch_forever(tmp_path, monkeypatch):
+    """A 2026 IPO has no 2021 rows: after the first fetch the recorded span
+    settles it — the next same-day request must not download again."""
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: pd.Timestamp("2026-11-11")))
+    calls = []
+
+    def fake_history(*a, start=None, end=None, **k):
+        calls.append(1)
+        dates = pd.bdate_range("2026-06-01", "2026-11-10")  # young listing
+        return pd.DataFrame({"Close": [1.0] * len(dates)}, index=dates)
+
+    import yfinance as yf
+    monkeypatch.setattr(yf.Ticker, "history", fake_history)
+    ohlcv.load_ohlcv("NEWIPO", "2021-12-25")
+    ohlcv.load_ohlcv("NEWIPO", "2021-12-25")  # same window again
+    assert len(calls) == 1, "recorded span must settle a young listing"
+
+
+@pytest.mark.unit
+def test_backtest_cache_still_serves_a_current_day_request(tmp_path, monkeypatch):
+    """The span covers both endpoints, so one file serves backtest and
+    current-day runs without a refetch in between."""
+    monkeypatch.setattr(ohlcv, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
+    monkeypatch.setattr(ohlcv.pd.Timestamp, "today", staticmethod(lambda: pd.Timestamp("2026-11-11")))
+    calls = []
+
+    def fake_history(*a, start=None, end=None, **k):
+        calls.append(1)
+        dates = pd.bdate_range("2016-11-11", "2026-11-10")
+        return pd.DataFrame({"Close": [1.0] * len(dates)}, index=dates)
+
+    import yfinance as yf
+    monkeypatch.setattr(yf.Ticker, "history", fake_history)
+    ohlcv.load_ohlcv("AAPL", "2021-12-25")
+    out = ohlcv.load_ohlcv("AAPL", "2026-11-11")
+    assert len(calls) == 1
+    assert not out.empty
