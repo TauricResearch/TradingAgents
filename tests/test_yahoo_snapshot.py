@@ -117,3 +117,31 @@ class TestPricesKeepTheirDigits:
         monkeypatch.setattr(market.yf, "Ticker", _Ticker)
         text = market.get_YFin_data_online("SHIB-USD", "2026-05-11", "2026-05-15")
         assert "0.00000503" in text and ",0.0," not in text
+
+
+# --- #1679: windowed indicators must not report short-history means --- #
+
+class TestWarmupGatesShortHistory:
+    def test_short_history_marks_warmup_indicators_na(self, monkeypatch):
+        """~45 rows of history: the 200 SMA is really a 45-bar mean, so the
+        snapshot must say insufficient history instead of a number (#1679)."""
+        data = _sample_ohlcv()  # ~35 business days
+        monkeypatch.setattr(validator, "load_ohlcv", lambda s, d, fill_gaps=True: data)
+        out = validator.build_verified_market_snapshot("AAPL", "2026-05-20")
+        assert "insufficient history" in out
+        assert "close_50_sma | 129" not in out
+
+    def test_full_history_still_reports_values(self, monkeypatch):
+        """5 years of rows: warm-up is long past, values report normally."""
+        dates = pd.bdate_range("2021-01-01", "2026-05-20")
+        closes = [100 + (i % 50) for i in range(len(dates))]
+        data = pd.DataFrame({
+            "Date": dates,
+            "Open": [c - 0.5 for c in closes], "High": [c + 1.0 for c in closes],
+            "Low": [c - 1.0 for c in closes], "Close": closes,
+            "Volume": [1_000_000] * len(dates),
+        })
+        monkeypatch.setattr(validator, "load_ohlcv", lambda s, d, fill_gaps=True: data)
+        out = validator.build_verified_market_snapshot("AAPL", "2026-05-20")
+        assert "close_200_sma | " in out
+        assert "insufficient history" not in out.split("close_200_sma")[0].split("|")[-1]

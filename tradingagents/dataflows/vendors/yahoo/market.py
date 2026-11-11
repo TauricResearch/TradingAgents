@@ -202,6 +202,26 @@ def get_stock_stats_indicators_window(
     return result_str
 
 
+
+
+def _indicator_warmup(indicator: str) -> int:
+    """Sessions needed before the indicator is defined on a full window.
+
+    stockstats computes rolling windows with min_periods=1, so shorter
+    histories produce misleading values (a 200 SMA equal to the mean of 45
+    sessions, #1679). This marks the warm-up rows so callers can see the
+    difference between "the indicator is X" and "there isn't enough history
+    for the indicator yet".
+    """
+    windows = {
+        "close_50_sma": 50, "close_200_sma": 200, "close_10_ema": 10,
+        "boll": 20, "boll_ub": 20, "boll_lb": 20, "atr": 14,
+        "vwma": 20, "mfi": 14, "rsi": 14,
+        "macd": 26, "macds": 35, "macdh": 26,
+    }
+    return windows.get(indicator, 0)
+
+
 def _get_stock_stats_bulk(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to calculate"],
@@ -221,11 +241,19 @@ def _get_stock_stats_bulk(
     df[indicator]  # This triggers stockstats to calculate the indicator
 
     result_dict = {}
-    for _, row in df.iterrows():
+    warmup = _indicator_warmup(indicator)
+    rows = list(df.iterrows())
+    for position, (_, row) in enumerate(rows):
         date_str = row["Date"]
         indicator_value = row[indicator]
 
-        if pd.isna(indicator_value):
+        if position < warmup:
+            # stockstats computes every windowed indicator with
+            # min_periods=1, so the first rows are the mean of fewer
+            # sessions than the window — a number, but not the indicator
+            # (#1679). Report it as not-yet-defined instead.
+            result_dict[date_str] = "N/A: insufficient history (window warm-up)"
+        elif pd.isna(indicator_value):
             result_dict[date_str] = "N/A"
         else:
             result_dict[date_str] = str(indicator_value)

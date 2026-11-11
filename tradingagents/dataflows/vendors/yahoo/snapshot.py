@@ -78,11 +78,23 @@ def build_verified_market_snapshot(
     stock_df = wrap(df.copy())
 
     selected = tuple(indicators or DEFAULT_SNAPSHOT_INDICATORS)
+    # Warm-up (#1679): stockstats' min_periods=1 makes the first rows of a
+    # windowed indicator the mean of fewer sessions than its window, so a
+    # young listing reports a 200 SMA that is really a 45-bar mean. Rows
+    # before the window fills are "not defined yet", not the indicator.
+    from tradingagents.dataflows.vendors.yahoo.market import _indicator_warmup
+
     indicator_values: dict[str, str] = {}
     for name in selected:
         try:
             stock_df[name]  # triggers stockstats calculation
-            indicator_values[name] = _fmt(stock_df.iloc[-1][name])
+            value = stock_df.iloc[-1][name]
+            if len(stock_df) <= _indicator_warmup(name):
+                indicator_values[name] = "N/A: insufficient history (window warm-up)"
+            elif pd.isna(value):
+                indicator_values[name] = "N/A"
+            else:
+                indicator_values[name] = _fmt(value)
         except Exception as exc:  # noqa: BLE001 — one bad indicator shouldn't sink the snapshot
             indicator_values[name] = f"N/A ({type(exc).__name__})"
 

@@ -158,6 +158,44 @@ def _cache_is_fresh(data_file, as_of_dt, now) -> bool:
     return as_of_dt.date() < now.date() or (now - written).total_seconds() <= OHLCV_CACHE_TTL_SECONDS
 
 
+WINDOW_PREFIX = "# window: "
+
+
+def _recorded_window(data_file: str):
+    """The ``(start, end)`` span a cache file was downloaded for, or None.
+
+    The span rides as a comment line at the top of the cache file itself (one
+    file per symbol, #1330), written when the download happens. Data rows
+    alone can't tell a narrow download window from a young listing whose
+    first bar is legitimately later than the window start."""
+    try:
+        with open(data_file, encoding="utf-8") as f:
+            first = f.readline()
+    except OSError:
+        return None
+    if not first.startswith(WINDOW_PREFIX):
+        return None
+    try:
+        start_s, end_s = first[len(WINDOW_PREFIX):].strip().split("..")
+        return pd.Timestamp(start_s), pd.Timestamp(end_s)
+    except ValueError:
+        return None
+
+
+def _cache_window_covers(data_file: str, as_of_dt: pd.Timestamp, start_date: pd.Timestamp,
+                         cached_last: pd.Timestamp) -> bool:
+    """Whether the cached download covers ``[start_date, as_of_dt]``.
+
+    With a recorded span the span decides. A cache from before the span was
+    recorded keeps the rows-only rule (last row at or after the request
+    date): refetching it cannot recover a span nobody recorded."""
+    window = _recorded_window(data_file)
+    if window is not None:
+        start, end = window
+        return bool(start <= start_date and end >= as_of_dt)
+    return bool(cached_last >= as_of_dt)
+
+
 def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataFrame:
     """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
 
@@ -178,14 +216,20 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     config = get_config()
     as_of_dt = pd.to_datetime(as_of_date).normalize()
 
-    # One cache file per symbol, holding the latest 5y-to-today download.
-    now = pd.Timestamp.today()
-    start_date = now - pd.DateOffset(years=5)
-    start_str = start_date.strftime("%Y-%m-%d")
+    # One cache file per symbol, holding a 5-year download. The window is
+    # anchored at as_of_date, not at today: a run analyzing 2021-12-25 needs
+    # 2017-2021 history for the 200 SMA, not 2021-today rows it must filter
+    # out anyway. Anchoring at today left backtests with only the tail of
+    # history, so every windowed indicator (50/200 SMA, RSI, ...) was the
+    # mean of far fewer sessions than its window (#1679).
     # yfinance ``end`` is EXCLUSIVE; request tomorrow so today's row is included
     # when as_of_date is the current day (#986). Look-ahead is still prevented by
-    # the as_of_date filter below.
-    end_str = (now + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    # the as_of_date filter below. The span covers both as_of_date and today so
+    # one file serves a backtest run and a current-day run alike.
+    now = pd.Timestamp.today()
+    start_date = min(as_of_dt, now) - pd.DateOffset(years=5)
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = (max(as_of_dt, now) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
     os.makedirs(config["data_cache_dir"], exist_ok=True)
     data_file = os.path.join(
@@ -198,11 +242,29 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
     # re-fetch rather than serving the poisoned file forever.
     data = None
     if os.path.exists(data_file):
-        cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8")
+        # comment="#" skips the "# window: ..." span line on the first row.
+        cached = pd.read_csv(data_file, on_bad_lines="skip", encoding="utf-8", comment="#")
+        # Anchoring at as_of_date, not at today, is the fix for #1679. The
+        # requested window can differ between runs, so the file written next
+        # to the cache records the span that was actually downloaded; the
+        # cache serves a request only if that recorded span covers it (data
+        # rows alone can't tell a narrow window from a young listing).
+        # tz-aware cached dates (a vendor quirk some tests pin) must not
+        # crash the comparison against the tz-naive request timestamps.
+        cached_dates = pd.to_datetime(cached["Date"])
+        if getattr(cached_dates.dt, "tz", None) is not None:
+            cached_dates = cached_dates.dt.tz_localize(None)
+        cached_last = cached_dates.max()
+        cache_covers = _cache_window_covers(data_file, as_of_dt, start_date, cached_last)
         if (
             not cached.empty
             and "Close" in cached.columns
             and _cache_is_fresh(data_file, as_of_dt, now)
+            # The cached window must cover the request: a file written for a
+            # backtest date ends at that date and cannot serve a later analysis
+            # date; a file that starts after the window start might just be
+            # missing older rows a wider window would return.
+            and cache_covers
         ):
             data = cached
 
@@ -221,7 +283,14 @@ def load_ohlcv(symbol: str, as_of_date: str, fill_gaps: bool = True) -> pd.DataF
         # Only cache real data — never persist an empty frame.
         if downloaded.empty or "Close" not in downloaded.columns:
             raise_for_empty(symbol, canonical, "price rows")
-        replace_file(data_file, lambda temp: downloaded.to_csv(temp, index=False, encoding="utf-8"))
+        window_end = max(as_of_dt, now)
+        span_line = f"{WINDOW_PREFIX}{start_date:%Y-%m-%d}..{window_end:%Y-%m-%d}\n"
+
+        def _write(temp):
+            with open(temp, "w", encoding="utf-8") as f:
+                f.write(span_line)
+                downloaded.to_csv(f, index=False)
+        replace_file(data_file, _write)
         data = downloaded
 
     data = _clean_dataframe(data)
