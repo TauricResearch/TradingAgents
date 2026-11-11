@@ -103,7 +103,13 @@ def _compute_cost(usage_metadata: dict) -> tuple[float, list]:
             unpriced.append(model_name)
             continue
         price_in, price_out = price
-        total += usage.get("input_tokens", 0) / 1_000_000 * price_in
+        # langchain's input_tokens already includes cache reads/writes; Anthropic
+        # bills those at 0.1x and 1.25x the base input rate.
+        details = usage.get("input_token_details") or {}
+        cache_read = details.get("cache_read", 0) or 0
+        cache_write = details.get("cache_creation", 0) or 0
+        uncached = usage.get("input_tokens", 0) - cache_read - cache_write
+        total += (uncached + 0.1 * cache_read + 1.25 * cache_write) / 1_000_000 * price_in
         total += usage.get("output_tokens", 0) / 1_000_000 * price_out
     return round(total, 4), unpriced
 

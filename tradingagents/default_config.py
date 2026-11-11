@@ -34,6 +34,8 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_GOOGLE_THINKING_LEVEL":   "google_thinking_level",
     "TRADINGAGENTS_OPENAI_REASONING_EFFORT": "openai_reasoning_effort",
     "TRADINGAGENTS_ANTHROPIC_EFFORT":        "anthropic_effort",
+    "TRADINGAGENTS_ANTHROPIC_PROMPT_CACHE":  "anthropic_prompt_cache",
+    "TRADINGAGENTS_REPORT_WORD_BUDGET":      "report_word_budget",
 }
 
 
@@ -112,6 +114,15 @@ def build_default_config() -> dict:
         "google_thinking_level": None,      # "high", "minimal", etc.
         "openai_reasoning_effort": None,    # "medium", "high", "low"
         "anthropic_effort": None,           # "high", "medium", "low"
+        # Prompt caching on Anthropic tool-loop calls (see NormalizedChatAnthropic).
+        # Changes billing only, never the request content the model sees.
+        "anthropic_prompt_cache": True,
+        # Word cap the market/news/fundamentals analysts are asked to keep their
+        # final report under. 0 = no cap (upstream's "very detailed" reports).
+        # Analyst output is ~39% of a Claude decision's cost and every report is
+        # re-read by 7 downstream agents, but a cap changes what those agents
+        # see, so it stays off until a replay shows ratings hold up.
+        "report_word_budget": 0,
         # Sampling temperature, forwarded to every provider when set. None leaves
         # each provider at its own default. Lower values reduce run-to-run
         # variation on models that honor it; reasoning models largely ignore it

@@ -34,6 +34,20 @@ def get_language_instruction() -> str:
     )
 
 
+def get_report_length_instruction() -> str:
+    """Word cap for the tool-using analysts' final report, or "" when
+    report_word_budget is 0 (no cap, upstream behaviour)."""
+    from tradingagents.dataflows.config import get_config
+    budget = int(get_config().get("report_word_budget") or 0)
+    if budget <= 0:
+        return ""
+    return (
+        f" Keep the final report under {budget} words including the table: lead with the"
+        f" findings that bear on the next session's direction, and cut background a trader"
+        f" would not act on."
+    )
+
+
 def opponent_argument_or_opening(text: str, opponent: str) -> str:
     """Opponent's latest argument, or an explicit opening marker when empty.
 

@@ -8,7 +8,7 @@ from .validators import validate_model
 
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "api_key", "max_tokens", "temperature",
-    "callbacks", "http_client", "http_async_client", "effort",
+    "callbacks", "http_client", "http_async_client", "effort", "cache_tool_loops",
 )
 
 # Anthropic's extended-thinking ``effort`` parameter is accepted by Opus 4.5+,
@@ -39,6 +39,9 @@ def _supports_effort(model: str) -> bool:
     return (major, minor) >= _EFFORT_MIN_VERSION[family]
 
 
+_EPHEMERAL_CACHE = {"type": "ephemeral"}
+
+
 class NormalizedChatAnthropic(ChatAnthropic):
     """ChatAnthropic with normalized content output.
 
@@ -47,8 +50,20 @@ class NormalizedChatAnthropic(ChatAnthropic):
     downstream handling.
     """
 
+    # Cache the prompt prefix on tool-bound calls only. An analyst's ReAct loop
+    # re-sends its system prompt, tool schemas and every prior tool result each
+    # round, so later rounds read the prefix at 0.1x. Single-shot calls (debate,
+    # risk, managers) never repeat a prefix, and a cache write bills 1.25x, so
+    # caching them would raise cost.
+    cache_tool_loops: bool = False
+
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
+
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        if self.cache_tool_loops and kwargs.get("tools") and "cache_control" not in kwargs:
+            kwargs["cache_control"] = _EPHEMERAL_CACHE
+        return super()._get_request_payload(input_, stop=stop, **kwargs)
 
 
 class AnthropicClient(BaseLLMClient):

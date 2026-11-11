@@ -110,6 +110,8 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         effort = config.get("anthropic_effort")
         if effort:
             kwargs["effort"] = effort
+        if config.get("anthropic_prompt_cache"):
+            kwargs["cache_tool_loops"] = True
 
     # Sampling temperature is cross-provider: forward it whenever set.
     # float() here so a value coming from a TRADINGAGENTS_TEMPERATURE env
