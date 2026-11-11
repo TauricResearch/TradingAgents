@@ -218,6 +218,33 @@ def test_a_period_reported_under_two_tags_takes_the_preferred_one_not_both():
 
 
 @pytest.mark.unit
+def test_a_bank_reports_revenue_net_of_interest_expense(monkeypatch):
+    """Banks tag total revenue as RevenuesNetOfInterestExpense, not the contract tag."""
+    facts = {"facts": {"us-gaap": {"RevenuesNetOfInterestExpense": {"units": {"USD": [
+        _fact("2025-12-31", 50_172_000_000, "2026-02-20", start="2025-01-01")]}}}}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+
+    out = sec_edgar.get_income_statement("AAPL", "annual", "2026-03-01")
+    assert _table(out)[1]["Revenue"] == ["50172"]
+
+
+@pytest.mark.unit
+def test_the_bank_revenue_tag_wins_a_period_the_contract_tag_also_reports(monkeypatch):
+    facts = {"facts": {"us-gaap": {
+        "RevenuesNetOfInterestExpense": {"units": {"USD": [
+            _fact("2025-12-31", 20_062_000_000, "2026-02-20", start="2025-01-01")]}},
+        "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
+            _fact("2025-12-31", 11_232_000_000, "2026-02-20", start="2025-01-01")]}},
+    }}}
+    monkeypatch.setattr(sec_edgar, "_fetch_json",
+                        lambda url: TICKER_MAP if "company_tickers" in url else facts)
+
+    out = sec_edgar.get_income_statement("AAPL", "annual", "2026-03-01")
+    assert _table(out)[1]["Revenue"] == ["20062"]
+
+
+@pytest.mark.unit
 def test_the_default_identification_names_the_package_version(monkeypatch):
     """SEC asks automated clients to identify themselves; a release names its own version."""
     import tradingagents
