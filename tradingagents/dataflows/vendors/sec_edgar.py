@@ -55,7 +55,8 @@ _STATEMENTS: dict[str, list[tuple[str, tuple[str, ...]]]] = {
                                  "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest")),
     ],
     "income_statement": [
-        ("Revenue", ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues",
+        ("Revenue", ("RevenuesNetOfInterestExpense",
+                     "RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues",
                      "SalesRevenueNet")),
         ("Cost of Revenue", ("CostOfRevenue", "CostOfGoodsAndServicesSold")),
         ("Gross Profit", ("GrossProfit",)),
