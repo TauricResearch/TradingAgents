@@ -166,13 +166,24 @@ def get_global_news_yfinance(
     in_window_news = []
     seen_titles = set()
 
+    # Per-topic pools, merged fairly: with a single flat list the first query
+    # fills ``limit`` alone and the loop breaks, crowding out every other
+    # topic (#1678).
+    per_topic: list[list[dict]] = []
+
     for query in search_queries:
+        # Keyword strings like "Federal Reserve interest rates inflation" make
+        # Yahoo's fuzzy matcher resolve the whole phrase to the closest
+        # tickers, so "global" news comes back as company news (TTWO for the
+        # Fed query, #1678). Exact search keeps the results on topic; phrases
+        # short enough to match headlines stay the query author's choice.
         found = yf_retry(lambda q=query: yf.Search(
             query=q,
             news_count=limit,
-            enable_fuzzy_query=True,
+            enable_fuzzy_query=False,
         ).news)
 
+        topic_pool: list[dict] = []
         for article in found or []:
             # Window first: the limit counts what the run may read, so an
             # out-of-window article must not spend the budget or cut the
@@ -183,10 +194,21 @@ def get_global_news_yfinance(
                 continue
             if data["title"] and data["title"] not in seen_titles:
                 seen_titles.add(data["title"])
-                in_window_news.append(data)
+                topic_pool.append(data)
+        per_topic.append(topic_pool)
 
-        if len(in_window_news) >= limit:
-            break
+    # Round-robin across topics so each configured topic stays represented in
+    # the merged feed instead of the first one saturating the limit (#1678).
+    in_window_news = []
+    exhausted = False
+    while not exhausted and len(in_window_news) < limit:
+        exhausted = True
+        for topic_pool in per_topic:
+            if topic_pool:
+                in_window_news.append(topic_pool.pop(0))
+                exhausted = False
+                if len(in_window_news) >= limit:
+                    break
 
     news_str = _format_articles(in_window_news[:limit])
 
