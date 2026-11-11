@@ -35,7 +35,7 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 25 | 信号记录同时显示北京时间 | P3 | done | — | `Time` 组件 `beijing` 属性：信号页和总览「最近信号」在 UTC 后显示「北京 HH:MM」，跨日带日期；其他页面不变 |
 | 26 | demo 对账切掉了交易所时间戳晚于本机“现在”的成交，迟到成交下一小时又重复计 | P1 | done | #22 | 13:10Z 首次真实下单暴露：mini 时钟比 OKX 慢 1～3 s。对账窗口向后放宽 CLOCK_SKEW_MS=60 s；“成交解释的仓位”= `Ledger.net_fills()` 累计和，迟到成交抵消而非叠加；近三天成交读 `/trade/fills` 实时接口，更早读历史；14:10Z 对账干净、迟到成交补齐、正常交易，已关 |
 | 27 | 离线评估框架（一期）：行情缓存、日内规则层回放、信号质量报告 | P1 | done | — | 用户选“先建评估再按数据改”。`IntradayPaper` 常数收进 `Params`（默认=线上）；`trader/evaluation/`：HistoryStore（sqlite 行情缓存只补缺段）、HistoricalOKX（带时钟的历史市场）、replay（真引擎逐小时回放，参数网格，策略层开关默认全关）、signals（1/4/24h 方向收益、换向）、CLI `evaluate fetch|replay|signals`；ADR 0009 | +26 测，全量 1994；回放线上信号：16 笔成交一一对应、午夜净值差 1.5 bp | 报告 docs/reports/evaluation-intraday-2026-11-10.md：样本 3.4 天不足以改参数；不按信心加仓；盯止损倍数、ATR 周期；下一步 #28/#29 |
-| 28 | 离线评估（二期）：LLM 在历史输入上重跑小时信号，样本扩到几个月 | P1 | ready | #27 | 需 15m K 线、资金费率历史、持仓量历史；build_prompt 输入可注入；约 2 美元/天，花费前向用户确认预算 | — | 待用户确认预算后开工 |
+| 28 | 离线评估（二期）：LLM 在历史输入上重跑小时信号，样本扩到几个月 | P1 | blocked | #27、用户 | `trader/evaluation/rerun.py` + `evaluate rerun`：线上 `Signaler` 对着 `HistoricalOKX` 逐小时问、引擎同步交易；按小时和币缓存（断点续跑、不重复付费）、预算按缓存累计、零成本失败退避重试；只走评估专用渠道和密钥（`TRADER_EVAL_BACKEND_URL`/`TRADER_EVAL_API_KEY`），与环境里任何 `*_API_KEY` 相同就拒绝启动 | 10-10→10-24 重跑 339 小时 1014 条（13.98 美元，约 1 美元/天）；报告 docs/reports/evaluation-rerun-2026-11-11.md：重跑信号反向，默认 −12.12%，网格差异主要来自敞口，线上不动 | 11-10 重跑走线上密钥被中转渠道判为批量任务，连带 mini 日内信号 16:03–00:03 UTC 连续 9 个整点失败（01:03 恢复）；剩余 10-24→11-06 约 309 小时（≈13 美元，86 美元预算还剩 72）等用户配评估专用渠道后续跑 |
 | 29 | 离线评估（三期）：日频账户回放，Paper 收进 Params | P2 | triage | #27 | 评级从研究日志读；样本只有 4 个交易日，等 3–4 周 | — | — |
 
 ## 执行记录
@@ -72,3 +72,5 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-10 | 部署 #25 + #26 | mini 03aa7b0 → 15ad42f | 用户授权（选 A，13:46Z）；pull + uv + rsync dist + kickstart web；/、demo signals、execution 均 200；未重启 daily/intraday/mark/demo；等 14:10Z 对账验证 #26 |
 | 2026-11-10 | #26 验收 | mini 15ad42f | 14:10Z 对账 problems=[]，13:10 的 20 笔迟到成交入账，ETH/SOL 按 14:00 信号减仓，止损重挂；关闭 |
 | 2026-11-10 | #27 | 用户要求优化策略，选“先建评估”；`cursor/issue-27-evaluation-harness-6e50` → 7fd723e（Params）+ 2da12c8（框架）+ 文档（ff） | 全量 1994 通过；用 11-07〜11-10 的真实行情和线上信号验收：成交逐笔对应、净值差 1.5 bp；网格和信号质量报告已出；线上未动，不需部署；已关（CI 42837617005）；开 #28（LLM 历史重跑，ready）、#29（日频回放，triage） |
+| 2026-11-10 | #28 | `cursor/issue-28-llm-rerun-6e50` → 80e504f（重跑）+ 2f23164（零成本失败退避重试）+ 4af66d5（预算按缓存累计、ADR 0009） | 按 86 美元预算从 10-10 起重跑，到 10-24 03:03 共 339 小时 1014 条、13.98 美元；重跑用的是线上密钥，被中转渠道判为批量任务，连带 mini 日内信号 16:03–00:03 连续 9 个整点失败，01:03 自行恢复；重跑停在 10-24 03:03（续跑循环 22:00 前后放弃），未动 mini |
+| 2026-11-11 | #28 | 用户选 A（先用已缓存的 14 天出报告）；d1d0c82（重跑只走 `TRADER_EVAL_BACKEND_URL`/`TRADER_EVAL_API_KEY`，与环境里任一 `*_API_KEY` 相同就拒绝启动；ADR 0009 补记事故）；四个提交一并 ff 进 crypto-trader | 全量 2013 通过，新增 5 测；CI 42950063782 绿；真实 .env 下执行重跑被拒（未配评估渠道）；报告 docs/reports/evaluation-rerun-2026-11-11.md：重跑信号反向，默认回放 −12.12%，所有配置都亏、差异主要来自敞口，线上参数不动；未调模型、未动 mini、不需部署；#28 改 blocked，剩余 10-24→11-06 等用户配评估专用渠道 |
