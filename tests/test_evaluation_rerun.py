@@ -26,6 +26,7 @@ from trader.intraday.signal import NO_RESEARCH, Signaler
 from trader.ledger import Ledger
 from trader.okx import Bar, FundingEvent, FundingRate, OKXError, OpenInterest
 from trader.settings import WATCHLIST, Settings
+from tradingagents.default_config import DEFAULT_CONFIG
 
 PRICE = (2.0, 10.0)  # USD per million tokens in and out: a FakeLLM call costs 0.003
 CALL_COST = USAGE["input_tokens"] * PRICE[0] / 1e6 + USAGE["output_tokens"] * PRICE[1] / 1e6
@@ -270,6 +271,9 @@ def home(tmp_path, monkeypatch):
     """A TRADER_HOME whose history store holds 30 hours of every watched coin."""
     monkeypatch.setenv("TRADER_HOME", str(tmp_path))
     monkeypatch.delenv("TRADER_CAPITAL", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "live-key")
+    monkeypatch.setenv(evaluation_cli.EVAL_BACKEND_URL, "https://eval.example/v1")
+    monkeypatch.setenv(evaluation_cli.EVAL_API_KEY, "eval-key")
     store = HistoryStore(evaluation_cli.store_path(Settings.from_env()))
     for coin in WATCHLIST:
         load(store, price_path(30), 30, inst=coin.swap)
@@ -277,10 +281,11 @@ def home(tmp_path, monkeypatch):
     return tmp_path
 
 
-def use_fake_llm(monkeypatch, home, llm) -> None:
+def use_fake_llm(monkeypatch, home, fake) -> None:
+    monkeypatch.setattr(evaluation_cli, "evaluation_llm", lambda settings, url, key: None)
     monkeypatch.setattr(
         evaluation_cli, "Signaler",
-        lambda settings, okx: Signaler(settings, okx, llm=llm, results_dir=home / "logs"),
+        lambda settings, okx, llm=None: Signaler(settings, okx, llm=fake, results_dir=home / "logs"),
     )
 
 
@@ -318,3 +323,54 @@ def test_the_rerun_command_reports_an_early_stop(home, monkeypatch):
     ])
     assert again.exit_code == 2, again.output
     assert "本次还可花 0.00" in again.output and "0 次调用" in again.output
+
+
+# -- the evaluation's own endpoint and key --------------------------------------
+
+RERUN = ["evaluate", "rerun", "2026-01-02", "2026-01-02T03:00", "--no-fetch"]
+
+
+@pytest.mark.parametrize("unset", [evaluation_cli.EVAL_BACKEND_URL, evaluation_cli.EVAL_API_KEY])
+def test_the_rerun_command_needs_the_evaluations_endpoint_and_key(home, monkeypatch, unset):
+    llm = FakeLLM()
+    use_fake_llm(monkeypatch, home, llm)
+    monkeypatch.delenv(unset)
+    done = CliRunner().invoke(app, [*RERUN, "--cache", str(home / "rerun.sqlite")])
+    assert done.exit_code == 2, done.output
+    assert unset in done.output
+    assert not llm.calls and not (home / "rerun.sqlite").exists()
+
+
+def test_the_rerun_command_refuses_a_key_the_live_jobs_use(home, monkeypatch):
+    llm = FakeLLM()
+    use_fake_llm(monkeypatch, home, llm)
+    monkeypatch.setenv(evaluation_cli.EVAL_API_KEY, "live-key")
+    done = CliRunner().invoke(app, [*RERUN, "--cache", str(home / "rerun.sqlite")])
+    assert done.exit_code == 2, done.output
+    assert evaluation_cli.EVAL_API_KEY in done.output and "live-key" not in done.output
+    assert not llm.calls and not (home / "rerun.sqlite").exists()
+
+
+def test_the_rerun_command_warns_when_the_evaluations_endpoint_is_the_live_one(home, monkeypatch):
+    use_fake_llm(monkeypatch, home, FakeLLM())
+    monkeypatch.setitem(DEFAULT_CONFIG, "deep_think_backend_url", None)
+    monkeypatch.setitem(DEFAULT_CONFIG, "backend_url", "https://EVAL.example/v1/")
+    done = CliRunner().invoke(app, [*RERUN, "--cache", str(home / "rerun.sqlite")])
+    assert done.exit_code == 0, done.output
+    assert evaluation_cli.EVAL_BACKEND_URL in done.output
+
+
+@pytest.mark.filterwarnings("ignore:Model 'claude-sonnet-5.5' is not in the known model list")
+def test_the_evaluations_model_is_the_live_one_on_its_own_endpoint_and_key(tmp_path, monkeypatch):
+    live = {
+        "llm_provider": "anthropic", "deep_think_provider": None, "deep_think_llm": "claude-sonnet-5.5",
+        "backend_url": "https://live.example", "deep_think_backend_url": None,
+    }
+    for name, value in live.items():
+        monkeypatch.setitem(DEFAULT_CONFIG, name, value)
+    settings = Settings.with_overrides(tmp_path)
+    llm = evaluation_cli.evaluation_llm(settings, "https://eval.example", "eval-key")
+    assert llm.model == "claude-sonnet-5.5"
+    assert llm.anthropic_api_url == "https://eval.example"
+    assert llm.anthropic_api_key.get_secret_value() == "eval-key"
+    assert evaluation_cli.live_endpoint(settings) == "https://live.example"

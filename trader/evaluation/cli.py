@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -23,12 +25,16 @@ from trader.intraday.settings import SIGNAL_BAR, SIGNAL_HOURS
 from trader.intraday.signal import Signaler
 from trader.ledger import Ledger
 from trader.okx import OKX
+from trader.research import build_config
 from trader.settings import WATCHLIST, Settings
+from tradingagents.llm_clients import create_tier_client
 
 evaluate_app = typer.Typer(add_completion=False, no_args_is_help=True)
 
 ATR_LOOKBACK_HOURS = 60   # covers any atr_bars a grid is likely to try, plus the engine's margin
 FORWARD_HOURS = 24        # the longest horizon the signal study looks ahead
+EVAL_BACKEND_URL = "TRADER_EVAL_BACKEND_URL"
+EVAL_API_KEY = "TRADER_EVAL_API_KEY"
 
 
 @evaluate_app.callback()
@@ -159,6 +165,44 @@ def replay_command(
         typer.echo(f"报告写到 {out}")
 
 
+def evaluation_channel(env: Mapping[str, str] = os.environ) -> tuple[str, str]:
+    """The endpoint and key a rerun asks the model through: TRADER_EVAL_BACKEND_URL and
+    TRADER_EVAL_API_KEY, never the live jobs' own.
+
+    A rerun sends a few hundred calls an hour from one prompt template; a relay may flag
+    that as a batch job and then refuse every call on the key, the live hourly signal's
+    included (ADR 0009). So a key equal to any other *_API_KEY of the environment is
+    refused.
+    """
+    url, key = env.get(EVAL_BACKEND_URL, "").strip(), env.get(EVAL_API_KEY, "").strip()
+    if not url or not key:
+        raise typer.BadParameter(
+            f"重跑要走评估专用的渠道和密钥：在 .env 里设 {EVAL_BACKEND_URL} 和 {EVAL_API_KEY}（ADR 0009）"
+        )
+    if any(value.strip() == key for name, value in env.items()
+           if name.endswith("_API_KEY") and name != EVAL_API_KEY):
+        raise typer.BadParameter(f"{EVAL_API_KEY} 和线上的某个 *_API_KEY 相同，重跑不能和线上共用密钥（ADR 0009）")
+    return url, key
+
+
+def _endpoint(url: str | None) -> str:
+    return (url or "").strip().rstrip("/").lower()
+
+
+def live_endpoint(settings: Settings) -> str | None:
+    """The endpoint the live jobs' deep model is asked through; None for the provider's default."""
+    config = build_config(settings)
+    return config.get("deep_think_backend_url") or config.get("backend_url")
+
+
+def evaluation_llm(settings: Settings, url: str, key: str):
+    """The live deep model, same provider and model and so the same fingerprint, asked
+    through the evaluation's endpoint and key."""
+    config = build_config(settings)
+    config["deep_think_backend_url"] = url
+    return create_tier_client(config, "deep", api_key=key).get_llm()
+
+
 @evaluate_app.command("rerun")
 def rerun_command(
     start: str = typer.Argument(..., help="开始（UTC）"),
@@ -175,14 +219,19 @@ def rerun_command(
     no_fetch: bool = typer.Option(False, "--no-fetch", help="不补拉行情，只用缓存"),
 ) -> None:
     """Ask the live signal (same prompt, same model) what it would have said each hour
-    of the period, with the engine trading its answers; cached, resumable, budgeted."""
+    of the period, with the engine trading its answers; cached, resumable, budgeted.
+    The model is asked through the evaluation's own endpoint and key."""
     settings = Settings.from_env()
+    url, key = evaluation_channel()
+    if _endpoint(url) == _endpoint(live_endpoint(settings)):
+        typer.echo(f"注意：{EVAL_BACKEND_URL} 和线上是同一个地址；两把密钥若属于同一个中转账户，"
+                   "批量检测仍可能连累线上信号", err=True)
     start_ms, end_ms = _range(start, end)
     store = HistoryStore(store_path(settings))
     if not no_fetch:
         fill(store, start_ms, end_ms, for_rerun=True)
     market = HistoricalOKX(store, start_ms)
-    signaler = Signaler(settings, market)
+    signaler = Signaler(settings, market, llm=evaluation_llm(settings, url, key))
     print_ = signaler.fingerprint()
     path = cache or store_path(settings).with_name(f"rerun-{print_['model']}-{print_['prompt']}.sqlite")
     ledger = Ledger(path)
