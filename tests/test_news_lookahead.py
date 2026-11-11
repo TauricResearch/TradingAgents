@@ -417,3 +417,56 @@ def test_one_malformed_article_does_not_lose_the_feed(monkeypatch):
     _ticker_with([good, bad], monkeypatch)
     out = ynews.get_news_yfinance("ZS", "2026-09-20", "2026-09-23")
     assert "Kept" in out and "Also kept" in out
+
+
+# --- #1678: global news must stay on topic and cover every configured topic ---
+
+def _search_recorder(articles_by_query, calls):
+    """A FakeSearch that records every call's keyword arguments, so a test can
+    pin how Yahoo was queried (fuzzy off, #1678)."""
+    class FakeSearch:
+        def __init__(self, query, **kwargs):
+            calls.append((query, kwargs.get("enable_fuzzy_query")))
+            self.news = list(articles_by_query.get(query, []))
+    return FakeSearch
+
+
+@pytest.mark.unit
+def test_global_news_queries_yahoo_with_fuzzy_off(monkeypatch):
+    # #1678: fuzzy search resolves long keyword queries to the closest tickers
+    # and returns their company news as "global" news. The call must be exact.
+    calls = []
+    monkeypatch.setattr(ynews.yf, "Search", _search_recorder({"Federal Reserve": []}, calls))
+    ynews.get_global_news_yfinance("2026-11-09", look_back_days=7, limit=10)
+    assert calls, "Yahoo Search was never called"
+    assert all(fuzzy is False for _, fuzzy in calls), calls
+
+
+@pytest.mark.unit
+def test_global_news_represents_every_topic_instead_of_first_saturation(monkeypatch):
+    # #1678: the first query used to fill the whole limit alone and the loop
+    # broke, so five Fed headlines crowded out every other configured topic.
+    def article(topic, n):
+        return {"title": f"{topic} headline {n}", "publisher": "P", "link": "l",
+                "providerPublishTime": _epoch("2026-11-08")}
+
+    by_query = {
+        "Federal Reserve": [article("Fed", i) for i in range(5)],
+        "inflation": [article("Inflation", i) for i in range(5)],
+        "stock market": [article("Market", i) for i in range(5)],
+        "central bank": [article("CentralBank", i) for i in range(5)],
+        "oil prices": [article("Oil", i) for i in range(5)],
+    }
+    calls = []
+    monkeypatch.setattr(ynews.yf, "Search", _search_recorder(by_query, calls))
+
+    from tradingagents.dataflows.config import run_config
+    with run_config({"global_news_queries": list(by_query)}):
+        out = ynews.get_global_news_yfinance("2026-11-09", look_back_days=7, limit=6)
+
+    # Round-robin: one article per topic per lap, so with limit=6 every topic
+    # appears before any topic gets a second article.
+    for topic in ("Fed", "Inflation", "Market", "CentralBank", "Oil"):
+        assert f"{topic} headline 0" in out, f"topic {topic!r} missing from the merged feed"
+    assert out.count("###") == 6  # the limit still caps the merged feed
+    assert "Fed headline 1" in out  # and the sixth slot goes to the next lap
