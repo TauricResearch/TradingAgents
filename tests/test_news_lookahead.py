@@ -417,3 +417,52 @@ def test_one_malformed_article_does_not_lose_the_feed(monkeypatch):
     _ticker_with([good, bad], monkeypatch)
     out = ynews.get_news_yfinance("ZS", "2026-09-20", "2026-09-23")
     assert "Kept" in out and "Also kept" in out
+
+
+@pytest.mark.unit
+def test_global_news_does_not_enable_fuzzy_matching(monkeypatch):
+    """Fuzzy mode resolves a long keyword string to unrelated tickers and returns
+    their company news instead of macro news (#1678)."""
+    calls = []
+
+    class FakeSearch:
+        def __init__(self, query, **kwargs):
+            calls.append(kwargs)
+            self.news = []
+
+    monkeypatch.setattr(ynews.yf, "Search", FakeSearch)
+    monkeypatch.setattr(ynews, "get_config", lambda: {
+        "global_news_lookback_days": 7, "global_news_article_limit": 5,
+        "global_news_queries": ["markets"],
+    })
+
+    ynews.get_global_news_yfinance("2025-05-09")
+
+    assert calls and all(not c.get("enable_fuzzy_query") for c in calls)
+
+
+@pytest.mark.unit
+def test_global_news_spreads_the_budget_across_queries(monkeypatch):
+    """The first query filling the limit must not crowd out every later topic
+    (#1678)."""
+    pages = {
+        "first": [{"title": f"FIRST {i}", "publisher": "P", "link": "l",
+                   "providerPublishTime": _epoch("2025-05-08")} for i in range(4)],
+        "second": [{"title": "SECOND topic", "publisher": "P", "link": "l",
+                    "providerPublishTime": _epoch("2025-05-08")}],
+    }
+
+    class FakeSearch:
+        def __init__(self, query, **kwargs):
+            self.news = pages[query]
+
+    monkeypatch.setattr(ynews.yf, "Search", FakeSearch)
+    monkeypatch.setattr(ynews, "get_config", lambda: {
+        "global_news_lookback_days": 7, "global_news_article_limit": 4,
+        "global_news_queries": ["first", "second"],
+    })
+
+    out = ynews.get_global_news_yfinance("2025-05-09")
+
+    assert "SECOND topic" in out
+    assert out.count("### ") == 4

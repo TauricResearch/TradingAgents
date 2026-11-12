@@ -163,16 +163,19 @@ def get_global_news_yfinance(
     start_dt = curr_dt - relativedelta(days=look_back_days)
     start_date = start_dt.strftime("%Y-%m-%d")
 
-    in_window_news = []
     seen_titles = set()
+    buckets = []
 
+    # Fuzzy matching resolves a long keyword string to whatever tickers Yahoo
+    # thinks are closest and returns that company's news instead of macro news
+    # (#1678), so queries stay short phrases and fuzzy stays off.
     for query in search_queries:
         found = yf_retry(lambda q=query: yf.Search(
             query=q,
             news_count=limit,
-            enable_fuzzy_query=True,
         ).news)
 
+        bucket = []
         for article in found or []:
             # Window first: the limit counts what the run may read, so an
             # out-of-window article must not spend the budget or cut the
@@ -183,12 +186,18 @@ def get_global_news_yfinance(
                 continue
             if data["title"] and data["title"] not in seen_titles:
                 seen_titles.add(data["title"])
-                in_window_news.append(data)
+                bucket.append(data)
+        buckets.append(bucket)
 
-        if len(in_window_news) >= limit:
-            break
+    # Round-robin the per-query buckets so the first query cannot spend the
+    # whole budget and crowd out every later topic (#1678).
+    in_window_news = []
+    while len(in_window_news) < limit and any(buckets):
+        for bucket in buckets:
+            if bucket and len(in_window_news) < limit:
+                in_window_news.append(bucket.pop(0))
 
-    news_str = _format_articles(in_window_news[:limit])
+    news_str = _format_articles(in_window_news)
 
     # Nothing fell inside the window -> say so rather than return an
     # empty-bodied report (#993).

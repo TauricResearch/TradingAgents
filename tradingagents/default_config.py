@@ -141,14 +141,18 @@ def build_default_config() -> dict:
         "news_article_limit": 20,             # max articles per ticker (ticker-news)
         "global_news_article_limit": 10,      # max articles for global/macro news
         "global_news_lookback_days": 7,       # macro news lookback window
-        # Search queries used by get_global_news for macro headlines. Extend or
-        # replace to broaden geographic / sector coverage.
+        # Search queries used by get_global_news for macro headlines. Keep them
+        # short phrases: Yahoo fuzzy matching is off because it resolves long
+        # keyword strings to unrelated tickers (#1678). Extend or replace to
+        # broaden geographic / sector coverage.
         "global_news_queries": [
-            "Federal Reserve interest rates inflation",
-            "S&P 500 earnings GDP economic outlook",
-            "geopolitical risk trade war sanctions",
-            "ECB Bank of England BOJ central bank policy",
-            "oil commodities supply chain energy",
+            "Federal Reserve",
+            "inflation",
+            "stock market",
+            "Treasury yields",
+            "geopolitical",
+            "central bank",
+            "oil prices",
         ],
         # Data vendor configuration
         # Category-level configuration (default for all tools in category).
