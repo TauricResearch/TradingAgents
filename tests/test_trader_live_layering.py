@@ -10,8 +10,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LIVE = ROOT / "trader" / "live"
-# What runs without the live key, and so must not depend on the package that reads it.
-KEYLESS = ("trader/settings.py", "trader/jobs.py", "trader/demo", "trader/intraday", "web")
+# What runs without the live key, and so must not depend on the package that reads it:
+# among it the two modules that call the LLM, the daily research and the intraday signal.
+KEYLESS = (
+    "trader/settings.py", "trader/jobs.py", "trader/research.py", "trader/demo", "trader/intraday", "web",
+)
 
 
 def _sources(*parts: str) -> list[Path]:
