@@ -61,6 +61,65 @@ def test_both_accounts_settings_and_memory_are_copied_and_the_logs_only_when_ask
     assert (target / "logs" / "BTC-USD" / "full_states_log_2026-01-09.json").read_text() == "{}"
 
 
+def test_the_demo_and_live_ledgers_are_snapshotted_like_the_other_two(tmp_path):
+    home, dest = tmp_path / "home", tmp_path / "backups"
+    Ledger(home / "ledger.sqlite").initialize(10_000.0, T0)
+    Ledger(home / "intraday" / "ledger.sqlite").initialize(5_000.0, T0)
+    Ledger(home / "demo" / "ledger.sqlite").initialize(1_000.0, T0)
+    Ledger(home / "live" / "ledger.sqlite").initialize(500.0, T0)
+    (home / "settings.json").write_text('{"llm": {}}')
+    (home / "memory").mkdir()
+    (home / "memory" / "trading_memory.md").write_text("# memory\n")
+
+    target, copied = backup(home, dest, now=WHEN)
+    assert [rel for rel, _ in copied] == [
+        "ledger.sqlite", "intraday/ledger.sqlite", "demo/ledger.sqlite", "live/ledger.sqlite",
+        "settings.json", "memory",
+    ]
+    for account, cash in (("demo", 1_000.0), ("live", 500.0)):
+        path = target / account / "ledger.sqlite"
+        copy = sqlite3.connect(path)
+        assert copy.execute("PRAGMA journal_mode").fetchone() == ("delete",)  # a snapshot
+        copy.close()
+        assert Ledger(path, readonly=True).get("cash") == cash
+
+
+@pytest.mark.parametrize(
+    "ledgers",
+    [
+        ("ledger.sqlite", "intraday/ledger.sqlite", "demo/ledger.sqlite"),  # no live account
+        ("ledger.sqlite", "live/ledger.sqlite"),
+    ],
+)
+def test_a_ledger_that_is_not_there_is_skipped_and_the_rest_copied(tmp_path, ledgers):
+    home = tmp_path / "home"
+    for rel in ledgers:
+        Ledger(home / rel).initialize(1_000.0, T0)
+    _, copied = backup(home, tmp_path / "backups", now=WHEN)
+    assert [rel for rel, _ in copied] == list(ledgers)
+
+
+def test_a_key_file_in_the_account_directory_is_never_copied(tmp_path):
+    home, dest = tmp_path / "home", tmp_path / "backups"
+    key = b"this-is-not-a-real-okx-live-key"
+    Ledger(home / "ledger.sqlite").initialize(10_000.0, T0)
+    Ledger(home / "live" / "ledger.sqlite").initialize(500.0, T0)
+    (home / "logs" / "BTC-USD").mkdir(parents=True)
+    (home / "logs" / "BTC-USD" / "full_states_log_2026-01-09.json").write_text("{}")
+    (home / "okx-live.env").write_bytes(key)
+    (home / "live" / "okx-live.env").write_bytes(key)
+
+    plain, copied = backup(home, dest, now=WHEN)
+    assert [rel for rel, _ in copied] == ["ledger.sqlite", "live/ledger.sqlite"]
+    logged, copied = backup(home, dest, with_logs=True, now=WHEN.replace(minute=31))
+    assert [rel for rel, _ in copied] == ["ledger.sqlite", "live/ledger.sqlite", "logs"]
+    for target in (plain, logged):
+        assert not (target / "okx-live.env").exists()
+        assert not (target / "live" / "okx-live.env").exists()
+        leaked = [f for f in target.rglob("*") if f.is_file() and key in f.read_bytes()]
+        assert not leaked
+
+
 def test_the_command_names_the_copy_and_what_it_skipped(tmp_path, monkeypatch):
     home, dest = tmp_path / "home", tmp_path / "backups" / "nested"
     Ledger(home / "ledger.sqlite").initialize(10_000.0, T0)
