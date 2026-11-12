@@ -23,20 +23,35 @@ def _sources(*parts: str) -> list[Path]:
 
 
 def _production_client_lines(source: str) -> list[int]:
-    """The lines of ``source`` that may build a production client: a call passing
-    ``simulated`` as anything but the literal True, and an OKXPrivate call that could
-    pass it unnamed (a second positional argument, or ``**options``)."""
+    """The lines of ``source`` that may build a production client, or turn a client into
+    one. ``simulated`` is passed to OKXPrivate by name only and cannot be set afterwards,
+    so these are: a call passing ``simulated`` as anything but the literal True; an
+    OKXPrivate call whose arguments are not all in sight (``*args``, ``**options``);
+    OKXPrivate imported under another name, which would hide such a call from this
+    scan; and an assignment to a client's ``simulated``."""
     lines = []
     for node in ast.walk(ast.parse(source)):
-        if not isinstance(node, ast.Call):
+        if isinstance(node, ast.Call):
+            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            out_of_sight = name == "OKXPrivate" and (
+                any(isinstance(arg, ast.Starred) for arg in node.args) or any(k.arg is None for k in node.keywords)
+            )
+            found = out_of_sight or any(
+                k.arg == "simulated" and not (isinstance(k.value, ast.Constant) and k.value.value is True)
+                for k in node.keywords
+            )
+        elif isinstance(node, ast.ImportFrom):
+            found = any(a.name == "OKXPrivate" and a.asname not in (None, "OKXPrivate") for a in node.names)
+        elif isinstance(node, ast.Assign | ast.AugAssign | ast.AnnAssign):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            found = any(
+                isinstance(part, ast.Attribute) and isinstance(part.ctx, ast.Store)
+                and part.attr in ("simulated", "_simulated")
+                for target in targets for part in ast.walk(target)
+            )
+        else:
             continue
-        name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
-        unnamed = name == "OKXPrivate" and (len(node.args) > 1 or any(k.arg is None for k in node.keywords))
-        named = any(
-            k.arg == "simulated" and not (isinstance(k.value, ast.Constant) and k.value.value is True)
-            for k in node.keywords
-        )
-        if unnamed or named:
+        if found:
             lines.append(node.lineno)
     return sorted(lines)
 
@@ -72,24 +87,34 @@ def test_only_trader_live_builds_a_production_client():
     def scan(source, path):
         return _production_client_lines(source)
 
-    outside = [path for path in _sources("trader", "web") if LIVE not in path.parents]
+    definition = ROOT / "trader" / "okx_private.py"
+    outside = [path for path in _sources("trader", "web") if LIVE not in path.parents and path != definition]
     assert _offenders(outside, scan) == []
     # The scan sees the one that exists: the factory on the live key file.
     inside = _offenders(_sources("trader/live"), scan)
     assert len(inside) == 1 and inside[0].startswith("trader/live/keys.py:")
+    # And the one line of OKXPrivate's own definition that sets what a client was built with.
+    assert len(_offenders([definition], scan)) == 1
 
 
 def test_the_scan_flags_each_way_of_building_a_production_client():
     source = (
         "OKXPrivate(creds)\n"
-        "OKXPrivate(creds, session=session, simulated=True, base_url=url)\n"
+        "OKXPrivate(creds, session, clock=now, simulated=True, base_url=url)\n"
         "OKXPrivate(creds, simulated=False)\n"
         "okx_private.OKXPrivate(creds, simulated=flag)\n"
-        "OKXPrivate(creds, session, False)\n"
         "OKXPrivate(creds, **options)\n"
+        "OKXPrivate(*args)\n"
         "partial(OKXPrivate, simulated=False)\n"
+        "from trader.okx_private import OKXPrivate as Client\n"
+        "client.simulated = False\n"
+        "client._simulated = False\n"
+        "spare, client._simulated = None, False\n"
+        "from trader.okx_private import OKXPrivate, OKXPrivateError as Refused\n"
+        "simulated = client.simulated\n"
+        "seen[client.simulated] = True\n"
     )
-    assert _production_client_lines(source) == [3, 4, 5, 6, 7]
+    assert _production_client_lines(source) == [3, 4, 5, 6, 7, 8, 9, 10, 11]
 
 
 def test_what_runs_without_the_live_key_does_not_import_trader_live():
