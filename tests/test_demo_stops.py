@@ -38,7 +38,11 @@ STOP_CALLS = ("place_stop", "amend_stop", "cancel_stops", "close_position")
 
 @pytest.fixture
 def exchange():
-    return FakeExchange()
+    exchange = FakeExchange()
+    yield exchange
+    # Whatever a test put the account through, no cancellation of its may have left
+    # a held contract without a stop on its closing side.
+    assert exchange.gaps == []
 
 
 @pytest.fixture
@@ -110,7 +114,7 @@ def test_when_the_amendment_is_refused_the_new_stop_is_pending_before_the_old_on
     assert (stop.contracts, stop.trigger) == (10.0, 81_000.0) and stop.algo_id != old.algo_id
     assert calls(exchange) == ["place_stop", "amend_stop", "place_stop", "cancel_stops"]
     assert exchange.calls[-1] == ("cancel_stops", [old.algo_id])
-    assert exchange.gaps == []
+    assert exchange.gaps == [] and exchange.bare() == []
 
 
 def test_when_neither_an_amendment_nor_a_second_stop_is_possible_the_old_stop_stays(account, ledger, exchange):
@@ -124,7 +128,7 @@ def test_when_neither_an_amendment_nor_a_second_stop_is_possible_the_old_stop_st
         " code 51168: Failed. You have reduce-only type of open order(s)），"
         "交易所里仍是 79,000.00 的旧止损单，下一次运行再试"
     ]
-    assert closed == [] and exchange.stops == [old] and exchange.gaps == []
+    assert closed == [] and exchange.stops == [old] and exchange.bare() == []
     # Covered by the stop it had: one try, no close, and the ledger keeps the new stop
     # for the next run to hang.
     assert calls(exchange) == ["place_stop", "amend_stop", "place_stop"] and account.sleeps == []
@@ -349,8 +353,10 @@ def test_a_stop_for_part_of_the_position_does_not_count_as_its_stop(account, exc
     now, q, stops = traded(account, exchange, {BTC.research: "Long"}, HOUR + HOUR_MS)
     exchange.fail("amend_stop", NOT_AMENDABLE)
     exchange.one_stop = True
+    assert exchange.bare() == [BTC.swap]
     alerts, closed = account.manage_stops(now, q, stops)
     assert closed == [BTC.swap] and alerts[0].startswith("止损平仓：BTC-USDT-SWAP +20 张试了 3 次都没挂上止损")
+    assert exchange.bare() == []
     assert calls(exchange) == ["place_stop", "amend_stop"] + ["place_stop"] * STOP_TRIES + ["close_position"]
     # The old stop stood until the position itself was closed.
     assert exchange.gaps == [] and old.algo_id not in [c[1] for c in exchange.calls if c[0] == "cancel_stops"]
@@ -370,11 +376,11 @@ def test_when_the_close_fails_as_well_the_alert_names_the_contract_and_the_next_
     ]
     assert closed == []
     assert calls(exchange) == ["place_stop"] * STOP_TRIES + ["close_position"] * STOP_TRIES
-    assert exchange.book[BTC.swap][0] == 10.0 and exchange.stops == []
+    assert exchange.book[BTC.swap][0] == 10.0 and exchange.bare() == [BTC.swap]
     assert ledger.positions()[BTC.swap].stop == 79_000.0 and kinds(ledger)[-1] == "stop_failed"
     exchange.failures.clear()
     assert hourly(account, exchange) == ([], [])
-    assert [(s.contracts, s.trigger) for s in exchange.stops] == [(10.0, 79_000.0)]
+    assert [(s.contracts, s.trigger) for s in exchange.stops] == [(10.0, 79_000.0)] and exchange.bare() == []
 
 
 def test_a_close_that_fails_once_is_tried_again_under_the_same_client_id(account, exchange):

@@ -208,7 +208,7 @@ def test_a_position_whose_stop_will_not_hang_is_closed_and_booked_within_the_run
     )
     clock = env.run(RUN0)
     assert clock.sleeps == [KILL_SETTLE_SECONDS]  # the close order fills, then one more sync
-    assert env.exchange.book[BTC.swap][0] == 0 and env.exchange.stops == []
+    assert env.exchange.book[BTC.swap][0] == 0 and env.exchange.stops == [] and env.exchange.bare() == []
     assert [f.reason for f in env.ledger.fills()] == ["trade", "stop"]
     assert env.ledger.positions() == {} and env.ledger.get("decided_hour") == HOUR
     alert, report = env.inbox.sent
@@ -247,7 +247,7 @@ def test_an_exception_between_the_order_and_its_stop_still_leaves_the_position_w
     env.account.execute = after(env.account.execute, lambda: env.exchange.fail("fills", failure))
     with pytest.raises(OKXError):
         env.run(RUN0)
-    assert env.exchange.book[BTC.swap] == [10.0, 80_000.0]
+    assert env.exchange.book[BTC.swap] == [10.0, 80_000.0] and env.exchange.bare() == []
     assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_000.0)]
     assert env.ledger.get("decided_hour") is None
     assert env.inbox.sent == ["demo 运行失败：OKXError: fills failed with code 50001: service unavailable"]
@@ -266,7 +266,7 @@ def test_an_order_that_filled_before_the_execution_raised_still_gets_its_stop(en
     env.exchange.fail("order", requests.ConnectionError("connection reset"))  # the fill cannot be read back
     with pytest.raises(requests.ConnectionError):
         env.run(RUN0)
-    assert env.exchange.book[BTC.swap] == [10.0, 80_000.0]
+    assert env.exchange.book[BTC.swap] == [10.0, 80_000.0] and env.exchange.bare() == []
     # No fill price was read, so the stop is measured from the quotes.
     assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_000.0)]
     assert env.inbox.sent == ["demo 运行失败：ConnectionError: connection reset"]
@@ -286,6 +286,7 @@ def test_the_alerts_gathered_before_an_exception_still_go_out_and_the_filled_con
         "下单失败：BTC-USDT-SWAP +10 张：/api/v5/trade/order failed with code 51008: Insufficient balance",
         "demo 运行失败：ConnectionError: connection reset",
     ]
+    assert env.exchange.book[ETH.swap] == [10.0, 80_000.0] and env.exchange.bare() == []
     assert [(s.inst, s.contracts, s.trigger) for s in env.exchange.stops] == [(ETH.swap, 10.0, 79_000.0)]
 
 
@@ -300,12 +301,13 @@ def test_when_the_stops_cannot_be_seen_to_after_a_failure_the_alert_names_the_co
         "BTC-USDT-SWAP 的仓位可能没有止损，请立即人工检查",
         "demo 运行失败：ConnectionError: connection reset",
     ]
-    assert env.exchange.book[BTC.swap][0] == 10.0 and env.exchange.stops == []
+    assert env.exchange.bare() == [BTC.swap]  # nothing could be done for it: the alert is all there is
     # The next run, the exchange back, hangs the stop.
     del env.account.execute
     env.exchange.failures.clear()
     env.run(RUN0 + HOUR_MS)
     assert [(s.contracts, s.trigger) for s in env.exchange.stops] == [(10.0, 79_000.0)]
+    assert env.exchange.bare() == []
 
 
 def test_a_kill_at_the_sync_before_the_orders_still_sends_its_alert(env):

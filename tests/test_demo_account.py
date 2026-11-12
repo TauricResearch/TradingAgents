@@ -254,6 +254,18 @@ class FakeExchange:
     def manual_fill(self, inst, contracts):
         self._fill(inst, contracts, "")
 
+    def bare(self):
+        """The contracts held without a pending reduce-only stop for their whole size
+        on the closing side: what a run may only leave behind with an alert."""
+        return [
+            inst for inst, (held, _) in self.book.items()
+            if held and not any(
+                s.inst == inst and s.reduce_only and s.contracts == abs(held)
+                and s.side == ("sell" if held > 0 else "buy")
+                for s in self.stops
+            )
+        ]
+
     # -- internals --------------------------------------------------------------
 
     def _next(self):
