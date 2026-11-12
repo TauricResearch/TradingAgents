@@ -1,9 +1,13 @@
 """A copy of the account directory that can be restored.
 
-The ledgers are in WAL mode (Issue #12): the latest commits sit in ``ledger.sqlite-wal``
-until a checkpoint, so copying the main file gives an old, possibly torn, snapshot.
-SQLite's backup API copies one consistent committed state, without blocking the job
-that may be writing. Settings and the memory log are plain files and are copied as such.
+The ledgers of the daily, intraday, demo and live accounts are in WAL mode (Issue #12):
+the latest commits sit in ``ledger.sqlite-wal`` until a checkpoint, so copying the main
+file gives an old, possibly torn, snapshot. SQLite's backup API copies one consistent
+committed state, without blocking the job that may be writing. Settings and the memory
+log are plain files and are copied as such.
+
+Only what LEDGERS, FILES and LOGS name is copied, never the directory as a whole: the
+live account's key file, which may be kept there, stays out of every backup (ADR 0010).
 """
 
 from __future__ import annotations
@@ -14,7 +18,7 @@ from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
-LEDGERS = ("ledger.sqlite", "intraday/ledger.sqlite")
+LEDGERS = ("ledger.sqlite", "intraday/ledger.sqlite", "demo/ledger.sqlite", "live/ledger.sqlite")
 FILES = ("settings.json", "memory")
 LOGS = "logs"  # the research records: large and append-only, copied only when asked
 
@@ -24,9 +28,9 @@ def backup(
 ) -> tuple[Path, list[tuple[str, int]]]:
     """Copy the account directory ``home`` into ``dest/<UTC time>/`` and return that
     directory with (relative path, bytes) of each thing copied. What ``home`` lacks
-    (an intraday account not opened, no settings.json) is skipped; FileNotFoundError
-    when it has nothing of an account, FileExistsError rather than touching a backup
-    already at the target."""
+    (an intraday, demo or live account not opened, no settings.json) is skipped;
+    FileNotFoundError when it has nothing of an account, FileExistsError rather than
+    touching a backup already at the target."""
     files = FILES + ((LOGS,) if with_logs else ())
     wanted = [rel for rel in LEDGERS + files if (home / rel).exists()]
     if not wanted:

@@ -113,8 +113,12 @@ def backup(
     typer.echo(f"已备份到 {target}")
     for rel, size in copied:
         typer.echo(f"  {rel}  {size:,} B")
-    if not settings.intraday_ledger_path.exists():
-        typer.echo("  （没有日内账本，跳过）")
+    notes = (
+        "  （没有日内账本，跳过）", "  （没有 demo 账本，跳过）", "  （没有 live 账本，跳过）",
+    )
+    for rel, note in zip(account_backup.LEDGERS[1:], notes, strict=True):
+        if not (settings.home / rel).exists():
+            typer.echo(note)
 
 
 @intraday_app.callback()
