@@ -1,10 +1,15 @@
-"""OKX's signed (private) REST API, for the demo execution account (ADR 0008).
+"""OKX's signed (private) REST API, for the accounts that trade on the exchange: the
+demo account on OKX's simulated trading (ADR 0008) and the live account on its
+production environment (ADR 0010).
 
-Only OKX's simulated trading is reachable from here: every request carries the
-``x-simulated-trading: 1`` header, and ``OKXPrivate`` refuses to be built for the
-live environment. The credentials are a separate API key made in OKX's demo
-trading area with the trade permission only; they come from the environment
-(``OKXCredentials.from_env``) and never appear in a repr, a log or an error.
+One client reaches either environment. ``OKXPrivate`` is built for simulated trading
+unless told otherwise, and then every request carries the ``x-simulated-trading: 1``
+header. Built with ``simulated=False`` it sends no such header and its requests are
+production ones, with real money behind them: only the ``live`` command group sends
+those, through the client ``trader.live`` builds from a key kept in a file of its own.
+The demo key is a separate one, made in OKX's demo trading area and read from the
+environment (``OKXCredentials.from_env``); OKX accepts it on simulated trading only.
+Neither key ever appears in a repr, a log or an error.
 
 Every call returns plain dataclasses with the few fields the executor needs, in
 the units the account keeps: contract counts are OKX's (``sz``, signed by the
@@ -12,7 +17,10 @@ position's side in net mode), prices and fees in USDT, times in UTC milliseconds
 Errors follow ``trader.okx``: a connection failure, timeout, 429 or 5xx is retried
 with the same pauses, a non-zero OKX code raises ``OKXPrivateError`` carrying the
 code so that callers can tell e.g. a duplicate client order id (already placed)
-from a real failure.
+from a real failure. Two things are particular to signed requests, whose headers
+are the key: a redirect is never followed, since the headers would go with it, and
+is an error; and an error raised because a credential cannot be put in a header
+is replaced by one that does not quote it.
 """
 
 from __future__ import annotations
@@ -21,12 +29,14 @@ import base64
 import hashlib
 import hmac
 import json
+import math
 import os
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import requests
 
@@ -34,6 +44,7 @@ from trader.okx import _RETRY_PAUSES, BASE_URL, OKXError
 
 SIMULATED_HEADER = "x-simulated-trading"
 PROBE_ORDER_ID = "1"  # OKX order ids are 18-digit; this one can never exist
+PROBE_ORDER_MISSING = "51400"  # what a key that may trade is answered when it cancels that order
 DUPLICATE_CLIENT_ID = "51016"  # OKX's code for a clOrdId / algoClOrdId that already exists
 TIMESTAMP_EXPIRED = "50102"    # the request's timestamp was more than 30 s off OKX's clock
 _PAGE = 100                    # rows per page; the most fills and bills endpoints give
@@ -55,7 +66,9 @@ class OKXPrivateError(OKXError):
 
 @dataclass(frozen=True, repr=False)
 class OKXCredentials:
-    """An API key of OKX's simulated trading. Masked wherever it is printed."""
+    """An OKX API key, of either environment: the demo account's comes from the
+    environment (``from_env``), the live account's from its own file
+    (``trader.live``, ADR 0010). Masked wherever it is printed."""
 
     key: str
     secret: str
@@ -86,6 +99,20 @@ class AccountConfig:
     position_mode: str   # "net_mode" or "long_short_mode"
     account_level: str   # "1" spot, "2" single-currency margin, "3" multi-currency, "4" portfolio
     permissions: str     # e.g. "read_only,trade"
+    ip: str = ""         # the IPs the key is bound to, comma-separated; "" when it is bound to none
+    uid: str = ""        # the account the key belongs to
+    main_uid: str = ""   # that account's main account: ``uid`` itself unless it is a sub-account
+
+
+@dataclass(frozen=True)
+class FeeRate:
+    """What the account pays to trade one perpetual, as fractions of the notional:
+    positive is a fee, negative a rebate (OKX writes them the other way round)."""
+
+    inst: str
+    level: str   # the account's fee tier, e.g. "Lv1"
+    taker: float
+    maker: float
 
 
 @dataclass(frozen=True)
@@ -177,32 +204,47 @@ def timestamp(now: float) -> str:
 
 
 class OKXPrivate:
-    """Signed calls to OKX's simulated trading (ADR 0008)."""
+    """Signed calls to one of OKX's two environments: simulated trading (ADR 0008)
+    unless ``simulated`` is False, which is production (ADR 0010). Only ``trader.live``
+    builds the production one; tests/test_trader_live_layering.py holds the rest to that.
+    So that this can be held, ``simulated`` is passed by name only, and neither it nor
+    ``base_url`` can be changed once the client is built."""
 
     def __init__(
         self,
         credentials: OKXCredentials,
         session: requests.Session | None = None,
+        *,
         simulated: bool = True,
         clock: Callable[[], float] = time.time,
+        base_url: str = BASE_URL,
     ):
-        if not simulated:
-            raise ValueError(
-                "live trading is not enabled: only OKX simulated trading is reachable (ADR 0008)"
-            )
         self._credentials = credentials
         self.session = session or requests.Session()
+        self._simulated = simulated
         self.clock = clock
+        self._base_url = base_url
 
     def __repr__(self) -> str:
-        return "OKXPrivate(simulated)"
+        return f"OKXPrivate({'simulated' if self.simulated else 'live'})"
+
+    @property
+    def simulated(self) -> bool:
+        """Whether the requests are marked as simulated trading."""
+        return self._simulated
+
+    @property
+    def base_url(self) -> str:
+        """The host the requests go to, with its scheme."""
+        return self._base_url
 
     # -- account ------------------------------------------------------------
 
     def account_config(self) -> AccountConfig:
         row = self._get("/api/v5/account/config")[0]
         return AccountConfig(
-            position_mode=row["posMode"], account_level=row["acctLv"], permissions=row["perm"]
+            position_mode=row["posMode"], account_level=row["acctLv"], permissions=row["perm"],
+            ip=row.get("ip") or "", uid=row.get("uid") or "", main_uid=row.get("mainUid") or "",
         )
 
     def set_position_mode(self, net: bool = True) -> None:
@@ -252,6 +294,32 @@ class OKXPrivate:
             ))
         return out
 
+    def fee_rate(self, inst: str) -> FeeRate:
+        """What the account pays to trade the perpetual ``inst``, from
+        /api/v5/account/trade-fee for its instrument family. OKX answers with fee
+        groups; when there are several, the instrument's own row
+        (/api/v5/account/instruments) names the one it trades in. OKXError when that
+        leaves no single group with both rates, or when a rate is not a number."""
+        family = inst.removesuffix("-SWAP")
+        rows = self._get("/api/v5/account/trade-fee", instType="SWAP", instFamily=family)
+        row = rows[0] if rows else {}
+        groups = row.get("feeGroup") or []
+        if len(groups) > 1:
+            listed = self._get("/api/v5/account/instruments", instType="SWAP", instId=inst)
+            group_id = listed[0].get("groupId") if listed else None
+            groups = [g for g in groups if g.get("groupId") == group_id]
+        if len(groups) != 1 or not groups[0].get("taker") or not groups[0].get("maker"):
+            raise OKXError(f"/api/v5/account/trade-fee names no single fee group with rates for {inst}")
+        try:
+            taker, maker = float(groups[0]["taker"]), float(groups[0]["maker"])
+        except (TypeError, ValueError):
+            taker = maker = math.nan
+        if not (math.isfinite(taker) and math.isfinite(maker)):
+            raise OKXError(f"/api/v5/account/trade-fee gave rates for {inst} that are not numbers")
+        # OKX writes a rate it charges as a negative number. 0.0 - x rather than -x:
+        # a zero rate is 0.0, not -0.0.
+        return FeeRate(inst=inst, level=row.get("level") or "", taker=0.0 - taker, maker=0.0 - maker)
+
     # -- orders -------------------------------------------------------------
 
     def place_market(
@@ -281,11 +349,21 @@ class OKXPrivate:
         the order (50123). The probe cancels an order that cannot exist: a 50xxx
         answer is the gateway refusing the key, a 51xxx one (51400, the order does
         not exist) means the request went through. Nothing is placed or changed."""
+        answer = self.probe_trade_permission(inst)
+        if answer is not None and answer.code.startswith("50"):
+            raise answer
+
+    def probe_trade_permission(self, inst: str) -> OKXPrivateError | None:
+        """OKX's answer to the probe of ``check_trade_permission``, for a caller that
+        must tell more than refused or not: the error OKX refuses the cancel with, None
+        should it take it. A 50xxx code is the gateway refusing the key and
+        PROBE_ORDER_MISSING what a key that may trade has been seen to get; no other
+        answer has been seen."""
         try:
             self._post("/api/v5/trade/cancel-order", {"instId": inst, "ordId": PROBE_ORDER_ID})
         except OKXPrivateError as exc:
-            if exc.code.startswith("50"):
-                raise
+            return exc
+        return None
 
     def order(self, inst: str, client_id: str | None = None, order_id: str | None = None) -> Order:
         """An order by client or exchange id; OKXPrivateError (code 51603) when there
@@ -412,20 +490,38 @@ class OKXPrivate:
 
     def _request(self, method: str, path: str, body: str = "") -> list:
         """``data`` of a signed request; retries and errors as ``OKX._get``, plus the
-        per-item ``sCode`` of an order endpoint that reports a failure."""
+        per-item ``sCode`` of an order endpoint that reports a failure. A redirect is
+        not followed and raises OKXError, without a retry."""
         for pause in (*_RETRY_PAUSES, None):
             try:
                 response = self.session.request(
-                    method, BASE_URL + path, data=body or None, headers=self._headers(method, path, body),
-                    timeout=_TIMEOUT,
+                    method, self.base_url + path, data=body or None, headers=self._headers(method, path, body),
+                    timeout=_TIMEOUT, allow_redirects=False,
                 )
                 if response.status_code == 429 or response.status_code >= 500:
                     response.raise_for_status()
+                break
+            except (requests.exceptions.InvalidHeader, UnicodeError):
+                # A credential that cannot be signed with or put in a header. What requests
+                # raises quotes the value, so it is dropped here: the error is raised below,
+                # outside this handler, and so does not even have this one as its context.
+                response = None
                 break
             except (requests.ConnectionError, requests.Timeout, requests.HTTPError):
                 if pause is None:
                     raise
                 time.sleep(pause)
+        if response is None:
+            raise OKXError(
+                "the API key, its secret or its passphrase holds a character that cannot be"
+                " signed with or sent in a request header; nothing was sent"
+            )
+        if 300 <= response.status_code < 400:
+            # Followed, a redirect takes the signed headers to wherever it points.
+            raise OKXError(
+                f"{path.split('?')[0]} answered {response.status_code}, a redirect to"
+                f" {_host(response.headers.get('Location'))}: not followed"
+            )
         try:
             answer = response.json()
         except ValueError:
@@ -444,14 +540,16 @@ class OKXPrivate:
 
     def _headers(self, method: str, path: str, body: str) -> dict[str, str]:
         stamp = timestamp(self.clock())
-        return {
+        headers = {
             "Content-Type": "application/json",
             "OK-ACCESS-KEY": self._credentials.key,
             "OK-ACCESS-SIGN": sign(self._credentials.secret, stamp, method, path, body),
             "OK-ACCESS-TIMESTAMP": stamp,
             "OK-ACCESS-PASSPHRASE": self._credentials.passphrase,
-            SIMULATED_HEADER: "1",
         }
+        if self.simulated:
+            headers[SIMULATED_HEADER] = "1"
+        return headers
 
     def _pages(self, path: str, params: dict, begin_ms: int, end_ms: int) -> list[dict]:
         """Rows of a newest-first, bill-id-paged endpoint with ``begin_ms <= ts < end_ms``,
@@ -484,6 +582,16 @@ def _order(row: dict) -> Order:
         avg_price=_float(row["avgPx"]) if row.get("avgPx") else None, fee=_float(row.get("fee")),
         algo_client_id=row.get("algoClOrdId") or "", updated=int(row["uTime"]),
     )
+
+
+def _host(location: str | None) -> str:
+    """The host a redirect points at, for an error's text: nothing of the URL but its
+    host name, and that only when it is made of what host names are made of."""
+    try:
+        host = urlsplit(location or "").hostname or ""
+    except ValueError:
+        host = ""
+    return host if re.fullmatch(r"[a-z0-9.:-]{1,253}", host) else "an unnamed host"
 
 
 def _float(value) -> float:
