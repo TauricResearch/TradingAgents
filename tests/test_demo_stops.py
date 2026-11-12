@@ -168,7 +168,7 @@ def test_an_amendment_that_cannot_be_read_back_is_alerted_and_left_at_that(accou
     alerts, closed = account.manage_stops(T0 + HOUR_MS, q, result.stops)
     assert alerts == [
         f"止损待确认：BTC-USDT-SWAP +10 张的止损 81,000.00 已改单（{old.client_id}），"
-        "但读不回交易所的挂单来确认，原有的止损单没有动，下一次运行再核对"
+        "但读不回交易所的挂单来确认，别的止损单都没有动，下一次运行再核对"
     ]
     assert closed == [] and [s.trigger for s in exchange.stops] == [81_000.0]
     assert calls(exchange) == ["place_stop", "amend_stop"]
@@ -184,7 +184,7 @@ def test_a_new_stop_that_cannot_be_read_back_does_not_cost_the_old_one(account, 
     new = exchange.stops[-1]
     assert alerts == [
         f"止损待确认：BTC-USDT-SWAP +10 张的止损 81,000.00 已下单（{new.client_id}），"
-        "但读不回交易所的挂单来确认，原有的止损单没有动，下一次运行再核对"
+        "但读不回交易所的挂单来确认，别的止损单都没有动，下一次运行再核对"
     ]
     assert closed == [] and [s.trigger for s in exchange.stops] == [79_000.0, 81_000.0]
     assert "cancel_stops" not in calls(exchange)

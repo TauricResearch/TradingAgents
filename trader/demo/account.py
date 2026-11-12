@@ -353,8 +353,8 @@ class DemoAccount:
             # The exchange took the request and then would not show its pending stops:
             # nothing is cancelled on the strength of an answer alone.
             self._alert(now_ms, "stop_failed", alerts, (
-                f"止损待确认：{position}的止损 {trigger:,.2f} {done}，"
-                "但读不回交易所的挂单来确认，原有的止损单没有动，下一次运行再核对"
+                f"止损待确认：{position}的止损 {trigger:,.2f} {done}，但读不回交易所的挂单来确认，"
+                "别的止损单都没有动，下一次运行再核对"
             ))
             return False
 
