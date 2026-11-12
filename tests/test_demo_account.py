@@ -9,6 +9,7 @@ at its scripted price.
 from dataclasses import replace
 
 import pytest
+import requests
 
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
 from trader.demo import account as account_module
@@ -77,6 +78,7 @@ class FakeExchange:
         self.duplicate_code = "51065"  # None: a second stop under the same client id is accepted
         self.amend_ignored = False
         self.gaps = []
+        self.world = {}               # what unsettle() last set
         self._ids = 0
 
     def fail(self, method, error, times=None, applied=False, inst=None):
@@ -87,6 +89,33 @@ class FakeExchange:
         self.failures.append(
             {"method": method, "error": error, "times": times, "applied": applied, "inst": inst}
         )
+
+    def unsettle(self, rng, methods):
+        """Answer at random each thing not known of the real exchange, move the price or
+        not, and script random failures of ``methods``; what was set, for the message
+        of an assertion that fails."""
+        self.one_stop = rng.random() < 0.3
+        self.amend_ignored = rng.random() < 0.2
+        self.duplicate_code = rng.choice(["51065", "51016", None])
+        self.refuse_passed = rng.random() < 0.3
+        self.passed_code = rng.choice([None, "59999"])
+        self.fire_passed = rng.random() < 0.15
+        if rng.random() < 0.3:
+            self.price = rng.choice([78_500.0, 80_500.0, 81_500.0, 83_000.0])
+        for method in methods:
+            if rng.random() < 0.4:
+                error = rng.choice([
+                    OKXPrivateError(f"/{method}", "50001", "Service temporarily unavailable"),
+                    requests.ConnectionError("connection reset"),
+                ])
+                changes = method not in ("pending_stops", "positions", "fills", "order")
+                self.fail(method, error, rng.choice([1, 1, 2, 3, None]), changes and rng.random() < 0.4)
+        switches = ("one_stop", "amend_ignored", "duplicate_code", "refuse_passed", "passed_code",
+                    "fire_passed", "price")
+        self.world = {name: getattr(self, name) for name in switches} | {"failures": [
+            (f["method"], type(f["error"]).__name__, f["times"], f["applied"]) for f in self.failures
+        ]}
+        return self.world
 
     def _failing(self, method, inst=None):
         """(error, applied) of the scripted failure this call meets; (None, False) without one."""

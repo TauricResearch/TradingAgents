@@ -13,6 +13,8 @@ The numbers are tests/test_demo_account.py's: 10,000 USDT, BTC at 80,000, an hou
 of 400, so a unit is 10 contracts and the stop is 1,000 away.
 """
 
+import random
+
 import pytest
 import requests
 
@@ -531,6 +533,52 @@ def test_an_unknown_refusal_with_the_old_stop_standing_alerts_and_the_next_hours
     assert closed == [BTC.swap]
     assert alerts[0].startswith("止损平仓：BTC-USDT-SWAP +10 张的止损价 81,000.00 已被现价 80,500.00 穿越")
     assert calls(exchange)[-1] == "close_position" and calls(exchange).count("amend_stop") == 1
+
+
+# -- whatever the exchange does ------------------------------------------------------------
+
+STATES = ("new", "tighten", "resize", "flip", "extra", "foreign")
+STOP_METHODS = ("amend_stop", "place_stop", "cancel_stops", "close_position", "pending_stops", "positions")
+
+
+def before_the_stops(state, account, exchange, last):
+    """One of the states ``manage_stops`` finds a position in, by name, and what it is
+    then called with (the hourly states on quotes whose last price is ``last``)."""
+    if state == "new":  # just opened: no stop yet
+        return traded(account, exchange, {BTC.research: "Long"})
+    go_long(account, exchange)
+    now = exchange.now = T0 + HOUR_MS
+    if state == "resize":  # the position doubled: its stop is for half of it
+        exchange.cash += 10_004.0
+        return traded(account, exchange, {BTC.research: "Long"}, HOUR + HOUR_MS)
+    if state == "flip":  # the position went short: its stop is on the wrong side
+        return traded(account, exchange, {BTC.research: "Short"}, HOUR + HOUR_MS)
+    if state == "extra":  # a second stop of ours beside the first
+        exchange.place_stop(BTC.swap, 10, 78_000.0, "stpextra")
+    if state == "foreign":  # its only stop is not ours
+        exchange.stops = []
+        exchange.place_stop(BTC.swap, 10, 78_000.0, "byhand")
+    return now, quotes(account, last), account.sync(now).stops  # "tighten": an hour on, new quotes
+
+
+def test_whatever_the_exchange_does_a_position_ends_with_its_stop_or_closed_or_named_in_an_alert(tmp_path):
+    # 150 draws, from a fixed seed, of a state, of an answer to each thing not known of
+    # the real exchange, and of failures of the calls manage_stops makes.
+    rng = random.Random(32)
+    for n in range(150):
+        exchange = FakeExchange()
+        ledger = Ledger(tmp_path / f"{n}.sqlite")
+        ledger.initialize(10_000.0, T0)
+        account = DemoAccount(ledger, FakeOKX(), exchange, watchlist=(BTC, ETH), sleep=lambda seconds: None)
+        state, last = rng.choice(STATES), rng.choice([78_500.0, 80_000.0, 82_000.0])
+        args = before_the_stops(state, account, exchange, last)
+        world = exchange.unsettle(rng, STOP_METHODS)
+        alerts, closed = account.manage_stops(*args)
+        told = f"draw {n}: {state} at {last:,.0f}, {world}, alerts {alerts}"
+        assert exchange.gaps == [], told
+        assert [inst for inst in exchange.bare() if not any(inst in text for text in alerts)] == [], told
+        assert [inst for inst in closed if exchange.book[inst][0]] == [], told
+        ledger.db.close()
 
 
 # -- the last line after a failed step -----------------------------------------------------

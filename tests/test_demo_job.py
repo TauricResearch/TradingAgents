@@ -1,7 +1,9 @@
 """The hourly demo job (ADR 0008): wait for the intraday decision, follow it on the
 simulated exchange, alert, summarize; and the ``demo`` CLI around it."""
 
+import random
 from datetime import UTC, datetime
+from functools import partial
 
 import pytest
 import requests
@@ -191,12 +193,15 @@ def test_hour_signals_take_the_newest_row_per_coin_since_the_hour(env):
 # -- stops that will not stand, and steps that fail after the orders (#32) ----------------
 
 
-def after(call, then):
-    """``call``, followed by ``then`` once it has returned: for a failure that sets in
-    at a given point of the run."""
+def wrap(call, before=None, after=None):
+    """``call`` with something done first, or once it has returned: for a failure that
+    sets in at a given point of the run."""
     def wrapped(*args, **kwargs):
+        if before:
+            before()
         out = call(*args, **kwargs)
-        then()
+        if after:
+            after()
         return out
     return wrapped
 
@@ -244,7 +249,7 @@ def test_a_stop_the_price_has_crossed_is_closed_by_the_hourly_run_and_the_hour_g
 def test_an_exception_between_the_order_and_its_stop_still_leaves_the_position_with_its_stop(env):
     env.decide(HOUR, "Long")
     failure = OKXError("fills failed with code 50001: service unavailable")
-    env.account.execute = after(env.account.execute, lambda: env.exchange.fail("fills", failure))
+    env.account.execute = wrap(env.account.execute, after=lambda: env.exchange.fail("fills", failure))
     with pytest.raises(OKXError):
         env.run(RUN0)
     assert env.exchange.book[BTC.swap] == [10.0, 80_000.0] and env.exchange.bare() == []
@@ -293,7 +298,7 @@ def test_the_alerts_gathered_before_an_exception_still_go_out_and_the_filled_con
 def test_when_the_stops_cannot_be_seen_to_after_a_failure_the_alert_names_the_contracts(env):
     env.decide(HOUR, "Long")
     down = requests.ConnectionError("connection reset")
-    env.account.execute = after(env.account.execute, lambda: env.exchange.fail("positions", down))
+    env.account.execute = wrap(env.account.execute, after=lambda: env.exchange.fail("positions", down))
     with pytest.raises(requests.ConnectionError):
         env.run(RUN0)
     assert env.inbox.sent == [
@@ -328,6 +333,34 @@ def test_a_kill_at_the_sync_before_the_orders_still_sends_its_alert(env):
     assert len(env.inbox.sent) == 2 and env.inbox.sent[1].startswith("熔断：净值 7,896.00 比峰值 10,000.00")
 
 
+def test_whatever_fails_once_the_orders_start_no_position_is_left_without_a_stop_and_unnamed(tmp_path):
+    # 60 draws from a fixed seed: two coins, an hour that goes well, then an hour whose
+    # orders meet an exchange that answers at random what is not known of the real one
+    # and fails at random, from the first order on or once the orders are done.
+    rng = random.Random(32)
+    calls = ("place_market", "order", "fills", "positions", "pending_stops",
+             "amend_stop", "place_stop", "cancel_stops", "close_position")
+    for n in range(60):
+        env = Env(tmp_path / str(n), watchlist=(BTC, ETH))
+        for hour in (HOUR, HOUR + HOUR_MS):
+            for coin in (BTC, ETH):
+                env.decide(hour, rng.choice(["Long", "Short", "Flat"]), coin=coin)
+            if hour == HOUR:
+                env.run(RUN0)
+        sent, when, raised = len(env.inbox.sent), rng.choice(["before", "after"]), None
+        env.account.execute = wrap(env.account.execute, **{when: partial(env.exchange.unsettle, rng, calls)})
+        try:
+            env.run(RUN0 + HOUR_MS)
+        except Exception as exc:
+            raised = exc
+        said = env.inbox.sent[sent:]
+        told = f"draw {n}: unsettled {when} the orders, {env.exchange.world}, raised {raised!r}, sent {said}"
+        assert env.exchange.gaps == [], told
+        assert [inst for inst in env.exchange.bare() if not any(inst in text for text in said)] == [], told
+        env.ledger.db.close()
+        env.intraday.db.close()
+
+
 def test_what_the_stops_raised_is_sent_even_when_the_run_then_fails(env):
     env.decide(HOUR, "Long")
     env.run(RUN0)
@@ -336,8 +369,8 @@ def test_what_the_stops_raised_is_sent_even_when_the_run_then_fails(env):
     # The position is closed for its crossed stop, and then the sync that would book
     # the close fails: the close must still be heard of.
     failure = OKXError("fills failed with code 50001: service unavailable")
-    env.exchange.close_position = after(
-        env.exchange.close_position, lambda: env.exchange.fail("fills", failure)
+    env.exchange.close_position = wrap(
+        env.exchange.close_position, after=lambda: env.exchange.fail("fills", failure)
     )
     with pytest.raises(OKXError):
         env.run(RUN0 + HOUR_MS)
