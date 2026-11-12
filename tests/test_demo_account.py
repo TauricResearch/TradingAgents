@@ -6,6 +6,8 @@ stop 1,000 away. The exchange charges the taker fee of 0.05% and fills market or
 at its scripted price.
 """
 
+from dataclasses import replace
+
 import pytest
 
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
@@ -38,7 +40,16 @@ class FakeExchange:
     """OKX's simulated trading in memory: a USDT wallet, net positions in contracts,
     market orders filled at ``price`` (per instrument in ``prices``) with the taker
     fee, conditional stops, fills and funding bills with bill ids. ``mark`` prices the
-    positions for equity. ``now`` stamps what happens."""
+    positions for equity. ``now`` stamps what happens.
+
+    What is not known of the real exchange's stops is a switch here, so that both
+    answers can be tested: whether a second stop may pend beside the first
+    (``one_stop``), whether a stop whose trigger the price has passed is refused
+    (``refuse_passed``, under ``passed_code`` when not OKX's documented ones), fired
+    on the spot (``fire_passed``) or just left pending, whether a repeated algo client
+    id is refused (``duplicate_code``), whether an amendment that is accepted takes
+    effect (``amend_ignored``). ``fail`` scripts the failure of any call. ``gaps``
+    lists the contracts a cancellation left without a closing stop while still held."""
 
     def __init__(self, cash=10_000.0, price=80_000.0, leverage=3.0, margin_mode="cross"):
         self.cash = cash
@@ -58,7 +69,35 @@ class FakeExchange:
         self.fill_state = "filled"  # what a placed market order does
         self.place_error = None     # OKXPrivateError to raise from place_market
         self.permission_error = None  # OKXPrivateError to raise from check_trade_permission
+        self.failures = []            # scripted by fail()
+        self.one_stop = False
+        self.refuse_passed = False
+        self.passed_code = None
+        self.fire_passed = False
+        self.duplicate_code = "51065"  # None: a second stop under the same client id is accepted
+        self.amend_ignored = False
+        self.gaps = []
         self._ids = 0
+
+    def fail(self, method, error, times=None, applied=False, inst=None):
+        """Script ``method`` to raise ``error`` on its next ``times`` calls (on every
+        call when None), for ``inst`` only when given. With ``applied`` the request
+        takes effect and raises all the same: its answer was lost, and the error is
+        what came back for the resend."""
+        self.failures.append(
+            {"method": method, "error": error, "times": times, "applied": applied, "inst": inst}
+        )
+
+    def _failing(self, method, inst=None):
+        """(error, applied) of the scripted failure this call meets; (None, False) without one."""
+        for failure in self.failures:
+            if failure["method"] == method and failure["inst"] in (None, inst):
+                if failure["times"] is not None:
+                    failure["times"] -= 1
+                    if not failure["times"]:
+                        self.failures.remove(failure)
+                return failure["error"], failure["applied"]
+        return None, False
 
     # -- the client's interface ---------------------------------------------
 
@@ -78,6 +117,9 @@ class FakeExchange:
         return Balance(ccy, self.cash + upl, self.cash, self.cash + upl, upl)
 
     def positions(self):
+        error, _ = self._failing("positions")
+        if error:
+            raise error
         return [
             ExchangePosition(inst, c, avg, self._upl(inst), self.leverage, self.margin_mode, None, self.now)
             for inst, (c, avg) in self.book.items() if c
@@ -90,6 +132,9 @@ class FakeExchange:
 
     def place_market(self, inst, contracts, client_id, reduce_only=False, margin_mode="cross"):
         self.calls.append(("place_market", inst, contracts, client_id, reduce_only, margin_mode))
+        error, applied = self._failing("place_market", inst)
+        if error and not applied:
+            raise error
         if self.place_error:
             raise self.place_error
         if (inst, client_id) in self.orders:
@@ -97,40 +142,97 @@ class FakeExchange:
         if self.fill_state != "filled":
             order = self._order(inst, contracts, client_id, None, self.fill_state)
             self.orders[(inst, client_id)] = order
-            return order.order_id
-        return self._fill(inst, contracts, client_id).order_id
+        else:
+            order = self._fill(inst, contracts, client_id)
+        if error:
+            raise error
+        return order.order_id
 
     def order(self, inst, client_id=None, order_id=None):
+        error, _ = self._failing("order", inst)
+        if error:
+            raise error
         key = (inst, client_id or order_id)
         if key not in self.orders:
             raise OKXPrivateError("/api/v5/trade/order", "51603", "Order does not exist")
         return self.orders[key]
 
     def fills(self, begin_ms, end_ms):
+        error, _ = self._failing("fills")
+        if error:
+            raise error
         return [f for f in self.fill_rows if begin_ms <= f.ts < end_ms]
 
     def close_position(self, inst, margin_mode="cross", client_id=None):
         self.calls.append(("close_position", inst, client_id))
+        error, applied = self._failing("close_position", inst)
+        if error and not applied:
+            raise error
         contracts = self.book.get(inst, (0.0, 0.0))[0]
         if contracts:
             self._fill(inst, -contracts, client_id or "")
         self.stops = [s for s in self.stops if s.inst != inst]
+        if error:
+            raise error
 
     def place_stop(self, inst, contracts, trigger, client_id, margin_mode="cross"):
         self.calls.append(("place_stop", inst, contracts, trigger, client_id))
+        error, applied = self._failing("place_stop", inst)
+        if error and not applied:
+            raise error
+        path, side = "/api/v5/trade/order-algo", "sell" if contracts > 0 else "buy"
+        self._refuse_passed(path, inst, side, trigger)
+        if self.one_stop and any(s.inst == inst for s in self.stops):
+            raise OKXPrivateError(path, "51168", "Failed. You have reduce-only type of open order(s)")
+        if self.duplicate_code and any(s.client_id == client_id for s in self.stops):
+            raise OKXPrivateError(path, self.duplicate_code, "algoClOrdId already exists.")
         algo_id = f"a{self._next()}"
-        self.stops.append(StopOrder(
-            algo_id, client_id, inst, "sell" if contracts > 0 else "buy", abs(contracts), trigger, True, self.now,
-        ))
+        self.stops.append(StopOrder(algo_id, client_id, inst, side, abs(contracts), trigger, True, self.now))
+        if self.fire_passed and self._passed(inst, side, trigger) and self.book.get(inst, (0.0, 0.0))[0]:
+            # Taken, and triggered on the spot: gone from the pending stops, the position with it.
+            self.stops.pop()
+            self._fill(inst, abs(contracts) if side == "buy" else -abs(contracts), "", algo_client_id=client_id)
+        if error:
+            raise error
         return algo_id
 
+    def amend_stop(self, stop, contracts, trigger):
+        self.calls.append(("amend_stop", stop.algo_id, contracts, trigger))
+        error, applied = self._failing("amend_stop", stop.inst)
+        if error and not applied:
+            raise error
+        path = "/api/v5/trade/amend-algos"
+        pending = [s for s in self.stops if s.algo_id == stop.algo_id]
+        if not pending:
+            raise OKXPrivateError(path, "51527", "Order modification unsuccessful. The stop order does not exist.")
+        self._refuse_passed(path, stop.inst, stop.side, trigger)
+        if not self.amend_ignored:
+            self.stops[self.stops.index(pending[0])] = replace(
+                pending[0], contracts=abs(contracts), trigger=trigger
+            )
+        if error:
+            raise error
+
     def pending_stops(self):
+        error, _ = self._failing("pending_stops")
+        if error:
+            raise error
         return list(self.stops)
 
     def cancel_stops(self, stops):
         self.calls.append(("cancel_stops", [s.algo_id for s in stops]))
+        error, applied = self._failing("cancel_stops", stops[0].inst if stops else None)
+        if error and not applied:
+            raise error
         gone = {s.algo_id for s in stops}
         self.stops = [s for s in self.stops if s.algo_id not in gone]
+        for inst in {s.inst for s in stops}:
+            held = self.book.get(inst, (0.0, 0.0))[0]
+            closing = "sell" if held > 0 else "buy"
+            if held and not any(s.inst == inst and s.side == closing for s in self.stops):
+                self.gaps.append(inst)
+        if error:
+            raise error
 
     def funding_bills(self, begin_ms, end_ms):
         return [b for b in self.bills if begin_ms <= b.ts < end_ms]
@@ -157,6 +259,19 @@ class FakeExchange:
     def _next(self):
         self._ids += 1
         return self._ids
+
+    def _passed(self, inst, side, trigger):
+        """Whether the price is already at or past a stop's trigger."""
+        price = self.prices.get(inst, self.price)
+        return trigger >= price if side == "sell" else trigger <= price
+
+    def _refuse_passed(self, path, inst, side, trigger):
+        """With ``refuse_passed``, refuse a stop whose trigger the price has passed, as OKX
+        documents it (51280 for a sell stop, 51278 for a buy stop) or under ``passed_code``."""
+        if self.refuse_passed and self._passed(inst, side, trigger):
+            code = self.passed_code or ("51280" if side == "sell" else "51278")
+            way = "higher" if side == "sell" else "lower"
+            raise OKXPrivateError(path, code, f"SL trigger price cannot be {way} than the last price.")
 
     def _upl(self, inst):
         contracts, avg = self.book.get(inst, (0.0, 0.0))
@@ -234,7 +349,7 @@ def go_long(account, exchange, now=T0):
     account.manage_stops(now, q, result.stops)
     alerts, desired = account.execute(HOUR, {BTC.research: "Long"}, now, result.equity, q)
     result = account.sync(now, desired_stops=desired)
-    alerts += account.manage_stops(now, q, result.stops)
+    alerts += account.manage_stops(now, q, result.stops)[0]
     return alerts, result
 
 
@@ -311,18 +426,21 @@ def test_a_rerun_of_the_hour_places_nothing_and_a_stale_ledger_reads_the_order_b
 
 def test_the_hourly_stop_tightens_on_the_exchange_but_never_loosens(account, ledger, exchange):
     go_long(account, exchange)
+    (hung,) = exchange.stops
     result = account.sync(T0 + HOUR_MS)
     account.manage_stops(T0 + HOUR_MS, quotes(account, last=82_000.0), result.stops)
     assert ledger.positions()[BTC.swap].stop == 81_000.0
     (stop,) = exchange.stops
     assert stop.trigger == 81_000.0 and stop.contracts == 10.0
-    cancels = [c for c in exchange.calls if c[0] == "cancel_stops"]
-    assert len(cancels) == 1  # the old stop was replaced, not left beside the new one
+    # The stop was amended where it stood: never cancelled, and no second one placed.
+    assert stop.algo_id == hung.algo_id
+    changes = ("place_stop", "amend_stop", "cancel_stops")
+    assert [c[0] for c in exchange.calls if c[0] in changes] == ["place_stop", "amend_stop"]
     result = account.sync(T0 + 2 * HOUR_MS)
     account.manage_stops(T0 + 2 * HOUR_MS, quotes(account, last=79_500.0), result.stops)
     assert ledger.positions()[BTC.swap].stop == 81_000.0
     assert exchange.stops[0].trigger == 81_000.0
-    assert len([c for c in exchange.calls if c[0] == "cancel_stops"]) == 1
+    assert [c[0] for c in exchange.calls if c[0] in changes] == ["place_stop", "amend_stop"]
 
 
 def test_a_missing_stop_is_hung_again_and_an_orphan_cancelled(account, ledger, exchange):

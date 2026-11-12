@@ -4,9 +4,10 @@ simulated exchange, alert, summarize; and the ``demo`` CLI around it."""
 from datetime import UTC, datetime
 
 import pytest
+import requests
 from typer.testing import CliRunner
 
-from tests.test_demo_account import BTC, HOUR, T0, FakeExchange
+from tests.test_demo_account import BTC, ETH, HOUR, T0, FakeExchange
 from tests.test_trader_jobs import Inbox
 from tests.test_trader_paper import DAY0, FakeOKX
 from trader import __main__ as cli
@@ -42,7 +43,7 @@ class Clock:
 
 
 class Env:
-    def __init__(self, tmp_path):
+    def __init__(self, tmp_path, watchlist=(BTC,)):
         self.settings = Settings(home=tmp_path)
         self.ledger = Ledger(self.settings.demo_ledger_path)
         self.ledger.initialize(10_000.0, T0 - HOUR_MS)
@@ -53,11 +54,11 @@ class Env:
         self.exchange = FakeExchange()
         self.exchange.now = HOUR  # the exchange's clock starts at the top of the hour
         self.okx = FakeOKX()
-        self.account = DemoAccount(self.ledger, self.okx, self.exchange, watchlist=(BTC,), sleep=lambda s: None)
+        self.account = DemoAccount(self.ledger, self.okx, self.exchange, watchlist=watchlist, sleep=lambda s: None)
         self.inbox = Inbox()
 
-    def decide(self, hour, signal):
-        self.intraday.record_signal(hour + 3 * 60_000, BTC.research, SignalResult(signal, 1, "", None, 1, 1))
+    def decide(self, hour, signal, coin=BTC):
+        self.intraday.record_signal(hour + 3 * 60_000, coin.research, SignalResult(signal, 1, "", None, 1, 1))
         self.intraday.set("decided_hour", hour)
 
     def run(self, now_ms):
@@ -185,6 +186,162 @@ def test_hour_signals_take_the_newest_row_per_coin_since_the_hour(env):
     env.intraday.record_signal(HOUR + 120_000, "BTC-USD", SignalResult(None, None, "", "boom"))
     env.intraday.record_signal(HOUR + 60_000, "ETH-USD", SignalResult("Flat", 1, "", None, 1, 1))
     assert job.hour_signals(env.intraday, HOUR) == {"BTC-USD": None, "ETH-USD": "Flat"}
+
+
+# -- stops that will not stand, and steps that fail after the orders (#32) ----------------
+
+
+def after(call, then):
+    """``call``, followed by ``then`` once it has returned: for a failure that sets in
+    at a given point of the run."""
+    def wrapped(*args, **kwargs):
+        out = call(*args, **kwargs)
+        then()
+        return out
+    return wrapped
+
+
+def test_a_position_whose_stop_will_not_hang_is_closed_and_booked_within_the_run(env):
+    env.decide(HOUR, "Long")
+    env.exchange.fail(
+        "place_stop", OKXPrivateError("/api/v5/trade/order-algo", "50001", "Service temporarily unavailable")
+    )
+    clock = env.run(RUN0)
+    assert clock.sleeps == [KILL_SETTLE_SECONDS]  # the close order fills, then one more sync
+    assert env.exchange.book[BTC.swap][0] == 0 and env.exchange.stops == []
+    assert [f.reason for f in env.ledger.fills()] == ["trade", "stop"]
+    assert env.ledger.positions() == {} and env.ledger.get("decided_hour") == HOUR
+    alert, report = env.inbox.sent
+    assert alert.startswith("止损平仓：BTC-USDT-SWAP +10 张试了 3 次都没挂上止损")
+    assert report.startswith("demo · 01-10 00:00 UTC\nBTC：Long → 买入 0.1 @ 80,000.00；无持仓\n")
+
+
+def test_a_stop_the_price_has_crossed_is_closed_by_the_hourly_run_and_the_hour_goes_on_as_on_paper(env):
+    env.decide(HOUR, "Long")
+    env.run(RUN0)
+    env.exchange.stops = []                       # the stop is not on the exchange
+    env.okx.last = env.exchange.price = 78_500.0  # and the price is below it
+    env.decide(HOUR + HOUR_MS, "Long")
+    clock = env.run(RUN0 + HOUR_MS)
+    assert clock.sleeps == [KILL_SETTLE_SECONDS]
+    # Closed as a stop at the market, booked, and then the hour's signal is followed:
+    # 9,842 of equity buy 9.84 contracts at 78,500, their stop 1,000 below.
+    assert [(f.reason, f.price) for f in env.ledger.fills()] == [
+        ("trade", 80_000.0), ("stop", 78_500.0), ("trade", 78_500.0),
+    ]
+    assert env.exchange.book[BTC.swap] == [9.84, 78_500.0]
+    assert [(s.contracts, s.trigger) for s in env.exchange.stops] == [(9.84, 77_500.0)]
+    alert, report = env.inbox.sent[1:]
+    assert alert.startswith("止损平仓：BTC-USDT-SWAP +10 张的止损价 79,000.00 已被现价 78,500.00 穿越")
+    assert report.startswith("demo · 01-10 01:00 UTC\nBTC：Long → 买入 0.0984 @ 78,500.00；持仓 +0.0984，止损 77,500.00")
+    # The next hour does not trip over the old stop again.
+    env.decide(HOUR + 2 * HOUR_MS, "Long")
+    clock = env.run(RUN0 + 2 * HOUR_MS)
+    assert clock.sleeps == [] and len(env.inbox.sent) == 3
+    assert [c[0] for c in env.exchange.calls].count("close_position") == 1
+
+
+def test_an_exception_between_the_order_and_its_stop_still_leaves_the_position_with_its_stop(env):
+    env.decide(HOUR, "Long")
+    failure = OKXError("fills failed with code 50001: service unavailable")
+    env.account.execute = after(env.account.execute, lambda: env.exchange.fail("fills", failure))
+    with pytest.raises(OKXError):
+        env.run(RUN0)
+    assert env.exchange.book[BTC.swap] == [10.0, 80_000.0]
+    assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_000.0)]
+    assert env.ledger.get("decided_hour") is None
+    assert env.inbox.sent == ["demo 运行失败：OKXError: fills failed with code 50001: service unavailable"]
+    # The next run books the fill behind the position and finds its stop as it should be.
+    del env.account.execute
+    env.exchange.failures.clear()
+    env.decide(HOUR + HOUR_MS, "Long")
+    env.run(RUN0 + HOUR_MS)
+    assert [f.reason for f in env.ledger.fills()] == ["trade"]
+    assert env.ledger.positions()[BTC.swap].stop == 79_000.0
+    assert [c[0] for c in env.exchange.calls if c[0].endswith("_stop")] == ["place_stop"]
+
+
+def test_an_order_that_filled_before_the_execution_raised_still_gets_its_stop(env):
+    env.decide(HOUR, "Long")
+    env.exchange.fail("order", requests.ConnectionError("connection reset"))  # the fill cannot be read back
+    with pytest.raises(requests.ConnectionError):
+        env.run(RUN0)
+    assert env.exchange.book[BTC.swap] == [10.0, 80_000.0]
+    # No fill price was read, so the stop is measured from the quotes.
+    assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_000.0)]
+    assert env.inbox.sent == ["demo 运行失败：ConnectionError: connection reset"]
+
+
+def test_the_alerts_gathered_before_an_exception_still_go_out_and_the_filled_contract_gets_its_stop(tmp_path):
+    env = Env(tmp_path, watchlist=(BTC, ETH))
+    env.decide(HOUR, "Long")
+    env.decide(HOUR, "Long", coin=ETH)
+    env.exchange.fail(
+        "place_market", OKXPrivateError("/api/v5/trade/order", "51008", "Insufficient balance"), inst=BTC.swap
+    )
+    env.exchange.fail("order", requests.ConnectionError("connection reset"), inst=ETH.swap)
+    with pytest.raises(requests.ConnectionError):
+        env.run(RUN0)
+    assert env.inbox.sent == [
+        "下单失败：BTC-USDT-SWAP +10 张：/api/v5/trade/order failed with code 51008: Insufficient balance",
+        "demo 运行失败：ConnectionError: connection reset",
+    ]
+    assert [(s.inst, s.contracts, s.trigger) for s in env.exchange.stops] == [(ETH.swap, 10.0, 79_000.0)]
+
+
+def test_when_the_stops_cannot_be_seen_to_after_a_failure_the_alert_names_the_contracts(env):
+    env.decide(HOUR, "Long")
+    down = requests.ConnectionError("connection reset")
+    env.account.execute = after(env.account.execute, lambda: env.exchange.fail("positions", down))
+    with pytest.raises(requests.ConnectionError):
+        env.run(RUN0)
+    assert env.inbox.sent == [
+        "紧急：下单之后出了错，补挂止损这一步也没做成（ConnectionError: connection reset），"
+        "BTC-USDT-SWAP 的仓位可能没有止损，请立即人工检查",
+        "demo 运行失败：ConnectionError: connection reset",
+    ]
+    assert env.exchange.book[BTC.swap][0] == 10.0 and env.exchange.stops == []
+    # The next run, the exchange back, hangs the stop.
+    del env.account.execute
+    env.exchange.failures.clear()
+    env.run(RUN0 + HOUR_MS)
+    assert [(s.contracts, s.trigger) for s in env.exchange.stops] == [(10.0, 79_000.0)]
+
+
+def test_a_kill_at_the_sync_before_the_orders_still_sends_its_alert(env):
+    env.decide(HOUR, "Long")
+    env.run(RUN0)
+    # The second hour's decision comes late, and while the demo waits for it the
+    # market falls through the kill line: the sync that sizes the orders trips it.
+    def fall_and_decide(n):
+        env.exchange.mark[BTC.swap] = env.exchange.prices[BTC.swap] = 59_000.0
+        env.decide(HOUR + HOUR_MS, "Long")
+
+    clock = Clock(RUN0 + HOUR_MS)
+    clock.on_sleep = fall_and_decide
+    env.exchange.now = RUN0 + HOUR_MS
+    job.run(env.settings, env.account, env.inbox, env.intraday, now_fn=clock.now, sleep=clock.sleep)
+    assert clock.sleeps == [INTRADAY_POLL_SECONDS]
+    assert env.ledger.get("halted") is True and env.exchange.book[BTC.swap][0] == 0
+    assert len(env.inbox.sent) == 2 and env.inbox.sent[1].startswith("熔断：净值 7,896.00 比峰值 10,000.00")
+
+
+def test_what_the_stops_raised_is_sent_even_when_the_run_then_fails(env):
+    env.decide(HOUR, "Long")
+    env.run(RUN0)
+    env.exchange.stops = []
+    env.okx.last = env.exchange.price = 78_500.0
+    # The position is closed for its crossed stop, and then the sync that would book
+    # the close fails: the close must still be heard of.
+    failure = OKXError("fills failed with code 50001: service unavailable")
+    env.exchange.close_position = after(
+        env.exchange.close_position, lambda: env.exchange.fail("fills", failure)
+    )
+    with pytest.raises(OKXError):
+        env.run(RUN0 + HOUR_MS)
+    closed, failed = env.inbox.sent[1:]
+    assert closed.startswith("止损平仓：BTC-USDT-SWAP +10 张的止损价 79,000.00 已被现价 78,500.00 穿越")
+    assert failed == "demo 运行失败：OKXError: fills failed with code 50001: service unavailable"
 
 
 # -- the CLI ------------------------------------------------------------------------
