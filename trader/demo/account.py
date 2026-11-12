@@ -300,14 +300,14 @@ class DemoAccount:
                 by_inst.setdefault(s.inst, []).append(s)
             for inst, own in by_inst.items():
                 if inst not in positions:  # closed by a trade or a stop: its stop goes too
-                    self._cancel(now_ms, inst, own, "已无持仓", alerts)
+                    self._cancel(now_ms, inst, own, alerts, "已无持仓")
             for inst, pos in positions.items():
                 contracts = self._contracts(pos.qty, inst)
                 own = by_inst.get(inst, [])
                 if pos.stop is None:  # no quote this run: nothing to place it at
                     if not any(_covers(s, contracts) for s in own):
                         self._alert(now_ms, "stop_failed", alerts, (
-                            f"没有止损：{inst} {contracts:+g} 张没有管住全部仓位的止损单，"
+                            f"没有止损：{inst} {contracts:+g} 张没有覆盖全部仓位的止损单，"
                             "这次运行又没有它的报价，算不出止损价，请人工处理"
                         ))
                     continue
@@ -418,7 +418,7 @@ class DemoAccount:
             )
         rest = [s for s in own if s.algo_id != kept.algo_id]
         if rest:
-            self._cancel(now_ms, inst, rest, "止损已到位", alerts)
+            self._cancel(now_ms, inst, rest, alerts, "止损已到位")
         return False
 
     def _pending(self, inst: str) -> list[StopOrder] | None:
@@ -428,7 +428,7 @@ class DemoAccount:
         except REQUEST_ERRORS:
             return None
 
-    def _cancel(self, now_ms: int, inst: str, stops: list[StopOrder], why: str, alerts: list[str]) -> None:
+    def _cancel(self, now_ms: int, inst: str, stops: list[StopOrder], alerts: list[str], why: str) -> None:
         """Cancel pending stops ``inst`` no longer needs (``why``). One that will not go
         is alerted and left to the next run."""
         try:

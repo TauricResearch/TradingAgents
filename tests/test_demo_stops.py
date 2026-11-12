@@ -40,8 +40,8 @@ STOP_CALLS = ("place_stop", "amend_stop", "cancel_stops", "close_position")
 def exchange():
     exchange = FakeExchange()
     yield exchange
-    # Whatever a test put the account through, no cancellation of its may have left
-    # a held contract without a stop on its closing side.
+    # Whatever a test put the account through, none of its cancellations may have
+    # left a held contract without a stop on its closing side.
     assert exchange.gaps == []
 
 
@@ -405,7 +405,7 @@ def test_a_position_with_neither_a_stop_nor_a_quote_is_alerted(account, exchange
     exchange.manual_fill("SOL-USDT-SWAP", 5)  # it appeared after the quotes were taken
     result = account.sync(T0)
     assert account.manage_stops(T0, {}, result.stops) == ([
-        "没有止损：SOL-USDT-SWAP +5 张没有管住全部仓位的止损单，这次运行又没有它的报价，算不出止损价，请人工处理"
+        "没有止损：SOL-USDT-SWAP +5 张没有覆盖全部仓位的止损单，这次运行又没有它的报价，算不出止损价，请人工处理"
     ], [])
     exchange.place_stop("SOL-USDT-SWAP", 5, 70_000.0, "byhand")
     assert account.manage_stops(T0, {}, exchange.pending_stops()) == ([], [])
