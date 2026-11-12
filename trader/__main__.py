@@ -7,7 +7,6 @@ evaluation's python -m trader evaluate fetch | replay | signals."""
 from __future__ import annotations
 
 import logging
-import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,7 +24,7 @@ from trader.ledger import Ledger, locked
 from trader.live import keys as live_keys
 from trader.notify import Notifier
 from trader.okx import OKX, REQUEST_ERRORS, OKXError
-from trader.okx_private import OKXPrivate, OKXPrivateError
+from trader.okx_private import PROBE_ORDER_MISSING, OKXPrivate, OKXPrivateError
 from trader.paper import Paper
 from trader.research import Researcher
 from trader.settings import TAKER_FEE, WATCHLIST, Settings
@@ -316,8 +315,8 @@ def live_check(
     mode, the key's permissions, the USDT balance, the positions and the fee rates the
     account really pays. Places nothing and changes no setting; a read-only key will do."""
     base_url = base_url.rstrip("/")
-    if not re.fullmatch(r"https://([a-z0-9-]+\.)*okx\.com", base_url):
-        _fail(f"--base-url 只接受 https 的 okx.com 域名（默认 {live_keys.BASE_URL}），live 的密钥不发往别处")
+    if base_url not in live_keys.BASE_URLS:  # the factory holds to the same list
+        _fail(f"--base-url 只接受 {' 或 '.join(live_keys.BASE_URLS)}，live 的密钥不发往别处")
     _, client = _live_client(base_url)
     fees, notes = [], []
     try:
@@ -330,23 +329,20 @@ def live_check(
                 fees.append(client.fee_rate(coin.swap))
             except OKXError as exc:  # the shape of this answer is known from OKX's docs alone
                 notes.append(f"{coin.swap} 的实际费率没有读到：{jobs.error_text(exc)}")
-        refusal = _live_trade_refusal(client)
     except OKXPrivateError as exc:
         _fail(f"OKX 正式环境拒绝了请求：{jobs.error_text(exc)}")
     except REQUEST_ERRORS as exc:
         _fail(f"OKX 正式环境没有应答：{jobs.error_text(exc)}")
     levels = {"1": "现货", "2": "合约模式（单币种保证金）", "3": "跨币种保证金", "4": "组合保证金"}
     permissions = config.permissions.split(",")
-    # What the probe answers a read-only key has not been seen yet: the key's own list of
-    # permissions is believed as well.
-    if not refusal and "trade" not in permissions:
-        refusal = "权限里没有 trade"
-    sub_account = config.uid != config.main_uid
+    trade = _live_trade_line(client, permissions)
+    # A sub-account's uid differs from its main account's. Without both there is no telling.
+    sub_account = config.uid != config.main_uid if config.uid and config.main_uid else None
+    kind = {True: "子账户", False: "主账户", None: "不确定是不是子账户"}[sub_account]
     bound = len(config.ip.split(",")) if config.ip else 0
     typer.echo(f"正式环境（真钱），域名 {client.base_url}")
     typer.echo(
-        f"账户模式 {levels.get(config.account_level, config.account_level)}，持仓模式 {config.position_mode}，"
-        f"{'子账户' if sub_account else '主账户'}"
+        f"账户模式 {levels.get(config.account_level, config.account_level)}，持仓模式 {config.position_mode}，{kind}"
     )
     typer.echo(f"这把 key 的权限 {config.permissions}，{f'绑定了 {bound} 个 IP' if bound else '没有绑定 IP'}")
     typer.echo(
@@ -365,19 +361,18 @@ def live_check(
             f"  {fee.inst} 吃单万分之 {fee.taker * 1e4:g}（比模拟盘假设 {(fee.taker - TAKER_FEE) * 1e4:+g}），"
             f"挂单万分之 {fee.maker * 1e4:g}"
         )
-    if refusal:
-        typer.echo(
-            f"注意：这把 key 下不了单（{refusal}）：影子运行可以，解锁前要换成只勾“交易”的 key，"
-            "交易权限要覆盖加密货币/永续合约。"
-        )
-    else:
-        typer.echo("交易权限正常（试了一次不存在订单的撤单，没有下单）。")
+    typer.echo(trade)
     if "withdraw" in permissions:
         typer.echo("注意：这把 key 带提币权限（withdraw）；ADR 0010 要求只勾交易、不勾提币。")
     if not bound:
         typer.echo("注意：这把 key 没有绑定 IP；ADR 0010 要求绑定 mini 的固定出口 IP。")
-    if not sub_account:
+    if sub_account is False:
         typer.echo("注意：这把 key 建在主账户下；ADR 0010 要求建在只给这套系统用的子账户下。")
+    if sub_account is None:
+        typer.echo(
+            "注意：应答里没有 uid 或 mainUid，看不出这把 key 是不是建在子账户下；"
+            "ADR 0010 要求建在只给这套系统用的子账户下。"
+        )
     if config.account_level == "1":
         typer.echo("注意：现货模式不能交易合约，请在 OKX 把账户模式改成合约模式（以前叫单币种保证金）或跨币种保证金。")
     for note in notes:
@@ -451,8 +446,9 @@ def _open_demo(require_utc: bool = False) -> tuple[Settings, DemoAccount, Notifi
 
 def _live_client(base_url: str = live_keys.BASE_URL) -> tuple[Settings, OKXPrivate]:
     """The settings and the production client on the key of the live key file (ADR
-    0010). A file that is missing, open to other users or incomplete fails the calling
-    command with an alert, and that command alone: no other command reads the file."""
+    0010). A file that is missing, unreadable, open to other users, incomplete or of
+    values no header carries fails the calling command with an alert, and that command
+    alone: no other command reads the file."""
     try:
         settings = Settings.from_env()
     except ValueError as exc:  # the demo key's variables are set in part, as in _demo_client
@@ -464,15 +460,29 @@ def _live_client(base_url: str = live_keys.BASE_URL) -> tuple[Settings, OKXPriva
         _fail(f"live 的密钥文件有问题：{exc}")
 
 
-def _live_trade_refusal(client: OKXPrivate) -> str | None:
-    """OKX's refusal when the live key cannot place orders, None when it can
-    (OKXPrivate.check_trade_permission). A read-only key is refused, which a shadow
-    run can live with: the caller notes it and goes on."""
+def _live_trade_line(client: OKXPrivate, permissions: list[str]) -> str:
+    """What live check says of placing orders with the live key: that it may, or a note
+    of why that is not established. The probe is the check's last request and its only
+    one that is not a GET; getting no answer to it is noted here rather than raised, so
+    that what was read before it is still printed. Only the answer seen from a key that
+    may trade counts as that, and a key without the trade permission cannot trade
+    whatever the probe is answered: what a read-only key gets has not been seen yet."""
     try:
-        client.check_trade_permission(PRECHECK_INST)
-    except OKXPrivateError as exc:
-        return f"{exc.code} {exc.message}"
-    return None
+        answer = client.probe_trade_permission(PRECHECK_INST)
+        code = answer.code if answer else "0"
+        got = f"探针得到 {answer.code} {answer.message}" if answer else "探针的撤单被接受了"
+    except REQUEST_ERRORS as exc:
+        code, got = "", f"探针没有得到应答：{jobs.error_text(exc)}"
+    shadow = "影子运行可以，解锁前要换成只勾“交易”的 key，交易权限要覆盖加密货币/永续合约。"
+    if code.startswith("50"):
+        return f"注意：这把 key 下不了单（{answer.code} {answer.message}）：{shadow}"
+    if "trade" not in permissions:
+        return f"注意：这把 key 下不了单（权限里没有 trade；{got}）：{shadow}"
+    if code == PROBE_ORDER_MISSING:
+        return "交易权限正常（试了一次不存在订单的撤单，没有下单）。"
+    if not code:
+        return f"注意：交易权限{got}；不能确认这把 key 能下单。"
+    return f"注意：交易权限{got}，不是“订单不存在”（{PROBE_ORDER_MISSING}）：这个应答没见过，不能确认这把 key 能下单。"
 
 
 def _fail(message: str) -> None:
