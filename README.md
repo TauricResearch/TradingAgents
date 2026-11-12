@@ -328,6 +328,20 @@ The CLI takes the same content as a JSON file: `tradingagents --portfolio my_boo
 
 An empty `positions` list means a flat book, which is different from passing nothing. A run without a portfolio is never treated as flat.
 
+### Executing decisions
+
+TradingAgents stops at the decision: `propagate` returns a rating and places no order. If you want a run to act on its rating, wrap the graph with an execution adapter. [`borro-live`](https://borro.markets/go-live) is one, for tokenized stocks on Robinhood Chain through [Borro](https://borro.markets). It is a separate package, not a dependency of TradingAgents, and it is a dry run unless you turn live mode on twice.
+
+```python
+from borro_live import Broker
+from borro_live.tradingagents import go_live
+
+ta = go_live(TradingAgentsGraph(config=config), Broker.from_env(), usdg=5)
+_, decision = ta.propagate("NVDA", "2026-09-01")   # same return value; ta.borro_orders holds what was simulated or sent
+```
+
+Buy and Overweight buy, Underweight and Sell reduce or close the position, Hold and `REVIEW` do nothing. A dry run returns the venue's own simulation of each transaction and sends nothing; live mode needs `live=True` and `BORRO_LIVE=1`, and is bounded by per-order and per-day caps in USDG. Stock tokens are not shares, a short can be liquidated, and the disclaimer above applies in full: this is execution plumbing, not advice.
+
 ## Persistence and Recovery
 
 TradingAgents persists two kinds of state across runs.
