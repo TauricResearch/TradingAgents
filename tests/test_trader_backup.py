@@ -129,6 +129,9 @@ def test_the_command_names_the_copy_and_what_it_skipped(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert result.output.startswith(f"已备份到 {dest}/")
     assert "  ledger.sqlite  " in result.output and "没有日内账本，跳过" in result.output
+    assert result.output.splitlines()[-3:] == [
+        "  （没有日内账本，跳过）", "  （没有 demo 账本，跳过）", "  （没有 live 账本，跳过）",
+    ]
     assert len(list(dest.iterdir())) == 1  # the time-stamped directory was created under DEST
 
     empty = tmp_path / "empty"
@@ -136,3 +139,17 @@ def test_the_command_names_the_copy_and_what_it_skipped(tmp_path, monkeypatch):
     monkeypatch.setenv("TRADER_HOME", str(empty))
     result = CliRunner().invoke(cli.app, ["backup", str(dest)])
     assert result.exit_code == 1 and "没有可备份的账户文件" in result.output
+
+
+def test_the_command_skips_nothing_when_all_four_ledgers_are_there(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    for rel in (
+        "ledger.sqlite", "intraday/ledger.sqlite", "demo/ledger.sqlite", "live/ledger.sqlite",
+    ):
+        Ledger(home / rel).initialize(1_000.0, T0)
+    monkeypatch.setattr(cli, "load_dotenv", lambda *args, **kwargs: None)
+    monkeypatch.setenv("TRADER_HOME", str(home))
+    result = CliRunner().invoke(cli.app, ["backup", str(tmp_path / "backups")])
+    assert result.exit_code == 0, result.output
+    assert "  demo/ledger.sqlite  " in result.output and "  live/ledger.sqlite  " in result.output
+    assert "跳过" not in result.output
