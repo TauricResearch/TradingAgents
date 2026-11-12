@@ -24,7 +24,8 @@ import logging
 from collections.abc import Callable
 from typing import Any, TypeVar
 
-from pydantic import BaseModel
+from langchain_core.exceptions import OutputParserException
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -65,12 +66,15 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
     invocations, a list of message dicts for chat models that take that
     shape), so a caller can forward the same value to its free-text fallback.
 
-    A ``None`` parsed result is a sampling miss, not a provider failure:
-    thinking models periodically answer in plain text instead of calling the
-    bound schema tool (~1x per run in the #1390 measurements, with no
-    ``tool_choice`` errors at all). A single same-prompt retry recovers the
-    schema far more often than not, so it is tried before giving up. Hard
-    provider errors are not retried — the fallback remains one attempt away.
+    Two sampling misses are retried once, with the same prompt, before the
+    free-text fallback: a ``None`` parse (a thinking model answered in plain
+    text instead of calling the bound schema tool) and an invalid tool-call
+    argument set (``ValidationError`` / ``OutputParserException``: the model
+    called the schema tool but omitted a required field — e.g. the
+    PortfolioDecision ``rating`` in the #1390 measurements). Both are the
+    model failing to sample a valid schema instance, not the provider
+    failing, and one retry usually recovers the schema. Hard provider errors
+    are not retried — the fallback remains one attempt away.
     """
     if structured_llm is None:
         return None
@@ -97,6 +101,25 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
                 )
                 return None
             return result
+        except (ValidationError, OutputParserException) as exc:
+            # The model called the schema tool but sent an argument set the
+            # schema rejects (a missing required field is the measured case:
+            # PortfolioDecision without ``rating``). Like a None parse this is
+            # a sampling artifact — one same-prompt retry usually recovers a
+            # complete tool call — so it shares the single retry budget (#1390).
+            if attempt == 0:
+                logger.info(
+                    "%s: structured output returned an invalid tool call "
+                    "(%s); retrying the structured call once (#1390)",
+                    agent_name, exc,
+                )
+                continue
+            logger.warning(
+                "%s: structured-output invocation failed "
+                "(invalid tool call after retry: %s); retrying once as free text",
+                agent_name, exc,
+            )
+            return None
         except Exception as exc:
             logger.warning(
                 "%s: structured-output invocation failed (%s); retrying once as free text",

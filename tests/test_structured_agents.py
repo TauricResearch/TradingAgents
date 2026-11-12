@@ -268,6 +268,71 @@ def test_invoke_structured_gives_up_after_one_retry():
 
 
 @pytest.mark.unit
+def test_invoke_structured_retries_once_on_validation_error():
+    # The model called the schema tool but omitted a required field (the
+    # PortfolioDecision rating case measured in #1390): an invalid tool-call
+    # argument set is a sampling artifact too, so it shares the single retry
+    # budget rather than falling back to free text immediately.
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = [ValidationError.from_exception_data(
+        "PortfolioDecision", [{"type": "missing", "loc": ("rating",)}]
+    ), MagicMock(rating="RECOVERED")]
+    plain = MagicMock()
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "RECOVERED"
+    assert structured.invoke.call_count == 2
+    plain.invoke.assert_not_called()
+
+
+@pytest.mark.unit
+def test_invoke_structured_validation_error_retry_can_fail_to_free_text():
+    # Two consecutive invalid tool calls exhaust the one-retry budget and
+    # fall back to free text — the budget stays exactly one (#1390).
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = [ValidationError.from_exception_data(
+        "PortfolioDecision", [{"type": "missing", "loc": ("rating",)}]
+    )] * 2
+    plain = MagicMock()
+    plain.invoke.return_value = MagicMock(content="FREETEXT")
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "FREETEXT"
+    assert structured.invoke.call_count == 2
+    plain.invoke.assert_called_once()
+
+
+@pytest.mark.unit
+def test_invoke_structured_retries_once_on_output_parser_exception():
+    # A malformed tool-call payload surfaces as OutputParserException on some
+    # providers; it is the same sampling-miss class and gets the same retry.
+    from langchain_core.exceptions import OutputParserException
+    from tradingagents.agents.structured import invoke_structured_or_freetext
+
+    structured = MagicMock()
+    structured.invoke.side_effect = [
+        OutputParserException("malformed tool call payload"),
+        MagicMock(rating="RECOVERED"),
+    ]
+    plain = MagicMock()
+
+    out = invoke_structured_or_freetext(
+        structured, plain, "prompt", render=lambda r: r.rating, agent_name="t"
+    )
+    assert out == "RECOVERED"
+    assert structured.invoke.call_count == 2
+    plain.invoke.assert_not_called()
+
+
+@pytest.mark.unit
 def test_invoke_structured_exception_during_retry_falls_back():
     # A miss followed by a provider exception during the retry: the exception
     # is caught by the same handler and degrades to free text, not a crash (#1390).
