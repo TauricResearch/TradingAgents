@@ -89,22 +89,24 @@
 
 | 档 | 票 | 内容 | 状态 |
 |---|---|---|---|
-| 1 影子运行之前 | #30 | 私有接口客户端的正式环境开关、单独的密钥文件、`live check` | ready |
+| 1 影子运行之前 | #30 | 私有接口客户端的正式环境开关、单独的密钥文件、`live check` | 进行中（第 1 轮） |
 | 1 | #31 | live 账户、生来暂停的影子运行、带账户名的告警、外部心跳 | 等 #30 |
-| 2 解锁之前 | #32 | 止损单更新期间不留空窗，成交后挂不上止损就平仓 | ready |
+| 2 解锁之前 | #32 | 止损单更新期间不留空窗，成交后挂不上止损就平仓 | 进行中（第 1 轮） |
 | 2 | #33 | 熔断做扎实、`halt`（停止并平仓）、余额读不到按出错处理 | ready |
 | 2 | #34 | 暂停状态和触发条件（demo 同样生效）、live 的指纹暂停和两个绝对上限；最后合入，打开解锁 | 等 #31、#32、#33 |
 | 用户 | #35 | 子账户、密钥、入金、mini 设置、心跳服务 | 等用户 |
 | 3 解锁之后 | #36 | 止损成交即时通知、失败告警按类型限频、发送失败后补发 | ready |
 | 3 | #37 | 对不上账的修复命令 | 等 #34 |
-| 3 | #38 | `trader backup` 包含 demo 和 live 的账本 | ready |
+| 3 | #38 | `trader backup` 包含 demo 和 live 的账本 | 进行中（第 1 轮） |
 | 3 | #39 | 下单前的输入检查、顶格仓位的正常反手不再被拒 | ready |
 | 3 | #40 | 出入金记账（第二次入金之前必须完成） | 等 #34 |
 | 3 | #41 | 看板显示 live 账户 | 等 #31 |
 | — | #42 | 在演示环境上演练执行器（不卡解锁，避开 #22 的观察期） | 等第 1、2 档 |
 | — | #43 | 到期报告和去留决定 | 2026-12-05 |
 
-顺序：#30 和 #32 可以同时开工，改的文件不重叠。#31、#32、#33、#34 都改 `trader/demo/account.py` 和 `trader/demo/job.py`，这四张依次做，#34 最后。影子运行在 #31 部署后就能开始，用只读密钥提前暴露正式环境和演示环境的差别。
+顺序：#30 和 #32 可以同时开工：两张都会动 `trader/okx_private.py`，但在不同的小节，提示词里划了界。#31、#32、#33、#34 都改 `trader/demo/account.py` 和 `trader/demo/job.py`，这四张依次做，#34 最后。影子运行在 #31 部署后就能开始，用只读密钥提前暴露正式环境和演示环境的差别。
+
+第 1 轮（2026-11-12 UTC，起点 `034961d`）：#30 → 分支 `cursor/issue-30-live-client-6e50`，worktree `../TradingAgents.worktrees/issue-30-live-client`；#32 → 分支 `cursor/issue-32-stop-no-gap-6e50`，worktree `../TradingAgents.worktrees/issue-32-stop-no-gap`；#38 → 分支 `cursor/issue-38-backup-ledgers-6e50`，worktree `../TradingAgents.worktrees/issue-38-backup-ledgers`。执行会话是 Cursor 里的 Task 子代理，worktree 由指挥会话手工建。报告目录 `~/.commander/TradingAgents/`，会话 id 和交接事项记在那里的 `live-rounds.md`。
 
 ## 离线评估（验证期内并行，ADR 0009）
 
