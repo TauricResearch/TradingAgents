@@ -1,7 +1,9 @@
-"""The signed OKX client of the demo account (ADR 0008): it signs as OKX specifies,
-only ever reaches simulated trading, keeps the credentials out of everything it
-prints, and reads OKX's answers into the account's units. Every answer here is a
-recorded shape of the real endpoint; nothing touches the network."""
+"""The signed OKX client of the demo and the live account (ADR 0008, ADR 0010): it
+signs as OKX specifies, marks its requests as simulated trading unless it was built
+for production, keeps the credentials out of everything it prints, and reads OKX's
+answers into the account's units. Every answer here is a recorded shape of the real
+endpoint, except those of the fee rates and of the key's IP binding and sub-account,
+which are the shapes OKX's documentation gives; nothing touches the network."""
 
 import json
 
@@ -16,6 +18,7 @@ from trader.okx_private import (
     Balance,
     ExchangeFill,
     ExchangePosition,
+    FeeRate,
     FundingBill,
     OKXCredentials,
     OKXPrivate,
@@ -50,16 +53,21 @@ class FakeResponse:
 class FakeSession:
     """Answers each (method, path-with-query) once: a list is the ``data`` of a
     successful answer, a dict the whole body, a FakeResponse the answer as is, an
-    Exception is raised. ``failures`` go out first whatever is asked. Records calls."""
+    Exception is raised. ``failures`` go out first whatever is asked. Records calls,
+    and in ``urls`` where each went: it must be ``base_url``."""
 
-    def __init__(self, answers=(), failures=()):
+    def __init__(self, answers=(), failures=(), base_url=okx_private.BASE_URL):
         self.answers = list(answers)
         self.failures = list(failures)
+        self.base_url = base_url
         self.calls = []
+        self.urls = []
 
     def request(self, method, url, data, headers, timeout):
         assert timeout == 10
-        path = url.removeprefix(okx_private.BASE_URL)
+        assert url.startswith(self.base_url + "/"), f"expected a request to {self.base_url}, got {url}"
+        self.urls.append(url)
+        path = url.removeprefix(self.base_url)
         self.calls.append((method, path, data, headers))
         if self.failures:
             answer = self.failures.pop(0)
@@ -74,9 +82,10 @@ class FakeSession:
         return FakeResponse(body)
 
 
-def client(answers=(), failures=()):
-    session = FakeSession(answers, failures)
-    return OKXPrivate(CREDS, session=session, clock=lambda: NOW), session
+def client(answers=(), failures=(), **options):
+    """A client on a FakeSession; ``options`` (simulated, base_url) go to OKXPrivate."""
+    session = FakeSession(answers, failures, options.get("base_url", okx_private.BASE_URL))
+    return OKXPrivate(CREDS, session=session, clock=lambda: NOW, **options), session
 
 
 @pytest.fixture
@@ -131,9 +140,50 @@ def test_every_request_is_signed_over_its_query_and_body_and_marked_simulated():
         assert headers["Content-Type"] == "application/json"
 
 
-def test_the_live_environment_cannot_be_reached():
-    with pytest.raises(ValueError, match="only OKX simulated trading"):
-        OKXPrivate(CREDS, session=FakeSession(), simulated=False)
+def test_a_production_client_signs_the_same_and_sends_no_simulated_header():
+    okx, session = client([
+        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": []}]),
+        (("POST", "/api/v5/trade/order"), [{"ordId": "1", "clOrdId": "trd1btc", "sCode": "0"}]),
+    ], simulated=False)
+    okx.balance()
+    okx.place_market("BTC-USDT-SWAP", 2, "trd1btc")
+    (_, _, _, get_headers), (_, _, _, post_headers) = session.calls
+    assert get_headers["OK-ACCESS-SIGN"] == "q88nhwRRgbZed82etcHsHMp56hE0ne7uqeezHdX2B0s="
+    assert post_headers["OK-ACCESS-SIGN"] == "mrKZrPsPAocoKe5D+Rscb9d6pDLmWma4u+I2Qdh/Vp4="
+    for headers in (get_headers, post_headers):
+        assert set(headers) == {
+            "Content-Type", "OK-ACCESS-KEY", "OK-ACCESS-SIGN", "OK-ACCESS-TIMESTAMP", "OK-ACCESS-PASSPHRASE",
+        }
+        assert headers["OK-ACCESS-KEY"] == "key-123"
+        assert headers["OK-ACCESS-PASSPHRASE"] == "pass-word"
+        assert headers["OK-ACCESS-TIMESTAMP"] == STAMP
+
+
+def test_a_client_is_simulated_unless_it_is_built_for_production():
+    simulated, live = client()[0], client(simulated=False)[0]
+    assert (simulated.simulated, repr(simulated)) == (True, "OKXPrivate(simulated)")
+    assert (live.simulated, repr(live)) == (False, "OKXPrivate(live)")
+
+
+def test_requests_go_to_the_public_clients_host_unless_the_client_is_given_another():
+    row = {"posMode": "net_mode", "acctLv": "2", "perm": "read_only,trade"}
+    okx, session = client([(("GET", "/api/v5/account/config"), [row])])
+    okx.account_config()
+    assert okx.base_url == "https://www.okx.com"
+    assert session.urls == ["https://www.okx.com/api/v5/account/config"]
+    other, other_session = client(
+        [(("GET", "/api/v5/account/config"), [row]),
+         (("POST", "/api/v5/account/set-position-mode"), [{"posMode": "net_mode"}])],
+        base_url="https://openapi.okx.com",
+    )
+    other.account_config()
+    other.set_position_mode()
+    assert other_session.urls == [
+        "https://openapi.okx.com/api/v5/account/config",
+        "https://openapi.okx.com/api/v5/account/set-position-mode",
+    ]
+    # The host is no part of what is signed: the same request signs the same on either.
+    assert other_session.calls[0][3] == session.calls[0][3]
 
 
 def test_credentials_and_client_never_print_the_secret():
@@ -289,6 +339,100 @@ def test_account_setup_posts_net_mode_and_leverage():
     okx.set_leverage("BTC-USDT-SWAP", 3)
     assert json.loads(session.calls[0][2]) == {"posMode": "net_mode"}
     assert json.loads(session.calls[1][2]) == {"instId": "BTC-USDT-SWAP", "lever": "3", "mgnMode": "cross"}
+
+
+def test_the_account_config_tells_the_keys_ip_binding_and_whether_it_is_a_sub_account():
+    """The fields are those of OKX's documentation: a sub-account's uid differs from its
+    mainUid, ip is "" for a key bound to none. Not recorded from the real endpoint yet."""
+    okx, _ = client([
+        (("GET", "/api/v5/account/config"), [{
+            "posMode": "net_mode", "acctLv": "2", "perm": "read_only", "ip": "117.37.203.58,117.37.203.57",
+            "uid": "698827017768230914", "mainUid": "44705892343619584", "type": "1",
+        }]),
+        (("GET", "/api/v5/account/config"), [{
+            "posMode": "long_short_mode", "acctLv": "2", "perm": "read_only,withdraw,trade", "ip": "",
+            "uid": "44705892343619584", "mainUid": "44705892343619584", "type": "0",
+        }]),
+        # What the recorded answers of this file hold: the new fields are then empty.
+        (("GET", "/api/v5/account/config"), [{"posMode": "net_mode", "acctLv": "2", "perm": "read_only,trade"}]),
+    ])
+    sub = okx.account_config()
+    assert (sub.ip, sub.uid, sub.main_uid) == (
+        "117.37.203.58,117.37.203.57", "698827017768230914", "44705892343619584"
+    )
+    main = okx.account_config()
+    assert (main.ip, main.uid, main.main_uid) == ("", "44705892343619584", "44705892343619584")
+    bare = okx.account_config()
+    assert (bare.ip, bare.uid, bare.main_uid) == ("", "", "")
+
+
+def fee_answer(*groups, level="Lv1"):
+    """OKX's documented answer of /api/v5/account/trade-fee (its response example, with
+    the instrument type a swap's) around ``groups``. The top-level rates are the
+    deprecated ones, for crypto-margined contracts: the client must not read them."""
+    return [{
+        "category": "1", "delivery": "", "exercise": "", "feeGroup": list(groups), "fiat": [],
+        "instType": "SWAP", "level": level, "maker": "-0.0008", "makerU": "", "makerUSDC": "",
+        "ruleType": "normal", "taker": "-0.001", "takerU": "", "takerUSDC": "", "ts": "1763979985847",
+    }]
+
+
+FEE_PATH = "/api/v5/account/trade-fee?instType=SWAP&instFamily="
+
+
+def test_a_fee_rate_is_what_the_account_pays_on_the_swaps_family():
+    """The shapes here are those of OKX's documentation; none has been recorded from the
+    real endpoint yet. OKX writes a rate it charges as a negative number."""
+    okx, session = client([
+        (("GET", FEE_PATH + "BTC-USDT"), fee_answer(
+            {"rpiMaker": "", "groupId": "4", "maker": "-0.0002", "taker": "-0.0005"})),
+        (("GET", FEE_PATH + "ETH-USDT"), fee_answer(
+            {"rpiMaker": "", "groupId": "4", "maker": "0.00005", "taker": "-0.00035"}, level="Lv5")),
+        (("GET", FEE_PATH + "SOL-USDT"), fee_answer(
+            {"rpiMaker": "", "groupId": "5", "maker": "0", "taker": "-0.0004"})),
+    ])
+    assert okx.fee_rate("BTC-USDT-SWAP") == FeeRate("BTC-USDT-SWAP", "Lv1", 0.0005, 0.0002)
+    rebated = okx.fee_rate("ETH-USDT-SWAP")  # a positive rate is a rebate: the account is paid
+    assert (rebated.level, rebated.taker, rebated.maker) == ("Lv5", 0.00035, -0.00005)
+    free = okx.fee_rate("SOL-USDT-SWAP")
+    assert (free.taker, str(free.maker)) == (0.0004, "0.0")  # zero, not -0.0
+    assert [method for method, _, _, _ in session.calls] == ["GET"] * 3
+
+
+def test_a_fee_rate_among_several_groups_is_the_one_the_instrument_trades_in():
+    """As documented: instType and groupId together name a fee group, and the
+    instruments endpoint maps an instrument to its group. Not recorded yet."""
+    groups = (
+        {"rpiMaker": "", "groupId": "4", "maker": "-0.0002", "taker": "-0.0005"},
+        {"rpiMaker": "", "groupId": "5", "maker": "-0.0003", "taker": "-0.0006"},
+    )
+    okx, session = client([
+        (("GET", FEE_PATH + "SOL-USDT"), fee_answer(*groups)),
+        (("GET", "/api/v5/account/instruments?instType=SWAP&instId=SOL-USDT-SWAP"),
+         [{"instId": "SOL-USDT-SWAP", "instType": "SWAP", "instFamily": "SOL-USDT", "groupId": "5"}]),
+    ])
+    assert okx.fee_rate("SOL-USDT-SWAP") == FeeRate("SOL-USDT-SWAP", "Lv1", 0.0006, 0.0003)
+    assert len(session.calls) == 2
+
+
+@pytest.mark.parametrize("answers", [
+    [(("GET", FEE_PATH + "BTC-USDT"), fee_answer())],  # no group at all
+    [(("GET", FEE_PATH + "BTC-USDT"), [])],            # no row at all
+    [(("GET", FEE_PATH + "BTC-USDT"), fee_answer({"groupId": "4", "maker": "", "taker": ""}))],
+    [(("GET", FEE_PATH + "BTC-USDT"), fee_answer(
+        {"groupId": "4", "maker": "-0.0002", "taker": "-0.0005"},
+        {"groupId": "5", "maker": "-0.0003", "taker": "-0.0006"})),
+     (("GET", "/api/v5/account/instruments?instType=SWAP&instId=BTC-USDT-SWAP"),
+      [{"instId": "BTC-USDT-SWAP", "groupId": "7"}])],  # the instrument's group is not among them
+    [(("GET", FEE_PATH + "BTC-USDT"), fee_answer(
+        {"groupId": "4", "maker": "-0.0002", "taker": "-0.0005"},
+        {"groupId": "5", "maker": "-0.0003", "taker": "-0.0006"})),
+     (("GET", "/api/v5/account/instruments?instType=SWAP&instId=BTC-USDT-SWAP"), [])],
+])
+def test_a_fee_answer_without_one_group_of_rates_raises_instead_of_guessing(answers):
+    okx, _ = client(answers)
+    with pytest.raises(OKXError, match="no single fee group with rates for BTC-USDT-SWAP"):
+        okx.fee_rate("BTC-USDT-SWAP")
 
 
 # -- orders ----------------------------------------------------------------------

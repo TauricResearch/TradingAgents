@@ -1,10 +1,15 @@
-"""OKX's signed (private) REST API, for the demo execution account (ADR 0008).
+"""OKX's signed (private) REST API, for the accounts that trade on the exchange: the
+demo account on OKX's simulated trading (ADR 0008) and the live account on its
+production environment (ADR 0010).
 
-Only OKX's simulated trading is reachable from here: every request carries the
-``x-simulated-trading: 1`` header, and ``OKXPrivate`` refuses to be built for the
-live environment. The credentials are a separate API key made in OKX's demo
-trading area with the trade permission only; they come from the environment
-(``OKXCredentials.from_env``) and never appear in a repr, a log or an error.
+One client reaches either environment. ``OKXPrivate`` is built for simulated trading
+unless told otherwise, and then every request carries the ``x-simulated-trading: 1``
+header. Built with ``simulated=False`` it sends no such header and its requests are
+production ones, with real money behind them: only the ``live`` command group sends
+those, through the client ``trader.live`` builds from a key kept in a file of its own.
+The demo key is a separate one, made in OKX's demo trading area and read from the
+environment (``OKXCredentials.from_env``); OKX accepts it on simulated trading only.
+Neither key ever appears in a repr, a log or an error.
 
 Every call returns plain dataclasses with the few fields the executor needs, in
 the units the account keeps: contract counts are OKX's (``sz``, signed by the
@@ -55,7 +60,9 @@ class OKXPrivateError(OKXError):
 
 @dataclass(frozen=True, repr=False)
 class OKXCredentials:
-    """An API key of OKX's simulated trading. Masked wherever it is printed."""
+    """An OKX API key, of either environment: the demo account's comes from the
+    environment (``from_env``), the live account's from its own file
+    (``trader.live``, ADR 0010). Masked wherever it is printed."""
 
     key: str
     secret: str
@@ -86,6 +93,20 @@ class AccountConfig:
     position_mode: str   # "net_mode" or "long_short_mode"
     account_level: str   # "1" spot, "2" single-currency margin, "3" multi-currency, "4" portfolio
     permissions: str     # e.g. "read_only,trade"
+    ip: str = ""         # the IPs the key is bound to, comma-separated; "" when it is bound to none
+    uid: str = ""        # the account the key belongs to
+    main_uid: str = ""   # that account's main account: ``uid`` itself unless it is a sub-account
+
+
+@dataclass(frozen=True)
+class FeeRate:
+    """What the account pays to trade one perpetual, as fractions of the notional:
+    positive is a fee, negative a rebate (OKX writes them the other way round)."""
+
+    inst: str
+    level: str   # the account's fee tier, e.g. "Lv1"
+    taker: float
+    maker: float
 
 
 @dataclass(frozen=True)
@@ -177,7 +198,9 @@ def timestamp(now: float) -> str:
 
 
 class OKXPrivate:
-    """Signed calls to OKX's simulated trading (ADR 0008)."""
+    """Signed calls to one of OKX's two environments: simulated trading (ADR 0008)
+    unless ``simulated`` is False, which is production (ADR 0010). Only ``trader.live``
+    builds the production one; tests/test_trader_live_layering.py holds the rest to that."""
 
     def __init__(
         self,
@@ -185,24 +208,24 @@ class OKXPrivate:
         session: requests.Session | None = None,
         simulated: bool = True,
         clock: Callable[[], float] = time.time,
+        base_url: str = BASE_URL,
     ):
-        if not simulated:
-            raise ValueError(
-                "live trading is not enabled: only OKX simulated trading is reachable (ADR 0008)"
-            )
         self._credentials = credentials
         self.session = session or requests.Session()
+        self.simulated = simulated
         self.clock = clock
+        self.base_url = base_url
 
     def __repr__(self) -> str:
-        return "OKXPrivate(simulated)"
+        return f"OKXPrivate({'simulated' if self.simulated else 'live'})"
 
     # -- account ------------------------------------------------------------
 
     def account_config(self) -> AccountConfig:
         row = self._get("/api/v5/account/config")[0]
         return AccountConfig(
-            position_mode=row["posMode"], account_level=row["acctLv"], permissions=row["perm"]
+            position_mode=row["posMode"], account_level=row["acctLv"], permissions=row["perm"],
+            ip=row.get("ip") or "", uid=row.get("uid") or "", main_uid=row.get("mainUid") or "",
         )
 
     def set_position_mode(self, net: bool = True) -> None:
@@ -251,6 +274,29 @@ class OKXPrivate:
                 updated=int(row["uTime"]),
             ))
         return out
+
+    def fee_rate(self, inst: str) -> FeeRate:
+        """What the account pays to trade the perpetual ``inst``, from
+        /api/v5/account/trade-fee for its instrument family. OKX answers with fee
+        groups; when there are several, the instrument's own row
+        (/api/v5/account/instruments) names the one it trades in. OKXError when that
+        leaves no single group with both rates."""
+        family = inst.removesuffix("-SWAP")
+        rows = self._get("/api/v5/account/trade-fee", instType="SWAP", instFamily=family)
+        row = rows[0] if rows else {}
+        groups = row.get("feeGroup") or []
+        if len(groups) > 1:
+            listed = self._get("/api/v5/account/instruments", instType="SWAP", instId=inst)
+            group_id = listed[0].get("groupId") if listed else None
+            groups = [g for g in groups if g.get("groupId") == group_id]
+        if len(groups) != 1 or not groups[0].get("taker") or not groups[0].get("maker"):
+            raise OKXError(f"/api/v5/account/trade-fee names no single fee group with rates for {inst}")
+        # OKX writes a rate it charges as a negative number. 0.0 - x rather than -x:
+        # a zero rate is 0.0, not -0.0.
+        return FeeRate(
+            inst=inst, level=row.get("level") or "",
+            taker=0.0 - float(groups[0]["taker"]), maker=0.0 - float(groups[0]["maker"]),
+        )
 
     # -- orders -------------------------------------------------------------
 
@@ -416,7 +462,7 @@ class OKXPrivate:
         for pause in (*_RETRY_PAUSES, None):
             try:
                 response = self.session.request(
-                    method, BASE_URL + path, data=body or None, headers=self._headers(method, path, body),
+                    method, self.base_url + path, data=body or None, headers=self._headers(method, path, body),
                     timeout=_TIMEOUT,
                 )
                 if response.status_code == 429 or response.status_code >= 500:
@@ -444,14 +490,16 @@ class OKXPrivate:
 
     def _headers(self, method: str, path: str, body: str) -> dict[str, str]:
         stamp = timestamp(self.clock())
-        return {
+        headers = {
             "Content-Type": "application/json",
             "OK-ACCESS-KEY": self._credentials.key,
             "OK-ACCESS-SIGN": sign(self._credentials.secret, stamp, method, path, body),
             "OK-ACCESS-TIMESTAMP": stamp,
             "OK-ACCESS-PASSPHRASE": self._credentials.passphrase,
-            SIMULATED_HEADER: "1",
         }
+        if self.simulated:
+            headers[SIMULATED_HEADER] = "1"
+        return headers
 
     def _pages(self, path: str, params: dict, begin_ms: int, end_ms: int) -> list[dict]:
         """Rows of a newest-first, bill-id-paged endpoint with ``begin_ms <= ts < end_ms``,
