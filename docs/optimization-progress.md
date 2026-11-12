@@ -45,7 +45,7 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 35 | 实盘：用户侧事项 | P1 | blocked | 用户 | 子账户、500 USDT、只读 key 后换交易 key（绑 IP、不勾提币）、心跳服务；解锁条件：#3 和 `TRADER_WEB_TOKEN` | 清单逐项勾完 | 需用户执行 |
 | 36 | 实盘（第 3 档）：告警改进 | P2 | ready | #34 之后 | 止损成交当小时通知；失败告警按错误类型限频；发送失败后补发 | 测试 | 解锁之后做 |
 | 37 | 实盘（第 3 档）：对不上账的修复命令 | P2 | blocked | #34 | `live reconcile` 和 `demo reconcile`：重读更长的时间窗补齐，差额经人确认后记成调整 | 仿真交易所测试 | — |
-| 38 | 实盘（第 3 档）：`trader backup` 包含 demo 和 live 的账本 | P2 | in-progress | — | `backup.LEDGERS` 加两个账本；不含 live 的密钥文件 | `tests/test_trader_backup.py` | 第 1 轮，分支 `cursor/issue-38-backup-ledgers-6e50` |
+| 38 | 实盘（第 3 档）：`trader backup` 包含 demo 和 live 的账本 | P2 | done | — | `backup.LEDGERS` 加 demo、live 两个账本，同样走 SQLite 快照；命令逐个说明缺的账本；备份只拷清单里的东西，密钥文件不进备份 | `tests/test_trader_backup.py` 新增 5 个用例；全量 2018 通过 | 已合 `4cf5e54`（第 1 轮，`cursor/issue-38-backup-ledgers-6e50`）；roadmap 的备份和恢复说明已同步 |
 | 39 | 实盘（第 3 档）：下单前的输入检查、顶格反手 | P2 | ready | #34 之后 | 拒单检查不拦正常反手；下单前重取报价；报价和 ATR 必须是大于 0 的有限数 | 复现场景的测试 | 解锁之后做 |
 | 40 | 实盘（第 3 档）：出入金记账 | P2 | blocked | #34 | 读划转账单记成流水；本金、峰值、收益率按出入金调整；收益率口径待用户确认 | 仿真交易所测试；演示环境实测划转 | 第二次入金之前必须完成 |
 | 41 | 实盘（第 3 档）：看板显示 live 账户 | P2 | blocked | #31 | 账户列表加 live；真钱标识；显示暂停、影子运行、熔断；指南同步 | 测试；tsc / oxlint / build | 部署要用户授权 |
@@ -90,3 +90,4 @@ mini 上的部署（`git pull`、`launchctl kickstart`）按 roadmap 的更新�
 | 2026-11-11 | #28 | 用户选 A（先用已缓存的 14 天出报告）；d1d0c82（重跑只走 `TRADER_EVAL_BACKEND_URL`/`TRADER_EVAL_API_KEY`，与环境里任一 `*_API_KEY` 相同就拒绝启动；ADR 0009 补记事故）；四个提交一并 ff 进 crypto-trader；324927e（`.gitignore` 加 `!docs/reports/`，一期、二期报告进库） | 全量 2013 通过，新增 5 测；CI 42950063782 绿；真实 .env 下执行重跑被拒（未配评估渠道）；报告 docs/reports/evaluation-rerun-2026-11-11.md：重跑信号反向，默认回放 −12.12%，所有配置都亏、差异主要来自敞口，线上参数不动；未调模型、未动 mini、不需部署；CI 42950843920 绿；#28 改 blocked，用户随后选剩余 10-24→11-06 暂不重跑、等线上信号积累 |
 | 2026-11-12 | #30–#43 | 用户要求接入实盘，grill 后定方案；ADR 0010、`CONTEXT.md`、roadmap 和本文档（只改文档） | 用户决定不等 #22 的报告和验证期结论：live 账户跟日内 Signal，独立子账户先入 500 USDT、上限 2,000，跑到 12-05；账户生来暂停（影子运行），解锁条件是第 1、2 档的票加 #3 和 `TRADER_WEB_TOKEN`；开 #30–#43；没有代码改动，全量 2013 通过；未动 mini、不需部署 |
 | 2026-11-12 | #30 #32 #38 | 第 1 轮派出，起点 034961d：`cursor/issue-30-live-client-6e50`、`cursor/issue-32-stop-no-gap-6e50`、`cursor/issue-38-backup-ledgers-6e50` | 执行会话是 Cursor 的 Task 子代理，worktree 在 `../TradingAgents.worktrees/` 下由指挥会话手工建（`agent` CLI 登录失效，`best-of-n-runner` 不建 worktree）；会话 id 和交接事项在 `~/.commander/TradingAgents/live-rounds.md`；未动 mini |
+| 2026-11-12 | #38 | `cursor/issue-38-backup-ledgers-6e50` → 合并 4cf5e54 | 验收通过：分支和主干各跑一遍守门，全量 2018 通过、ruff 通过；改动只在 `trader/backup.py`、`backup` 命令和它的测试；roadmap 的备份和恢复说明同步；不需部署（mini 下次更新代码时带上） |
