@@ -1,11 +1,13 @@
 """Command line: python -m trader init | daily | mark | report | resume | backup, the
 intraday account's python -m trader intraday init | run | report | resume, the demo
 account's python -m trader demo check | init | run | sync | report | resume (ADR 0008),
-and the offline evaluation's python -m trader evaluate fetch | replay | signals."""
+the live account's python -m trader live check (ADR 0010), and the offline
+evaluation's python -m trader evaluate fetch | replay | signals."""
 
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,18 +22,23 @@ from trader.evaluation.cli import evaluate_app
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
+from trader.live import keys as live_keys
 from trader.notify import Notifier
-from trader.okx import OKX, REQUEST_ERRORS
+from trader.okx import OKX, REQUEST_ERRORS, OKXError
 from trader.okx_private import OKXPrivate, OKXPrivateError
 from trader.paper import Paper
 from trader.research import Researcher
-from trader.settings import WATCHLIST, Settings
+from trader.settings import TAKER_FEE, WATCHLIST, Settings
 
-app = typer.Typer(add_completion=False, no_args_is_help=True)
+# An uncaught error's traceback must not print the frames' local variables: those of a
+# request to OKX hold its headers, with the key, the passphrase and the signature.
+app = typer.Typer(add_completion=False, no_args_is_help=True, pretty_exceptions_show_locals=False)
 intraday_app = typer.Typer(add_completion=False, no_args_is_help=True)
 app.add_typer(intraday_app, name="intraday")
 demo_app = typer.Typer(add_completion=False, no_args_is_help=True)
 app.add_typer(demo_app, name="demo")
+live_app = typer.Typer(add_completion=False, no_args_is_help=True)
+app.add_typer(live_app, name="live")
 app.add_typer(evaluate_app, name="evaluate")
 
 DEMO_ENV = "TRADER_OKX_DEMO_KEY / TRADER_OKX_DEMO_SECRET / TRADER_OKX_DEMO_PASSPHRASE"
@@ -294,6 +301,89 @@ def demo_resume() -> None:
     notifier.send("demo 账户熔断已解除，下一小时恢复交易。")
 
 
+@live_app.callback()
+def live_main() -> None:
+    """The live account: real money on OKX's production environment (ADR 0010)."""
+
+
+@live_app.command("check")
+def live_check(
+    base_url: str = typer.Option(
+        live_keys.BASE_URL, "--base-url", help="只在这一次运行里改用 OKX 的另一个域名，用来对比两个域名"
+    ),
+) -> None:
+    """Read the production account with the key of the live key file: the account's
+    mode, the key's permissions, the USDT balance, the positions and the fee rates the
+    account really pays. Places nothing and changes no setting; a read-only key will do."""
+    base_url = base_url.rstrip("/")
+    if not re.fullmatch(r"https://([a-z0-9-]+\.)*okx\.com", base_url):
+        _fail(f"--base-url 只接受 https 的 okx.com 域名（默认 {live_keys.BASE_URL}），live 的密钥不发往别处")
+    _, client = _live_client(base_url)
+    fees, notes = [], []
+    try:
+        config = client.account_config()
+        balance = client.balance()
+        positions = client.positions()
+        stops = client.pending_stops()
+        for coin in WATCHLIST:
+            try:
+                fees.append(client.fee_rate(coin.swap))
+            except OKXError as exc:  # the shape of this answer is known from OKX's docs alone
+                notes.append(f"{coin.swap} 的实际费率没有读到：{jobs.error_text(exc)}")
+        refusal = _live_trade_refusal(client)
+    except OKXPrivateError as exc:
+        _fail(f"OKX 正式环境拒绝了请求：{jobs.error_text(exc)}")
+    except REQUEST_ERRORS as exc:
+        _fail(f"OKX 正式环境没有应答：{jobs.error_text(exc)}")
+    levels = {"1": "现货", "2": "合约模式（单币种保证金）", "3": "跨币种保证金", "4": "组合保证金"}
+    permissions = config.permissions.split(",")
+    # What the probe answers a read-only key has not been seen yet: the key's own list of
+    # permissions is believed as well.
+    if not refusal and "trade" not in permissions:
+        refusal = "权限里没有 trade"
+    sub_account = config.uid != config.main_uid
+    bound = len(config.ip.split(",")) if config.ip else 0
+    typer.echo(f"正式环境（真钱），域名 {client.base_url}")
+    typer.echo(
+        f"账户模式 {levels.get(config.account_level, config.account_level)}，持仓模式 {config.position_mode}，"
+        f"{'子账户' if sub_account else '主账户'}"
+    )
+    typer.echo(f"这把 key 的权限 {config.permissions}，{f'绑定了 {bound} 个 IP' if bound else '没有绑定 IP'}")
+    typer.echo(
+        f"USDT 权益 {balance.equity:,.2f}，钱包 {balance.cash:,.2f}，可用 {balance.available:,.2f}，"
+        f"未实现 {balance.unrealized:+,.2f}"
+    )
+    typer.echo(f"持仓 {len(positions)} 个，挂着的止损单 {len(stops)} 张")
+    for p in positions:
+        typer.echo(f"  {p.inst} {p.contracts:+g} 张 @ {p.avg_price:,.2f}，{p.margin_mode} {p.leverage:g}×")
+    for s in stops:
+        typer.echo(f"  止损 {s.inst} {s.side} {s.contracts:g} 张，触发 {s.trigger:,.2f}")
+    if fees:
+        typer.echo(f"实际费率（等级 {fees[0].level}），模拟盘假设吃单万分之 {TAKER_FEE * 1e4:g}：")
+    for fee in fees:
+        typer.echo(
+            f"  {fee.inst} 吃单万分之 {fee.taker * 1e4:g}（比模拟盘假设 {(fee.taker - TAKER_FEE) * 1e4:+g}），"
+            f"挂单万分之 {fee.maker * 1e4:g}"
+        )
+    if refusal:
+        typer.echo(
+            f"注意：这把 key 下不了单（{refusal}）：影子运行可以，解锁前要换成只勾“交易”的 key，"
+            "交易权限要覆盖加密货币/永续合约。"
+        )
+    else:
+        typer.echo("交易权限正常（试了一次不存在订单的撤单，没有下单）。")
+    if "withdraw" in permissions:
+        typer.echo("注意：这把 key 带提币权限（withdraw）；ADR 0010 要求只勾交易、不勾提币。")
+    if not bound:
+        typer.echo("注意：这把 key 没有绑定 IP；ADR 0010 要求绑定 mini 的固定出口 IP。")
+    if not sub_account:
+        typer.echo("注意：这把 key 建在主账户下；ADR 0010 要求建在只给这套系统用的子账户下。")
+    if config.account_level == "1":
+        typer.echo("注意：现货模式不能交易合约，请在 OKX 把账户模式改成合约模式（以前叫单币种保证金）或跨币种保证金。")
+    for note in notes:
+        typer.echo(f"注意：{note}")
+
+
 def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:
     settings = Settings.from_env()
     notifier = Notifier(settings)
@@ -357,6 +447,32 @@ def _open_demo(require_utc: bool = False) -> tuple[Settings, DemoAccount, Notifi
         _fail("没有日内账本可跟随：python -m trader intraday init")
     intraday = Ledger(settings.intraday_ledger_path, readonly=True)
     return settings, DemoAccount(ledger, OKX(), client), notifier, intraday
+
+
+def _live_client(base_url: str = live_keys.BASE_URL) -> tuple[Settings, OKXPrivate]:
+    """The settings and the production client on the key of the live key file (ADR
+    0010). A file that is missing, open to other users or incomplete fails the calling
+    command with an alert, and that command alone: no other command reads the file."""
+    try:
+        settings = Settings.from_env()
+    except ValueError as exc:  # the demo key's variables are set in part, as in _demo_client
+        _fail(str(exc))
+    try:
+        return settings, live_keys.client(base_url)
+    except live_keys.LiveKeyError as exc:
+        Notifier(settings).send(f"live 的密钥文件有问题，这次没有运行：{exc}")
+        _fail(f"live 的密钥文件有问题：{exc}")
+
+
+def _live_trade_refusal(client: OKXPrivate) -> str | None:
+    """OKX's refusal when the live key cannot place orders, None when it can
+    (OKXPrivate.check_trade_permission). A read-only key is refused, which a shadow
+    run can live with: the caller notes it and goes on."""
+    try:
+        client.check_trade_permission(PRECHECK_INST)
+    except OKXPrivateError as exc:
+        return f"{exc.code} {exc.message}"
+    return None
 
 
 def _fail(message: str) -> None:
