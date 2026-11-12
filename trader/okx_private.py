@@ -389,6 +389,20 @@ class OKXPrivate:
             if exc.code not in ("51400", "51401"):
                 raise
 
+    def amend_stop(self, stop: StopOrder, contracts: float, trigger: float) -> None:
+        """Change a pending stop in place so that it closes ``contracts`` (signed as for
+        place_stop; the size is what is sent) once the last price crosses ``trigger``.
+        Only what differs from ``stop`` is sent, and no request when nothing does. The
+        order never leaves the book: one OKX refuses to amend (OKXPrivateError) stays
+        as it was (``cxlOnFail`` false)."""
+        body: dict = {"instId": stop.inst, "algoId": stop.algo_id, "cxlOnFail": False}
+        if _size(contracts) != _size(stop.contracts):
+            body["newSz"] = _size(contracts)
+        if _price(trigger) != _price(stop.trigger):
+            body.update(newSlTriggerPx=_price(trigger), newSlOrdPx="-1", newSlTriggerPxType="last")
+        if len(body) > 3:
+            self._post("/api/v5/trade/amend-algos", body)
+
     # -- funding ------------------------------------------------------------
 
     def funding_bills(self, begin_ms: int, end_ms: int) -> list[FundingBill]:
