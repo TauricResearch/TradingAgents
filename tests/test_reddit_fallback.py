@@ -1,8 +1,10 @@
-"""Tests for the Reddit RSS fetcher: one combined request, its 429 backoff, and
-chunked-transfer error handling (#1024)."""
+"""Tests for the Reddit RSS fetcher: one combined request for the newest posts,
+filtered here by mention; its 429 backoff, and chunked-transfer error handling
+(#1024)."""
 
 from __future__ import annotations
 
+import html
 import http.client
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -52,6 +54,28 @@ def _raise(exc):
     return _resp(_r)
 
 
+def _byline(user, sub):
+    """What Reddit ends every entry of a combined feed with, as it serves it."""
+    return (
+        f' &#32; submitted by &#32; <a href="https://www.reddit.com/user/{user}"> /u/{user} </a>'
+        f' &#32; to &#32; <a href="https://www.reddit.com/r/{sub}/"> r/{sub} </a> <br/>'
+        ' <span><a href="https://example.com/story">[link]</a></span> &#32;'
+        f' <span><a href="https://www.reddit.com/r/{sub}/comments/abc/story/">[comments]</a></span>'
+    )
+
+
+def _entry(sub, title, published, content):
+    return (
+        f'<entry><category term="{sub}" label="r/{sub}"/><title>{html.escape(title)}</title>'
+        f"<published>{published}</published>"
+        f'<content type="html">{html.escape(content)}</content></entry>'
+    )
+
+
+def _post(title, sub, body=""):
+    return {"title": title, "created_utc": None, "selftext": body, "subreddit": sub}
+
+
 @pytest.mark.unit
 class TestIsoToTimestamp:
     def test_parses_offset_and_z(self):
@@ -72,6 +96,18 @@ class TestStripHtml:
     def test_empty(self):
         assert reddit._strip_html("") == ""
 
+    def test_a_link_posts_byline_is_not_body_text(self):
+        # A link post has no text of its own: the byline is all its entry holds.
+        assert reddit._strip_html(_byline("btc-maxi", "CryptoMarkets")) == ""
+        thumbnail = '<table> <tr><td> <a href="https://x"> <img src="https://y" alt="t" title="t" /> </a> </td><td>'
+        assert reddit._strip_html(thumbnail + _byline("someone", "Bitcoin") + " </td></tr></table>") == ""
+
+    def test_a_byline_that_names_no_subreddit_is_dropped_too(self):
+        raw = _byline("someone", "stocks").replace(
+            ' &#32; to &#32; <a href="https://www.reddit.com/r/stocks/"> r/stocks </a>', "")
+        assert " to " not in raw
+        assert reddit._strip_html(raw) == ""
+
 
 @pytest.mark.unit
 class TestRssParsing:
@@ -83,6 +119,13 @@ class TestRssParsing:
         assert posts[0]["created_utc"] > 0
         assert "datacenter unit" in posts[0]["selftext"]
         assert posts[0]["subreddit"] == "stocks"
+
+    def test_reads_the_listing_of_newest_posts_not_the_search(self):
+        # The search feed answers anonymous clients 403; the listing is served.
+        with patch.object(reddit, "urlopen", return_value=_atom_resp()) as op:
+            reddit._fetch_subreddit_rss("BTC", "Bitcoin+CryptoCurrency", limit=100, timeout=5.0)
+        (request,), _ = op.call_args
+        assert request.full_url == "https://www.reddit.com/r/Bitcoin+CryptoCurrency/new.rss?limit=100"
 
     def test_malformed_xml_reports_unavailable(self):
         with patch.object(reddit, "urlopen", return_value=_resp(lambda: b"<<not xml>>")):
@@ -171,7 +214,7 @@ class TestFormatterHandlesRssPosts:
 
 @pytest.mark.unit
 class TestCryptoSearchTerm:
-    """A crypto pair (BTC-USD) barely matches Reddit text; search the base (#1113)."""
+    """A crypto pair (BTC-USD) barely matches Reddit text; match the base (#1113)."""
 
     def _captured_ticker(self, ticker):
         seen = {}
@@ -215,7 +258,7 @@ class TestOneRequestForAllSubreddits:
         assert calls == [("a+b+c", reddit._FEED_PAGE)]
 
     def test_posts_are_grouped_back_by_subreddit(self):
-        posts = [self._post("b", "FROM B"), self._post("a", "FROM A")]
+        posts = [self._post("b", "NVDA FROM B"), self._post("a", "NVDA FROM A")]
         with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
             out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
         assert out.index("r/a") < out.index("FROM A") < out.index("r/b") < out.index("FROM B")
@@ -227,23 +270,45 @@ class TestOneRequestForAllSubreddits:
         assert "Reddit unavailable" in out
         assert "no Reddit posts found" not in out
 
-    def test_genuine_empty_still_reports_no_posts(self):
+    def test_an_empty_page_is_unavailable_not_silence(self):
+        # A listing of live subreddits always has posts, so an empty page was
+        # not a look at them.
         with patch.object(reddit, "_fetch_subreddit_rss", return_value=[]):
             out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
-        assert "no Reddit posts found" in out
-        assert "unavailable" not in out
+        assert "Reddit unavailable: the feed came back empty (r/a, r/b)" in out
+        assert "not an absence" in out and "no Reddit posts found" not in out
+
+    def test_a_page_that_never_names_the_ticker_reports_no_posts(self):
+        # ...and says how far the page it read goes back.
+        with patch.object(reddit, "_fetch_subreddit_rss",
+                          return_value=[self._post("a", "Fed day thread")]):
+            out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
+        assert out == ("<no Reddit posts found mentioning NVDA among the newest 1 across r/a, r/b, "
+                       "back to 2026-05-20>")
+
+    def test_so_does_a_window_the_page_reaches_only_partway_into(self):
+        # The 15th to the 19th were not read. That is stated, not passed off as
+        # silence, and not as a feed that could not be read either.
+        with patch.object(reddit, "_fetch_subreddit_rss",
+                          return_value=[self._post("a", "Fed day thread")]):
+            out = reddit.fetch_reddit_posts(
+                "NVDA", subreddits=("a", "b"), start_date="2026-05-15", end_date="2026-05-22",
+            )
+        assert out == ("<no Reddit posts found mentioning NVDA within 2026-05-15..2026-05-22 "
+                       "among the newest 1 across r/a, r/b, back to 2026-05-20>")
 
     def test_subreddit_with_no_posts_is_listed_when_others_have_some(self):
         with patch.object(reddit, "_fetch_subreddit_rss", return_value=[self._post("a")]):
             out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
-        assert "r/b: <no posts found" in out
+        assert ("r/b: <no posts mentioning NVDA among the newest 1 across r/a, r/b, "
+                "back to 2026-05-20>") in out
 
 
 @pytest.mark.unit
 def test_posts_from_an_unrequested_or_unnamed_subreddit_are_not_dropped():
     posts = [
-        {"title": "ELSEWHERE", "created_utc": None, "selftext": "", "subreddit": "options"},
-        {"title": "NO LABEL", "created_utc": None, "selftext": "", "subreddit": ""},
+        {"title": "NVDA ELSEWHERE", "created_utc": None, "selftext": "", "subreddit": "options"},
+        {"title": "NVDA NO LABEL", "created_utc": None, "selftext": "", "subreddit": ""},
     ]
     with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
         out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
@@ -253,8 +318,8 @@ def test_posts_from_an_unrequested_or_unnamed_subreddit_are_not_dropped():
 
 @pytest.mark.unit
 def test_each_subreddit_keeps_its_own_quota():
-    busy = [{"title": f"A{i}", "created_utc": None, "selftext": "", "subreddit": "a"} for i in range(9)]
-    quiet = [{"title": "B0", "created_utc": None, "selftext": "", "subreddit": "b"}]
+    busy = [_post(f"NVDA A{i}", "a") for i in range(9)]
+    quiet = [_post("NVDA B0", "b")]
     with patch.object(reddit, "_fetch_subreddit_rss", return_value=busy + quiet):
         out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"), limit_per_sub=3)
     assert "A0" in out and "A2" in out and "A3" not in out  # capped per subreddit
@@ -262,15 +327,14 @@ def test_each_subreddit_keeps_its_own_quota():
 
 
 @pytest.mark.unit
-def test_empty_subreddit_on_a_full_page_is_not_called_empty():
-    # A full page may have cut a quieter subreddit's posts off, so its absence
-    # from the page is not evidence of no posts.
-    full = [{"title": f"A{i}", "created_utc": None, "selftext": "", "subreddit": "a"}
-            for i in range(reddit._FEED_PAGE)]
+def test_an_empty_subreddit_is_reported_against_the_page_that_was_read():
+    # The page holds the newest posts of all the subreddits together, so a busy
+    # one can fill it: "none from r/b" is a statement about that page, not
+    # about r/b's week.
+    full = [_post(f"NVDA A{i}", "a") for i in range(reddit._FEED_PAGE)]
     with patch.object(reddit, "_fetch_subreddit_rss", return_value=full):
         out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"))
-    assert "r/b: <no posts found" not in out
-    assert f"newest {reddit._FEED_PAGE}" in out
+    assert f"r/b: <no posts mentioning NVDA among the newest {reddit._FEED_PAGE} across r/a, r/b>" in out
 
 
 def _screen_out(*dropped):
@@ -282,8 +346,7 @@ def _screen_out(*dropped):
 
 @pytest.mark.unit
 def test_screened_out_posts_free_their_subreddit_slots():
-    posts = [{"title": t, "created_utc": None, "selftext": "", "subreddit": "a"}
-             for t in ("SPAM1", "SPAM2", "A1", "A2")]
+    posts = [_post(t, "a", body="on NVDA") for t in ("SPAM1", "SPAM2", "A1", "A2")]
     with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
         out = reddit.fetch_reddit_posts("NVDA", subreddits=("a",), limit_per_sub=2,
                                         screen=_screen_out("SPAM"))
@@ -293,8 +356,7 @@ def test_screened_out_posts_free_their_subreddit_slots():
 
 @pytest.mark.unit
 def test_a_subreddit_emptied_by_screening_is_not_called_empty():
-    posts = [{"title": "SPAM", "created_utc": None, "selftext": "", "subreddit": "b"},
-             {"title": "A1", "created_utc": None, "selftext": "", "subreddit": "a"}]
+    posts = [_post("SPAM", "b", body="on NVDA"), _post("A1", "a", body="on NVDA")]
     with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
         out = reddit.fetch_reddit_posts("NVDA", subreddits=("a", "b"), screen=_screen_out("SPAM"))
     assert "r/b: <no posts about NVDA after screening>" in out
@@ -302,7 +364,7 @@ def test_a_subreddit_emptied_by_screening_is_not_called_empty():
 
 @pytest.mark.unit
 def test_an_unavailable_screen_keeps_every_post_and_says_so():
-    posts = [{"title": "A1", "created_utc": None, "selftext": "", "subreddit": "a"}]
+    posts = [_post("A1", "a", body="on NVDA")]
 
     def unavailable(texts):
         return [True] * len(texts), "<Jev screening unavailable (HTTP 529); posts are unscreened>"
@@ -333,3 +395,94 @@ def test_a_crypto_pair_is_fetched_from_its_communities_in_one_request():
     query, subs = fetch.call_args.args[:2]
     assert (query, subs) == ("ETH", "ethereum+CryptoCurrency+CryptoMarkets")
     assert "r/wallstreetbets" not in out
+
+
+@pytest.mark.unit
+class TestListingIsFilteredByMention:
+    """A listing returns the newest posts whatever they are about, so which of
+    them concern the ticker is decided here and no longer by Reddit's search."""
+
+    def _fetch(self, ticker, posts, **kwargs):
+        with patch.object(reddit, "_fetch_subreddit_rss", return_value=posts):
+            return reddit.fetch_reddit_posts(ticker, **kwargs)
+
+    def test_a_coins_own_subreddit_is_kept_whole(self):
+        out = self._fetch("BTC-USD", [_post("Down 30% and still stacking", "Bitcoin"),
+                                      _post("Daily General Discussion", "CryptoCurrency")])
+        assert "r/Bitcoin — 1 recent posts:\n" in out and "still stacking" in out
+        assert "Daily General Discussion" not in out
+        assert ("r/CryptoCurrency: <no posts mentioning BTC among the newest 2 across "
+                "r/Bitcoin, r/CryptoCurrency, r/CryptoMarkets>") in out
+
+    def test_another_coins_subreddit_is_not(self):
+        # Only the subreddit named after the coin speaks for it unasked.
+        out = self._fetch("ETH-USD", [_post("Down 30% and still stacking", "Bitcoin")],
+                          subreddits=("Bitcoin", "ethereum"))
+        assert out.startswith("<no Reddit posts found mentioning ETH")
+
+    @pytest.mark.parametrize("title", [
+        "BTC at 66k", "btc dumping again", "Is $btc done?", "ETH/BTC ratio at lows",
+        "Bitcoin under $70K", "bitcoiners, how are we feeling", "BITCOIN!!!",
+    ])
+    def test_elsewhere_a_coin_is_matched_by_symbol_or_name_in_any_case(self, title):
+        out = self._fetch("BTC-USD", [_post(title, "CryptoMarkets")])
+        assert f"r/CryptoMarkets — 1 recent posts mentioning BTC:\n  [?] {title}" in out
+
+    @pytest.mark.parametrize("title", [
+        "WBTC depeg worries", "Ethereum merge anniversary", "ETF flows turn negative",
+        "A take from btc_whale", "Subtle signs of a bottom",
+    ])
+    def test_elsewhere_a_post_that_does_not_name_the_coin_is_left_out(self, title):
+        out = self._fetch("BTC-USD", [_post(title, "CryptoMarkets")])
+        assert title not in out
+        assert out.startswith("<no Reddit posts found mentioning BTC among the newest 1 across")
+
+    def test_a_mention_in_the_body_counts(self):
+        out = self._fetch("SOL-USD", [_post("Why I sold everything", "CryptoCurrency",
+                                            body="Rotated it all into solana last night.")])
+        assert "Why I sold everything" in out
+
+    @pytest.mark.parametrize("title, kept", [
+        ("NOW beats on earnings", True),
+        ("$now calls printing", True),
+        ("Buy now, think later", False),
+        ("SNOW and NOWL both down", False),
+    ])
+    def test_a_symbol_that_is_also_a_word_is_matched_only_as_written(self, title, kept):
+        out = self._fetch("NOW", [_post(title, "stocks")], subreddits=("stocks",))
+        assert (title in out) is kept
+
+    def test_a_coin_without_its_own_subreddit_is_matched_as_written(self):
+        out = self._fetch("DOGE-USD", [_post("DOGE to a dollar?", "CryptoCurrency"),
+                                       _post("such doge, much wow", "CryptoMarkets")])
+        assert "DOGE to a dollar?" in out and "such doge" not in out
+
+
+@pytest.mark.unit
+def test_a_combined_listing_from_feed_to_block():
+    # As Reddit serves it: a link post in the coin's subreddit, a link post
+    # elsewhere whose only "mention" is its author's name, and a text post.
+    feed = (
+        '<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom">'
+        + _entry("Bitcoin", "The time of the year again", "2026-11-13T11:54:00+00:00",
+                 _byline("someone", "Bitcoin"))
+        + _entry("CryptoCurrency", "Altseason when?", "2026-11-13T10:00:00+00:00",
+                 _byline("bitcoin-fan", "CryptoCurrency"))
+        + _entry("CryptoMarkets", "Liquidations top $1.3B", "2026-11-12T09:00:00+00:00",
+                 '<!-- SC_OFF --><div class="md"><p>BTC low $67,555.</p> </div><!-- SC_ON -->'
+                 + _byline("someone-else", "CryptoMarkets"))
+        + "</feed>"
+    )
+    with patch.object(reddit, "urlopen", return_value=_resp(lambda: feed.encode("utf-8"))):
+        out = reddit.fetch_reddit_posts("BTC-USD", start_date="2026-11-06", end_date="2026-11-13")
+    assert out == (
+        "r/Bitcoin — 1 recent posts:\n"
+        "  [2026-11-13] The time of the year again\n"
+        "\n"
+        "r/CryptoCurrency: <no posts mentioning BTC within 2026-11-06..2026-11-13 among the newest 3"
+        " across r/Bitcoin, r/CryptoCurrency, r/CryptoMarkets, back to 2026-11-12>\n"
+        "\n"
+        "r/CryptoMarkets — 1 recent posts mentioning BTC:\n"
+        "  [2026-11-12] Liquidations top $1.3B\n"
+        "    body excerpt: BTC low $67,555."
+    )

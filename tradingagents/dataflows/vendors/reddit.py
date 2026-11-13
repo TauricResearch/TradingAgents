@@ -1,9 +1,17 @@
-"""Reddit search fetcher for ticker-specific discussion posts.
+"""Reddit fetcher for ticker-specific discussion posts.
 
-Reads Reddit's public Atom/RSS search feed, searching all subreddits in one
-combined request. The JSON search endpoint is WAF-blocked (``HTTP 403``) for
-anonymous clients (#862), so RSS is the only path; it carries no score or comment
-counts. On a 429 we back off once, honouring ``Retry-After``.
+Reads Reddit's public Atom/RSS listing of the newest posts, all subreddits in
+one combined request, and keeps the posts that discuss the ticker. Both search
+endpoints answer anonymous clients ``HTTP 403``: the JSON one long since (#862),
+the RSS one this module used to read as of 2026-11-11. The listing is still
+served; it carries no score or comment counts. On a 429 we back off once,
+honouring ``Retry-After``.
+
+A listing is not a search. It holds the newest ``_FEED_PAGE`` posts whatever
+they are about, so how far back it reaches depends on how busy the subreddits
+are (one to five days when measured, where the search covered a week), and it
+vouches for nothing older than its oldest post: an absence is reported against
+the page that was read, never as silence over days it did not reach.
 
 A fetch that fails is reported as ``<unavailable>``, never as "no posts found":
 the two are different claims, and passing a rate-limited fetch off as silence
@@ -24,9 +32,8 @@ import re
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from urllib.error import HTTPError
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from tradingagents.dataflows.date_window import coverage_gap, in_window
@@ -54,22 +61,18 @@ def _posted_at(post) -> datetime | None:
     return datetime.fromtimestamp(ts, tz=UTC) if ts else None
 
 
-def _coverage_dates(posts) -> list:
-    """Dates that bound the feed's coverage. The search is limited to the last
-    week (``t=week``), so the lookback start bounds it even when nothing came
-    back; a full page may have cut older matches off, so then only the posts
-    themselves do."""
-    dates = [_posted_at(p) for p in posts]
-    if len(posts) < _FEED_PAGE:
-        dates.append(datetime.now(UTC) - _SEARCH_LOOKBACK)
-    return dates
+def _oldest(posts) -> datetime | None:
+    """When the oldest dated post was published. A listing is newest-first and
+    unbroken in time, so this is how far back the page reaches and all that
+    bounds its coverage: there is no lookback to fall back on."""
+    return min((d for d in map(_posted_at, posts) if d is not None), default=None)
 
 
-_RSS = "https://www.reddit.com/r/{sub}/search.rss?{qs}"
+_RSS = "https://www.reddit.com/r/{sub}/new.rss?limit={limit}"
 # A descriptive, identified User-Agent (per Reddit's API etiquette). Reddit
 # blocks generic/anonymous tokens like bare "Mozilla/5.0" or "curl/…" but
-# serves this one on both endpoints; the RSS feed accepts it even when the
-# JSON search endpoint 403s, so no browser-spoofing is needed.
+# serves this one the listing feed, so no browser-spoofing is needed. The
+# search endpoints 403 it.
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/TradingAgents)"
 _ATOM_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
@@ -82,34 +85,42 @@ DEFAULT_SUBREDDITS = ("wallstreetbets", "stocks", "investing")
 # most of it; the stock subreddits above barely mention it.
 CRYPTO_SUBREDDITS = ("CryptoCurrency", "CryptoMarkets")
 _COIN_SUBREDDITS = {"BTC": "Bitcoin", "ETH": "ethereum", "SOL": "solana"}
+# Symbols that are not also words, so posts may write them in any case ("btc
+# dumping"). LINK or DOT must stay out: in lower case they are ordinary words.
+_ANY_CASE_SYMBOLS = frozenset({"BTC", "ETH", "SOL"})
 
 
 def subreddits_for(ticker: str) -> tuple[str, ...]:
-    """The subreddits searched for ``ticker``: crypto communities for a crypto pair."""
+    """The subreddits read for ``ticker``: crypto communities for a crypto pair."""
     base = crypto_base(ticker)
     if not base:
         return DEFAULT_SUBREDDITS
     coin = _COIN_SUBREDDITS.get(base)
     return ((coin,) if coin else ()) + CRYPTO_SUBREDDITS
 
-# Reddit's maximum page size. A week of posts for a ticker across the default
-# subreddits fits well inside one page, which keeps a high-volume subreddit from
-# crowding the others out of a combined search.
+# Reddit's maximum page size, and all one request can read of a listing.
+# Measured 2026-11-13, a page went back 41 hours across BTC's three subreddits,
+# 118 across ETH's, 110 across SOL's and 30 across the stock ones.
 _FEED_PAGE = 100
 _SCREEN_CHARS = 1000   # of a post's title and body sent for screening
 
 
-_SEARCH_LOOKBACK = timedelta(days=7)  # matches t=week below
+def _mentions(ticker: str) -> re.Pattern[str]:
+    """Pattern for a post that names ``ticker``.
 
-
-def _search_qs(ticker: str, limit: int) -> str:
-    return urlencode({
-        "q": ticker,
-        "restrict_sr": "on",
-        "sort": "new",
-        "t": "week",  # last 7 days
-        "limit": limit,
-    })
+    A listing is not searched, so outside the coin's own subreddit a post counts
+    only when it names the coin: by symbol as written (BTC) or as a cashtag
+    ($btc), and for a coin with its own subreddit by the name that subreddit
+    carries (Bitcoin, bitcoiners).
+    """
+    symbol = re.escape(ticker.upper())
+    forms = [rf"{symbol}(?!\w)", rf"(?i:\${symbol})(?!\w)"]
+    if ticker.upper() in _ANY_CASE_SYMBOLS:
+        forms.append(rf"(?i:{symbol})(?!\w)")
+    name = _COIN_SUBREDDITS.get(ticker.upper())
+    if name:
+        forms.append(rf"(?i:{re.escape(name)})")
+    return re.compile(rf"(?<!\w)(?:{'|'.join(forms)})")
 
 
 def _iso_to_timestamp(iso_str: str | None) -> float | None:
@@ -123,15 +134,21 @@ def _iso_to_timestamp(iso_str: str | None) -> float | None:
         return None
 
 
+# The byline Reddit ends every entry with. A link post has no text of its own,
+# so there it is the whole body: noise in an excerpt, and its username could
+# pass for a mention of the coin ("/u/bitcoin-fan").
+_BYLINE = re.compile(r"\s*submitted by /u/\S+(?: to r/\S+)? \[link\] \[comments\]$")
+
+
 def _strip_html(content: str) -> str:
-    """Reduce the HTML body Reddit embeds in an Atom entry to plain text."""
+    """Reduce the HTML body Reddit embeds in an Atom entry to the post's own text."""
     if not content:
         return ""
     # Reddit wraps the real selftext between SC_OFF / SC_ON markers.
     if "<!-- SC_OFF -->" in content and "<!-- SC_ON -->" in content:
         content = content.split("<!-- SC_OFF -->")[1].split("<!-- SC_ON -->")[0]
     text = re.sub(r"<[^>]+>", " ", content)
-    return " ".join(html.unescape(text).split())
+    return _BYLINE.sub("", " ".join(html.unescape(text).split()))
 
 
 # Headerless-429 backoff when Reddit gives no Retry-After. Measured against
@@ -165,7 +182,7 @@ def _retry_after_seconds(exc: HTTPError) -> float | None:
         return None
 
 
-# Reddit search feeds are small (a page of results); cap the read so a
+# A Reddit feed is small (one page of posts); cap the read so a
 # compromised or misbehaving endpoint can't stream an unbounded body into
 # memory before we parse it. Overflow raises http.client.HTTPException, which
 # both fetch paths already treat as a failed fetch (degrade to empty / RSS).
@@ -189,18 +206,19 @@ def _fetch_subreddit_rss(
     timeout: float,
     _retry: bool = True,
 ) -> list[dict] | None:
-    """Default path: parse the public Atom search feed for a subreddit.
+    """Read the newest posts of a subreddit from its public Atom listing.
 
-    ``sub`` may be one subreddit or several joined with ``+``. On a 429 (Reddit's
-    per-IP rate limit) we back off once — honouring ``Retry-After`` when
-    present — before giving up, so a transient burst doesn't blank the feed.
+    ``sub`` may be one subreddit or several joined with ``+``. The listing is
+    not filtered by ``ticker``, which only labels the log lines. On a 429
+    (Reddit's per-IP rate limit) we back off once — honouring ``Retry-After``
+    when present — before giving up, so a transient burst doesn't blank the feed.
 
-    Returns ``[]`` when the search ran and matched nothing, and ``None`` when
-    the fetch itself failed. The caller must keep these apart: rendering a
-    failed fetch as "no posts found" hands the sentiment analyst an absence of
-    discussion that was never observed (#1295).
+    Returns the page that was read, and ``None`` when the fetch itself failed.
+    The caller must keep these apart: rendering a failed fetch as "no posts
+    found" hands the sentiment analyst an absence of discussion that was never
+    observed (#1295).
     """
-    url = _RSS.format(sub=sub, qs=_search_qs(ticker, limit))
+    url = _RSS.format(sub=sub, limit=limit)
     req = Request(url, headers={"User-Agent": _UA})
     try:
         with urlopen(req, timeout=timeout) as resp:
@@ -255,14 +273,15 @@ def fetch_reddit_posts(
     end_date: str | None = None,
     screen=None,
 ) -> str:
-    """Fetch recent Reddit posts mentioning ``ticker`` across finance
-    subreddits (by default ``subreddits_for(ticker)``) and return them as a
-    formatted plaintext block.
+    """Fetch recent Reddit posts about ``ticker`` from finance subreddits (by
+    default ``subreddits_for(ticker)``) and return them as a formatted
+    plaintext block.
 
-    All subreddits are searched in one combined feed (``r/a+b+c``): anonymous
+    All subreddits are read in one combined listing (``r/a+b+c``): anonymous
     RSS allows about one request per minute per IP, so a request per subreddit
     spent a back-off on almost every run. Each entry names its subreddit, and
-    posts are grouped back by it.
+    posts are grouped back by it. A coin's own subreddit is kept whole; from
+    any other, only the posts that name the ticker.
 
     When ``start_date``/``end_date`` (yyyy-mm-dd) are given, posts are trimmed to
     that window so a historical run does not leak current discussion into a
@@ -273,26 +292,43 @@ def fetch_reddit_posts(
     per-subreddit cut, so the posts it keeps fill the slots.
     """
     subreddits = list(subreddits or subreddits_for(ticker))
-    # Crypto reaches us as a Yahoo pair (BTC-USD); search Reddit for the base
-    # ("BTC") so the query actually matches discussion instead of near-nothing.
+    # Crypto reaches us as a Yahoo pair (BTC-USD); Reddit writes the base
+    # ("BTC"), so that is what posts are matched against.
     ticker = crypto_base(ticker) or ticker
+    symbol = ticker.upper()
     label = ", ".join(f"r/{s}" for s in subreddits)
     fetched = _fetch_subreddit_rss(ticker, "+".join(subreddits), _FEED_PAGE, timeout)
-    if fetched is None:
-        return f"<Reddit unavailable: fetch failed ({label}); this is not an absence of discussion>"
-
-    window = bool(start_date and end_date)
-    posts = _within_window(fetched, start_date, end_date)
-    if not posts:
-        gap = window and coverage_gap(
-            _coverage_dates(fetched), start_date, end_date,
-            "Reddit search", f"discussion of {ticker.upper()}",
-        )
-        period = f"within {start_date}..{end_date}" if window else "in the past 7 days"
-        return gap or f"<no Reddit posts found mentioning {ticker.upper()} across {label} {period}>"
+    if not fetched:
+        # These subreddits always have posts, so an empty page is no more a
+        # look at them than a failed fetch.
+        why = "fetch failed" if fetched is None else "the feed came back empty"
+        return f"<Reddit unavailable: {why} ({label}); this is not an absence of discussion>"
 
     def sub_of(p):
         return p.get("subreddit") or (subreddits[0] if len(subreddits) == 1 else "unknown")
+
+    own = (_COIN_SUBREDDITS.get(symbol) or "").lower()
+    mentions = _mentions(ticker)
+    window = bool(start_date and end_date)
+    reached = _within_window(fetched, start_date, end_date)
+    posts = [
+        p for p in reached
+        if sub_of(p).lower() == own
+        or mentions.search(f"{p.get('title') or ''}\n{p.get('selftext') or ''}")
+    ]
+    oldest = _oldest(fetched)
+    page = f"the newest {len(fetched)} across {label}"
+    if oldest:
+        page += f", back to {oldest:%Y-%m-%d}"
+    within = f" within {start_date}..{end_date}" if window else ""
+    if not posts:
+        # A window the page holds no post from was never read, unless the page
+        # goes back past it. One it does hold posts from was read as far back as
+        # the page goes, and the absence says how far that is.
+        gap = window and not reached and coverage_gap(
+            [oldest], start_date, end_date, "Reddit", f"discussion of {symbol}",
+        )
+        return gap or f"<no Reddit posts found mentioning {symbol}{within} among {page}>"
 
     note, screened_out = "", set()
     if screen:
@@ -308,20 +344,18 @@ def fetch_reddit_posts(
     for p in posts:
         by_sub.setdefault(sub_of(p).lower(), (sub_of(p), []))[1].append(p)
 
-    page_full = len(fetched) >= _FEED_PAGE
     blocks = []
     for sub, sub_posts in by_sub.values():
+        about = "" if sub.lower() == own else f" mentioning {symbol}"
         if not sub_posts:
-            if sub.lower() in screened_out:
-                blocks.append(f"r/{sub}: <no posts about {ticker.upper()} after screening>")
-            else:
-                blocks.append(
-                    f"r/{sub}: <not among the newest {_FEED_PAGE} matches across {label}>"
-                    if page_full else f"r/{sub}: <no posts found mentioning {ticker.upper()}>"
-                )
+            blocks.append(
+                f"r/{sub}: <no posts about {symbol} after screening>"
+                if sub.lower() in screened_out
+                else f"r/{sub}: <no posts{about}{within} among {page}>"
+            )
             continue
         sub_posts = sub_posts[:limit_per_sub]  # the feed is newest-first
-        lines = [f"r/{sub} — {len(sub_posts)} recent posts mentioning {ticker.upper()}:"]
+        lines = [f"r/{sub} — {len(sub_posts)} recent posts{about}:"]
         for p in sub_posts:
             title = (p.get("title") or "").replace("\n", " ").strip()
             created = p.get("created_utc")
