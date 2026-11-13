@@ -250,12 +250,38 @@ def test_an_answer_missing_its_fields_reads_as_malformed(jev):
 
 @pytest.mark.unit
 def test_the_first_failure_cancels_the_requests_not_yet_sent(jev, post, monkeypatch):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    release = threading.Event()
+    pools = []
+
+    class _Pool(ThreadPoolExecutor):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            pools.append(self)
+
+    class _Held:
+        status_code = 200
+        headers = {}
+
+        def json(self):
+            release.wait(5)
+            return _post_answers(0.9).json()
+
+    # The only worker is held on "p0" until the screen has returned, however slowly
+    # the failure of "a" reaches it: none of the rest can start before they are cancelled.
     monkeypatch.setattr(typesafe, "_WORKERS", 1)
-    jev.update({"a": _Response(401), **{f"p{i}": _post_answers(0.9) for i in range(20)}})
+    monkeypatch.setattr(typesafe, "ThreadPoolExecutor", _Pool)
+    jev.update({"a": _Response(401), "p0": _Held(), **{f"p{i}": _post_answers(0.9) for i in range(1, 20)}})
 
-    typesafe.jev_screen("NVDA")(list(jev))
+    keep, note = typesafe.jev_screen("NVDA")(list(jev))
+    release.set()
+    pools[0].shutdown(wait=True)
 
-    assert len(post) < 21
+    assert keep == [True] * 21 and "unavailable" in note
+    # "p0" is sent unless the cancelling came first.
+    assert [call[1]["json"]["state"]["post"] for call in post] in (["a"], ["a", "p0"])
 
 
 @pytest.mark.unit
