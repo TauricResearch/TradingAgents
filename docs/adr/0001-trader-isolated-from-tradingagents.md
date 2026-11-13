@@ -7,7 +7,7 @@
 例外有两处。每次同步上游时用 `git diff origin/main -- tradingagents/` 核对只剩这两处，上游收了同等修复就去掉对应的一处；应向上游提 PR。其他任何对 `tradingagents/` 的改动仍不允许（Issue #6，2026-11-10）。
 
 1. `tradingagents/dataflows/vendors/yahoo/news.py` 里的 3 行（`2a75a03`，2026-11-03）：`get_news_yfinance` 读 Yahoo quote feed 报 `VendorUnavailableError` 时按空 feed 处理，继续走上游已有的 Yahoo 搜索回退（上游 `4429078` 只覆盖“feed 为空”，不覆盖“feed 报错”）。不这样改，行情源抖动一次就会让一个币当天的研判失败；这是失败路径上的容错，不改变研判的输入构成。改动有测试（`tests/test_news_lookahead.py`、`tests/test_yahoo_rate_limit.py`）。
-2. `tradingagents/dataflows/vendors/reddit.py`（`5ac03cb`，2026-11-13，Issue #52）：Reddit 的搜索 RSS 从 2026-11-11 起对匿名请求返回 403，三次日频研判的社媒情绪没有 Reddit 数据，上游没有修。改读最新帖子列表（`/r/<a+b+c>/new.rss`），在本地按是否提到标的过滤；函数签名和抓取失败时的占位符不变，`sentiment_analyst.py` 不改。和第 1 处不同，这一处改的是整条取数路径，Reddit 这一路输入的构成也变了：从“过去 7 天里搜到的帖子”变成“最新 100 条里自己版块的和提到标的的帖子”，往回 1 到 5 天；每个版块给模型的仍是最新 5 条。按 ADR 0004 算修复坏掉的数据源，不算加数据源：验证期不重置，指纹照常记一次代码变更。验证期内 Reddit 这一路分三段，以后归因时要知道：交易日 11-06 至 11-09 是搜索结果，11-10 至 11-12 没有数据，部署之后是列表。改动有测试（`tests/test_reddit_fallback.py`、`tests/test_social_lookahead.py`）；上游修好搜索或换了取数方式，就换回上游的实现。
+2. `tradingagents/dataflows/vendors/reddit.py`（`5ac03cb`，2026-11-13，Issue #52）：Reddit 的搜索 RSS 从 2026-11-11 起对匿名请求返回 403，三次日频研判的社媒情绪没有 Reddit 数据，上游没有修。改读最新帖子列表（`/r/<a+b+c>/new.rss`），在本地按是否提到标的过滤；函数签名和抓取失败时的占位符不变，`sentiment_analyst.py` 不改。和第 1 处不同，这一处改的是整条取数路径，Reddit 这一路输入的构成也变了：从“过去 7 天里搜到的帖子”变成“最新 100 条里自己版块的和提到标的的帖子”，往回 1 到 5 天；每个版块给模型的仍是最新 5 条。按 ADR 0004 算修复坏掉的数据源，不算加数据源：验证期不重置，指纹照常记一次代码变更。验证期内 Reddit 这一路分三段，以后归因时要知道：交易日 11-06 至 11-09 是搜索结果，11-10 至 11-12 没有数据，11-13 起是列表（11-13 13:19 UTC 部署）。改动有测试（`tests/test_reddit_fallback.py`、`tests/test_social_lookahead.py`）；上游修好搜索或换了取数方式，就换回上游的实现。
 
 ## Considered Options
 
