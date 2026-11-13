@@ -194,7 +194,7 @@ def test_the_demo_variables_are_no_live_key(tmp_path, monkeypatch):
 
 def test_the_client_of_the_key_file_is_a_production_one_on_okxs_documented_host(key_path, monkeypatch):
     session = FakeSession(
-        [(("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": []}])], base_url="https://openapi.okx.com"
+        [(("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [{"ccy": "USDT", "eq": "1", "cashBal": "1", "availBal": "1"}]}])], base_url="https://openapi.okx.com"
     )
     monkeypatch.setattr(
         keys, "OKXPrivate", lambda creds, **options: OKXPrivate(creds, session=session, clock=lambda: NOW, **options)

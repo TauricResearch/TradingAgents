@@ -25,7 +25,7 @@ from trader.ledger import Ledger, locked
 from trader.live import account as live_account, heartbeat, keys as live_keys
 from trader.notify import Notifier, labeled
 from trader.okx import OKX, REQUEST_ERRORS, OKXError
-from trader.okx_private import PROBE_ORDER_MISSING, OKXPrivate, OKXPrivateError
+from trader.okx_private import PROBE_ORDER_MISSING, Balance, NoBalance, OKXPrivate, OKXPrivateError
 from trader.paper import Paper
 from trader.research import Researcher
 from trader.settings import TAKER_FEE, WATCHLIST, Settings
@@ -193,7 +193,7 @@ def demo_check() -> None:
     _, client = _demo_client()
     try:
         config = client.account_config()
-        balance = client.balance()
+        balance = _balance(client)
         positions = client.positions()
         stops = client.pending_stops()
         trade_error = _trade_permission_error(client)
@@ -204,10 +204,7 @@ def demo_check() -> None:
         f"模拟账户可用。持仓模式 {config.position_mode}，"
         f"账户模式 {levels.get(config.account_level, config.account_level)}，权限 {config.permissions}"
     )
-    typer.echo(
-        f"USDT 权益 {balance.equity:,.2f}，钱包 {balance.cash:,.2f}，可用 {balance.available:,.2f}，"
-        f"未实现 {balance.unrealized:+,.2f}"
-    )
+    _print_balance(balance, "模拟账户里还没有 USDT，先在 OKX 模拟盘领取资金")
     typer.echo(f"持仓 {len(positions)} 个，挂着的止损单 {len(stops)} 张")
     for p in positions:
         typer.echo(f"  {p.inst} {p.contracts:+g} 张 @ {p.avg_price:,.2f}，{p.margin_mode} {p.leverage:g}×")
@@ -243,10 +240,10 @@ def demo_init() -> None:
         if client.pending_stops():
             _fail("模拟账户里还挂着条件单，先在 OKX 撤掉再 init")
         notes = account.setup()
-        balance = client.balance()
+        balance = _balance(client)
     except REQUEST_ERRORS as exc:
         _fail(f"OKX 模拟盘没有应答：{jobs.error_text(exc)}")
-    if balance.cash <= 0:
+    if balance is None or balance.cash <= 0:
         _fail("模拟账户里没有 USDT，先在 OKX 模拟盘领取资金")
     now_ms = _now_ms()
     ledger.initialize(balance.cash, now_ms)
@@ -316,7 +313,7 @@ def live_check(
     fees, notes = [], []
     try:
         config = client.account_config()
-        balance = client.balance()
+        balance = _balance(client)
         positions = client.positions()
         stops = client.pending_stops()
         for coin in WATCHLIST:
@@ -339,10 +336,7 @@ def live_check(
         f"账户模式 {levels.get(config.account_level, config.account_level)}，持仓模式 {config.position_mode}，{kind}"
     )
     typer.echo(f"这把 key 的权限 {config.permissions}，{f'绑定了 {bound} 个 IP' if bound else '没有绑定 IP'}")
-    typer.echo(
-        f"USDT 权益 {balance.equity:,.2f}，钱包 {balance.cash:,.2f}，可用 {balance.available:,.2f}，"
-        f"未实现 {balance.unrealized:+,.2f}"
-    )
+    _print_balance(balance, "子账户里还没有 USDT，先从主账户划转")
     typer.echo(f"持仓 {len(positions)} 个，挂着的止损单 {len(stops)} 张")
     for p in positions:
         typer.echo(f"  {p.inst} {p.contracts:+g} 张 @ {p.avg_price:,.2f}，{p.margin_mode} {p.leverage:g}×")
@@ -391,7 +385,7 @@ def live_init() -> None:
         config = client.account_config()
         positions = client.positions()
         stops = client.pending_stops()
-        balance = client.balance()
+        balance = _balance(client)
     except OKXPrivateError as exc:
         _fail(f"OKX 正式环境拒绝了请求：{jobs.error_text(exc)}")
     except REQUEST_ERRORS as exc:
@@ -403,7 +397,7 @@ def live_init() -> None:
         _fail("子账户里还有持仓，先在 OKX 平掉再 init")
     if stops:
         _fail("子账户里还挂着条件单，先在 OKX 撤掉再 init")
-    if balance.cash <= 0:
+    if balance is None or balance.cash <= 0:
         _fail("子账户里没有 USDT，先划转再 init")
     now_ms = _now_ms()
     ledger.initialize(balance.cash, now_ms)
@@ -538,6 +532,24 @@ def _open_demo(require_utc: bool = False) -> tuple[Settings, DemoAccount, Notifi
         _fail("没有日内账本可跟随：python -m trader intraday init")
     intraday = Ledger(settings.intraday_ledger_path, readonly=True)
     return settings, DemoAccount(ledger, OKX(), client), notifier, intraday
+
+
+def _balance(client: OKXPrivate) -> Balance | None:
+    """The account's USDT balance; None when it has none (``NoBalance``)."""
+    try:
+        return client.balance()
+    except NoBalance:
+        return None
+
+
+def _print_balance(balance: Balance | None, missing: str) -> None:
+    if balance is None:
+        typer.echo(f"USDT 没有余额：{missing}")
+        return
+    typer.echo(
+        f"USDT 权益 {balance.equity:,.2f}，钱包 {balance.cash:,.2f}，可用 {balance.available:,.2f}，"
+        f"未实现 {balance.unrealized:+,.2f}"
+    )
 
 
 def _print_sync(result: Sync) -> None:
