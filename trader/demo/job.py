@@ -1,4 +1,5 @@
-"""The hourly job of the demo account (ADR 0008).
+"""The hourly job of an account on the exchange: the demo (ADR 0008), the live account
+(ADR 0010). What it sends is labeled with the account's name.
 
 Every run: set the exchange up once, sync, keep the stops, send what that raised.
 Then, unless halted, already decided this hour, or stopped by a problem the sync
@@ -30,7 +31,7 @@ from trader.demo.settings import (
 from trader.intraday.paper import HOUR_MS, utc_date
 from trader.jobs import error_text
 from trader.ledger import Ledger, locked
-from trader.notify import Notifier
+from trader.notify import Notifier, labeled
 from trader.okx import DAY_MS
 from trader.settings import Settings
 
@@ -46,14 +47,17 @@ def run(
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
     """One hourly run; a failure alerts at most every ALERT_INTERVAL_MS (meta
-    ``demo_alerted_at``) and is raised so the scheduler records it."""
+    ``<name>_alerted_at``, ``Profile.alerted_key``) and is raised so the scheduler
+    records it."""
+    notifier = labeled(notifier, account.profile.name)
     try:
         _run(settings, account, notifier, intraday, now_fn, sleep)
     except Exception as exc:
         now_ms = _ms(now_fn())
-        if now_ms - account.ledger.get("demo_alerted_at", 0) >= ALERT_INTERVAL_MS:
-            notifier.send(f"demo 运行失败：{error_text(exc)}")
-            account.ledger.set("demo_alerted_at", now_ms)
+        key = account.profile.alerted_key
+        if now_ms - account.ledger.get(key, 0) >= ALERT_INTERVAL_MS:
+            notifier.send(f"运行失败：{error_text(exc)}")
+            account.ledger.set(key, now_ms)
         raise
 
 
@@ -66,10 +70,11 @@ def _run(
     sleep: Callable[[float], None],
 ) -> None:
     ledger = account.ledger
+    lock = account.profile.lock_path(settings)
     now_ms = _ms(now_fn())
     hour = now_ms - now_ms % HOUR_MS
     alerts: list[str] = []
-    with _sending(notifier, alerts), locked(settings.demo_lock_path):
+    with _sending(notifier, alerts), locked(lock):
         if not ledger.get("setup_done"):
             for note in account.setup():
                 ledger.add_event(now_ms, "setup", note)
@@ -93,11 +98,11 @@ def _run(
         if signals is None:
             ledger.add_event(
                 now_ms, "skipped",
-                f"日内账户到 {_clock(_ms(now_fn()))} 还没决定 {_clock(hour)} 这个小时，demo 本小时不交易",
+                f"日内账户到 {_clock(_ms(now_fn()))} 还没决定 {_clock(hour)} 这个小时，{account.profile.name} 本小时不交易",
             )
         else:
             alerts = []
-            with _sending(notifier, alerts), locked(settings.demo_lock_path):
+            with _sending(notifier, alerts), locked(lock):
                 now_ms = _ms(now_fn())
                 result = account.sync(now_ms)  # the equity and positions the orders size against
                 alerts += result.alerts
@@ -166,7 +171,9 @@ def _signals_for(
     ``decided_hour``), waiting up to INTRADAY_WAIT_MS; None when it has not. A halted
     intraday account is flat, so the demo follows with Flat for every coin."""
     if intraday.get("halted"):
-        account.ledger.add_event(_ms(now_fn()), "follow_halt", "日内账户熔断中，demo 跟随平仓")
+        account.ledger.add_event(
+            _ms(now_fn()), "follow_halt", f"日内账户熔断中，{account.profile.name} 跟随平仓"
+        )
         return {coin.research: "Flat" for coin in account.watchlist}
     started = _ms(now_fn())
     while intraday.get("decided_hour") != hour:
@@ -194,7 +201,7 @@ def _standing(ledger: Ledger, problems: list[str], now_ms: int) -> list[str]:
         ledger.add_event(now_ms, "problem", text)
         if now_ms - sent.get(text, 0) >= ALERT_INTERVAL_MS:
             sent[text] = now_ms
-            out.append(f"demo 对账：{text}")
+            out.append(f"对账：{text}")
     if problems:
         ledger.set("problem_alerts", {t: ts for t, ts in sent.items() if now_ms - ts < ALERT_INTERVAL_MS})
     return out

@@ -16,13 +16,13 @@ from dotenv import find_dotenv, load_dotenv
 
 from trader import backup as account_backup, jobs, report
 from trader.demo import job as demo_job, report as demo_report
-from trader.demo.account import DemoAccount
+from trader.demo.account import DEMO, DemoAccount
 from trader.evaluation.cli import evaluate_app
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
 from trader.live import keys as live_keys
-from trader.notify import Notifier
+from trader.notify import Notifier, labeled
 from trader.okx import OKX, REQUEST_ERRORS, OKXError
 from trader.okx_private import PROBE_ORDER_MISSING, OKXPrivate, OKXPrivateError
 from trader.paper import Paper
@@ -301,7 +301,7 @@ def demo_resume() -> None:
         if account.sync(_now_ms()).positions:
             _fail("交易所里还有持仓，平掉再解除熔断")
         account.resume(_now_ms())
-    notifier.send("demo 账户熔断已解除，下一小时恢复交易。")
+    notifier.send("熔断已解除，下一小时恢复交易。")
 
 
 @live_app.callback()
@@ -435,7 +435,7 @@ def _demo_client() -> tuple[Settings, OKXPrivate]:
 
 def _open_demo(require_utc: bool = False) -> tuple[Settings, DemoAccount, Notifier, Ledger]:
     settings, client = _demo_client()
-    notifier = Notifier(settings)
+    notifier = labeled(Notifier(settings), DEMO.name)
     if require_utc and time.localtime().tm_gmtoff != 0:
         notifier.send("trader 不在 UTC 时区运行，已退出。请用 TZ=UTC 启动。")
         _fail("trader must run with TZ=UTC")
@@ -460,7 +460,7 @@ def _live_client(base_url: str = live_keys.BASE_URL) -> tuple[Settings, OKXPriva
     try:
         return settings, live_keys.client(base_url)
     except live_keys.LiveKeyError as exc:
-        Notifier(settings).send(f"live 的密钥文件有问题，这次没有运行：{exc}")
+        labeled(Notifier(settings), "live").send(f"密钥文件有问题，这次没有运行：{exc}")
         _fail(f"live 的密钥文件有问题：{exc}")
 
 

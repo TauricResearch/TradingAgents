@@ -142,6 +142,15 @@ class Settings:
     def demo_lock_path(self) -> Path:
         return self.home / "demo" / "trader.lock"
 
+    # The live account (ADR 0010), on the demo's executor.
+    @property
+    def live_ledger_path(self) -> Path:
+        return self.home / "live" / "ledger.sqlite"
+
+    @property
+    def live_lock_path(self) -> Path:
+        return self.home / "live" / "trader.lock"
+
     @classmethod
     def from_env(cls) -> Settings:
         """The environment's settings with TRADER_HOME/settings.json applied."""

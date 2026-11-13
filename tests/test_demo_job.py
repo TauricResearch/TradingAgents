@@ -86,7 +86,7 @@ def test_the_hour_follows_the_intraday_signal_and_reports_the_trade(env):
     assert [s.trigger for s in env.exchange.stops] == [79_000.0]
     assert env.ledger.get("decided_hour") == HOUR
     (text,) = env.inbox.sent
-    assert text.startswith("demo · 01-10 00:00 UTC\nBTC：Long → ")
+    assert text.startswith("【demo】01-10 00:00 UTC\nBTC：Long → ")
     assert text.endswith("交易所权益 9,996.00 USDT")
     # The same hour again: nothing to do, nothing said.
     env.run(RUN0 + 60_000)
@@ -119,7 +119,7 @@ def test_a_halted_intraday_account_makes_the_demo_flat(env):
     env.run(RUN0 + HOUR_MS)
     assert env.exchange.book[BTC.swap][0] == 0 and env.exchange.stops == []
     assert "follow_halt" in env.events()
-    assert env.inbox.sent[-1].startswith("demo · 01-10 01:00 UTC\nBTC：Flat → ")
+    assert env.inbox.sent[-1].startswith("【demo】01-10 01:00 UTC\nBTC：Flat → ")
 
 
 def test_a_reconciliation_problem_blocks_the_hour_and_alerts_once_per_interval(env):
@@ -130,8 +130,8 @@ def test_a_reconciliation_problem_blocks_the_hour_and_alerts_once_per_interval(e
     assert len(env.exchange.fill_rows) == 1  # nothing traded on top of the odd position
     assert env.ledger.get("decided_hour") is None
     assert env.inbox.sent == [
-        "demo 对账：交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00",
-        "demo 对账：BTC-USDT-SWAP 在交易所是 cross 5×，不是设计的 cross 3×",
+        "【demo】对账：交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00",
+        "【demo】对账：BTC-USDT-SWAP 在交易所是 cross 5×，不是设计的 cross 3×",
     ]
     env.decide(HOUR + HOUR_MS, "Long")
     env.run(RUN0 + HOUR_MS)
@@ -150,7 +150,8 @@ def test_a_kill_in_the_sync_settles_its_fills_before_anything_else(env):
     assert env.ledger.get("halted") is True
     assert [f.reason for f in env.ledger.fills()] == ["trade", "kill"]
     assert env.exchange.book[BTC.swap][0] == 0 and env.exchange.stops == []
-    assert env.inbox.sent[-1].startswith("熔断：净值")
+    assert env.inbox.sent[-1].startswith("【demo】熔断：净值")
+    assert env.inbox.sent[-1].endswith("确认后运行 python -m trader demo resume 恢复。")
     assert env.ledger.get("decided_hour") == HOUR  # the second hour was not traded
 
 
@@ -163,14 +164,14 @@ def test_a_failure_is_raised_and_alerted_once(env):
         env.run(RUN0)
     with pytest.raises(OKXError):
         env.run(RUN0 + HOUR_MS)
-    assert env.inbox.sent == ["demo 运行失败：OKXError: balance failed with code 50001: service unavailable"]
+    assert env.inbox.sent == ["【demo】运行失败：OKXError: balance failed with code 50001: service unavailable"]
 
 
 def test_the_first_run_of_a_day_sends_yesterdays_summary(env):
     env.ledger.set("summarized_day", "2026-01-09")
     env.decide(HOUR, "Long")
     env.run(RUN0)
-    assert env.inbox.sent[-1].startswith("demo 日报 · 2026-01-09\n权益 9,996.00 USDT，较本金 -0.04%")
+    assert env.inbox.sent[-1].startswith("【demo】日报 · 2026-01-09\n权益 9,996.00 USDT，较本金 -0.04%")
     assert env.ledger.get("summarized_day") == "2026-01-10"
 
 
@@ -217,8 +218,8 @@ def test_a_position_whose_stop_will_not_hang_is_closed_and_booked_within_the_run
     assert [f.reason for f in env.ledger.fills()] == ["trade", "stop"]
     assert env.ledger.positions() == {} and env.ledger.get("decided_hour") == HOUR
     alert, report = env.inbox.sent
-    assert alert.startswith("止损平仓：BTC-USDT-SWAP +10 张试了 3 次都没挂上止损")
-    assert report.startswith("demo · 01-10 00:00 UTC\nBTC：Long → 买入 0.1 @ 80,000.00；无持仓\n")
+    assert alert.startswith("【demo】止损平仓：BTC-USDT-SWAP +10 张试了 3 次都没挂上止损")
+    assert report.startswith("【demo】01-10 00:00 UTC\nBTC：Long → 买入 0.1 @ 80,000.00；无持仓\n")
 
 
 def test_a_stop_the_price_has_crossed_is_closed_by_the_hourly_run_and_the_hour_goes_on_as_on_paper(env):
@@ -237,8 +238,8 @@ def test_a_stop_the_price_has_crossed_is_closed_by_the_hourly_run_and_the_hour_g
     assert env.exchange.book[BTC.swap] == [9.84, 78_500.0]
     assert [(s.contracts, s.trigger) for s in env.exchange.stops] == [(9.84, 77_500.0)]
     alert, report = env.inbox.sent[1:]
-    assert alert.startswith("止损平仓：BTC-USDT-SWAP +10 张的止损价 79,000.00 已被现价 78,500.00 穿越")
-    assert report.startswith("demo · 01-10 01:00 UTC\nBTC：Long → 买入 0.0984 @ 78,500.00；持仓 +0.0984，止损 77,500.00")
+    assert alert.startswith("【demo】止损平仓：BTC-USDT-SWAP +10 张的止损价 79,000.00 已被现价 78,500.00 穿越")
+    assert report.startswith("【demo】01-10 01:00 UTC\nBTC：Long → 买入 0.0984 @ 78,500.00；持仓 +0.0984，止损 77,500.00")
     # The next hour does not trip over the old stop again.
     env.decide(HOUR + 2 * HOUR_MS, "Long")
     clock = env.run(RUN0 + 2 * HOUR_MS)
@@ -255,7 +256,7 @@ def test_an_exception_between_the_order_and_its_stop_still_leaves_the_position_w
     assert env.exchange.book[BTC.swap] == [10.0, 80_000.0] and env.exchange.bare() == []
     assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_000.0)]
     assert env.ledger.get("decided_hour") is None
-    assert env.inbox.sent == ["demo 运行失败：OKXError: fills failed with code 50001: service unavailable"]
+    assert env.inbox.sent == ["【demo】运行失败：OKXError: fills failed with code 50001: service unavailable"]
     # The next run books the fill behind the position and finds its stop as it should be.
     del env.account.execute
     env.exchange.failures.clear()
@@ -274,7 +275,7 @@ def test_an_order_that_filled_before_the_execution_raised_still_gets_its_stop(en
     assert env.exchange.book[BTC.swap] == [10.0, 80_000.0] and env.exchange.bare() == []
     # No fill price was read, so the stop is measured from the quotes.
     assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_000.0)]
-    assert env.inbox.sent == ["demo 运行失败：ConnectionError: connection reset"]
+    assert env.inbox.sent == ["【demo】运行失败：ConnectionError: connection reset"]
 
 
 def test_the_stop_is_measured_from_the_fill_where_it_is_not_at_the_quote(env):
@@ -311,8 +312,8 @@ def test_the_alerts_gathered_before_an_exception_still_go_out_and_the_filled_con
     with pytest.raises(requests.ConnectionError):
         env.run(RUN0)
     assert env.inbox.sent == [
-        "下单失败：BTC-USDT-SWAP +10 张：/api/v5/trade/order failed with code 51008: Insufficient balance",
-        "demo 运行失败：ConnectionError: connection reset",
+        "【demo】下单失败：BTC-USDT-SWAP +10 张：/api/v5/trade/order failed with code 51008: Insufficient balance",
+        "【demo】运行失败：ConnectionError: connection reset",
     ]
     assert env.exchange.book[ETH.swap] == [10.0, 80_000.0] and env.exchange.bare() == []
     assert [(s.inst, s.contracts, s.trigger) for s in env.exchange.stops] == [(ETH.swap, 10.0, 79_000.0)]
@@ -325,9 +326,9 @@ def test_when_the_stops_cannot_be_seen_to_after_a_failure_the_alert_names_the_co
     with pytest.raises(requests.ConnectionError):
         env.run(RUN0)
     assert env.inbox.sent == [
-        "紧急：下单之后出了错，补挂止损这一步也没做成（ConnectionError: connection reset），"
+        "【demo】紧急：下单之后出了错，补挂止损这一步也没做成（ConnectionError: connection reset），"
         "BTC-USDT-SWAP 的仓位可能没有止损，请立即人工检查",
-        "demo 运行失败：ConnectionError: connection reset",
+        "【demo】运行失败：ConnectionError: connection reset",
     ]
     assert env.exchange.bare() == [BTC.swap]  # nothing could be done for it: the alert is all there is
     assert "stop_failed" in env.events()
@@ -354,7 +355,7 @@ def test_a_kill_at_the_sync_before_the_orders_still_sends_its_alert(env):
     job.run(env.settings, env.account, env.inbox, env.intraday, now_fn=clock.now, sleep=clock.sleep)
     assert clock.sleeps == [INTRADAY_POLL_SECONDS]
     assert env.ledger.get("halted") is True and env.exchange.book[BTC.swap][0] == 0
-    assert len(env.inbox.sent) == 2 and env.inbox.sent[1].startswith("熔断：净值 7,896.00 比峰值 10,000.00")
+    assert len(env.inbox.sent) == 2 and env.inbox.sent[1].startswith("【demo】熔断：净值 7,896.00 比峰值 10,000.00")
 
 
 def test_whatever_fails_once_the_orders_start_no_position_is_left_without_a_stop_and_unnamed(tmp_path):
@@ -399,8 +400,8 @@ def test_what_the_stops_raised_is_sent_even_when_the_run_then_fails(env):
     with pytest.raises(OKXError):
         env.run(RUN0 + HOUR_MS)
     closed, failed = env.inbox.sent[1:]
-    assert closed.startswith("止损平仓：BTC-USDT-SWAP +10 张的止损价 79,000.00 已被现价 78,500.00 穿越")
-    assert failed == "demo 运行失败：OKXError: fills failed with code 50001: service unavailable"
+    assert closed.startswith("【demo】止损平仓：BTC-USDT-SWAP +10 张的止损价 79,000.00 已被现价 78,500.00 穿越")
+    assert failed == "【demo】运行失败：OKXError: fills failed with code 50001: service unavailable"
 
 
 # -- the CLI ------------------------------------------------------------------------

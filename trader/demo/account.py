@@ -11,6 +11,9 @@ at market. ``execute`` sizes the intraday signals with the intraday constants
 against the demo's own equity and sends market orders whose client ids make a
 rerun harmless. ``protect`` gives the positions their stops when a step after the
 orders has raised.
+
+One executor serves each account that trades on OKX (ADR 0010): a ``Profile`` says
+which one it is, the demo's by default.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from trader import rules
 from trader.demo.settings import (
@@ -54,7 +58,7 @@ from trader.okx_private import (
     StopOrder,
 )
 from trader.paper import _kill_alert, _midnights
-from trader.settings import KILL_DRAWDOWN, MAX_GROSS_EXPOSURE, WATCHLIST, Coin
+from trader.settings import KILL_DRAWDOWN, MAX_GROSS_EXPOSURE, WATCHLIST, Coin, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +70,37 @@ MANUAL = "manual"  # a fill the program did not cause
 # be higher" (a long's). From OKX's error table, not yet met on the exchange (#42); a
 # refusal under any other code goes the way of every other failed stop.
 TRIGGER_PASSED = ("51278", "51280")
+
+
+@dataclass(frozen=True)
+class Profile:
+    """Which account the executor is (ADR 0010). ``name`` labels the account's messages
+    (``trader.notify.labeled``) and names its commands, its ledger and its lock in
+    ``Settings`` (``<name>_ledger_path``, ``<name>_lock_path``) and the meta key that
+    throttles its failure alerts. ``production`` is the environment of OKX its client
+    must be of: the production one, with real money, or else simulated trading."""
+
+    name: str
+    production: bool = False
+
+    @property
+    def resume_command(self) -> str:
+        """The command that lifts the account's kill switch, named in its alerts."""
+        return f"python -m trader {self.name} resume"
+
+    @property
+    def alerted_key(self) -> str:
+        """Meta: when a failed run of the account last alerted."""
+        return f"{self.name}_alerted_at"
+
+    def ledger_path(self, settings: Settings) -> Path:
+        return getattr(settings, f"{self.name}_ledger_path")
+
+    def lock_path(self, settings: Settings) -> Path:
+        return getattr(settings, f"{self.name}_lock_path")
+
+
+DEMO = Profile("demo")
 
 
 @dataclass
@@ -91,7 +126,12 @@ class DemoAccount:
         private: OKXPrivate,
         watchlist: tuple[Coin, ...] = WATCHLIST,
         sleep: Callable[[float], None] = time.sleep,
+        profile: Profile = DEMO,
     ):
+        if private.simulated == profile.production:
+            where = "OKX's production environment" if profile.production else "OKX's simulated trading"
+            raise ValueError(f"the {profile.name} account trades on {where}; this client is not on it")
+        self.profile = profile
         self.ledger = ledger
         self.okx = okx          # public market data: last prices, candles, contract specs
         self.private = private  # the signed calls
@@ -218,7 +258,7 @@ class DemoAccount:
                 self.private.close_position(inst, MARGIN_MODE, client_id=self._client_id(KILL_PREFIX, now_ms, inst))
             self.private.cancel_stops(stops)
             halted, killed = True, True
-            text = _kill_alert(equity, peak)
+            text = _kill_alert(equity, peak, self.profile.resume_command)
             alerts.append(text)
             ledger.add_event(now_ms, "kill", text)
         snapshots = [(m, equity) for m in _midnights(ledger.get("snapshot_to", since), now_ms)]

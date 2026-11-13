@@ -23,6 +23,8 @@ HOUR_MS = 3_600_000
 
 
 class IntradayPaper(Paper):
+    resume_command = "python -m trader intraday resume"
+
     def __init__(
         self, ledger: Ledger, okx: OKX, watchlist: tuple[Coin, ...] = WATCHLIST,
         params: Params = DEFAULT_PARAMS,

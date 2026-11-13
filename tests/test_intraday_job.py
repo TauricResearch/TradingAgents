@@ -220,6 +220,7 @@ def test_a_kill_in_the_opening_replay_stops_the_hour_from_asking(env):
     assert env[1].positions() == {}
     assert signaler.calls == []
     assert inbox.sent[0].startswith("熔断：")
+    assert inbox.sent[0].endswith("确认后运行 python -m trader intraday resume 恢复。")
     assert [f.reason for f in env[1].fills()] == ["kill"]
 
 

@@ -2,7 +2,7 @@ import logging
 
 import requests
 
-from trader.notify import Notifier, _chunks
+from trader.notify import Notifier, _chunks, labeled
 from trader.settings import Settings
 
 
@@ -64,3 +64,19 @@ def test_a_failed_send_returns_false_without_logging_the_token(tmp_path, caplog)
         assert Notifier(_settings(tmp_path), FakeSession(status=401)).send("hi") is False
     assert "401" in caplog.text
     assert "SECRET" not in caplog.text
+
+
+def test_a_labeled_notifier_heads_each_message_with_the_account_once(tmp_path):
+    session = FakeSession()
+    live = labeled(Notifier(_settings(tmp_path), session), "live")
+    assert labeled(live, "live") is live
+    assert live.send("运行失败：x") is True
+    assert [post["text"] for _, post in session.posts] == ["【live】运行失败：x"]
+
+
+def test_a_long_labeled_message_carries_the_label_on_its_first_piece(tmp_path):
+    session = FakeSession()
+    labeled(Notifier(_settings(tmp_path), session), "demo").send("\n".join("x" * 100 for _ in range(100)))
+    texts = [post["text"] for _, post in session.posts]
+    assert len(texts) == 3 and texts[0].startswith("【demo】xxx")
+    assert not any("【" in text for text in texts[1:])
