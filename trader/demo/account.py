@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
 
 from trader import rules
@@ -489,22 +490,35 @@ class DemoAccount:
         without waiting for a sync, which is among what can have failed. The positions
         are read straight from the exchange into the ledger, each with the stop its
         trade set (``desired``) or the one it had; the fills behind them are the next
-        sync's to book. Never raises: when it cannot do its work, the alert names the
-        contracts that may be without a stop."""
+        sync's to book. The exchange is read up to STOP_TRIES times, as a stop is
+        placed. Never raises: when it cannot do its work, the alert, kept among the
+        events too, names the contracts that may be without a stop."""
         try:
             old = self.ledger.positions()
             positions: dict[str, Position] = {}
-            for p in self.private.positions():
+            for p in self._read(self.private.positions):
                 qty = round(p.contracts * self.spec(p.inst).contract_value, 12)
                 kept = old[p.inst].stop if p.inst in old and (old[p.inst].qty > 0) == (qty > 0) else None
                 positions[p.inst] = Position(qty, p.avg_price, desired.get(p.inst, kept))
             self.ledger.commit(positions=positions, cash=self.ledger.get("cash"))
-            self.manage_stops(now_ms, quotes, self.private.pending_stops(), alerts=alerts)
+            self.manage_stops(now_ms, quotes, self._read(self.private.pending_stops), alerts=alerts)
         except Exception as exc:
-            alerts.append(
+            text = (
                 f"紧急：下单之后出了错，补挂止损这一步也没做成（{type(exc).__name__}: {exc}），"
                 f"{'、'.join(self.instruments(desired))} 的仓位可能没有止损，请立即人工检查"
             )
+            alerts.append(text)
+            with suppress(Exception):  # the ledger may be what failed
+                self.ledger.add_event(now_ms, "stop_failed", text)
+
+    def _read(self, read: Callable[[], list]) -> list:
+        """``read()`` of the exchange, tried STOP_TRIES times while it does not answer."""
+        for _ in range(STOP_TRIES - 1):
+            try:
+                return read()
+            except REQUEST_ERRORS:
+                self.sleep(STOP_RETRY_SECONDS)
+        return read()
 
     # -- execution ------------------------------------------------------------
 

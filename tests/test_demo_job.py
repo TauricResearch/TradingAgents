@@ -307,6 +307,7 @@ def test_when_the_stops_cannot_be_seen_to_after_a_failure_the_alert_names_the_co
         "demo 运行失败：ConnectionError: connection reset",
     ]
     assert env.exchange.bare() == [BTC.swap]  # nothing could be done for it: the alert is all there is
+    assert "stop_failed" in env.events()
     # The next run, the exchange back, hangs the stop.
     del env.account.execute
     env.exchange.failures.clear()

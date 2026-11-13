@@ -664,7 +664,7 @@ def test_protect_closes_what_it_cannot_give_a_stop(account, exchange):
     assert exchange.book[BTC.swap][0] == 0
 
 
-def test_protect_never_raises_and_names_the_contracts_it_could_not_see_to(account, exchange):
+def test_protect_never_raises_and_names_the_contracts_it_could_not_see_to(account, ledger, exchange):
     exchange.manual_fill(BTC.swap, 10)
     exchange.fail("positions", LOST)
     alerts = []
@@ -674,3 +674,16 @@ def test_protect_never_raises_and_names_the_contracts_it_could_not_see_to(accoun
         "BTC-USDT-SWAP、ETH-USDT-SWAP 的仓位可能没有止损，请立即人工检查"
     ]
     assert exchange.stops == []
+    # The positions were read STOP_TRIES times before it gave up, and the alert is an event too.
+    assert account.sleeps == [STOP_RETRY_SECONDS] * (STOP_TRIES - 1)
+    assert kinds(ledger)[-1] == "stop_failed"
+
+
+@pytest.mark.parametrize("method", ["positions", "pending_stops"])
+def test_protect_reads_the_exchange_again_when_it_does_not_answer(account, exchange, method):
+    exchange.manual_fill(BTC.swap, 10)
+    exchange.fail(method, LOST, times=STOP_TRIES - 1)
+    alerts = []
+    account.protect(T0, quotes(account), {}, alerts)
+    assert alerts == [] and [(s.contracts, s.trigger) for s in exchange.stops] == [(10.0, 79_000.0)]
+    assert account.sleeps == [STOP_RETRY_SECONDS] * (STOP_TRIES - 1)
