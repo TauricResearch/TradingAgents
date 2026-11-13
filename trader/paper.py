@@ -16,6 +16,8 @@ from trader.settings import ATR_DAYS, KILL_DRAWDOWN, STOP_ATR_MULT, WATCHLIST, C
 
 STALL_MS = 10 * MINUTE_MS
 
+Quotes = dict[str, tuple[float, float]]  # contract -> (last price, ATR)
+
 
 class ReplayStalled(RuntimeError):
     """OKX has served no closed candle for a held contract in the last STALL_MS."""
@@ -137,13 +139,36 @@ class Paper:
         swaps = [coin.swap for coin in self.watchlist]
         return swaps + [inst for inst in positions if inst not in swaps]
 
+    def usable(self, quotes: Quotes, when: str) -> tuple[Quotes, list[str]]:
+        """``quotes`` without those ``rules.usable_quote`` refuses, and the alert of each
+        of those: its contract is not traded ``when``, its stop is not moved, and its
+        position is marked as ``held_prices`` says instead."""
+        out, alerts = {}, []
+        for inst, (price, atr_value) in quotes.items():
+            if rules.usable_quote(price, atr_value):
+                out[inst] = (price, atr_value)
+            else:
+                alerts.append(_unusable_alert(inst, price, atr_value, when))
+        return out, alerts
+
+    def held_prices(self, positions: dict[str, Position], quotes: Quotes) -> dict[str, float]:
+        """The price an execution marks each position at: its quote's, else (``usable``
+        refused the quote) its last mark (meta ``marks``), else its entry."""
+        marks = self.ledger.get("marks") or {}
+        return {
+            inst: quotes[inst][0] if inst in quotes else marks.get(inst, pos.entry)
+            for inst, pos in positions.items()
+        }
+
     def execute(self, trade_date: str, ratings: dict[str, str | None], now_ms: int) -> list[str]:
         """Trade each contract toward the target its rating sets; return the alerts.
 
         Call right after ``replay``. ``ratings`` maps research tickers to ratings,
         None for a coin whose research failed. Runs once per trade date, and not
         while halted. A position in a contract no longer on the watchlist is not
-        traded; its stop is managed until it closes the position.
+        traded; its stop is managed until it closes the position. A contract whose
+        quote is not usable (``usable``) sits the trade date out: it is alerted, not
+        traded, its stop is not moved, and its position counts at its last mark.
         """
         if self.ledger.executed(trade_date) or self.ledger.get("halted"):
             return []
@@ -157,10 +182,13 @@ class Paper:
                 [b.high for b in daily], [b.low for b in daily], [b.close for b in daily]
             )
             quotes[inst] = (self.okx.last_price(inst), atr_value)
+        quotes, unusable = self.usable(quotes, "今天")
 
-        alerts, fills = [], []
+        alerts, fills = list(unusable), []
         # A stop crossed since the last closed minute fills now; every other stop tightens.
         for inst, pos in list(positions.items()):
+            if inst not in quotes:
+                continue
             price, atr_value = quotes[inst]
             if rules.stop_fill(pos.qty, pos.stop, price, price, price) is not None:
                 fill_price = rules.slipped(price, -pos.qty)
@@ -171,11 +199,16 @@ class Paper:
                 candidate = rules.initial_stop(price, pos.qty, atr_value)
                 pos.stop = rules.tighten(pos.stop, candidate, pos.qty)
 
-        equity = cash + sum(p.qty * (quotes[i][0] - p.entry) for i, p in positions.items())
+        prices = self.held_prices(positions, quotes)
+        equity = cash + sum(p.qty * (prices[i] - p.entry) for i, p in positions.items())
         units, currents, targets = {}, {}, {}
         for coin in self.watchlist:
-            price, atr_value = quotes[coin.swap]
             pos = positions.get(coin.swap)
+            if coin.swap not in quotes:  # held as it is, toward the gross cap at its mark
+                held = pos.qty * prices[coin.swap] if pos else 0.0
+                currents[coin.swap] = targets[coin.swap] = held
+                continue
+            price, atr_value = quotes[coin.swap]
             currents[coin.swap] = pos.qty * price if pos else 0.0
             units[coin.swap] = rules.unit_notional(equity, atr_value, price)
             targets[coin.swap] = rules.target_notional(
@@ -184,6 +217,8 @@ class Paper:
         targets = rules.apply_caps(targets, currents, equity)
         for coin in self.watchlist:
             inst = coin.swap
+            if inst not in quotes:
+                continue
             if not rules.needs_trade(targets[inst], currents[inst], units[inst]):
                 continue
             price, atr_value = quotes[inst]
@@ -214,6 +249,7 @@ class Paper:
         self.ledger.commit(
             positions=positions, cash=cash, fills=fills, snapshots=snapshots, meta=meta,
             executed=(trade_date, now_ms),
+            events=[(now_ms, "quote_unusable", text) for text in unusable],
         )
         return alerts
 
@@ -263,6 +299,15 @@ def _midnights(start: int, end: int) -> list[int]:
 
 def _stop_alert(inst: str, qty: float, price: float, pnl: float) -> str:
     return f"止损：{inst} {qty:+g} 在 {price:,.2f} 平仓，盈亏 {pnl:+,.2f} USDT"
+
+
+def _unusable_alert(inst: str, price: float, atr_value: float, when: str) -> str:
+    """The alert of a quote ``rules.usable_quote`` refuses; ``when`` is the round its
+    contract sits out."""
+    return (
+        f"报价不能用：{inst} 现价 {price:,.2f}，ATR {atr_value:,.2f}，都要是大于 0 的有限数；"
+        f"这个币{when}不交易，止损也不按它调整"
+    )
 
 
 def _kill_alert(equity: float, peak: float, resume: str) -> str:

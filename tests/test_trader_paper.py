@@ -1,8 +1,10 @@
+import math
 import sqlite3
 from datetime import UTC, datetime
 
 import pytest
 
+from trader import rules
 from trader.intraday.paper import HOUR_MS
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger, Position
@@ -312,3 +314,124 @@ def test_execute_and_replay_record_the_marks_for_a_report_without_okx(ledger):
     equity, unavailable = Paper(ledger, FakeOKX(last=82_000.0), (BTC,)).equity_now()
     entry = ledger.positions()[BTC.swap].entry
     assert (equity, unavailable) == (pytest.approx(ledger.get("cash") + 0.04 * (82_000 - entry)), False)
+
+
+# -- quotes that cannot be used ---------------------------------------------------------
+
+ETH = Coin("ETH-USD", "ETH-USDT-SWAP", "ETH-USDT")
+
+
+class Market(FakeOKX):
+    """FakeOKX with the last price (``prices``) and the true range of every daily and
+    hourly candle, so the ATR (``ranges``), settable by contract."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.prices, self.ranges = {}, {}
+
+    def bars(self, inst, bar, start_ms, end_ms):
+        out = super().bars(inst, bar, start_ms, end_ms)
+        r = self.ranges.get(inst)
+        if r is None or bar == "1m":
+            return out
+        return [Bar(b.ts, b.close, b.close + r / 2, b.close - r / 2, b.close) for b in out]
+
+    def last_price(self, inst):
+        return self.prices.get(inst, self.last)
+
+
+# A price or an ATR of 0, below 0, NaN or infinite, and how the alert shows it. No candles
+# give an ATR below 0 (no true range is): the tests of that patch rules.atr.
+BAD_QUOTES = [
+    (0.0, 100.0, "现价 0.00，ATR 100.00"),
+    (-2_000.0, 100.0, "现价 -2,000.00，ATR 100.00"),
+    (math.nan, 100.0, "现价 nan，ATR 100.00"),
+    (math.inf, 100.0, "现价 inf，ATR 100.00"),
+    (2_100.0, 0.0, "现价 2,100.00，ATR 0.00"),
+    (2_100.0, math.nan, "现价 2,100.00，ATR nan"),
+    (2_100.0, math.inf, "现价 2,100.00，ATR inf"),
+]
+TODAY = "，都要是大于 0 的有限数；这个币今天不交易，止损也不按它调整"
+
+
+def hold_eth(ledger, qty=1.0):
+    """``qty`` ETH long from 2,000, its stop at 1,800, last marked at 2,500."""
+    ledger.commit(
+        positions={ETH.swap: Position(qty, 2_000.0, 1_800.0)}, cash=10_000.0,
+        meta={"marks": {ETH.swap: 2_500.0}},
+    )
+
+
+def quoted(price, atr):
+    market = Market()
+    market.prices[ETH.swap], market.ranges[ETH.swap] = price, atr
+    return market
+
+
+def unusable_events(ledger):
+    return [text for _, _, text in ledger.events(kinds=("quote_unusable",))]
+
+
+@pytest.mark.parametrize(("price", "atr", "shown"), BAD_QUOTES)
+def test_a_held_coin_without_a_usable_quote_sits_the_day_out_beside_one_that_trades(
+    ledger, price, atr, shown,
+):
+    hold_eth(ledger)
+    alerts = Paper(ledger, quoted(price, atr), (BTC, ETH)).execute(
+        "2026-01-09", {BTC.research: "Buy", ETH.research: "Sell"}, T0
+    )
+    unusable = f"报价不能用：ETH-USDT-SWAP {shown}{TODAY}"
+    assert alerts == [unusable] and unusable_events(ledger) == [unusable]
+    # ETH keeps its position and its stop; the equity marks it at its last mark, 10,500,
+    # on which a unit of BTC is 0.02 * 10,500 * 80,000 / 5,000 = 3,360 USDT: 0.042 BTC.
+    assert ledger.positions()[ETH.swap] == Position(1.0, 2_000.0, 1_800.0)
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.042)
+    assert [f.inst for f in ledger.fills()] == [BTC.swap]
+    assert ledger.get("cash") == pytest.approx(10_000 - 0.042 * 80_000 * 1.0005 * 0.0005)
+    assert ledger.get("marks") == {ETH.swap: 2_500.0, BTC.swap: 80_000.0}
+    assert ledger.equity_series() == [(DAY0, 10_500.0)]
+    assert ledger.executed("2026-01-09")
+
+
+@pytest.mark.parametrize(("price", "atr", "shown"), BAD_QUOTES)
+def test_a_coin_without_a_usable_quote_is_not_bought(ledger, price, atr, shown):
+    alerts = Paper(ledger, quoted(price, atr), (BTC, ETH)).execute(
+        "2026-01-09", {BTC.research: "Buy", ETH.research: "Buy"}, T0
+    )
+    assert alerts == [f"报价不能用：ETH-USDT-SWAP {shown}{TODAY}"]
+    assert list(ledger.positions()) == [BTC.swap]
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.04)  # a full unit, as alone
+    assert ledger.get("marks") == {BTC.swap: 80_000.0}
+
+
+def test_a_held_coin_without_a_usable_quote_still_counts_toward_the_gross_cap(ledger, monkeypatch):
+    hold_eth(ledger, 4.0)  # 10,000 USDT at its last mark, 2,000 up
+    monkeypatch.setattr(rules, "MAX_GROSS_EXPOSURE", 1.0)
+    Paper(ledger, quoted(0.0, 100.0), (BTC, ETH)).execute(
+        "2026-01-09", {BTC.research: "Buy", ETH.research: "Sell"}, T0
+    )
+    # A unit of BTC is 0.02 * 12,000 * 80,000 / 5,000 = 3,840 USDT, but beside ETH's 10,000
+    # the gross cap of 1 times the equity of 12,000 leaves 2,000: 0.025 BTC.
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.025)
+
+
+def test_the_equity_marks_a_position_at_its_quote_where_it_is_usable(ledger):
+    hold(ledger, 0.04, 80_000, 75_000)
+    ledger.set("marks", {BTC.swap: 81_000.0})
+    Paper(ledger, FakeOKX(last=90_000), (BTC,)).execute("2026-01-09", {BTC.research: "Hold"}, T0)
+    assert ledger.equity_series() == [(DAY0, pytest.approx(10_400.0))]  # not 10,040, at the mark
+
+
+def test_an_atr_below_zero_is_refused_too(ledger, monkeypatch):
+    hold_eth(ledger)
+    monkeypatch.setattr(rules, "atr", lambda *args, **kwargs: -100.0)  # every contract's
+    alerts = Paper(ledger, quoted(2_100.0, 100.0), (BTC, ETH)).execute(
+        "2026-01-09", {BTC.research: "Buy", ETH.research: "Sell"}, T0
+    )
+    assert alerts == [
+        f"报价不能用：BTC-USDT-SWAP 现价 80,000.00，ATR -100.00{TODAY}",
+        f"报价不能用：ETH-USDT-SWAP 现价 2,100.00，ATR -100.00{TODAY}",
+    ]
+    assert unusable_events(ledger) == alerts
+    assert ledger.positions() == {ETH.swap: Position(1.0, 2_000.0, 1_800.0)}
+    assert ledger.fills() == [] and ledger.get("cash") == 10_000.0

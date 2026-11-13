@@ -5,6 +5,8 @@ constants in trader/settings.py and the written spec, never from the function bo
 The constants appear as literals, so a change to one fails a test instead of being followed.
 """
 
+import math
+
 import pytest
 
 from trader.rules import (
@@ -23,6 +25,7 @@ from trader.rules import (
     tighten,
     to_quantity,
     unit_notional,
+    usable_quote,
 )
 
 EQUITY = 10_000.0  # coin cap 10,000 and gross cap 20,000 in the apply_caps tests
@@ -92,6 +95,18 @@ def test_atr_takes_the_largest_term_for_each_bar():
     # TR2 = max(6, |118-120|, |112-120|) = 8    (gap down)
     # TR3 = max(30, |130-115|, |100-115|) = 30  (own range); mean = 63 / 3 = 21
     assert atr(highs, lows, closes, days=3) == pytest.approx(21.0)
+
+
+# ------------------------------------------------------------------ usable_quote
+
+
+@pytest.mark.parametrize("bad", [0.0, -0.01, -80_000.0, math.nan, math.inf, -math.inf])
+def test_a_quote_is_usable_only_when_its_price_and_atr_are_positive_finite_numbers(bad):
+    assert usable_quote(80_000.0, 2_000.0) is True
+    assert usable_quote(1e-9, 1e-9) is True  # however small
+    assert usable_quote(bad, 2_000.0) is False
+    assert usable_quote(80_000.0, bad) is False
+    assert usable_quote(bad, bad) is False
 
 
 # ------------------------------------------------------------------ unit_notional
