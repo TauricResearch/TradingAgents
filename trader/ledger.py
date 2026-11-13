@@ -61,7 +61,7 @@ class Fill:
     qty: float           # signed coins traded: positive bought, negative sold
     price: float
     fee: float
-    reason: str          # "trade", "stop" or "kill"
+    reason: str          # "trade", "stop" or "kill"; on the exchange also "manual" and "adjust"
     trade_date: str | None = None
 
 
@@ -152,8 +152,10 @@ class Ledger:
         snapshots: list[tuple[int, float]] = (),
         meta: dict | None = None,
         executed: tuple[str, int] | None = None,
+        events: list[tuple[int, str, str]] = (),
     ) -> None:
-        """Replace the positions and write everything a replay or execution changed."""
+        """Replace the positions and write everything a replay or execution changed,
+        ``events`` (ts, kind, text) among it."""
         with self.transaction():
             self.db.execute("DELETE FROM positions")
             self.db.executemany(
@@ -179,6 +181,7 @@ class Ledger:
                 self.db.execute(
                     "INSERT INTO executions (trade_date, ts) VALUES (?, ?)", executed
                 )
+            self.db.executemany("INSERT INTO events (ts, kind, text) VALUES (?, ?, ?)", events)
 
     def executed(self, trade_date: str) -> bool:
         return self.db.execute(
@@ -198,6 +201,12 @@ class Ledger:
             " WHERE ts >= ? ORDER BY ts, id", (since_ms,),
         )
         return [Fill(*row) for row in rows]
+
+    def funding(self, since_ms: int = 0) -> list[tuple[int, str, float, float]]:
+        """(ts, inst, rate, amount) of the funding booked since ``since_ms``, in time order."""
+        return self.db.execute(
+            "SELECT ts, inst, rate, amount FROM funding WHERE ts >= ? ORDER BY ts, inst", (since_ms,)
+        ).fetchall()
 
     def funding_total(self, since_ms: int = 0) -> float:
         row = self.db.execute(

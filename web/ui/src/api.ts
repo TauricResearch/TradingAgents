@@ -182,8 +182,9 @@ export interface Daily {
   market: MarketStatus
 }
 
-/** `manual` only on the demo account: a fill on the exchange the program did not make (ADR 0008). */
-export type FillReason = 'trade' | 'stop' | 'kill' | 'manual'
+/** `manual` and `adjust` only on the accounts on the exchange: a fill the program did not
+ * make (ADR 0008), and one a person booked to make the ledger agree with the exchange (#37). */
+export type FillReason = 'trade' | 'stop' | 'kill' | 'manual' | 'adjust'
 
 export interface Fill {
   ts: string

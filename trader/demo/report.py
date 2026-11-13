@@ -73,10 +73,8 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
         f"权益 {equity:,.2f} USDT，{change}，回撤 {rules.drawdown(equity, peak):.1%}（峰值 {peak:,.2f}）"
     )
     fills = [f for f in ledger.fills(day_start) if f.ts < day_end]
-    reasons = [f.reason for f in fills]
     lines.append(
-        f"昨日成交 {len(reasons)} 笔（调仓 {reasons.count('trade')}，止损 {reasons.count('stop')}，"
-        f"熔断 {reasons.count('kill')}，非程序 {reasons.count('manual')}），"
+        f"昨日成交 {len(fills)} 笔（{_kinds(fills)}），"
         f"手续费 {sum(f.fee for f in fills):,.2f}，资金费 {_funding(ledger, day_start, day_end):+,.2f}"
     )
     problems = ledger.get("problems") or []
@@ -97,14 +95,12 @@ def full(account: DemoAccount) -> str:
     midnights, values = [t for t, _ in series], [v for _, v in series]
     equal, btc = baselines(account, midnights, values[0])
     fills = ledger.fills(midnights[0])
-    reasons = [f.reason for f in fills]
     return "\n".join([
         f"{name} 绩效：自 {utc_date(midnights[0])} 起，共 {len(values) - 1} 天",
         performance_line(f"{name}（交易所权益）", values),
         performance_line("三币等权持有", equal),
         performance_line("BTC 单持", btc),
-        f"成交 {len(fills)} 笔（调仓 {reasons.count('trade')}，止损 {reasons.count('stop')}，"
-        f"熔断 {reasons.count('kill')}，非程序 {reasons.count('manual')}），"
+        f"成交 {len(fills)} 笔（{_kinds(fills)}），"
         f"手续费 {sum(f.fee for f in fills):,.2f}，资金费 {ledger.funding_total(midnights[0]):+,.2f}",
     ])
 
@@ -121,6 +117,18 @@ def shadow(account: DemoAccount) -> str:
         hour = datetime.fromtimestamp((ts - ts % HOUR_MS) / 1000, UTC).strftime("%m-%d %H:%M")
         lines.append(f"  {hour} UTC  {text}")
     return "\n".join(lines)
+
+
+def _kinds(fills: list[Fill]) -> str:
+    """The fills counted by kind; adjustments (``python -m trader <name> reconcile``)
+    only when there are any."""
+    reasons = [f.reason for f in fills]
+    text = (
+        f"调仓 {reasons.count('trade')}，止损 {reasons.count('stop')}，"
+        f"熔断 {reasons.count('kill')}，非程序 {reasons.count('manual')}"
+    )
+    adjusted = reasons.count("adjust")
+    return text + (f"，调整 {adjusted}" if adjusted else "")
 
 
 def _funding(ledger, start: int, end: int) -> float:
