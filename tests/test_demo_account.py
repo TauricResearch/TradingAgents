@@ -49,8 +49,10 @@ class FakeExchange:
     (``refuse_passed``, under ``passed_code`` when not OKX's documented ones), fired
     on the spot (``fire_passed``) or just left pending, whether a repeated algo client
     id is refused (``duplicate_code``), whether an amendment that is accepted takes
-    effect (``amend_ignored``). ``fail`` scripts the failure of any call. ``gaps``
-    lists the contracts a cancellation left without a closing stop while still held."""
+    effect (``amend_ignored``), whether a stop whose placement is accepted shows among
+    the pending ones (``place_ignored``). ``fail`` scripts the failure of any call.
+    ``gaps`` lists the contracts a cancellation left without a closing stop while still
+    held; ``at_close`` what was pending for a contract each time its close was asked."""
 
     def __init__(self, cash=10_000.0, price=80_000.0, leverage=3.0, margin_mode="cross"):
         self.cash = cash
@@ -77,7 +79,9 @@ class FakeExchange:
         self.fire_passed = False
         self.duplicate_code = "51065"  # None: a second stop under the same client id is accepted
         self.amend_ignored = False
+        self.place_ignored = False
         self.gaps = []
+        self.at_close = []            # (inst, its pending stops) at each close_position call
         self.world = {}               # what unsettle() last set
         self._ids = 0
 
@@ -96,6 +100,7 @@ class FakeExchange:
         of an assertion that fails."""
         self.one_stop = rng.random() < 0.3
         self.amend_ignored = rng.random() < 0.2
+        self.place_ignored = rng.random() < 0.2
         self.duplicate_code = rng.choice(["51065", "51016", None])
         self.refuse_passed = rng.random() < 0.3
         self.passed_code = rng.choice([None, "59999"])
@@ -110,8 +115,8 @@ class FakeExchange:
                 ])
                 changes = method not in ("pending_stops", "positions", "fills", "order")
                 self.fail(method, error, rng.choice([1, 1, 2, 3, None]), changes and rng.random() < 0.4)
-        switches = ("one_stop", "amend_ignored", "duplicate_code", "refuse_passed", "passed_code",
-                    "fire_passed", "price")
+        switches = ("one_stop", "amend_ignored", "place_ignored", "duplicate_code", "refuse_passed",
+                    "passed_code", "fire_passed", "price")
         self.world = {name: getattr(self, name) for name in switches} | {"failures": [
             (f["method"], type(f["error"]).__name__, f["times"], f["applied"]) for f in self.failures
         ]}
@@ -194,6 +199,7 @@ class FakeExchange:
 
     def close_position(self, inst, margin_mode="cross", client_id=None):
         self.calls.append(("close_position", inst, client_id))
+        self.at_close.append((inst, [s for s in self.stops if s.inst == inst]))
         error, applied = self._failing("close_position", inst)
         if error and not applied:
             raise error
@@ -216,11 +222,12 @@ class FakeExchange:
         if self.duplicate_code and any(s.client_id == client_id for s in self.stops):
             raise OKXPrivateError(path, self.duplicate_code, "algoClOrdId already exists.")
         algo_id = f"a{self._next()}"
-        self.stops.append(StopOrder(algo_id, client_id, inst, side, abs(contracts), trigger, True, self.now))
-        if self.fire_passed and self._passed(inst, side, trigger) and self.book.get(inst, (0.0, 0.0))[0]:
-            # Taken, and triggered on the spot: gone from the pending stops, the position with it.
-            self.stops.pop()
-            self._fill(inst, abs(contracts) if side == "buy" else -abs(contracts), "", algo_client_id=client_id)
+        if not self.place_ignored:  # else it is answered with an algo id and nowhere to be seen
+            self.stops.append(StopOrder(algo_id, client_id, inst, side, abs(contracts), trigger, True, self.now))
+            if self.fire_passed and self._passed(inst, side, trigger) and self.book.get(inst, (0.0, 0.0))[0]:
+                # Taken, and triggered on the spot: gone from the pending stops, the position with it.
+                self.stops.pop()
+                self._fill(inst, abs(contracts) if side == "buy" else -abs(contracts), "", algo_client_id=client_id)
         if error:
             raise error
         return algo_id

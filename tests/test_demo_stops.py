@@ -194,6 +194,46 @@ def test_a_new_stop_that_cannot_be_read_back_does_not_cost_the_old_one(account, 
     assert exchange.stops == [new] and exchange.gaps == []
 
 
+def test_a_new_stop_that_is_accepted_but_does_not_show_as_pending_costs_the_old_one_nothing(account, exchange):
+    # The placement is answered with success, and the pending stops, read back, hold
+    # only the old one. The answer alone cancels nothing: the old stop covers the
+    # position, so it stays as it is and the position with it.
+    go_long(account, exchange)
+    (old,) = exchange.stops
+    exchange.fail("amend_stop", NOT_AMENDABLE)
+    exchange.place_ignored = True
+    alerts, closed = hourly(account, exchange, last=82_000.0)
+    assert alerts == [
+        "止损没更新：BTC-USDT-SWAP +10 张的止损没能改到 81,000.00（下单的应答是成功，挂单里却没有），"
+        "交易所里仍是 79,000.00 的旧止损单，下一次运行再试"
+    ]
+    assert closed == [] and exchange.stops == [old] and exchange.book[BTC.swap][0] == 10.0
+    # One placement, and nothing after it: no cancellation, no close, no second try.
+    assert calls(exchange) == ["place_stop", "amend_stop", "place_stop"] and account.sleeps == []
+    assert exchange.bare() == []
+
+
+def test_a_new_stop_that_never_shows_as_pending_leaves_the_old_one_standing_until_the_close(account, exchange):
+    # The position doubled and its stop, for half of it, cannot be amended. Each new
+    # stop is answered with success and never shows among the pending ones: after
+    # STOP_TRIES of them the position is closed, the old stop still pending as the
+    # close goes out. No answer alone cancelled it.
+    go_long(account, exchange)
+    (old,) = exchange.stops
+    exchange.cash += 10_004.0
+    exchange.now = T0 + HOUR_MS
+    now, q, stops = traded(account, exchange, {BTC.research: "Long"}, HOUR + HOUR_MS)
+    exchange.fail("amend_stop", NOT_AMENDABLE)
+    exchange.place_ignored = True
+    alerts, closed = account.manage_stops(now, q, stops)
+    assert closed == [BTC.swap] and len(alerts) == 1
+    assert alerts[0].startswith(
+        "止损平仓：BTC-USDT-SWAP +20 张试了 3 次都没挂上止损（下单的应答是成功，挂单里却没有），已市价平仓"
+    )
+    assert calls(exchange) == ["place_stop", "amend_stop"] + ["place_stop"] * STOP_TRIES + ["close_position"]
+    assert exchange.at_close == [(BTC.swap, [old])] and exchange.book[BTC.swap][0] == 0
+
+
 def test_an_old_stop_that_will_not_cancel_stays_beside_the_new_one_until_the_next_run(account, exchange):
     go_long(account, exchange)
     exchange.fail("amend_stop", NOT_AMENDABLE)
@@ -360,8 +400,9 @@ def test_a_stop_for_part_of_the_position_does_not_count_as_its_stop(account, exc
     assert closed == [BTC.swap] and alerts[0].startswith("止损平仓：BTC-USDT-SWAP +20 张试了 3 次都没挂上止损")
     assert exchange.bare() == []
     assert calls(exchange) == ["place_stop", "amend_stop"] + ["place_stop"] * STOP_TRIES + ["close_position"]
-    # The old stop stood until the position itself was closed.
-    assert exchange.gaps == [] and old.algo_id not in [c[1] for c in exchange.calls if c[0] == "cancel_stops"]
+    # The old stop stood until the position itself was closed, and nothing cancelled it.
+    assert exchange.at_close == [(BTC.swap, [old])]
+    assert old.algo_id not in [algo_id for c in exchange.calls if c[0] == "cancel_stops" for algo_id in c[1]]
 
 
 def test_when_the_close_fails_as_well_the_alert_names_the_contract_and_the_next_run_takes_it_up(
