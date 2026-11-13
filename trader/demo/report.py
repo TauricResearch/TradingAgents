@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 
 from trader import rules
 from trader.demo.account import DemoAccount
-from trader.intraday.paper import utc_date
+from trader.intraday.paper import HOUR_MS, utc_date
 from trader.ledger import Fill, Position
 from trader.okx import DAY_MS
 from trader.report import baselines, net_equity, performance_line
@@ -97,6 +97,20 @@ def full(account: DemoAccount) -> str:
         f"熔断 {reasons.count('kill')}，非程序 {reasons.count('manual')}），"
         f"手续费 {sum(f.fee for f in fills):,.2f}，资金费 {ledger.funding_total(midnights[0]):+,.2f}",
     ])
+
+
+def shadow(account: DemoAccount) -> str:
+    """The orders the shadow run would have sent, by hour, and how many hours it sized
+    none, for ``python -m trader <name> report``."""
+    rows = account.ledger.events(kinds=("shadow_order", "shadow_none"))
+    if not rows:
+        return "影子运行还没有记录。"
+    orders = [(ts, text) for ts, kind, text in rows if kind == "shadow_order"]
+    lines = [f"影子运行：本该下的单 {len(orders)} 笔，另有 {len(rows) - len(orders)} 个小时没有要下的单"]
+    for ts, text in orders:
+        hour = datetime.fromtimestamp((ts - ts % HOUR_MS) / 1000, UTC).strftime("%m-%d %H:%M")
+        lines.append(f"  {hour} UTC  {text}")
+    return "\n".join(lines)
 
 
 def _funding(ledger, start: int, end: int) -> float:

@@ -16,12 +16,13 @@ from dotenv import find_dotenv, load_dotenv
 
 from trader import backup as account_backup, jobs, report
 from trader.demo import job as demo_job, report as demo_report
-from trader.demo.account import DEMO, DemoAccount
+from trader.demo.account import DEMO, DemoAccount, Sync
+from trader.demo.settings import ALERT_INTERVAL_MS
 from trader.evaluation.cli import evaluate_app
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
-from trader.live import keys as live_keys
+from trader.live import account as live_account, keys as live_keys
 from trader.notify import Notifier, labeled
 from trader.okx import OKX, REQUEST_ERRORS, OKXError
 from trader.okx_private import PROBE_ORDER_MISSING, OKXPrivate, OKXPrivateError
@@ -271,17 +272,7 @@ def demo_sync() -> None:
     settings, account, _, _ = _open_demo()
     with locked(settings.demo_lock_path):
         result = account.sync(_now_ms())
-    typer.echo(
-        f"权益 {result.equity:,.2f} USDT，钱包 {result.cash:,.2f}，持仓 {len(result.positions)} 个，"
-        f"挂着的止损单 {len(result.stops)} 张，新记成交 {len(result.fills)} 笔"
-    )
-    for inst, pos in result.positions.items():
-        stop = f"{pos.stop:,.2f}" if pos.stop is not None else "未知"
-        typer.echo(f"  {inst} {pos.qty:+g} @ {pos.entry:,.2f}，止损 {stop}")
-    for text in result.problems:
-        typer.echo(f"  问题：{text}")
-    for text in result.alerts:
-        typer.echo(f"  {text}")
+    _print_sync(result)
 
 
 @demo_app.command("report")
@@ -339,9 +330,8 @@ def live_check(
         _fail(f"OKX 正式环境没有应答：{jobs.error_text(exc)}")
     levels = {"1": "现货", "2": "合约模式（单币种保证金）", "3": "跨币种保证金", "4": "组合保证金"}
     permissions = config.permissions.split(",")
-    trade = _live_trade_line(client, permissions)
-    # A sub-account's uid differs from its main account's. Without both there is no telling.
-    sub_account = config.uid != config.main_uid if config.uid and config.main_uid else None
+    _, trade = _live_trade_verdict(client, permissions)
+    sub_account = _sub_account(config)
     kind = {True: "子账户", False: "主账户", None: "不确定是不是子账户"}[sub_account]
     bound = len(config.ip.split(",")) if config.ip else 0
     typer.echo(f"正式环境（真钱），域名 {client.base_url}")
@@ -373,14 +363,114 @@ def live_check(
     if sub_account is False:
         typer.echo("注意：这把 key 建在主账户下；ADR 0010 要求建在只给这套系统用的子账户下。")
     if sub_account is None:
-        typer.echo(
-            "注意：应答里没有 uid 或 mainUid，看不出这把 key 是不是建在子账户下；"
-            "ADR 0010 要求建在只给这套系统用的子账户下。"
-        )
+        typer.echo(UNKNOWN_SUB_ACCOUNT)
     if config.account_level == "1":
         typer.echo("注意：现货模式不能交易合约，请在 OKX 把账户模式改成合约模式（以前叫单币种保证金）或跨币种保证金。")
     for note in notes:
         typer.echo(f"注意：{note}")
+
+
+UNKNOWN_SUB_ACCOUNT = (
+    "注意：应答里没有 uid 或 mainUid，看不出这把 key 是不是建在子账户下；"
+    "ADR 0010 要求建在只给这套系统用的子账户下。"
+)
+
+
+@live_app.command("init")
+def live_init() -> None:
+    """Open the live account on the sub-account's USDT balance, paused: until ``live
+    resume`` its hourly runs are a shadow run (ADR 0010). Only reads, so a read-only key
+    will do: the account must be flat with no pending stops, and nothing is set up."""
+    settings, client = _live_client()
+    ledger = Ledger(settings.live_ledger_path)
+    if ledger.initialized:
+        _fail(f"{settings.live_ledger_path} 里已经有账户了")
+    if not settings.intraday_ledger_path.exists():
+        _fail("live 跟随日内账户的信号，先要有日内账户：python -m trader intraday init")
+    try:
+        config = client.account_config()
+        positions = client.positions()
+        stops = client.pending_stops()
+        balance = client.balance()
+    except OKXPrivateError as exc:
+        _fail(f"OKX 正式环境拒绝了请求：{jobs.error_text(exc)}")
+    except REQUEST_ERRORS as exc:
+        _fail(f"OKX 正式环境没有应答：{jobs.error_text(exc)}")
+    sub_account = _sub_account(config)
+    if sub_account is False:
+        _fail("这把 key 建在主账户下：ADR 0010 要求 live 用只给这套系统用的子账户")
+    if positions:
+        _fail("子账户里还有持仓，先在 OKX 平掉再 init")
+    if stops:
+        _fail("子账户里还挂着条件单，先在 OKX 撤掉再 init")
+    if balance.cash <= 0:
+        _fail("子账户里没有 USDT，先划转再 init")
+    now_ms = _now_ms()
+    ledger.initialize(balance.cash, now_ms)
+    ledger.set("summarized_day", utc_date(now_ms))
+    account = DemoAccount(ledger, OKX(), client, profile=live_account.LIVE)
+    account.pause(now_ms, "建账：影子运行，等解锁（ADR 0010）")
+    typer.echo(f"live 账户已建立：本金 {balance.cash:,.2f} USDT（子账户钱包余额），账本在 {settings.live_ledger_path}")
+    typer.echo("现在是影子运行：每小时照常对账，记下本该下的单，不下单、不改交易所的设置；解锁见 ADR 0010。")
+    if sub_account is None:
+        typer.echo(UNKNOWN_SUB_ACCOUNT)
+
+
+@live_app.command("run")
+def live_run() -> None:
+    """The live account's hourly run, after the intraday job: a shadow run while the
+    account is paused, otherwise the demo's run on the production account."""
+    settings, account, notifier, intraday = _open_live(require_utc=True, hourly=True)
+    demo_job.run(settings, account, notifier, intraday)
+
+
+@live_app.command("sync")
+def live_sync() -> None:
+    """Read the production account into the live ledger now and print what it found;
+    trades nothing."""
+    settings, account, _, _ = _open_live()
+    with locked(settings.live_lock_path):
+        result = account.sync(_now_ms())
+    _print_sync(result)
+
+
+@live_app.command("report")
+def live_report_command() -> None:
+    """Print the live account's performance since its first execution, and the orders
+    its shadow run would have sent, by hour."""
+    _, account, _, _ = _open_live()
+    typer.echo(demo_report.full(account))
+    typer.echo(demo_report.shadow(account))
+
+
+@live_app.command("resume")
+def live_resume() -> None:
+    """Unpause the live account, ADR 0010's unlock: its next hourly run sets the account
+    up and trades. Refused, before the key file is read or the exchange asked anything,
+    while the unlock is closed (``trader.live.account.UNLOCK_OPEN``); and unless the
+    account is paused, is not halted, and its key is established to place orders as
+    live check establishes it."""
+    if not live_account.UNLOCK_OPEN:
+        _fail("live 还不能解锁：解锁的条件见 ADR 0010，由 #34 打开；现在只做影子运行")
+    settings, client = _live_client()
+    account, notifier, _ = _live_account(settings, client)
+    if not account.paused:
+        _fail("live 账户没有处于暂停")
+    if account.ledger.get("halted"):
+        _fail("live 账户处于熔断：ADR 0010 规定熔断一次实验就结束，不在这里解除")
+    try:
+        config = client.account_config()
+        established, line = _live_trade_verdict(client, config.permissions.split(","))
+    except OKXPrivateError as exc:
+        _fail(f"OKX 正式环境拒绝了请求：{jobs.error_text(exc)}")
+    except REQUEST_ERRORS as exc:
+        _fail(f"OKX 正式环境没有应答：{jobs.error_text(exc)}")
+    if not established:
+        _fail(f"交易权限没有确立，不解锁。{line}")
+    with locked(settings.live_lock_path):
+        account.unpause(_now_ms(), "live resume：解锁，下一次运行起自动下单")
+    notifier.send("已解锁：下一次每小时运行先设好账户，然后自动下单。")
+    typer.echo("live 已解锁：下一次每小时运行起自动下单。")
 
 
 def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:
@@ -448,11 +538,51 @@ def _open_demo(require_utc: bool = False) -> tuple[Settings, DemoAccount, Notifi
     return settings, DemoAccount(ledger, OKX(), client), notifier, intraday
 
 
-def _live_client(base_url: str = live_keys.BASE_URL) -> tuple[Settings, OKXPrivate]:
+def _print_sync(result: Sync) -> None:
+    typer.echo(
+        f"权益 {result.equity:,.2f} USDT，钱包 {result.cash:,.2f}，持仓 {len(result.positions)} 个，"
+        f"挂着的止损单 {len(result.stops)} 张，新记成交 {len(result.fills)} 笔"
+    )
+    for inst, pos in result.positions.items():
+        stop = f"{pos.stop:,.2f}" if pos.stop is not None else "未知"
+        typer.echo(f"  {inst} {pos.qty:+g} @ {pos.entry:,.2f}，止损 {stop}")
+    for text in result.problems:
+        typer.echo(f"  问题：{text}")
+    for text in result.alerts:
+        typer.echo(f"  {text}")
+
+
+def _open_live(
+    require_utc: bool = False, hourly: bool = False,
+) -> tuple[Settings, DemoAccount, Notifier, Ledger]:
+    settings, client = _live_client(hourly=hourly)
+    return (settings, *_live_account(settings, client, require_utc))
+
+
+def _live_account(
+    settings: Settings, client: OKXPrivate, require_utc: bool = False,
+) -> tuple[DemoAccount, Notifier, Ledger]:
+    """The live account on ``client``, its labeled notifier and the intraday ledger it
+    follows, opened read-only."""
+    notifier = labeled(Notifier(settings), live_account.LIVE.name)
+    if require_utc and time.localtime().tm_gmtoff != 0:
+        notifier.send("trader 不在 UTC 时区运行，已退出。请用 TZ=UTC 启动。")
+        _fail("trader must run with TZ=UTC")
+    ledger = Ledger(settings.live_ledger_path)
+    if not ledger.initialized:
+        _fail("还没有 live 账户，先运行 python -m trader live init")
+    if not settings.intraday_ledger_path.exists():
+        _fail("没有日内账本可跟随：python -m trader intraday init")
+    intraday = Ledger(settings.intraday_ledger_path, readonly=True)
+    return DemoAccount(ledger, OKX(), client, profile=live_account.LIVE), notifier, intraday
+
+
+def _live_client(base_url: str = live_keys.BASE_URL, hourly: bool = False) -> tuple[Settings, OKXPrivate]:
     """The settings and the production client on the key of the live key file (ADR
     0010). A file that is missing, unreadable, open to other users, incomplete or of
     values no header carries fails the calling command with an alert, and that command
-    alone: no other command reads the file."""
+    alone: no other command reads the file. The ``hourly`` run alerts it at most every
+    ALERT_INTERVAL_MS, as it does its own failures (meta ``live_alerted_at``)."""
     try:
         settings = Settings.from_env()
     except ValueError as exc:  # the demo key's variables are set in part, as in _demo_client
@@ -460,13 +590,33 @@ def _live_client(base_url: str = live_keys.BASE_URL) -> tuple[Settings, OKXPriva
     try:
         return settings, live_keys.client(base_url)
     except live_keys.LiveKeyError as exc:
-        labeled(Notifier(settings), "live").send(f"密钥文件有问题，这次没有运行：{exc}")
+        if not hourly or _alert_due(settings.live_ledger_path, live_account.LIVE.alerted_key):
+            labeled(Notifier(settings), live_account.LIVE.name).send(f"密钥文件有问题，这次没有运行：{exc}")
         _fail(f"live 的密钥文件有问题：{exc}")
 
 
-def _live_trade_line(client: OKXPrivate, permissions: list[str]) -> str:
-    """What live check says of placing orders with the live key: that it may, or a note
-    of why that is not established. The probe is the check's last request and its only
+def _alert_due(path: Path, key: str) -> bool:
+    """Whether an alert throttled by meta ``key`` of the ledger at ``path`` may go out
+    now, recording that it does; there is no throttle without the ledger."""
+    if not path.exists():
+        return True
+    ledger = Ledger(path)
+    now_ms = _now_ms()
+    if now_ms - ledger.get(key, 0) < ALERT_INTERVAL_MS:
+        return False
+    ledger.set(key, now_ms)
+    return True
+
+
+def _sub_account(config) -> bool | None:
+    """Whether the key's account is a sub-account, whose uid differs from its main
+    account's; None when the answer lacks either, and there is no telling."""
+    return config.uid != config.main_uid if config.uid and config.main_uid else None
+
+
+def _live_trade_verdict(client: OKXPrivate, permissions: list[str]) -> tuple[bool, str]:
+    """Whether the live key is established to place orders, and what live check says of
+    it: that it may, or a note of why that is not established. The probe is the check's last request and its only
     one that is not a GET; getting no answer to it is noted here rather than raised, so
     that what was read before it is still printed. Only the answer seen from a key that
     may trade counts as that, and a key without the trade permission cannot trade
@@ -479,14 +629,14 @@ def _live_trade_line(client: OKXPrivate, permissions: list[str]) -> str:
         code, got = "", f"探针没有得到应答：{jobs.error_text(exc)}"
     shadow = "影子运行可以，解锁前要换成只勾“交易”的 key，交易权限要覆盖加密货币/永续合约。"
     if code.startswith("50"):
-        return f"注意：这把 key 下不了单（{answer.code} {answer.message}）：{shadow}"
+        return False, f"注意：这把 key 下不了单（{answer.code} {answer.message}）：{shadow}"
     if "trade" not in permissions:
-        return f"注意：这把 key 下不了单（权限里没有 trade；{got}）：{shadow}"
+        return False, f"注意：这把 key 下不了单（权限里没有 trade；{got}）：{shadow}"
     if code == PROBE_ORDER_MISSING:
-        return "交易权限正常（试了一次不存在订单的撤单，没有下单）。"
+        return True, "交易权限正常（试了一次不存在订单的撤单，没有下单）。"
     if not code:
-        return f"注意：交易权限{got}；不能确认这把 key 能下单。"
-    return f"注意：交易权限{got}，不是“订单不存在”（{PROBE_ORDER_MISSING}）：这个应答没见过，不能确认这把 key 能下单。"
+        return False, f"注意：交易权限{got}；不能确认这把 key 能下单。"
+    return False, f"注意：交易权限{got}，不是“订单不存在”（{PROBE_ORDER_MISSING}）：这个应答没见过，不能确认这把 key 能下单。"
 
 
 def _fail(message: str) -> None:

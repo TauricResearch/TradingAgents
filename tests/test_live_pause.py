@@ -7,13 +7,12 @@ import pytest
 
 from tests.test_demo_account import BTC, HOUR, T0, FakeExchange
 from tests.test_demo_job import RUN0, Env
-from trader.demo.account import DemoAccount, Paused, Profile, ReadOnly
+from trader.demo.account import DemoAccount, Paused, ReadOnly
 from trader.intraday.paper import HOUR_MS
 from trader.ledger import Ledger
+from trader.live.account import LIVE
 from trader.okx_private import StopOrder
 from trader.settings import KILL_DRAWDOWN
-
-LIVE = Profile("live", production=True, born_paused=True)  # as trader.live.account.LIVE
 
 
 class LiveEnv(Env):
