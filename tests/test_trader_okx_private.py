@@ -6,6 +6,7 @@ units. Every answer here is a recorded shape of the real endpoint, except those 
 the fee rates and of the key's IP binding and sub-account, which are the shapes OKX's
 documentation gives; nothing touches the network."""
 
+import http.client
 import json
 import logging
 import traceback
@@ -256,10 +257,13 @@ def test_an_okx_error_names_the_path_and_code_but_nothing_of_the_request_headers
 
 
 def as_http_client_sends(request, count):
-    """What the standard library does with a request's headers before it sends them:
-    a value that is not Latin-1 raises there."""
-    for value in request.headers.values():
-        value.encode("latin-1")
+    """What the standard library does with a request before it sends it, by its own
+    code: the request line and each header are put on a connection that is never
+    opened, where a value it will not send raises."""
+    connection = http.client.HTTPConnection("okx.invalid")
+    connection.putrequest(request.method, request.path_url)
+    for name, value in request.headers.items():
+        connection.putheader(name, value)
     return 200, {}, CONFIG_BODY
 
 
@@ -267,6 +271,9 @@ def as_http_client_sends(request, count):
     OKXCredentials("key-123", "test-secret", "Ab\ncd1!"),       # requests refuses a line break in a header...
     OKXCredentials("key\r\n-123", "test-secret", "pass-word"),  # ...of either credential it carries...
     OKXCredentials("key-123", "test-secret", " pass-word"),     # ...and a leading blank
+    # A line break at the very end: requests refuses it from 2.33.1 on; before, it goes on
+    # to the standard library, which refuses it with a bare ValueError.
+    OKXCredentials("key-123", "test-secret", "pass-word\n"),
     OKXCredentials("key-123", "test-secret", "Pass口令1!"),      # not Latin-1: the standard library cannot send it
     OKXCredentials("kéy-口令", "test-secret", "pass-word"),
     OKXCredentials("key-123", "test-\udcffsecret", "pass-word"),  # cannot be encoded to sign with
@@ -286,9 +293,25 @@ def test_a_credential_that_cannot_be_sent_fails_without_being_quoted(creds):
     # Nor does the error it replaces come along, as its cause or its context.
     assert info.value.__cause__ is None and info.value.__context__ is None
     shown = "".join(traceback.format_exception(info.value))
-    for value in (creds.key, creds.secret, creds.passphrase, "cd1!", "口令", "\\u53e3", "\\udcff"):
+    for value in (creds.key, creds.secret, creds.passphrase, "pass-word", "cd1!", "口令", "\\u53e3", "\\udcff"):
         assert value not in shown
     assert "InvalidHeader" not in shown and "codec can't encode" not in shown
+
+
+def test_what_the_standard_library_says_of_a_header_it_will_not_send_is_dropped_too():
+    """Whatever the version of requests: before 2.33.1 it lets a line break at the end
+    of a value through, and the standard library then refuses the value with a bare
+    ValueError that quotes it."""
+    okx, _ = client(failures=[ValueError("Invalid header value b'pass-word\\n'")])
+    with pytest.raises(OKXError) as info:
+        okx.account_config()
+    assert str(info.value).startswith("the API key, its secret or its passphrase holds a character")
+    assert info.value.__cause__ is None and info.value.__context__ is None
+    assert "pass-word" not in "".join(traceback.format_exception(info.value))
+    # A ValueError of requests' own, about a URL or a proxy, holds no header: it leaves as it is.
+    okx, _ = client(failures=[requests.exceptions.InvalidURL("Invalid URL 'https://www.okx.com:x': bad port")])
+    with pytest.raises(requests.exceptions.InvalidURL, match="bad port"):
+        okx.account_config()
 
 
 # -- environment -----------------------------------------------------------------

@@ -501,10 +501,16 @@ class OKXPrivate:
                 if response.status_code == 429 or response.status_code >= 500:
                     response.raise_for_status()
                 break
-            except (requests.exceptions.InvalidHeader, UnicodeError):
-                # A credential that cannot be signed with or put in a header. What requests
-                # raises quotes the value, so it is dropped here: the error is raised below,
-                # outside this handler, and so does not even have this one as its context.
+            except ValueError as exc:
+                # A credential that cannot be signed with or put in a header is refused by
+                # requests (InvalidHeader) or, should requests let it through, by the standard
+                # library: a UnicodeError for what is not Latin-1, a bare ValueError for a line
+                # break (requests before 2.33.1 lets one through at the end of a value). Each
+                # quotes the value, so it is dropped here: the error is raised below, outside
+                # this handler, and so does not even have this one as its context. Any other
+                # ValueError is requests' own, about a URL or a proxy, and leaves as it is.
+                if not isinstance(exc, requests.exceptions.InvalidHeader | UnicodeError) and type(exc) is not ValueError:
+                    raise
                 response = None
                 break
             except (requests.ConnectionError, requests.Timeout, requests.HTTPError):

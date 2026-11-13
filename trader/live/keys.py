@@ -9,6 +9,8 @@ and backed up as a whole. Only the ``live`` commands call ``load``: the key is n
 
 from __future__ import annotations
 
+import errno
+import io
 import os
 import re
 import stat
@@ -45,29 +47,40 @@ def key_file() -> Path:
 
 def load(path: Path | None = None) -> OKXCredentials:
     """The key in ``path`` (``key_file()`` by default), a dotenv file of the three
-    ``NAMES``. LiveKeyError when the file is missing or cannot be read, when anyone but
-    its owner may read or write it (its mode must be 600 or tighter), when a name has
-    no value, or when a value holds anything but visible ASCII characters: a blank, a
-    line break, a control or a non-ASCII character. Nothing is written to the
-    environment."""
+    ``NAMES``. LiveKeyError when nothing is at the path, when what is there is no regular
+    file or cannot be read, when anyone but its owner may read or write it (its mode
+    must be 600 or tighter), when a name has no value, or when a value holds anything
+    but visible ASCII characters: a blank, a line break, a control or a non-ASCII
+    character. Nothing is written to the environment."""
     path = path or key_file()
-    unread = None
+    refused = None
     try:
-        if not path.is_file():
-            raise LiveKeyError(f"{path} 不存在")
-        mode = stat.S_IMODE(path.stat().st_mode)
-        if mode & 0o077:
-            raise LiveKeyError(f"{path} 的权限是 {mode:o}，比 600 宽：先 chmod 600 再运行")
-        # No interpolation: a "$" in a secret or passphrase is the character itself.
-        values = dotenv_values(path, interpolate=False)
-    except OSError as exc:  # mode 000, say, or a directory on the way that cannot be entered
-        unread = f"{path} 读不了：{exc.strerror or type(exc).__name__}"
+        # One stat, and its errors told apart below. Path.is_file() and its like turn
+        # errors into False, and which of them depends on the Python version: all, from 3.14.
+        status = path.stat()
+        mode = stat.S_IMODE(status.st_mode)
+        if not stat.S_ISREG(status.st_mode):
+            refused = f"{path} 不是文件"
+        elif mode & 0o077:
+            refused = f"{path} 的权限是 {mode:o}，比 600 宽：先 chmod 600 再运行"
+        else:
+            # Read here and not by dotenv, which asks os.path.isfile() first and takes a
+            # file it cannot reach for an empty one.
+            text = path.read_text(encoding="utf-8")
+    except (FileNotFoundError, NotADirectoryError):  # nothing there, or a file on the way to it
+        refused = f"{path} 不存在"
+    except PermissionError:  # mode 000, say, or a directory on the way that cannot be entered
+        refused = f"{path} 读不了：没有权限"
+    except OSError as exc:  # named by its errno: the system's own wording is not ours to rely on
+        refused = f"{path} 读不了：{errno.errorcode.get(exc.errno, type(exc).__name__)}"
     except UnicodeDecodeError:
-        unread = f"{path} 不是 UTF-8 文本"
-    if unread:
+        refused = f"{path} 不是 UTF-8 文本"
+    if refused:
         # Raised here, outside the handlers: the decoding error holds the bytes of the file
         # and says which one it stopped at, and is not to come along as this one's context.
-        raise LiveKeyError(unread)
+        raise LiveKeyError(refused)
+    # No interpolation: a "$" in a secret or passphrase is the character itself.
+    values = dotenv_values(stream=io.StringIO(text), interpolate=False)
     found = [values.get(name) or "" for name in NAMES]
     missing = [name for name, value in zip(NAMES, found, strict=True) if not value.strip()]
     if missing:

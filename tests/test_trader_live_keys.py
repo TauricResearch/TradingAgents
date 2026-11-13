@@ -66,13 +66,24 @@ def test_a_missing_key_file_is_refused(tmp_path, monkeypatch):
     with pytest.raises(keys.LiveKeyError) as info:
         keys.load()
     assert str(info.value) == f"{path} 不存在"
-    with pytest.raises(keys.LiveKeyError, match="不存在"):  # a directory is no key file either
-        keys.load(tmp_path)
+    # Nor is anything at a path that runs through a file.
+    (tmp_path / "plain").write_text("no directory\n")
+    with pytest.raises(keys.LiveKeyError) as info:
+        keys.load(tmp_path / "plain" / "okx-live.env")
+    assert str(info.value) == f"{tmp_path / 'plain' / 'okx-live.env'} 不存在"
+
+
+def test_what_is_at_the_path_but_is_no_regular_file_is_refused_unread(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "read_text", lambda *args, **options: pytest.fail("it was read"))
+    with pytest.raises(keys.LiveKeyError) as info:
+        keys.load(tmp_path)  # a directory
+    assert str(info.value) == f"{tmp_path} 不是文件"
 
 
 @pytest.mark.parametrize("mode", [0o640, 0o604, 0o644, 0o660, 0o666, 0o700 | 0o020, 0o601])
 def test_a_key_file_others_can_read_or_write_is_refused_unread(tmp_path, monkeypatch, mode):
     path = write_key_file(tmp_path / "okx-live.env", mode=mode)
+    monkeypatch.setattr(Path, "read_text", lambda *args, **options: pytest.fail("the file was read"))
     monkeypatch.setattr(keys, "dotenv_values", lambda *args, **options: pytest.fail("the file was read"))
     with pytest.raises(keys.LiveKeyError) as info:
         keys.load(path)
@@ -131,7 +142,7 @@ def test_a_key_file_its_owner_cannot_read_is_refused_as_a_key_file(tmp_path):
         pytest.skip("this user reads a file whatever its mode")
     with pytest.raises(keys.LiveKeyError) as info:
         keys.load(path)
-    assert str(info.value) == f"{path} 读不了：Permission denied"
+    assert str(info.value) == f"{path} 读不了：没有权限"
 
 
 def test_a_key_file_in_a_directory_that_cannot_be_entered_is_refused_as_a_key_file(tmp_path):
@@ -145,7 +156,16 @@ def test_a_key_file_in_a_directory_that_cannot_be_entered_is_refused_as_a_key_fi
             keys.load(path)
     finally:
         path.parent.chmod(0o700)
-    assert str(info.value) == f"{path} 读不了：Permission denied"
+    # Not "不存在": Path.is_file() says False of it from Python 3.14 on, where it raised before.
+    assert str(info.value) == f"{path} 读不了：没有权限"
+
+
+def test_any_other_error_of_the_system_is_named_by_its_errno(tmp_path):
+    path = tmp_path / "okx-live.env"
+    path.symlink_to(path)  # a link to itself: following it never arrives
+    with pytest.raises(keys.LiveKeyError) as info:
+        keys.load(path)
+    assert str(info.value) == f"{path} 读不了：ELOOP"
 
 
 def test_a_key_file_that_is_not_utf8_text_is_refused_without_a_byte_of_it(tmp_path):
