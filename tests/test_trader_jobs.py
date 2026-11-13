@@ -31,6 +31,8 @@ class FakeResearcher:
 
 
 class Inbox:
+    configured = True
+
     def __init__(self):
         self.sent = []
 
