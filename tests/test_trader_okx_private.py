@@ -21,6 +21,7 @@ from trader.okx import OKXError
 from trader.okx_private import (
     DUPLICATE_CLIENT_ID,
     Balance,
+    Bill,
     ExchangeFill,
     ExchangePosition,
     FeeRate,
@@ -828,6 +829,24 @@ def test_funding_bills_are_the_type_8_swap_bills_in_the_window():
     assert okx.funding_bills(T0, T0 + 10) == [
         FundingBill("11", "BTC-USDT-SWAP", -1.25, T0 + 5),
         FundingBill("12", "ETH-USDT-SWAP", 0.31, T0 + 5),
+    ]
+
+
+def test_bills_are_every_bill_of_the_currency_in_the_window_whatever_its_type():
+    path = f"/api/v5/account/bills-archive?ccy=USDT&begin={T0}&end={T0 + 10}&limit=100"
+    okx, _ = client([(("GET", path), [
+        {"billId": "13", "instId": "", "type": "1", "subType": "12", "balChg": "-300", "ts": str(T0 + 9)},
+        {"billId": "12", "instId": "BTC-USDT-SWAP", "type": "2", "subType": "1", "balChg": "-0.4",
+         "ts": str(T0 + 5)},
+        {"billId": "11", "instId": "BTC-USDT-SWAP", "type": "8", "subType": "173", "balChg": "-1.25",
+         "ts": str(T0 + 5)},
+        {"billId": "10", "type": "1", "subType": "11", "balChg": "", "ts": str(T0 + 2)},
+    ])])
+    assert okx.bills(T0, T0 + 10) == [
+        Bill("10", "1", "11", "", 0.0, T0 + 2),
+        Bill("11", "8", "173", "BTC-USDT-SWAP", -1.25, T0 + 5),
+        Bill("12", "2", "1", "BTC-USDT-SWAP", -0.4, T0 + 5),
+        Bill("13", "1", "12", "", -300.0, T0 + 9),
     ]
 
 
