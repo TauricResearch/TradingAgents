@@ -46,7 +46,9 @@ class IntradayPaper(Paper):
         ``params.rebalance_threshold`` units is skipped. The first execution starts the validation period at this UTC
         day's midnight and fixes the baseline at the spot closes of the day before.
         A position in a contract no longer on the watchlist is not traded; its stop
-        is managed until it closes the position.
+        is managed until it closes the position. A contract whose quote is not usable
+        (``usable``) sits the hour out: it is alerted, not traded, its stop is not
+        moved, and its position counts at its last mark.
         """
         if self.ledger.get("halted"):
             return []
@@ -62,9 +64,12 @@ class IntradayPaper(Paper):
                 days=p.atr_bars,
             )
             quotes[inst] = (self.okx.last_price(inst), atr_value)
+        quotes, unusable = self.usable(quotes, "本小时")
 
-        alerts, fills = [], []
+        alerts, fills = list(unusable), []
         for inst, pos in list(positions.items()):
+            if inst not in quotes:
+                continue
             price, atr_value = quotes[inst]
             if rules.stop_fill(pos.qty, pos.stop, price, price, price) is not None:
                 fill_price = rules.slipped(price, -pos.qty)
@@ -75,11 +80,16 @@ class IntradayPaper(Paper):
                 candidate = rules.initial_stop(price, pos.qty, atr_value, stop_mult=p.stop_mult)
                 pos.stop = rules.tighten(pos.stop, candidate, pos.qty)
 
-        equity = cash + sum(p.qty * (quotes[i][0] - p.entry) for i, p in positions.items())
+        prices = self.held_prices(positions, quotes)
+        equity = cash + sum(p.qty * (prices[i] - p.entry) for i, p in positions.items())
         units, currents, targets = {}, {}, {}
         for coin in self.watchlist:
-            price, atr_value = quotes[coin.swap]
             pos = positions.get(coin.swap)
+            if coin.swap not in quotes:  # held as it is, toward the gross cap at its mark
+                held = pos.qty * prices[coin.swap] if pos else 0.0
+                currents[coin.swap] = targets[coin.swap] = held
+                continue
+            price, atr_value = quotes[coin.swap]
             currents[coin.swap] = pos.qty * price if pos else 0.0
             units[coin.swap] = rules.unit_notional(
                 equity, atr_value, price, risk=p.risk, stop_mult=p.stop_mult
@@ -91,6 +101,8 @@ class IntradayPaper(Paper):
         trade_date = utc_date(hour)
         for coin in self.watchlist:
             inst = coin.swap
+            if inst not in quotes:
+                continue
             flatten = signals.get(coin.research) == "Flat" and inst in positions
             if not flatten and not rules.needs_trade(
                 targets[inst], currents[inst], units[inst], threshold=p.rebalance_threshold
@@ -123,7 +135,8 @@ class IntradayPaper(Paper):
             }
             snapshots.append((day_start, equity))
         self.ledger.commit(
-            positions=positions, cash=cash, fills=fills, snapshots=snapshots, meta=meta
+            positions=positions, cash=cash, fills=fills, snapshots=snapshots, meta=meta,
+            events=[(now_ms, "quote_unusable", text) for text in unusable],
         )
         return alerts
 

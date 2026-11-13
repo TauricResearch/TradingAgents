@@ -7,7 +7,19 @@ stop sits 2.5 * 400 = 1,000 from the fill.
 
 import pytest
 
-from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX, hold
+from tests.test_trader_paper import (
+    BAD_QUOTES,
+    BTC,
+    DAY0,
+    ETH,
+    T0,
+    FakeOKX,
+    hold,
+    hold_eth,
+    quoted,
+    unusable_events,
+)
+from trader import rules
 from trader.intraday.paper import HOUR_MS, IntradayPaper, utc_date
 from trader.intraday.settings import Params
 from trader.ledger import Ledger, Position
@@ -161,3 +173,72 @@ def test_the_validation_period_starts_once(ledger):
     paper.execute({BTC.research: "Long"}, T0 + DAY_MS)
     assert ledger.get("validation_start") == DAY0
     assert ledger.equity_series() == [(DAY0, 10_000.0)]
+
+
+# -- quotes that cannot be used (tests.test_trader_paper.BAD_QUOTES) --------------------
+
+THIS_HOUR = "，都要是大于 0 的有限数；这个币本小时不交易，止损也不按它调整"
+
+
+@pytest.mark.parametrize(("price", "atr", "shown"), BAD_QUOTES)
+def test_a_held_coin_without_a_usable_quote_sits_the_hour_out_beside_one_that_trades(
+    ledger, price, atr, shown,
+):
+    hold_eth(ledger)
+    alerts = IntradayPaper(ledger, quoted(price, atr), (BTC, ETH)).execute(
+        {BTC.research: "Long", ETH.research: "Flat"}, T0
+    )
+    unusable = f"报价不能用：ETH-USDT-SWAP {shown}{THIS_HOUR}"
+    assert alerts == [unusable] and unusable_events(ledger) == [unusable]
+    # Flat closes a position however small, but not on a quote that cannot be used. The
+    # equity marks ETH at its last mark, 10,500, on which a unit of BTC is
+    # 0.01 * 10,500 * 80,000 / 1,000 = 8,400 USDT: 0.105 BTC.
+    assert ledger.positions()[ETH.swap] == Position(1.0, 2_000.0, 1_800.0)
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.105)
+    assert [f.inst for f in ledger.fills()] == [BTC.swap]
+    assert ledger.get("cash") == pytest.approx(10_000 - 0.105 * 80_000 * 1.0005 * FEE)
+    assert ledger.get("marks") == {ETH.swap: 2_500.0}
+    assert ledger.equity_series() == [(DAY0, 10_500.0)]
+
+
+@pytest.mark.parametrize(("price", "atr", "shown"), BAD_QUOTES)
+def test_a_coin_without_a_usable_quote_is_not_opened(ledger, price, atr, shown):
+    alerts = IntradayPaper(ledger, quoted(price, atr), (BTC, ETH)).execute(
+        {BTC.research: "Long", ETH.research: "Short"}, T0
+    )
+    assert alerts == [f"报价不能用：ETH-USDT-SWAP {shown}{THIS_HOUR}"]
+    assert list(ledger.positions()) == [BTC.swap]
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.1)  # a full unit, as alone
+
+
+def test_a_held_coin_without_a_usable_quote_still_counts_toward_the_gross_cap(ledger, monkeypatch):
+    hold_eth(ledger, 3.0)  # 7,500 USDT at its last mark, 1,500 up
+    monkeypatch.setattr(rules, "MAX_GROSS_EXPOSURE", 1.0)
+    IntradayPaper(ledger, quoted(0.0, 100.0), (BTC, ETH)).execute(
+        {BTC.research: "Long", ETH.research: None}, T0
+    )
+    # A unit of BTC is 0.01 * 11,500 * 80,000 / 1,000 = 9,200 USDT, but beside ETH's 7,500
+    # the gross cap of 1 times the equity of 11,500 leaves 4,000: 0.05 BTC.
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.05)
+
+
+def test_the_equity_marks_a_position_at_its_quote_where_it_is_usable(ledger):
+    hold(ledger, 0.1, 80_000, 79_000)
+    ledger.set("marks", {BTC.swap: 81_000.0})
+    IntradayPaper(ledger, FakeOKX(last=90_000), (BTC,)).execute({BTC.research: None}, T0)
+    assert ledger.equity_series() == [(DAY0, pytest.approx(11_000.0))]  # not 10,100, at the mark
+
+
+def test_an_atr_below_zero_is_refused_too(ledger, monkeypatch):
+    hold_eth(ledger)
+    monkeypatch.setattr(rules, "atr", lambda *args, **kwargs: -100.0)  # every contract's
+    alerts = IntradayPaper(ledger, quoted(2_100.0, 100.0), (BTC, ETH)).execute(
+        {BTC.research: "Long", ETH.research: "Flat"}, T0
+    )
+    assert alerts == [
+        f"报价不能用：BTC-USDT-SWAP 现价 80,000.00，ATR -100.00{THIS_HOUR}",
+        f"报价不能用：ETH-USDT-SWAP 现价 2,100.00，ATR -100.00{THIS_HOUR}",
+    ]
+    assert unusable_events(ledger) == alerts
+    assert ledger.positions() == {ETH.swap: Position(1.0, 2_000.0, 1_800.0)}
+    assert ledger.fills() == [] and ledger.get("cash") == 10_000.0

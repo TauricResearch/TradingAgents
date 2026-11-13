@@ -41,7 +41,6 @@ An account whose profile is ``born_paused`` is paused until its ledger says othe
 from __future__ import annotations
 
 import logging
-import math
 import time
 from collections.abc import Callable
 from contextlib import suppress
@@ -85,7 +84,7 @@ from trader.okx_private import (
     OKXPrivateError,
     StopOrder,
 )
-from trader.paper import _midnights
+from trader.paper import _midnights, _unusable_alert
 from trader.settings import KILL_DRAWDOWN, MAX_COIN_EXPOSURE, WATCHLIST, Coin, Settings
 
 logger = logging.getLogger(__name__)
@@ -339,17 +338,14 @@ class DemoAccount:
         )
 
     def _usable(self, quotes: Quotes, now_ms: int, alerts: list[str]) -> Quotes:
-        """The quotes whose price and ATR are both positive finite numbers; every other
-        one is alerted."""
+        """The quotes ``rules.usable_quote`` passes; every other one is alerted."""
         out = {}
         for inst, (price, atr_value) in quotes.items():
-            if all(math.isfinite(x) and x > 0 for x in (price, atr_value)):
+            if rules.usable_quote(price, atr_value):
                 out[inst] = (price, atr_value)
             else:
-                self._alert(now_ms, "quote_unusable", alerts, (
-                    f"报价不能用：{inst} 现价 {price:,.2f}，ATR {atr_value:,.2f}，都要是大于 0 的有限数；"
-                    "这个币本小时不交易，止损也不按它调整"
-                ))
+                text = _unusable_alert(inst, price, atr_value, "本小时")
+                self._alert(now_ms, "quote_unusable", alerts, text)
         return out
 
     # -- reconciliation -------------------------------------------------------
