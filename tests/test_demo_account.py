@@ -16,7 +16,7 @@ from trader.demo import account as account_module
 from trader.demo.account import DemoAccount
 from trader.demo.settings import MISMATCH_GRACE_MS, ORDER_POLL_SECONDS, ORDER_POLLS
 from trader.intraday.paper import HOUR_MS
-from trader.ledger import Fill, Ledger
+from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS, FundingEvent
 from trader.okx_private import (
     FUNDING_BILL,
@@ -611,8 +611,28 @@ def test_a_stop_that_fired_on_the_exchange_is_booked_as_a_stop_with_the_exchange
     stop_fill = ledger.fills()[-1]
     assert (stop_fill.qty, stop_fill.price, stop_fill.reason) == (-0.1, 78_950.0, "stop")
     assert stop_fill.fee == pytest.approx(0.1 * 78_950 * FEE)
+    assert result.alerts == [
+        "止损成交：BTC-USDT-SWAP 卖出 10 张 @ 78,950.00，盈亏 -108.95 USDT（开仓均价 80,000.00，含手续费 3.95）"
+    ]
     # Cash is the wallet: 10,000 less both fees less the 105 lost.
     assert ledger.get("cash") == pytest.approx(10_000 - 4.0 - 0.1 * 78_950 * FEE - 105.0)
+
+
+def test_a_fired_stop_is_told_from_all_its_fills_and_from_the_entry_of_the_position_it_closed():
+    # A short's stop, filled in two pieces: 10 contracts at 81,300 on average, 1,300
+    # above the entry, lose 130 and 4 of fees.
+    legs = [
+        (4.0, Fill(T0, BTC.swap, 0.04, 81_000.0, 1.6, "stop")),
+        (6.0, Fill(T0 + 1, BTC.swap, 0.06, 81_500.0, 2.4, "stop")),
+    ]
+    head = "止损成交：BTC-USDT-SWAP 买入 10 张 @ 81,300.00，"
+    short = Position(-0.1, 80_000.0, 81_000.0)
+    assert account_module._fired_text(BTC.swap, legs, short) == (
+        head + "盈亏 -134.00 USDT（开仓均价 80,000.00，含手续费 4.00）"
+    )
+    # No position it could have closed, in the ledger: no entry to measure from.
+    for held in (None, Position(0.1, 80_000.0, 79_000.0)):
+        assert account_module._fired_text(BTC.swap, legs, held) == head + "账本里没有它平掉的仓位，算不出盈亏"
 
 
 def test_funding_is_booked_with_the_public_rate_and_not_twice(account, ledger, exchange):

@@ -9,7 +9,7 @@ from tests.test_demo_account import BTC, ETH, HOUR, T0, FakeExchange
 from tests.test_demo_job import RUN0, Clock, Env
 from tests.test_live_pause import LIVE_CAPITAL
 from trader.demo import job, report
-from trader.demo.account import DemoAccount
+from trader.demo.account import DEMO, DemoAccount
 from trader.demo.settings import KILL_SETTLE_SECONDS
 from trader.intraday.paper import HOUR_MS
 from trader.ledger import Ledger
@@ -57,7 +57,7 @@ def halt(env, now_ms=RUN0 + 20 * 60_000):
 
 def test_a_close_that_fails_leaves_the_others_closed_its_stop_standing_and_the_next_run_closing_it(env):
     # A failure was alerted a minute ago: the alert of a failed run is throttled, the kill's are not.
-    env.ledger.set("demo_alerted_at", RUN0 + HOUR_MS - 60_000)
+    env.ledger.set(DEMO.failures_key, {"OKXError": RUN0 + HOUR_MS - 60_000})
     fall(env)
     env.exchange.fail("close_position", UNAVAILABLE, inst=BTC.swap)
     clock = env.run(RUN0 + HOUR_MS)
@@ -97,7 +97,7 @@ def test_the_kill_is_recorded_before_anything_is_closed(env):
 
 
 def test_the_kill_alert_goes_out_though_the_run_then_fails_and_failure_alerts_are_throttled(env):
-    env.ledger.set("demo_alerted_at", RUN0 + HOUR_MS - 60_000)
+    env.ledger.set(DEMO.failures_key, {"OKXError": RUN0 + HOUR_MS - 60_000})
     fall(env)
 
     def down(hour, positions):

@@ -17,7 +17,10 @@ recording the orders it would have sent (``shadow_order``), or why there are non
 (``shadow_none``), and reporting no fills. So is the hour of an account a sync of the run
 pauses. An account whose profile is ``fingerprinted`` is paused when the code or the
 Signal its orders follow changes (``check_fingerprint``), looked at before anything is
-set up and again once the hour's signals are there. ``resume`` lifts a pause.
+set up and again once the hour's signals are there. ``resume`` lifts a pause. A run's
+messages go through the account's outbox (``outbox``): what an earlier run could not
+send goes out first, and what this one cannot waits for the next. A failure is alerted
+by its kind (``alert_failure``).
 """
 
 from __future__ import annotations
@@ -32,7 +35,7 @@ from pathlib import Path
 
 from trader import rules
 from trader.demo import report
-from trader.demo.account import DemoAccount, Planned, Quotes, Sync
+from trader.demo.account import DemoAccount, Planned, Profile, Quotes, Sync
 from trader.demo.settings import (
     ALERT_INTERVAL_MS,
     HALT_SYNCS,
@@ -43,7 +46,7 @@ from trader.demo.settings import (
 from trader.intraday.paper import HOUR_MS, utc_date
 from trader.jobs import code_digest, error_text
 from trader.ledger import Ledger, locked
-from trader.notify import Notifier, labeled
+from trader.notify import Notifier, Outbox, labeled
 from trader.okx import DAY_MS
 from trader.settings import KILL_DRAWDOWN, Settings
 
@@ -58,25 +61,66 @@ def run(
     now_fn: Callable[[], datetime] = lambda: datetime.now(UTC),
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
-    """One hourly run; a failure alerts at most every ALERT_INTERVAL_MS (meta
-    ``<name>_alerted_at``, ``Profile.alerted_key``) and is raised so the scheduler
-    records it."""
-    notifier = labeled(notifier, account.profile.name)
+    """One hourly run, its messages sent through the account's outbox (``outbox``); a
+    failure is alerted (``alert_failure``) and raised so the scheduler records it."""
+    box = outbox(notifier, account.ledger, account.profile, lambda: _ms(now_fn()))
     try:
-        _run(settings, account, notifier, intraday, now_fn, sleep)
+        _run(settings, account, box, intraday, now_fn, sleep)
     except Exception as exc:
-        now_ms = _ms(now_fn())
-        key = account.profile.alerted_key
-        if now_ms - account.ledger.get(key, 0) >= ALERT_INTERVAL_MS:
-            notifier.send(f"运行失败：{error_text(exc)}")
-            account.ledger.set(key, now_ms)
+        alert_failure(account.ledger, box, account.profile, exc, f"运行失败：{error_text(exc)}", _ms(now_fn()))
         raise
+
+
+def outbox(notifier: Notifier, ledger: Ledger, profile: Profile, now_ms: Callable[[], int]) -> Outbox:
+    """The outbox of the account's messages (meta ``Profile.unsent_key``), labeled with
+    its name, once it has sent what it kept: what an earlier run could not send goes out
+    ahead of this one's, and a failure's alert among it starts its kind's interval."""
+    box = Outbox(labeled(notifier, profile.name), ledger, profile.unsent_key, now_ms)
+    kinds = box.flush()
+    if kinds:
+        alerted = ledger.get(profile.failures_key) or {}
+        ledger.set(profile.failures_key, alerted | dict.fromkeys(kinds, now_ms()))
+    return box
+
+
+def alert_failure(
+    ledger: Ledger, box: Outbox, profile: Profile, exc: BaseException, text: str, now_ms: int
+) -> None:
+    """Alert the failure ``exc`` of the account's run with ``text``: each kind of error
+    (``failure_kind``) at most every ALERT_INTERVAL_MS (meta ``Profile.failures_key``,
+    kind -> when its alert went out), a new kind at once, and every failure, saying so,
+    while the account may hold a position (``_exposed``). An alert waiting in the outbox
+    holds back the next of its kind, whose interval starts when that one goes out."""
+    kind = failure_kind(exc)
+    alerted = ledger.get(profile.failures_key) or {}
+    due = now_ms - alerted.get(kind, 0) >= ALERT_INTERVAL_MS
+    if box.holds(kind) or not (due or _exposed(ledger)):
+        return
+    if not due:
+        text += "（账户可能有仓位：恢复之前每次失败都报）"
+    if box.send(text, kind=kind):
+        alerted[kind] = now_ms
+        ledger.set(profile.failures_key, {k: ts for k, ts in alerted.items() if now_ms - ts < ALERT_INTERVAL_MS})
+
+
+def failure_kind(exc: BaseException) -> str:
+    """The kind of error ``exc`` is, as its alerts are throttled: its type, with the code
+    the exchange or the HTTP response gave it."""
+    code = getattr(exc, "code", None) or getattr(getattr(exc, "response", None), "status_code", None)
+    return f"{type(exc).__name__} {code}" if code else type(exc).__name__
+
+
+def _exposed(ledger: Ledger) -> bool:
+    """Whether the account may hold a position: the ledger has one, or an order of the
+    hour of the last sync went unconfirmed (``order_pending``) and may have filled since."""
+    synced = ledger.get("synced_at") or 0
+    return bool(ledger.positions()) or bool(ledger.events(synced - synced % HOUR_MS, ("order_pending",)))
 
 
 def _run(
     settings: Settings,
     account: DemoAccount,
-    notifier: Notifier,
+    notifier: Outbox,
     intraday: Ledger,
     now_fn: Callable[[], datetime],
     sleep: Callable[[float], None],
@@ -348,7 +392,7 @@ def _settled(
 
 
 @contextmanager
-def _sending(notifier: Notifier, alerts: list[str]) -> Iterator[None]:
+def _sending(notifier: Outbox, alerts: list[str]) -> Iterator[None]:
     """Send ``alerts`` when the block ends, also when it raises: what a failed run has
     done to a position (closed it, left it without a stop) still reaches the chat."""
     try:

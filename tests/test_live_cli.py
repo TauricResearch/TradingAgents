@@ -4,12 +4,14 @@ report read, and resume, the unlock, is refused while the switch is closed and,
 once it is open, unless the key is established to trade and the account is not halted."""
 
 from dataclasses import replace
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
 
 from tests.test_demo_account import BTC, T0, FakeExchange
+from tests.test_demo_alerts import Down
 from tests.test_demo_job import RUN0, Clock
 from tests.test_live_pause import LIVE_CAPITAL
 from tests.test_trader_jobs import Inbox
@@ -174,6 +176,23 @@ def test_the_hourly_run_alerts_a_bad_key_file_once_per_interval_and_the_other_co
         result = invoke(command)
         assert result.exit_code == 1 and "live 的密钥文件有问题：密钥文件不存在" in result.output
     assert live.inbox.sent == [alert] * 3
+
+
+def test_a_bad_key_files_alert_telegram_did_not_take_goes_out_with_the_next_hourly_run(live, monkeypatch):
+    def bad_key_file(base_url=keys.BASE_URL):
+        raise keys.LiveKeyError("密钥文件不存在")
+
+    assert invoke("init").exit_code == 0
+    monkeypatch.setattr(keys, "client", bad_key_file)
+    chat = Down()
+    monkeypatch.setattr(cli, "Notifier", lambda settings: chat)
+    chat.down = True
+    assert invoke("run").exit_code == 1 and chat.sent == []
+    chat.down = False
+    live.now[0] = T0 + HOUR_MS
+    assert invoke("run").exit_code == 1  # resent, which starts the interval: no second alert
+    when = datetime.fromtimestamp(T0 / 1000, UTC).strftime("%m-%d %H:%M")
+    assert chat.sent == [f"【live】密钥文件有问题，这次没有运行：密钥文件不存在\n（补发：{when} UTC 没发出去）"]
 
 
 def test_sync_reads_the_account_into_the_ledger_and_changes_nothing(live):
