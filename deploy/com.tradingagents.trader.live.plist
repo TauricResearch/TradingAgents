@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent for the hourly job of the live account (ADR 0010) on a Mac: real money,
+  on OKX's production environment. @REPO_DIR@ and @HOME@ are filled in at install time,
+  as for the other agents (see docs/roadmap.md).
+
+  Before loading it: the live key file, never .env (deploy/trader.env.example), checked
+  with python -m trader live check; the account, made by python -m trader live init,
+  which opens it paused; and TRADER_LIVE_HEARTBEAT_URL in .env, the address of the
+  monitoring service that tells the user when two hours pass without a run.
+
+  Runs at :10 every hour, beside the demo's job and after the intraday job's :03, on
+  the demo's executor. While the account is paused, as it is from live init until the
+  unlock (python -m trader live resume, refused until #34 opens it), each run is a
+  shadow run: it reads the exchange back into the ledger and records the orders it
+  would have sent, and places none. Unlocked, it trades as the demo does. Each run that
+  returns beats the heartbeat.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tradingagents.trader.live</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@REPO_DIR@/.venv/bin/python</string>
+    <string>-m</string>
+    <string>trader</string>
+    <string>live</string>
+    <string>run</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@REPO_DIR@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key>
+    <string>UTC</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Minute</key>
+    <integer>10</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>@HOME@/Library/Logs/trader/live.log</string>
+  <key>StandardErrorPath</key>
+  <string>@HOME@/Library/Logs/trader/live.log</string>
+</dict>
+</plist>
