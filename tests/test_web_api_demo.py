@@ -2,6 +2,8 @@
 its last reconciliation with the exchange, and the comparison with the intraday
 account it follows."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 from tests.test_trader_paper import BTC, DAY0, T0
@@ -10,6 +12,7 @@ from trader.intraday.types import SignalResult
 from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS
 from trader.settings import Settings
+from web.api import data
 
 PROBLEM = "BTC-USDT-SWAP 在交易所是 cross 5×，不是设计的 cross 3×"
 
@@ -74,6 +77,75 @@ def test_demo_equity_is_the_exchanges_without_any_llm_netting(tmp_path):
     assert [d["llm_cost"] for d in daily["days"]] == [0.0, 0.0, 0.0]
     (fill,) = client.get("/api/accounts/demo/fills").json()
     assert (fill["coin"], fill["qty"], fill["fee"], fill["realized_net"]) == ("BTC-USD", 0.02, 0.78, -0.78)
+
+
+def test_transfers_are_neither_pnl_nor_return_on_the_dashboard(tmp_path, monkeypatch):
+    """build_demo() and two transfers as the sync books them (#40): 5,020 in at noon on
+    the 12th, when the equity was 10,040, then 3,018 out at 06:00 on the 13th, when it
+    was 15,090; each moved the units as it moved the equity. It is noon on the 13th."""
+    client = build_demo(tmp_path)
+    monkeypatch.setattr(data, "_now", lambda: datetime(2026, 1, 13, 12, 0, tzinfo=UTC))
+    settings = Settings(home=tmp_path)
+    ledger = Ledger(settings.demo_ledger_path)
+    cash = 9_999.2 + 5_020.0
+    ledger.commit(
+        positions=ledger.positions(), cash=cash, transfers=[("t1", DAY0 + 2 * DAY_MS + 12 * HOUR, 5_020.0)],
+        meta={"units": 15_000.0, "contributed": 15_020.0},
+    )
+    ledger.commit(positions=ledger.positions(), cash=cash, snapshots=[(DAY0 + 3 * DAY_MS, 15_090.0)])
+    ledger.commit(
+        positions=ledger.positions(), cash=cash - 3_018.0,
+        transfers=[("t2", DAY0 + 3 * DAY_MS + 6 * HOUR, -3_018.0)],
+        meta={"units": 12_000.0, "contributed": 12_002.0},
+    )
+    ledger.db.close()
+    intraday = Ledger(settings.intraday_ledger_path)
+    intraday.commit(positions={}, cash=10_000.0, snapshots=[(DAY0 + 3 * DAY_MS, 10_080.0)])
+    intraday.db.close()
+    equity = cash - 3_018.0 + 0.02 * (79_000.0 - 78_039.0)  # 12,020.42
+
+    body = client.get("/api/accounts/demo/overview").json()
+    assert (body["capital"], body["contributed"], body["equity"]) == (10_000.0, 12_002.0, pytest.approx(equity))
+    assert body["transfers"] == 2
+    assert body["totals"]["realized"] == pytest.approx(-0.8)  # what it was before either transfer
+    assert body["totals"]["pnl"] == pytest.approx(18.42)
+    assert body["totals"]["pnl_pct"] == pytest.approx(equity / 12_000.0 - 1)
+    assert body["today"] == {
+        "since": "2026-01-13T00:00:00Z", "pnl": pytest.approx(equity - 15_090.0 + 3_018.0),
+        "pct": pytest.approx(equity / 12_000.0 / (15_090.0 / 15_000.0) - 1),
+    }
+    assert body["performance"]["strategy"]["cumulative"] == pytest.approx(0.006)  # 10,060 a unit's worth
+    points = client.get("/api/accounts/demo/equity").json()["points"]
+    assert [(p["strategy"], p["strategy_net"]) for p in points] == [
+        (10_000.0, 10_000.0), (10_050.0, 10_050.0), (10_040.0, 10_040.0), (15_090.0, pytest.approx(10_060.0)),
+    ]
+    daily = client.get("/api/accounts/demo/daily").json()
+    assert [(d["date"], d["pnl"], d["pct"], d["transfers"]) for d in daily["days"]] == [
+        ("2026-01-13", pytest.approx(equity - 15_090.0 + 3_018.0), pytest.approx(body["today"]["pct"]), -3_018.0),
+        ("2026-01-12", pytest.approx(30.0), pytest.approx(10_060.0 / 10_040.0 - 1), 5_020.0),
+        ("2026-01-11", -10.0, -10.0 / 10_050.0, 0.0),
+        ("2026-01-10", 50.0, 0.005, 0.0),
+    ]
+    (month,) = daily["months"]
+    assert (month["open"], month["close"], month["transfers"], month["days"], month["partial"]) == (
+        10_000.0, pytest.approx(equity), 2_002.0, 4, True
+    )
+    assert (month["pnl"], month["pct"]) == (pytest.approx(18.42), pytest.approx(body["totals"]["pnl_pct"]))
+    assert client.get("/api/accounts/demo/transfers").json() == [
+        {"ts": "2026-01-13T06:00:00Z", "amount": -3_018.0}, {"ts": "2026-01-12T12:00:00Z", "amount": 5_020.0},
+    ]
+    assert client.get("/api/accounts/demo/transfers", params={"limit": 1}).json() == [
+        {"ts": "2026-01-13T06:00:00Z", "amount": -3_018.0},
+    ]
+    summary = client.get("/api/accounts/demo/mirror").json()["summary"]
+    assert (summary["own_return"], summary["other_return"]) == (pytest.approx(0.006), pytest.approx(0.008))
+
+
+def test_a_paper_account_has_no_transfers(tmp_path):
+    client = build_intraday(tmp_path)
+    assert client.get("/api/accounts/intraday/transfers").json() == []
+    body = client.get("/api/accounts/intraday/overview").json()
+    assert (body["transfers"], body["contributed"]) == (0, body["capital"])
 
 
 def test_execution_reads_the_last_reconciliation_as_the_job_left_it(tmp_path):

@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom'
 import { useAccount } from '../account'
-import type { Attempt, Daily, DailyRow, Fill, FillReason, Funding, LedgerEvent, Mirror } from '../api'
+import type { Attempt, Daily, DailyRow, Fill, FillReason, Funding, LedgerEvent, Mirror, Transfer } from '../api'
 import { accountPath } from '../api'
 import type { Column } from '../components/DataTable'
 import { MirrorView } from '../components/MirrorView'
@@ -15,7 +15,7 @@ import { daySpan } from '../daily'
 import { fmtDay, fmtInt, fmtPct, fmtQty, fmtSigned, fmtTimeFull, fmtUsd, fmtUsdt } from '../format'
 import { type FetchState, useFetch } from '../hooks'
 
-type TabKey = 'daily' | 'fills' | 'funding' | 'attempts' | 'events' | 'mirror' | 'mirror_demo'
+type TabKey = 'daily' | 'fills' | 'funding' | 'transfers' | 'attempts' | 'events' | 'mirror' | 'mirror_demo'
 
 const dailyColumns: Column<DailyRow>[] = [
   {
@@ -32,6 +32,13 @@ const dailyColumns: Column<DailyRow>[] = [
   { key: 'close', header: '期末', align: 'right', render: (d) => fmtUsdt(d.close) },
   { key: 'pnl', header: '盈亏', align: 'right', render: (d) => <Num value={d.pnl} fmt={fmtSigned} /> },
   { key: 'pct', header: '收益率', align: 'right', render: (d) => <Num value={d.pct} fmt={fmtPct} /> },
+  // Only on the accounts on the exchange (#40); not PnL, so not colored as PnL.
+  {
+    key: 'transfers',
+    header: '出入金',
+    align: 'right',
+    render: (d) => (d.transfers === 0 ? <span className="text-muted">—</span> : <span className="num">{fmtSigned(d.transfers)}</span>),
+  },
   { key: 'fills', header: '成交', align: 'right', render: (d) => fmtInt(d.fills) },
   { key: 'funding', header: '资金费', align: 'right', render: (d) => <Num value={d.funding} fmt={fmtSigned} /> },
   { key: 'llm_cost', header: 'AI 费用', align: 'right', render: (d) => fmtUsd(d.llm_cost) },
@@ -96,6 +103,12 @@ const fundingColumns: Column<Funding>[] = [
   { key: 'amount', header: '金额', align: 'right', render: (f) => <Num value={f.amount} fmt={fmtSigned} /> },
 ]
 
+const transferColumns: Column<Transfer>[] = [
+  { key: 'ts', header: '时间', render: (t) => <Time ts={t.ts} /> },
+  { key: 'side', header: '方向', render: (t) => (t.amount > 0 ? '转入' : '转出') },
+  { key: 'amount', header: '金额 USDT', align: 'right', render: (t) => <span className="num">{fmtSigned(t.amount)}</span> },
+]
+
 const attemptColumns: Column<Attempt>[] = [
   { key: 'trade_date', header: '研判日', render: (a) => <span className="num">{a.trade_date}</span> },
   { key: 'coin', header: '币', render: (a) => <span className="num font-medium">{a.coin}</span> },
@@ -142,6 +155,8 @@ export function History() {
   const daily = { ...dailyRaw, data: dailyRaw.data?.days ?? null }
   const fills = useFetch<Fill[]>(accountPath(account.id, 'fills?limit=500'))
   const funding = useFetch<Funding[]>(accountPath(account.id, 'funding?limit=500'))
+  // Only an account on the exchange has money moved in or out (#40).
+  const transfers = useFetch<Transfer[]>(account.exchange ? accountPath(account.id, 'transfers?limit=500') : null)
   // The intraday and exchange accounts have no daily research, so nothing to fetch for the attempts tab.
   const research = !account.intraday && !account.exchange
   const attempts = useFetch<Attempt[]>(research ? accountPath(account.id, 'attempts?limit=500') : null)
@@ -156,20 +171,28 @@ export function History() {
     { key: 'daily' as const, label: '每日收益', count: daily.data?.length },
     { key: 'fills' as const, label: '成交', count: fills.data?.length },
     { key: 'funding' as const, label: '资金费', count: funding.data?.length },
+    { key: 'transfers' as const, label: '出入金', count: transfers.data?.length },
     { key: 'attempts' as const, label: '研判记录', count: attempts.data?.length },
     { key: 'mirror' as const, label: '与日内对照', count: mirror.data?.trades.length },
     { key: 'mirror_demo' as const, label: '与 Demo 对照', count: demoMirror.data?.trades.length },
     { key: 'events' as const, label: '事件', count: events.data?.length },
   ].filter((t) =>
-    t.key === 'attempts' ? research : t.key === 'mirror' ? account.exchange : t.key === 'mirror_demo' ? besideDemo : true,
+    t.key === 'attempts'
+      ? research
+      : t.key === 'mirror' || t.key === 'transfers'
+        ? account.exchange
+        : t.key === 'mirror_demo'
+          ? besideDemo
+          : true,
   )
   // A tab in the URL that is not among this account's tabs falls back to the fills.
   const active: TabKey = tabs.find((t) => t.key === raw)?.key ?? 'fills'
-  const current = { daily, fills, funding, attempts, events, mirror, mirror_demo: demoMirror }[active]
+  const current = { daily, fills, funding, transfers, attempts, events, mirror, mirror_demo: demoMirror }[active]
   // An intraday or exchange account's fill is dated by the UTC day of its hour, not a research day.
   const fillCols = account.intraday || account.exchange
     ? fillColumns.map((c) => (c.key === 'trade_date' ? { ...c, header: 'UTC 日' } : c))
     : fillColumns
+  const dailyCols = account.exchange ? dailyColumns : dailyColumns.filter((c) => c.key !== 'transfers')
 
   return (
     <div className="flex flex-col gap-3">
@@ -180,7 +203,9 @@ export function History() {
         aside={
           <span className="num flex flex-wrap items-center gap-x-3">
             <StaleNote error={current.error} />
-            {active === 'daily' && <span>UTC 日 · 北京 08:00 起 · 盈亏不含 AI 费用</span>}
+            {active === 'daily' && (
+              <span>UTC 日 · 北京 08:00 起 · {account.exchange ? '盈亏不含出入金' : '盈亏不含 AI 费用'}</span>
+            )}
             {active === 'fills' && fills.data && fills.data.length > 0 && (
               <span>
                 所列 {fills.data.length} 笔已实现（扣费）合计{' '}
@@ -192,10 +217,13 @@ export function History() {
         title={tabs.find((t) => t.key === active)?.label}
         help={active}
       >
-        {active === 'daily' && <Table state={daily} columns={dailyColumns} rowKey={(d) => d.date} />}
+        {active === 'daily' && <Table state={daily} columns={dailyCols} rowKey={(d) => d.date} />}
         {active === 'fills' && <Table state={fills} columns={fillCols} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />}
         {active === 'funding' && (
           <Table state={funding} columns={fundingColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />
+        )}
+        {active === 'transfers' && (
+          <Table state={transfers} columns={transferColumns} rowKey={(t, i) => `${t.ts}-${i}`} />
         )}
         {active === 'attempts' && (
           <Table state={attempts} columns={attemptColumns} rowKey={(a, i) => `${a.trade_date}-${a.coin}-${a.ts}-${i}`} />

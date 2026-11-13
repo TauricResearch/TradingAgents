@@ -67,6 +67,7 @@ export type HelpKey =
   | 'fill_pnl'
   | 'position_after'
   | 'funding'
+  | 'transfers'
   | 'attempts'
   | 'events'
   // the accounts that execute on an exchange: demo (ADR 0008) and live (ADR 0010)
@@ -91,11 +92,11 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'daily-cycle',
   },
   equity: {
-    text: `账户总资产（净值，USDT）= 现金 + 所有仓位按现价标记的浮动盈亏；注释里的本金是开户时的初始资金。`,
+    text: `账户总资产（净值，USDT）= 现金 + 所有仓位按现价标记的浮动盈亏；注释里的本金是投入的本金：开户时的初始资金，加上之后转入、减去转出的（只有交易所账户有出入金）。`,
     section: 'overview-page',
   },
   today_pnl: {
-    text: `今天到现在赚了还是亏了：实时总资产减去今天 UTC 零点（北京时间 08:00）的净值快照，含成交、手续费和资金费，不含 AI 研判费用；零点快照由整点任务写入，还没写时以上一个快照为起点并注明。`,
+    text: `今天到现在赚了还是亏了：实时总资产减去今天 UTC 零点（北京时间 08:00）的净值快照，含成交、手续费和资金费，不含 AI 研判费用，也不含期间的转入转出；零点快照由整点任务写入，还没写时以上一个快照为起点并注明。`,
     section: 'overview-page',
   },
   unrealized_total: {
@@ -103,7 +104,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'overview-page',
   },
   realized: {
-    text: `已经落袋的盈亏 = 现金 − 本金：历史上每次平仓、减仓的盈亏，扣掉手续费，再加上收付的资金费。`,
+    text: `已经落袋的盈亏 = 现金 − 投入的本金（含出入金）：历史上每次平仓、减仓的盈亏，扣掉手续费，再加上收付的资金费。`,
     section: 'overview-page',
   },
   cash: {
@@ -115,7 +116,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'perps',
   },
   total_pnl: {
-    text: `开户以来的总盈亏 = 总资产 − 本金，即已实现 + 未实现；百分比按本金计。验证期的策略指标在净值曲线下方。`,
+    text: `开户以来的总盈亏 = 总资产 − 投入的本金（含出入金），即已实现 + 未实现；百分比按本金计，有过出入金时按时间加权：只看每份额净值的变化，转入转出不改变它。验证期的策略指标在净值曲线下方。`,
     section: 'overview-page',
   },
   exposure: {
@@ -275,7 +276,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'history-page',
   },
   daily: {
-    text: `验证期逐日收益，最新的一天在最上面。每一行是一个 UTC 日（北京 08:00 到次日 08:00）：期初/期末是零点快照的净值，盈亏和 % 是两者之差，另列当天成交笔数、资金费和 AI 研判费用（费用不计入盈亏）。“进行中”的一行是今天，期末取当前净值。`,
+    text: `验证期逐日收益，最新的一天在最上面。每一行是一个 UTC 日（北京 08:00 到次日 08:00）：期初/期末是零点快照的净值，盈亏和 % 是两者之差，另列当天成交笔数、资金费和 AI 研判费用（费用不计入盈亏）。交易所账户另列当天的出入金，盈亏里扣掉它，% 按时间加权。“进行中”的一行是今天，期末取当前净值。`,
     section: 'history-page',
   },
   fills: {
@@ -297,6 +298,10 @@ export const HELP: Record<HelpKey, HelpEntry> = {
   funding: {
     text: `永续合约资金费结算记录：每 8 小时一次，正值为收入（空头付给多头），负值为支出（多头付给空头）。`,
     section: 'perps',
+  },
+  transfers: {
+    text: `交易所账户的出入金记录：有人把 USDT 转入交易账户（正）或转出（负）。出入金不算盈亏：对账时按当时的每份额净值增减份额，峰值同比例调整，所以回撤、收益率和熔断只看交易本身。转账后账户变成零、或从零开始转入时仍会暂停。`,
+    section: 'demo',
   },
   attempts: {
     text: `每次研判尝试的记录：评级或错误原因、token 用量和费用；每个币每天最多尝试 {{max_attempts}} 次。`,

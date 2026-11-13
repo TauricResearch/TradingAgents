@@ -265,7 +265,7 @@ def resume(
             )
             raise Refused(
                 f"回撤 {drawdown:.1%} 已到熔断线 {KILL_DRAWDOWN:.0%}（净值 {result.equity:,.2f}，峰值 {peak:,.2f}）："
-                f"解除之后一有持仓就会熔断。回撤若来自转出的资金，出入金记账（#40）之前只能把钱转回；{way_out}。"
+                f"解除之后一有持仓就会熔断；{way_out}。"
             )
         reasons = account.pause_reasons
         texts = "；".join(r["text"] for r in reasons) or "没有记下原因"

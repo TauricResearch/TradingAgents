@@ -3,7 +3,8 @@ performance. The first two go out labeled with the account's name
 (``trader.notify.labeled``) and do not name it themselves.
 
 Equity is what the last sync read from the exchange (meta ``equity``); there is no
-LLM cost of its own, the signals are the intraday account's.
+LLM cost of its own, the signals are the intraday account's. Returns leave the transfers
+out: they are the change of the equity per unit (``trader.ledger.Snapshot``).
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from trader.demo.account import DemoAccount
 from trader.intraday.paper import HOUR_MS, utc_date
 from trader.ledger import Fill, Position
 from trader.okx import DAY_MS
-from trader.report import baselines, net_equity, performance_line
+from trader.report import baselines, performance_line
 from trader.settings import Coin
 
 
@@ -37,8 +38,9 @@ def hourly(account: DemoAccount, hour: int, signals: dict[str, str | None], fill
 
 def daily(account: DemoAccount, day: str, now_ms: int) -> str:
     """The summary of the UTC day ``day`` ("YYYY-MM-DD"), sent on the first run after it:
-    equity against the snapshot at the start of the day (the capital when there is
-    none yet), the day's fills by kind, its funding, and the standing problems; for a
+    the return since the snapshot at the start of the day (since the account opened
+    when there is none yet), the day's fills by kind, its funding, its transfers when
+    there were any, and the standing problems; for a
     paused account, that it is, how many orders the day's shadow run recorded, and why
     it is paused, since when, and what lifts it."""
     ledger = account.ledger
@@ -63,10 +65,12 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
         if not reasons:
             lines.append("  暂停原因：账本里没有记下")
         lines.append(f"  查明原因后运行 {account.profile.resume_command} 解除")
-    bases = [e for ts, e in ledger.equity_series() if ts <= day_start]
+    bases = [s for s in ledger.snapshots() if s.ts <= day_start]
+    # The equity in the units of the base: itself while no transfer came in between.
     change = (
-        f"较昨日零点 {equity / bases[-1] - 1:+.2%}" if bases and bases[-1]
-        else f"较本金 {equity / ledger.get('capital') - 1:+.2%}"
+        f"较昨日零点 {equity * (bases[-1].units / ledger.units()) / bases[-1].equity - 1:+.2%}"
+        if bases and bases[-1].equity
+        else f"较本金 {equity * (ledger.get('capital') / ledger.units()) / ledger.get('capital') - 1:+.2%}"
     )
     peak = ledger.get("peak")
     lines.append(
@@ -77,6 +81,9 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
         f"昨日成交 {len(fills)} 笔（{_kinds(fills)}），"
         f"手续费 {sum(f.fee for f in fills):,.2f}，资金费 {_funding(ledger, day_start, day_end):+,.2f}"
     )
+    moved = [amount for ts, amount in ledger.transfers(day_start) if ts < day_end]
+    if moved:
+        lines.append(f"昨日出入金 {_moved(moved)}，投入本金合计 {ledger.contributed():,.2f}，不算收益")
     problems = ledger.get("problems") or []
     if problems:
         lines.append(f"对账问题 {len(problems)} 项，最近一条：{problems[-1]}")
@@ -89,12 +96,14 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
 def full(account: DemoAccount) -> str:
     """Performance since the first execution, for ``python -m trader <name> report``."""
     ledger, name = account.ledger, account.profile.name
-    series = net_equity(ledger)
+    start = ledger.get("validation_start")
+    series = ledger.adjusted_series(start) if start is not None else []
     if not series:
         return f"{name} 账户还没开始：第一次执行之后才有绩效。"
     midnights, values = [t for t, _ in series], [v for _, v in series]
     equal, btc = baselines(account, midnights, values[0])
     fills = ledger.fills(midnights[0])
+    moved = [amount for _, amount in ledger.transfers(midnights[0])]
     return "\n".join([
         f"{name} 绩效：自 {utc_date(midnights[0])} 起，共 {len(values) - 1} 天",
         performance_line(f"{name}（交易所权益）", values),
@@ -102,6 +111,10 @@ def full(account: DemoAccount) -> str:
         performance_line("BTC 单持", btc),
         f"成交 {len(fills)} 笔（{_kinds(fills)}），"
         f"手续费 {sum(f.fee for f in fills):,.2f}，资金费 {ledger.funding_total(midnights[0]):+,.2f}",
+        *(
+            [f"出入金 {_moved(moved)}，投入本金合计 {ledger.contributed():,.2f}：收益按时间加权，不算出入金"]
+            if moved else []
+        ),
     ])
 
 
@@ -129,6 +142,16 @@ def _kinds(fills: list[Fill]) -> str:
     )
     adjusted = reasons.count("adjust")
     return text + (f"，调整 {adjusted}" if adjusted else "")
+
+
+def _moved(amounts: list[float]) -> str:
+    """Transfers by direction: what came in, what went out, each when there was any."""
+    parts = [
+        f"{label} {len(own)} 笔 {sum(own):+,.2f}"
+        for label, own in (("转入", [a for a in amounts if a > 0]), ("转出", [a for a in amounts if a < 0]))
+        if own
+    ]
+    return "，".join(parts) + " USDT"
 
 
 def _funding(ledger, start: int, end: int) -> float:

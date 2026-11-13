@@ -242,25 +242,26 @@ def test_daily_runs_midnight_to_midnight_and_the_last_day_to_the_live_equity(tmp
         {
             "date": "2026-01-12", "start_ts": "2026-01-12T00:00:00Z", "open": 10_050.0,
             "close": pytest.approx(10_020.0), "pnl": pytest.approx(-30.0),
-            "pct": pytest.approx(-30 / 10_050), "fills": 0, "funding": 0.0, "llm_cost": 0.0,
-            "partial": True,
+            "pct": pytest.approx(-30 / 10_050), "transfers": 0.0, "fills": 0, "funding": 0.0,
+            "llm_cost": 0.0, "partial": True,
         },
         {
             "date": "2026-01-11", "start_ts": "2026-01-11T00:00:00Z", "open": 10_100.0,
             "close": 10_050.0, "pnl": pytest.approx(-50.0), "pct": pytest.approx(-50 / 10_100),
-            "fills": 0, "funding": 0.0, "llm_cost": 0.0, "partial": False,
+            "transfers": 0.0, "fills": 0, "funding": 0.0, "llm_cost": 0.0, "partial": False,
         },
         {
             "date": "2026-01-10", "start_ts": "2026-01-10T00:00:00Z", "open": 10_000.0,
             "close": 10_100.0, "pnl": pytest.approx(100.0), "pct": pytest.approx(0.01),
-            "fills": 1, "funding": pytest.approx(0.16), "llm_cost": pytest.approx(1.5),
+            "transfers": 0.0, "fills": 1, "funding": pytest.approx(0.16), "llm_cost": pytest.approx(1.5),
             "partial": False,
         },
     ]
     # The month opens at its first midnight and closes where its last day does.
     assert body["months"] == [{
         "month": "2026-01", "open": 10_000.0, "close": pytest.approx(10_020.0),
-        "pnl": pytest.approx(20.0), "pct": pytest.approx(0.002), "days": 3, "partial": True,
+        "pnl": pytest.approx(20.0), "pct": pytest.approx(0.002), "transfers": 0.0, "days": 3,
+        "partial": True,
     }]
 
 
@@ -601,7 +602,7 @@ def test_a_market_failure_outside_the_degrading_routes_is_a_503(tmp_path, monkey
 def test_the_web_never_writes_the_ledger(tmp_path):
     client = build(tmp_path)
     before = (tmp_path / "ledger.sqlite").read_bytes()
-    for path in ("overview", "equity", "fills", "funding", "events", "attempts", "accuracy"):
+    for path in ("overview", "equity", "fills", "funding", "transfers", "events", "attempts", "accuracy"):
         assert client.get(f"/api/accounts/paper/{path}").status_code == 200
     assert client.get("/api/research").status_code == 200
     assert (tmp_path / "ledger.sqlite").read_bytes() == before

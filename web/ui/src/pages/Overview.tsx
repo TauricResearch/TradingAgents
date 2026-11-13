@@ -51,13 +51,20 @@ export function Overview() {
 
   const ov = overview.data
   const t = ov.totals
+  // Money moved in or out since the account opened (#40): the capital shown is what was put in.
+  const moved = ov.transfers > 0
 
   return (
     <div className="flex flex-col gap-3">
       <Welcome live={account.live} />
       <MarketNote market={ov.market} />
       <KpiStrip>
-        <Kpi label="总资产 USDT" value={fmtUsdt(ov.equity)} note={`本金 ${fmtUsdt(ov.capital)}`} help="equity" />
+        <Kpi
+          label="总资产 USDT"
+          value={fmtUsdt(ov.equity)}
+          note={moved ? `本金 ${fmtUsdt(ov.contributed)}（含 ${ov.transfers} 笔出入金）` : `本金 ${fmtUsdt(ov.capital)}`}
+          help="equity"
+        />
         <Kpi label="今日盈亏（北京 08:00 起）" value={fmtSigned(ov.today.pnl)} tone={tone(ov.today.pnl)} note={todayNote(ov.today)} help="today_pnl" />
         <Kpi
           label="未实现盈亏"
@@ -78,7 +85,7 @@ export function Overview() {
           label="累计盈亏"
           value={fmtSigned(t.pnl)}
           tone={tone(t.pnl)}
-          note={t.pnl_pct === null ? '无报价' : `${fmtPct(t.pnl_pct)} · 自开户`}
+          note={t.pnl_pct === null ? '无报价' : `${fmtPct(t.pnl_pct)} · 自开户${moved ? '，时间加权' : ''}`}
           help="total_pnl"
         />
       </KpiStrip>
