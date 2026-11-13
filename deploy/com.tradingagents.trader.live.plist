@@ -12,10 +12,11 @@
 
   Runs at :10 every hour, beside the demo's job and after the intraday job's :03, on
   the demo's executor. While the account is paused, as it is from live init until the
-  unlock (python -m trader live resume, refused until #34 opens it), each run is a
-  shadow run: it reads the exchange back into the ledger and records the orders it
-  would have sent, and places none. Unlocked, it trades as the demo does. Each run that
-  returns beats the heartbeat.
+  unlock (python -m trader live resume), each run is a shadow run: it reads the exchange
+  back into the ledger and records the orders it would have sent, and places none.
+  Unlocked, it trades as the demo does, until something pauses it again; a deploy that
+  changes trader/ does, once, until python -m trader live resume. Each run that returns
+  beats the heartbeat.
 -->
 <plist version="1.0">
 <dict>

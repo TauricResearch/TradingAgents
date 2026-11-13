@@ -23,6 +23,7 @@ LIVE = Profile(
     fingerprinted=True, max_equity=MAX_EQUITY, max_order=MAX_ORDER,
 )
 
-# Whether ``live resume`` may unpause the live account: off until #34 opens it, once the
-# unlock's conditions in ADR 0010 are met. The tests switch it on to test the command.
-UNLOCK_OPEN = False
+# Whether ``live resume`` may unpause the live account. Open since #34, the last of the code
+# the unlock waits for (ADR 0010); the user's conditions are a person's to check, but for the
+# dashboard's token, which ``live resume`` checks. False closes the unlock again.
+UNLOCK_OPEN = True

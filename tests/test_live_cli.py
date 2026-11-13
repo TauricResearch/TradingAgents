@@ -248,7 +248,6 @@ def test_live_init_refuses_a_sub_account_without_usdt(live):
 
 @pytest.fixture
 def unlocked(live, monkeypatch):
-    monkeypatch.setattr(live_account, "UNLOCK_OPEN", True)
     monkeypatch.setenv("TRADER_WEB_TOKEN", "web-token-of-the-tests")
     assert invoke("init").exit_code == 0
     live.exchange.permissions = "read_only,trade"
