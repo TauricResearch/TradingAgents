@@ -11,7 +11,7 @@ import { Time } from './Time'
 
 const REFRESH_MS = 60_000
 
-function Row({ signal, demo }: { signal: Signal; demo: boolean }) {
+function Row({ signal, follows }: { signal: Signal; follows: boolean }) {
   return (
     <li className="flex flex-col gap-1 border-b border-border/60 px-3 py-2 last:border-b-0">
       <div className="flex min-w-0 items-center gap-2">
@@ -22,7 +22,7 @@ function Row({ signal, demo }: { signal: Signal; demo: boolean }) {
         {signal.conviction !== null && (
           <span className="num shrink-0 text-[11px] text-muted">信心 {signal.conviction}/3</span>
         )}
-        {demo ? (
+        {follows ? (
           <span className="ml-auto shrink-0">
             <FollowedChip followed={signal.followed} />
           </span>
@@ -40,7 +40,7 @@ function Row({ signal, demo }: { signal: Signal; demo: boolean }) {
 }
 
 /** The newest signal per coin, in watchlist order: the intraday account's own, or the
- * ones the demo account follows with what it did about each. */
+ * ones an exchange account follows with what it did about each. */
 export function LatestSignals() {
   const { account } = useAccount()
   const signals = useFetch<Signal[]>(accountPath(account.id, 'signals?limit=60'), REFRESH_MS)
@@ -55,8 +55,8 @@ export function LatestSignals() {
 
   return (
     <Panel
-      title={account.demo ? '最近信号 · 来自日内账户' : '最近信号'}
-      help={account.demo ? 'followed' : undefined}
+      title={account.exchange ? '最近信号 · 来自日内账户' : '最近信号'}
+      help={account.exchange ? 'followed' : undefined}
       aside={<StaleNote error={signals.error} />}
       flush
     >
@@ -69,7 +69,7 @@ export function LatestSignals() {
       ) : (
         <ul className="flex flex-col">
           {latest.map((s) => (
-            <Row key={s.coin} signal={s} demo={account.demo} />
+            <Row key={s.coin} signal={s} follows={account.exchange} />
           ))}
         </ul>
       )}

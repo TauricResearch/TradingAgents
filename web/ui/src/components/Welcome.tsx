@@ -4,7 +4,7 @@ import { guideSeen, markGuideSeen } from '../guideSeen'
 import { MARK_CLASS } from './Help'
 
 /** First-visit banner on the overview; gone once the guide was opened or it was dismissed. */
-export function Welcome() {
+export function Welcome({ live }: { live: boolean }) {
   const [show, setShow] = useState(() => !guideSeen())
   if (!show) return null
 
@@ -22,7 +22,10 @@ export function Welcome() {
       <div className="min-w-0 flex-1 basis-[280px]">
         <div className="font-semibold">第一次来？</div>
         <p className="mt-0.5 text-muted">
-          这是一个由 AI 分析师团队每天研判、自动调仓的加密货币模拟盘。花两分钟读一下指南，知道每个数字在说什么。页面上的{' '}
+          {live
+            ? '这是一个由 AI 分析师团队研判、自动调仓的加密货币交易系统，你正在看的 live 账户用的是真钱。'
+            : '这是一个由 AI 分析师团队每天研判、自动调仓的加密货币模拟盘。'}
+          花两分钟读一下指南，知道每个数字在说什么。页面上的{' '}
           <span aria-hidden="true" className={`${MARK_CLASS} size-[14px] align-text-bottom text-[9px] text-muted`}>
             ?
           </span>{' '}

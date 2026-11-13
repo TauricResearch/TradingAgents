@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAccount } from '../account'
-import type { Accuracy, Daily, Equity, Execution, Today } from '../api'
+import type { Accuracy, Daily, Equity, Today } from '../api'
 import { accountPath } from '../api'
 import { AccuracyCard } from '../components/AccuracyCard'
 import { DailyPnlChart } from '../components/DailyPnlChart'
@@ -37,16 +37,14 @@ function todayNote(today: Today) {
 }
 
 export function Overview() {
-  const { account, overview } = useAccount()
+  const { account, overview, execution } = useAccount()
   const equity = useFetch<Equity>(accountPath(account.id, 'equity'), REFRESH_MS)
   const daily = useFetch<Daily>(accountPath(account.id, `daily?limit=${CHART_DAYS}`), REFRESH_MS)
-  // The intraday and demo accounts settle no ratings, so there is no accuracy to fetch.
+  // The intraday and exchange accounts settle no ratings, so there is no accuracy to fetch.
   const accuracy = useFetch<Accuracy>(
-    account.intraday || account.demo ? null : accountPath(account.id, 'accuracy'),
+    account.intraday || account.exchange ? null : accountPath(account.id, 'accuracy'),
     REFRESH_MS * 5,
   )
-  // The demo account's last reconciliation with the exchange (ADR 0008).
-  const execution = useFetch<Execution>(account.demo ? accountPath(account.id, 'execution') : null, REFRESH_MS)
 
   if (overview.error && !overview.data) return <ErrorBox error={overview.error} onRetry={overview.refresh} />
   if (!overview.data) return <Loading />
@@ -56,7 +54,7 @@ export function Overview() {
 
   return (
     <div className="flex flex-col gap-3">
-      <Welcome />
+      <Welcome live={account.live} />
       <MarketNote market={ov.market} />
       <KpiStrip>
         <Kpi label="总资产 USDT" value={fmtUsdt(ov.equity)} note={`本金 ${fmtUsdt(ov.capital)}`} help="equity" />
@@ -169,15 +167,15 @@ export function Overview() {
           ) : !equity.data ? (
             <Loading />
           ) : (
-            <EquityChart points={equity.data.points} strategyName={account.demo ? '策略（交易所权益）' : undefined} />
+            <EquityChart points={equity.data.points} strategyName={account.exchange ? '策略（交易所权益）' : undefined} />
           )}
           <div className="mt-2 border-t border-border pt-1">
-            <PerfTable performance={ov.performance} strategyLabel={account.demo ? '策略（交易所权益）' : undefined} />
+            <PerfTable performance={ov.performance} strategyLabel={account.exchange ? '策略（交易所权益）' : undefined} />
           </div>
         </Panel>
 
         <div className="flex flex-col gap-3">
-          {account.intraday || account.demo ? (
+          {account.intraday || account.exchange ? (
             <LatestSignals />
           ) : (
             ov.latest && (
@@ -191,14 +189,14 @@ export function Overview() {
               </Panel>
             )
           )}
-          {account.demo && (
+          {account.exchange && (
             <Panel title="执行对账" help="execution" className="flex-1" aside={<StaleNote error={execution.error} />}>
               {execution.error && !execution.data ? (
                 <ErrorBox error={execution.error} onRetry={execution.refresh} />
               ) : !execution.data ? (
                 <Loading />
               ) : (
-                <ExecutionCard execution={execution.data} />
+                <ExecutionCard execution={execution.data} account={account} />
               )}
             </Panel>
           )}
@@ -208,7 +206,7 @@ export function Overview() {
               <LlmCard llm={ov.llm} intraday={account.intraday} />
             </Panel>
           )}
-          {!account.intraday && !account.demo && (
+          {!account.intraday && !account.exchange && (
             <Panel title="评级准确度" help="accuracy" className="flex-1" aside={<StaleNote error={accuracy.error} />}>
               {accuracy.error && !accuracy.data ? (
                 <ErrorBox error={accuracy.error} onRetry={accuracy.refresh} />

@@ -69,10 +69,12 @@ export type HelpKey =
   | 'funding'
   | 'attempts'
   | 'events'
-  // the demo account (ADR 0008)
+  // the accounts that execute on an exchange: demo (ADR 0008) and live (ADR 0010)
   | 'execution'
   | 'mirror'
+  | 'mirror_demo'
   | 'followed'
+  | 'live'
 
 export interface HelpEntry {
   text: string
@@ -305,15 +307,23 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'history-page',
   },
   execution: {
-    text: `Demo 账户上一次与 OKX 模拟盘对账的结果：交易所里的权益、持仓、挂着的止损单，以及对不上的地方；账户暂停时列出暂停的原因和开始时间。不是实时的，每小时作业跑完更新一次。`,
+    text: `这个账户上一次与交易所对账的结果（Demo 在 OKX 模拟交易环境，live 在正式环境）：交易所里的权益、持仓、挂着的止损单，以及对不上的地方；账户暂停时列出暂停的原因和开始时间，live 解锁前标为影子运行。不是实时的，每小时作业跑完更新一次。`,
     section: 'demo',
   },
   mirror: {
-    text: `Demo 账户与它跟随的日内模拟账户并排：持仓方向是否一致、同一小时两边成交价的差（滑点，万分之一）、两条累计收益。`,
+    text: `这个账户与它跟随的日内模拟账户并排：持仓方向是否一致、同一小时两边成交价的差（滑点，万分之一）、两条累计收益。`,
     section: 'demo',
   },
+  mirror_demo: {
+    text: `live 与 Demo 并排：两边跟同一份日内信号、用同一套下单程序，差别来自正式环境和模拟环境的成交、资金量和下单时刻。滑点为正表示 live 比 Demo 的成交价吃亏。`,
+    section: 'live',
+  },
   followed: {
-    text: `Demo 账户自己不做研判，这里是它跟随的日内账户的信号（同一张表），“Demo 执行”是它在那个小时做了什么：已执行（有成交）、无需调仓、未赶上（等不到决定）、对账阻塞、暂停中（只记下本该下的单）、下单失败（被拒、没成交，或这个币的报价不能用）、待处理。每小时第 10 分运行后更新。`,
+    text: `Demo 和 live 账户自己不做研判，这里是它们跟随的日内账户的信号（同一张表），“执行”是这个账户在那个小时做了什么：已执行（有成交）、无需调仓、未赶上（等不到决定）、对账阻塞、暂停中（只记下本该下的单）、下单失败（被拒、没成交，或这个币的报价不能用）、待处理。每小时第 10 分运行后更新。`,
     section: 'demo',
+  },
+  live: {
+    text: `live 账户用真钱：OKX 正式环境里一个只给这套系统用的子账户。建好后先影子运行（暂停着，只对账、记下本该下的单），第一次解除暂停叫解锁，之后才真的下单；遇到解释不了的变化、代码或信号模型变了、净值超过上限时暂停；熔断一次实验就结束。看板只读，所有操作都在终端用命令做。`,
+    section: 'live',
   },
 }

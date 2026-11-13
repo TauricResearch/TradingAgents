@@ -9,7 +9,7 @@ export const TIERS: { key: Tier; label: string }[] = [
 ]
 
 /** Account ids as the settings page names them; an unknown id shows as is. */
-export const ACCOUNT_LABEL: Record<string, string> = { paper: '日频', intraday: '日内', demo: 'Demo' }
+export const ACCOUNT_LABEL: Record<string, string> = { paper: '日频', intraday: '日内', demo: 'Demo', live: 'Live' }
 
 /** Model select value of the free-text model ID; no provider's model ID has parentheses. */
 export const CUSTOM = '(custom)'

@@ -103,7 +103,7 @@ def build(tmp_path, okx=None, validated=True):
 
 def test_accounts_lists_the_paper_account_first(tmp_path):
     accounts = build(tmp_path).get("/api/accounts").json()
-    assert [a["id"] for a in accounts] == ["paper", "intraday", "demo"]
+    assert [a["id"] for a in accounts] == ["paper", "intraday", "demo", "live"]
     account = accounts[0]
     assert account["id"] == "paper" and account["kind"] == "paper"
     assert account["capital"] == 10_000.0
@@ -482,8 +482,8 @@ def test_research_record_path_cannot_leave_the_results_dir(tmp_path):
 
 def test_unknown_account_and_missing_ledger_are_404(tmp_path):
     client = build(tmp_path)
-    response = client.get("/api/accounts/live/overview")
-    assert response.status_code == 404 and "live" in response.json()["detail"]
+    response = client.get("/api/accounts/nope/overview")
+    assert response.status_code == 404 and "nope" in response.json()["detail"]
     empty = TestClient(create_app(Settings(home=tmp_path / "empty"), CountingOKX()))
     [account] = [a for a in empty.get("/api/accounts").json() if a["id"] == "paper"]
     assert account["capital"] is None and account["validation_start"] is None
@@ -730,6 +730,15 @@ def test_models_tells_per_account_whether_its_fingerprint_names_the_current_mode
     assert client.get("/api/models").json()["current"]["applied"] == {
         "paper": False, "intraday": True,
     }
+    # The live account's fingerprint is of the code and the signals it trades on (ADR
+    # 0010): it names no model, so the live account is not among those that apply one.
+    live = Ledger(Settings(home=tmp_path).live_ledger_path)
+    live.initialize(1_000.0, T0)
+    live.set("fingerprint", {"code": "abc", "signal": {"model": ENV_DEEP, "prompt": "v1"}})
+    live.db.close()
+    assert client.get("/api/models").json()["current"]["applied"] == {
+        "paper": False, "intraday": True,
+    }
 
 
 def test_switching_the_models_writes_settings_json_and_nothing_else(tmp_path, llm_env):
@@ -897,11 +906,11 @@ def build_intraday(tmp_path, okx=None, validated=True, signals=SIGNALS):
     return client
 
 
-def test_accounts_flags_the_intraday_account(tmp_path):
+def test_accounts_flag_the_intraday_the_exchange_and_the_real_money_accounts(tmp_path):
     accounts = build(tmp_path).get("/api/accounts").json()
-    assert [(a["id"], a["kind"], a["intraday"], a["demo"]) for a in accounts] == [
-        ("paper", "paper", False, False), ("intraday", "paper", True, False),
-        ("demo", "demo", False, True),
+    assert [(a["id"], a["kind"], a["intraday"], a["exchange"], a["live"]) for a in accounts] == [
+        ("paper", "paper", False, False, False), ("intraday", "paper", True, False, False),
+        ("demo", "demo", False, True, False), ("live", "live", False, True, True),
     ]
 
 
@@ -971,10 +980,9 @@ def test_signals_without_a_ledger_is_404(tmp_path):
     response = build(tmp_path).get("/api/accounts/intraday/signals")  # only the paper ledger exists
     assert response.status_code == 404 and "ledger" in response.json()["detail"]
     empty = TestClient(create_app(Settings(home=tmp_path / "empty"), CountingOKX()))
-    for account in ("paper", "intraday", "demo"):
+    for account in ("paper", "intraday", "demo", "live"):
         response = empty.get(f"/api/accounts/{account}/signals")
         assert response.status_code == 404 and "ledger" in response.json()["detail"]
-    assert empty.get("/api/accounts/live/signals").status_code == 404
 
 
 def test_intraday_overview_takes_the_llm_spend_from_the_signals(tmp_path):
