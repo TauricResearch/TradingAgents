@@ -87,27 +87,30 @@
 - 账户建立时处于暂停，这个阶段叫影子运行：照常对账、记录本该下的单、不下单。第一次解除暂停即解锁。
 - 解锁的条件：第 1、2 档的票合入，mini 关闭睡眠（#3），mini 上设 `TRADER_WEB_TOKEN`。演练（#42）要做，但不卡解锁。
 - 密钥和核对（#30）：live 的密钥放在 mini 的 `~/.config/tradingagents/okx-live.env`（权限 600，三行，格式见 `deploy/trader.env.example`；路径可用 `TRADER_OKX_LIVE_KEY_FILE` 改），不进 `.env`。`python -m trader live check` 只读核对账户模式、key 的权限、是不是子账户、有没有绑定 IP、余额、持仓和实际费率；加 `--base-url https://www.okx.com` 可以对比另一个域名。
+- live 账户（#31）：`python -m trader live init` 只读建账，要求子账户空仓、没有条件单、有 USDT，确认是主账户的 key 就拒绝；建好即暂停，不改交易所的设置。装 launchd 代理方式同前（`for job in live`）：每小时 :10 运行 `python -m trader live run`，和 demo 用同一个执行器，暂停期间是影子运行。装之前要有密钥文件、`live init` 建好的账户，和 `.env` 里的 `TRADER_LIVE_HEARTBEAT_URL`（外部监控服务给的地址，每次运行正常结束后请求一次，2 小时收不到由那边通知；没设就不发）。日常：`live sync` 只读对账，`live report` 看绩效和影子运行按小时记下的单；`live resume` 就是解锁，在 #34 打开 `trader/live/account.py` 的 `UNLOCK_OPEN` 之前一律拒绝。各账户的 Telegram 消息前面带账户名（【demo】、【live】）。
 
 | 档 | 票 | 内容 | 状态 |
 |---|---|---|---|
 | 1 影子运行之前 | #30 | 私有接口客户端的正式环境开关、单独的密钥文件、`live check` | 已合 `ad6e8c4`，Python 3.14 上的修复 `03f9bb6`；在 mini 上跑 `live check` 等 #35 的 key |
-| 1 | #31 | live 账户、生来暂停的影子运行、带账户名的告警、外部心跳 | ready（#30 已合） |
+| 1 | #31 | live 账户、生来暂停的影子运行、带账户名的告警、外部心跳 | 已合 `9c0ba2c`；在 mini 上部署、跑满 24 小时影子运行要用户授权和 #35 的只读 key |
 | 2 解锁之前 | #32 | 止损单更新期间不留空窗，成交后挂不上止损就平仓 | 已合 `68d68f2`；在演示环境上实测归 #42 |
 | 2 | #33 | 熔断做扎实、`halt`（停止并平仓）、余额读不到按出错处理 | ready |
-| 2 | #34 | 暂停状态和触发条件（demo 同样生效）、live 的指纹暂停和两个绝对上限；最后合入，打开解锁 | 等 #31、#33 |
+| 2 | #34 | 暂停状态和触发条件（demo 同样生效）、live 的指纹暂停和两个绝对上限；最后合入，打开解锁 | 等 #33（#31 已合） |
 | 用户 | #35 | 子账户、密钥、入金、mini 设置、心跳服务 | 等用户 |
 | 3 解锁之后 | #36 | 止损成交即时通知、失败告警按类型限频、发送失败后补发 | ready |
 | 3 | #37 | 对不上账的修复命令 | 等 #34 |
 | 3 | #38 | `trader backup` 包含 demo 和 live 的账本 | 已合 `4cf5e54` |
 | 3 | #39 | 下单前的输入检查、顶格仓位的正常反手不再被拒 | ready |
 | 3 | #40 | 出入金记账（第二次入金之前必须完成） | 等 #34 |
-| 3 | #41 | 看板显示 live 账户 | 等 #31 |
+| 3 | #41 | 看板显示 live 账户 | ready（#31 已合） |
 | — | #42 | 在演示环境上演练执行器（不卡解锁，避开 #22 的观察期） | 等第 1、2 档 |
 | — | #43 | 到期报告和去留决定 | 2026-12-05 |
 
 顺序：#30 和 #32 可以同时开工：两张都会动 `trader/okx_private.py`，但在不同的小节，提示词里划了界。#31、#32、#33、#34 都改 `trader/demo/account.py` 和 `trader/demo/job.py`，这四张依次做，#34 最后。影子运行在 #31 部署后就能开始，用只读密钥提前暴露正式环境和演示环境的差别。
 
 第 1 轮（2026-11-12 UTC，起点 `034961d`）：#30 → 分支 `cursor/issue-30-live-client-6e50`，worktree `../TradingAgents.worktrees/issue-30-live-client`；#32 → 分支 `cursor/issue-32-stop-no-gap-6e50`，worktree `../TradingAgents.worktrees/issue-32-stop-no-gap`；#38 → 分支 `cursor/issue-38-backup-ledgers-6e50`，worktree `../TradingAgents.worktrees/issue-38-backup-ledgers`。执行会话是 Cursor 里的 Task 子代理，worktree 由指挥会话手工建。报告目录 `~/.commander/TradingAgents/`，会话 id 和交接事项记在那里的 `live-rounds.md`。第 1 轮三张都已合入：#38 `4cf5e54`，#30 `ad6e8c4`（Python 3.14 上的修复 `03f9bb6`），#32 `68d68f2`。
+
+#31：分支 `cursor/issue-31-live-account-6e50`，worktree `../TradingAgents.worktrees/issue-31-live-account`，合并 `9c0ba2c`。
 
 ## 离线评估（验证期内并行，ADR 0009）
 
