@@ -32,7 +32,7 @@
 - `.env` 单独用 scp 同步，不进 git。
 - 备份：在仓库目录 `.venv/bin/python -m trader backup <目录>`，在 `<目录>/<UTC 时间>/` 下放各账本的一致快照（日频、日内、demo、live，有哪个备份哪个；SQLite 备份 API，不阻塞正在跑的作业）和 `settings.json`、`memory/`；`--with-logs` 连研究记录一起。账本是 WAL 模式（Issue #12），最近的提交在 `ledger.sqlite-wal` 里，只 `cp ledger.sqlite` 会丢数据。定时和异地存放自定；恢复时先停所有会写账本的 launchd 代理（daily、mark、intraday、demo，以后还有 live），再把快照目录的内容拷回 `~/.tradingagents/trader/`（Issue #15、#38）。备份只拷清单里的东西，live 的密钥文件不在里面，换机器或恢复后要单独放回去（ADR 0010）。
 - 日志在 mini 的 `~/Library/Logs/trader/`。看板只绑 mini 本机回环，tailnet 里的设备够不到 8000 端口。手机和其他设备走 `tailscale serve`：已在 mini 上执行 `/Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 8000`（配置由 Tailscale 保存，只对 tailnet 可见，不是 funnel），访问 `https://kissmanmac-mini.tailffe2e0.ts.net`，不带端口；关掉用 `tailscale serve --https=443 off`。也可以 `ssh -L 8000:127.0.0.1:8000 macmini` 转发。看板没有登录；在 mini 的 `.env` 里设 `TRADER_WEB_TOKEN`（任意长随机串）并 kickstart web 后，`POST /api/settings/llm` 必须带 `Authorization: Bearer <令牌>`，设置页会要令牌（只存在浏览器标签页里）；不设则 tailnet 里 ACL 放行的设备都能调它（ADR 0007，Issue #14）。
-- 待做：mini 上 `sudo pmset -a sleep 0`（当前靠其他进程阻止睡眠）。
+- mini 已关闭睡眠：`pmset -g` 和 `pmset -g custom` 都是 `sleep 0`（Issue #3，2026-11-13 核对）。
 
 ## 阶段 1：验证期，4 到 8 周
 
