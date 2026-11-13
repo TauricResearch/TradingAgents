@@ -100,16 +100,18 @@ def _model_price(
 @dataclass(frozen=True)
 class Settings:
     """Settings that differ per machine, read from the environment (.env) and from
-    the dashboard's settings.json (ADR 0007)."""
+    the dashboard's settings.json (ADR 0007). The secrets stay out of the repr, which a
+    log line, an exception or a failing assertion may print."""
 
     home: Path
     capital: float | None = None
     price_deep: tuple[float, float] | None = None
     price_quick: tuple[float, float] | None = None
-    telegram_token: str | None = None
+    telegram_token: str | None = field(default=None, repr=False)  # secret
     telegram_chat_id: str | None = None
     llm: dict | None = None  # the "llm" object of settings.json; None without the file
-    web_token: str | None = None  # the dashboard's write endpoint wants it as a Bearer token
+    # Secret: the dashboard's write endpoint wants it as a Bearer token.
+    web_token: str | None = field(default=None, repr=False)
     okx_demo: OKXCredentials | None = None  # the demo account's API key (ADR 0008); masked repr
     # The live account's heartbeat address (ADR 0010). Whoever has it can beat in the
     # live run's place, so repr leaves it out.
