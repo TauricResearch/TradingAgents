@@ -13,7 +13,15 @@ INTRADAY_POLL_SECONDS = 60
 
 ORDER_POLLS = 10         # how many times a placed market order is looked up before giving up
 ORDER_POLL_SECONDS = 1.0
-KILL_SETTLE_SECONDS = 3.0  # pause between a kill's close orders and the sync that books them
+# Pause between close orders (a kill's, or a position closed for want of a stop) and
+# the sync that books them.
+KILL_SETTLE_SECONDS = 3.0
+
+# A position left without a stop for its whole size: how many times the stop is placed
+# before the position is closed at market instead, and the pause between the tries. The
+# close itself is tried as often.
+STOP_TRIES = 3
+STOP_RETRY_SECONDS = 2.0
 
 SYNC_OVERLAP_MS = 10 * 60_000  # each sync re-reads this far before the last one, deduplicating by bill id
 # The exchange stamps fills and bills with its own clock, which can run seconds ahead of

@@ -3,20 +3,24 @@
 Every run: set the exchange up once, sync, keep the stops, send what that raised.
 Then, unless halted, already decided this hour, or stopped by a problem the sync
 found, wait for the intraday account to decide the hour, size its signals and
-trade, sync again, re-hang the stops, and report the hour's fills. The daily
-summary goes out on the first run of each UTC day. The intraday ledger is opened
-read-only; this job never writes it.
+trade, sync again, hang the stops of what was traded, and report the hour's fills.
+A position closed at market for want of a stop is booked by one more sync. When a
+step after the orders raises, the positions they left still get their stops (or are
+closed) before the run fails, and the alerts gathered so far go out either way. The
+daily summary goes out on the first run of each UTC day. The intraday ledger is
+opened read-only; this job never writes it.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from trader.demo import report
-from trader.demo.account import DemoAccount
+from trader.demo.account import DemoAccount, Quotes, Sync
 from trader.demo.settings import (
     ALERT_INTERVAL_MS,
     INTRADAY_POLL_SECONDS,
@@ -64,22 +68,23 @@ def _run(
     ledger = account.ledger
     now_ms = _ms(now_fn())
     hour = now_ms - now_ms % HOUR_MS
-    with locked(settings.demo_lock_path):
+    alerts: list[str] = []
+    with _sending(notifier, alerts), locked(settings.demo_lock_path):
         if not ledger.get("setup_done"):
             for note in account.setup():
                 ledger.add_event(now_ms, "setup", note)
             ledger.set("setup_done", True)
         result = account.sync(now_ms)
-        alerts = list(result.alerts)
+        alerts += result.alerts
         if result.killed:
             # The close orders fill in a moment; book them before anything else.
             sleep(KILL_SETTLE_SECONDS)
             result = account.sync(_ms(now_fn()))
             alerts += result.alerts
         quotes = account.quotes(hour, result.positions)
-        alerts += account.manage_stops(now_ms, quotes, result.stops)
-    for text in alerts:
-        notifier.send(text)
+        _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
+        if closed:
+            result = _settled(account, alerts, now_fn, sleep)
     for text in _standing(ledger, result.problems, now_ms):
         notifier.send(text)
 
@@ -91,18 +96,14 @@ def _run(
                 f"日内账户到 {_clock(_ms(now_fn()))} 还没决定 {_clock(hour)} 这个小时，demo 本小时不交易",
             )
         else:
-            with locked(settings.demo_lock_path):
+            alerts = []
+            with _sending(notifier, alerts), locked(settings.demo_lock_path):
                 now_ms = _ms(now_fn())
                 result = account.sync(now_ms)  # the equity and positions the orders size against
-                if result.problems:
-                    trade_alerts = []
-                else:
-                    trade_alerts, desired = account.execute(hour, signals, now_ms, result.equity, quotes)
-                    result = account.sync(_ms(now_fn()), desired_stops=desired)
-                    trade_alerts += account.manage_stops(_ms(now_fn()), quotes, result.stops)
+                alerts += result.alerts
+                if not result.problems:
+                    result = _trade(account, hour, signals, now_ms, result.equity, quotes, alerts, now_fn, sleep)
                     ledger.set("decided_hour", hour)
-            for text in trade_alerts + result.alerts:
-                notifier.send(text)
             for text in _standing(ledger, result.problems, now_ms):
                 notifier.send(text)
             fills = [f for f in ledger.fills(hour) if f.reason == "trade"]
@@ -113,6 +114,48 @@ def _run(
     if ledger.get("summarized_day") != today:
         notifier.send(report.daily(account, utc_date(now_ms - DAY_MS), now_ms))
         ledger.set("summarized_day", today)
+
+
+def _trade(
+    account: DemoAccount, hour: int, signals: dict[str, str | None], now_ms: int, equity: float,
+    quotes: Quotes, alerts: list[str], now_fn: Callable[[], datetime], sleep: Callable[[float], None],
+) -> Sync:
+    """Send the hour's orders, book them and hang their stops; the last sync's result.
+    When a step raises, the positions the orders have left still get their stops or
+    are closed (``DemoAccount.protect``) before the exception goes on. ``alerts``
+    gathers what every step raised, whether or not the next one fails."""
+    desired: dict[str, float | None] = {}
+    try:
+        account.execute(hour, signals, now_ms, equity, quotes, alerts=alerts, desired=desired)
+        result = account.sync(_ms(now_fn()), desired_stops=desired)
+        alerts += result.alerts
+        _, closed = account.manage_stops(_ms(now_fn()), quotes, result.stops, alerts=alerts)
+    except Exception:
+        account.protect(_ms(now_fn()), quotes, desired, alerts)
+        raise
+    return _settled(account, alerts, now_fn, sleep) if closed else result
+
+
+def _settled(
+    account: DemoAccount, alerts: list[str], now_fn: Callable[[], datetime], sleep: Callable[[float], None],
+) -> Sync:
+    """The sync after positions were closed at market for want of a stop: as after a
+    kill, the close orders fill in a moment, and this books them."""
+    sleep(KILL_SETTLE_SECONDS)
+    result = account.sync(_ms(now_fn()))
+    alerts += result.alerts
+    return result
+
+
+@contextmanager
+def _sending(notifier: Notifier, alerts: list[str]) -> Iterator[None]:
+    """Send ``alerts`` when the block ends, also when it raises: what a failed run has
+    done to a position (closed it, left it without a stop) still reaches the chat."""
+    try:
+        yield
+    finally:
+        for text in alerts:
+            notifier.send(text)
 
 
 def _signals_for(

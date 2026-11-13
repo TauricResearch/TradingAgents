@@ -4,9 +4,13 @@ The exchange is the fact and the ledger its copy plus our annotations (ADR 0008)
 ``sync`` reads balance, positions, new fills, funding and pending stops back into
 the ledger before anything else happens, and flags what it cannot explain.
 ``manage_stops`` tightens each position's stop to the hour's quotes and makes the
-exchange's pending conditional orders match. ``execute`` sizes the intraday
-signals with the intraday constants against the demo's own equity and sends
-market orders whose client ids make a rerun harmless.
+exchange's pending conditional orders match, without a moment in which a position
+has lost the stop it had: a stop is amended in place, or replaced only once its
+successor is pending, and a position whose stop cannot be made to stand is closed
+at market. ``execute`` sizes the intraday signals with the intraday constants
+against the demo's own equity and sends market orders whose client ids make a
+rerun harmless. ``protect`` gives the positions their stops when a step after the
+orders has raised.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field
 
 from trader import rules
@@ -25,6 +30,8 @@ from trader.demo.settings import (
     ORDER_POLL_SECONDS,
     ORDER_POLLS,
     STOP_PREFIX,
+    STOP_RETRY_SECONDS,
+    STOP_TRIES,
     SYNC_OVERLAP_MS,
     TRADE_PREFIX,
 )
@@ -54,6 +61,11 @@ logger = logging.getLogger(__name__)
 Quotes = dict[str, tuple[float, float]]  # inst -> (last price, hourly ATR)
 REASONS = ((TRADE_PREFIX, "trade"), (STOP_PREFIX, "stop"), (KILL_PREFIX, "kill"))
 MANUAL = "manual"  # a fill the program did not cause
+# OKX's codes for refusing a stop whose trigger the last price has already passed: 51278
+# "SL trigger price cannot be lower than the last price" (a short's stop), 51280 "cannot
+# be higher" (a long's). From OKX's error table, not yet met on the exchange (#42); a
+# refusal under any other code goes the way of every other failed stop.
+TRIGGER_PASSED = ("51278", "51280")
 
 
 @dataclass
@@ -256,15 +268,25 @@ class DemoAccount:
 
     # -- stops ----------------------------------------------------------------
 
-    def manage_stops(self, now_ms: int, quotes: Quotes, stops: list[StopOrder]) -> list[str]:
+    def manage_stops(
+        self, now_ms: int, quotes: Quotes, stops: list[StopOrder], *, alerts: list[str] | None = None,
+    ) -> tuple[list[str], list[str]]:
         """Tighten each position's stop to STOP_ATR_MULT ATRs from the last price (never
         loosen) and make the exchange's pending stops match: one reduce-only
         conditional order per position for its whole size at the ledger's stop; any
-        other pending stop is cancelled. Marks the positions at the quotes. While
-        halted only the ledger is updated."""
+        other pending stop is cancelled. No position loses the stop it has on the way,
+        and one whose stop cannot be made to stand is closed at market (``_keep_stop``).
+        What fails for one contract is alerted and the others still get theirs; the
+        ledger is committed whatever the exchange did. Marks the positions at the
+        quotes. While halted only the ledger is updated.
+
+        Returns the alerts and the contracts closed at market, whose fills the next
+        sync books. The alerts are appended to ``alerts`` when it is given, so that
+        the caller has them even when this raises."""
         ledger = self.ledger
         positions = ledger.positions()
-        alerts: list[str] = []
+        alerts = [] if alerts is None else alerts
+        closed: list[str] = []
         for inst, pos in positions.items():
             if inst not in quotes:
                 continue
@@ -279,36 +301,230 @@ class DemoAccount:
                 by_inst.setdefault(s.inst, []).append(s)
             for inst, own in by_inst.items():
                 if inst not in positions:  # closed by a trade or a stop: its stop goes too
-                    self.private.cancel_stops(own)
-                    ledger.add_event(now_ms, "stop_cancelled", f"{inst} 已无持仓，撤掉 {len(own)} 张止损单")
+                    self._cancel(now_ms, inst, own, alerts, "已无持仓")
             for inst, pos in positions.items():
-                if pos.stop is None:
-                    continue  # no quote this run: nothing to place it at
                 contracts = self._contracts(pos.qty, inst)
                 own = by_inst.get(inst, [])
-                if len(own) == 1 and self._matches(own[0], pos, contracts, inst):
+                if pos.stop is None:  # no quote this run: nothing to place it at
+                    if not any(_covers(s, contracts) for s in own):
+                        self._alert(now_ms, "stop_failed", alerts, (
+                            f"没有止损：{inst} {contracts:+g} 张没有覆盖全部仓位的止损单，"
+                            "这次运行又没有它的报价，算不出止损价，请人工处理"
+                        ))
                     continue
-                if own:
-                    self.private.cancel_stops(own)
-                client_id = self._client_id(STOP_PREFIX, now_ms, inst)
-                self.private.place_stop(inst, contracts, pos.stop, client_id, margin_mode=MARGIN_MODE)
-                ledger.add_event(now_ms, "stop", f"{inst} 止损 {pos.stop:,.2f}（{abs(contracts):g} 张，{client_id}）")
+                last = quotes[inst][0] if inst in quotes else None
+                if self._keep_stop(now_ms, inst, contracts, pos.stop, own, last, alerts):
+                    closed.append(inst)
         ledger.commit(positions=positions, cash=ledger.get("cash"), meta={"marks": marks})
-        return alerts
+        return alerts, closed
 
-    def _matches(self, stop: StopOrder, pos: Position, contracts: float, inst: str) -> bool:
+    def _keep_stop(
+        self, now_ms: int, inst: str, contracts: float, trigger: float,
+        own: list[StopOrder], last: float | None, alerts: list[str],
+    ) -> bool:
+        """Leave the position of ``contracts`` in ``inst`` with one stop for all of it at
+        ``trigger``, without a moment in which it has lost the stop it had; True when
+        the position was closed at market instead.
+
+        ``own`` are the stops pending for it. One that already matches stays and the
+        others are cancelled. Otherwise, in this order:
+
+        - a trigger the last price has already crossed is not sent to the exchange: the
+          position is closed, as the paper account fills such a stop;
+        - a single stop of our own on the closing side is amended in place;
+        - when that fails, or there is none to amend (no stop, one on the other side
+          or not ours, several), a new stop is placed beside what is there, and the
+          others are cancelled only once it is read back as pending.
+
+        After each request the pending stops are read again, and the next step follows
+        what is there rather than what the answer said: a request that timed out is
+        resent and may have gone through the first time. When the exchange refuses the
+        trigger as already past the price, the position is closed. A position that
+        still has a stop for its whole size keeps it, alerts, and is taken up again by
+        the next run; one without is tried STOP_TRIES times, then closed. A request
+        the exchange took but whose result cannot be read back is alerted and nothing
+        more is done on its strength.
+        """
+        position = f"{inst} {contracts:+g} 张"
+
+        def standing(pending: list[StopOrder]) -> list[StopOrder]:
+            return [s for s in pending if self._matches(s, inst, contracts, trigger)]
+
+        def unseen(done: str) -> bool:
+            # The exchange took the request and then would not show its pending stops:
+            # nothing is cancelled on the strength of an answer alone.
+            self._alert(now_ms, "stop_failed", alerts, (
+                f"止损待确认：{position}的止损 {trigger:,.2f} {done}，但读不回交易所的挂单来确认，"
+                "别的止损单都没有动，下一次运行再核对"
+            ))
+            return False
+
+        before = {s.algo_id for s in own}
+        changed = not standing(own)
+        if changed:
+            if last is not None and rules.stop_fill(contracts, trigger, last, last, last) is not None:
+                return self._close(now_ms, inst, alerts, (
+                    f"{position}的止损价 {trigger:,.2f} 已被现价 {last:,.2f} 穿越，交易所里没有这张止损单"
+                ))
+            error: Exception | None = None
+            # Only a stop of our own is amended: its fill is told by its client id.
+            if len(own) == 1 and _reduces(own[0], contracts) and own[0].client_id.startswith(STOP_PREFIX):
+                try:
+                    self.private.amend_stop(own[0], contracts, trigger)
+                except REQUEST_ERRORS as exc:
+                    error = exc
+                seen = self._pending(inst)
+                if seen is None and error is None:
+                    return unseen(f"已改单（{own[0].client_id}）")
+                own = own if seen is None else seen
+            client_id = ""
+            for attempt in range(STOP_TRIES):
+                if standing(own) or _trigger_passed(error):
+                    break
+                if attempt and any(_covers(s, contracts) for s in own):
+                    break  # still covered by the stop it had: the next run tries again
+                if attempt:
+                    self.sleep(STOP_RETRY_SECONDS)
+                client_id = client_id or self._client_id(STOP_PREFIX, now_ms, inst)
+                try:
+                    self.private.place_stop(inst, contracts, trigger, client_id, margin_mode=MARGIN_MODE)
+                    error = None
+                except REQUEST_ERRORS as exc:
+                    error = exc
+                seen = self._pending(inst)
+                if seen is None and error is None:
+                    return unseen(f"已下单（{client_id}）")
+                own = own if seen is None else seen
+            if not standing(own):
+                reason = error or "下单的应答是成功，挂单里却没有"
+                if _trigger_passed(error):
+                    return self._close(now_ms, inst, alerts, (
+                        f"{position}的止损 {trigger:,.2f} 被交易所拒绝，触发价已在现价另一侧（{reason}）"
+                    ))
+                covering = [s for s in own if _covers(s, contracts)]
+                if covering:
+                    self._alert(now_ms, "stop_failed", alerts, (
+                        f"止损没更新：{position}的止损没能改到 {trigger:,.2f}（{reason}），"
+                        f"交易所里仍是 {covering[0].trigger:,.2f} 的旧止损单，下一次运行再试"
+                    ))
+                    return False
+                return self._close(now_ms, inst, alerts, (
+                    f"{position}试了 {STOP_TRIES} 次都没挂上止损（{reason}）"
+                ))
+        kept = standing(own)[0]
+        if changed:
+            verb = "止损改到" if kept.algo_id in before else "止损"
+            self.ledger.add_event(
+                now_ms, "stop", f"{inst} {verb} {trigger:,.2f}（{abs(contracts):g} 张，{kept.client_id}）"
+            )
+        rest = [s for s in own if s.algo_id != kept.algo_id]
+        if rest:
+            self._cancel(now_ms, inst, rest, alerts, "止损已到位")
+        return False
+
+    def _pending(self, inst: str) -> list[StopOrder] | None:
+        """The stops pending for ``inst`` right now; None when the exchange cannot be read."""
+        try:
+            return [s for s in self.private.pending_stops() if s.inst == inst]
+        except REQUEST_ERRORS:
+            return None
+
+    def _cancel(self, now_ms: int, inst: str, stops: list[StopOrder], alerts: list[str], why: str) -> None:
+        """Cancel pending stops ``inst`` no longer needs (``why``). One that will not go
+        is alerted and left to the next run."""
+        try:
+            self.private.cancel_stops(stops)
+        except REQUEST_ERRORS as exc:
+            seen = self._pending(inst)
+            unwanted = {s.algo_id for s in stops}
+            if seen is None or any(s.algo_id in unwanted for s in seen):
+                self._alert(now_ms, "stop_failed", alerts, (
+                    f"止损单没撤掉：{inst} {why}，{len(stops)} 张多余的止损单没撤掉（{exc}），下一次运行再撤"
+                ))
+                return
+        self.ledger.add_event(now_ms, "stop_cancelled", f"{inst} {why}，撤掉 {len(stops)} 张止损单")
+
+    def _close(self, now_ms: int, inst: str, alerts: list[str], why: str) -> bool:
+        """Close the position of ``inst`` at market because its stop cannot stand
+        (``why``, which names the position); True once it is closed. The closing order
+        carries a stop's client id, so the sync that books its fill reads it as a stop.
+        It is tried STOP_TRIES times; when it still fails and the position is still
+        there, the alert says so and the next run takes the position up again."""
+        client_id = self._client_id(STOP_PREFIX, now_ms, inst)
+        error: Exception | None = None
+        for attempt in range(STOP_TRIES):
+            if attempt:
+                self.sleep(STOP_RETRY_SECONDS)
+            try:
+                self.private.close_position(inst, MARGIN_MODE, client_id=client_id)
+                error = None
+                break
+            except REQUEST_ERRORS as exc:
+                error = exc
+        if error is not None:
+            try:
+                held = any(p.inst == inst for p in self.private.positions())
+            except REQUEST_ERRORS:
+                held = True
+            if held:
+                self._alert(now_ms, "stop_failed", alerts, (
+                    f"紧急：{why}，市价平仓也失败（{error}），请立即人工处理；下一次运行会再试"
+                ))
+                return False
+        self._alert(now_ms, "stop_closed", alerts, f"止损平仓：{why}，已市价平仓（{client_id}）")
+        return True
+
+    def _alert(self, now_ms: int, kind: str, alerts: list[str], text: str) -> None:
+        alerts.append(text)
+        self.ledger.add_event(now_ms, kind, text)
+
+    def _matches(self, stop: StopOrder, inst: str, contracts: float, trigger: float) -> bool:
         tick = self.spec(inst).tick_size
-        return (
-            stop.reduce_only
-            and stop.side == ("sell" if pos.qty > 0 else "buy")
-            and abs(stop.contracts - abs(contracts)) < 1e-9
-            and abs(stop.trigger - pos.stop) <= (tick / 2 if tick else 1e-9)
-        )
+        return _covers(stop, contracts) and abs(stop.trigger - trigger) <= (tick / 2 if tick else 1e-9)
+
+    def protect(
+        self, now_ms: int, quotes: Quotes, desired: dict[str, float | None], alerts: list[str],
+    ) -> None:
+        """The last line once a step after the hour's orders has raised: every position
+        on the exchange still gets its stop or is closed, as ``manage_stops`` does it,
+        without waiting for a sync, which is among what can have failed. The positions
+        are read straight from the exchange into the ledger, each with the stop its
+        trade set (``desired``) or the one it had; the fills behind them are the next
+        sync's to book. The exchange is read up to STOP_TRIES times, as a stop is
+        placed. Never raises: when it cannot do its work, the alert, kept among the
+        events too, names the contracts that may be without a stop."""
+        try:
+            old = self.ledger.positions()
+            positions: dict[str, Position] = {}
+            for p in self._read(self.private.positions):
+                qty = round(p.contracts * self.spec(p.inst).contract_value, 12)
+                kept = old[p.inst].stop if p.inst in old and (old[p.inst].qty > 0) == (qty > 0) else None
+                positions[p.inst] = Position(qty, p.avg_price, desired.get(p.inst, kept))
+            self.ledger.commit(positions=positions, cash=self.ledger.get("cash"))
+            self.manage_stops(now_ms, quotes, self._read(self.private.pending_stops), alerts=alerts)
+        except Exception as exc:
+            text = (
+                f"紧急：下单之后出了错，补挂止损这一步也没做成（{type(exc).__name__}: {exc}），"
+                f"{'、'.join(self.instruments(desired))} 的仓位可能没有止损，请立即人工检查"
+            )
+            alerts.append(text)
+            with suppress(Exception):  # the ledger may be what failed
+                self.ledger.add_event(now_ms, "stop_failed", text)
+
+    def _read(self, read: Callable[[], list]) -> list:
+        """``read()`` of the exchange, tried STOP_TRIES times while it does not answer."""
+        for _ in range(STOP_TRIES - 1):
+            try:
+                return read()
+            except REQUEST_ERRORS:
+                self.sleep(STOP_RETRY_SECONDS)
+        return read()
 
     # -- execution ------------------------------------------------------------
 
     def execute(
-        self, hour: int, signals: dict[str, str | None], now_ms: int, equity: float, quotes: Quotes
+        self, hour: int, signals: dict[str, str | None], now_ms: int, equity: float, quotes: Quotes,
+        *, alerts: list[str] | None = None, desired: dict[str, float | None] | None = None,
     ) -> tuple[list[str], dict[str, float | None]]:
         """Trade each contract toward the target its signal sets, as ``IntradayPaper.execute``
         sizes it, with market orders on the exchange; return the alerts and the stop
@@ -320,10 +536,16 @@ class DemoAccount:
         it back. An order not filled within ORDER_POLLS looks is left to the next sync.
         The first execution starts the validation period and fixes the baseline, as the
         paper accounts do.
+
+        ``alerts`` and ``desired``, when given, are what is filled and returned: a
+        caller that passes its own still has the alerts raised and the stops of the
+        orders filled so far when a later order raises.
         """
         ledger = self.ledger
+        alerts = [] if alerts is None else alerts
+        desired = {} if desired is None else desired
         if ledger.get("halted"):
-            return [], {}
+            return alerts, desired
         positions = ledger.positions()
         units, currents, targets = {}, {}, {}
         for coin in self.watchlist:
@@ -337,8 +559,6 @@ class DemoAccount:
                 signals.get(coin.research), units[coin.swap], currents[coin.swap], weights=WEIGHTS
             )
         targets = rules.apply_caps(targets, currents, equity)
-        alerts: list[str] = []
-        desired: dict[str, float | None] = {}
         for coin in self.watchlist:
             inst = coin.swap
             flatten = signals.get(coin.research) == "Flat" and inst in positions
@@ -449,6 +669,23 @@ def _stop_after(old_qty: float, new_qty: float, old_stop: float | None, fill_pri
     if new_qty != 0 and old_stop is None and old_qty != 0 and (old_qty > 0) == (new_qty > 0):
         return rules.initial_stop(fill_price, new_qty, atr_value, stop_mult=STOP_ATR_MULT)
     return rules.stop_after_trade(old_qty, new_qty, old_stop, fill_price, atr_value, stop_mult=STOP_ATR_MULT)
+
+
+def _reduces(stop: StopOrder, contracts: float) -> bool:
+    """Whether a pending stop can only close a position of ``contracts`` (signed):
+    reduce-only, on the side that sells a long or buys back a short."""
+    return stop.reduce_only and stop.side == ("sell" if contracts > 0 else "buy")
+
+
+def _covers(stop: StopOrder, contracts: float) -> bool:
+    """Whether a pending stop closes the whole position of ``contracts``, wherever its
+    trigger is."""
+    return _reduces(stop, contracts) and abs(stop.contracts - abs(contracts)) < 1e-9
+
+
+def _trigger_passed(error: Exception | None) -> bool:
+    """Whether the exchange refused a stop because the price is already past its trigger."""
+    return isinstance(error, OKXPrivateError) and error.code in TRIGGER_PASSED
 
 
 def _tag(inst: str) -> str:
