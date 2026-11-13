@@ -13,7 +13,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** The demo account's last reconciliation with the exchange: what the exchange held, had pending and what did not add up. */
+/** The demo account's last reconciliation with the exchange: what the exchange held, had pending, what did not add up, and why it is paused. */
 export function ExecutionCard({ execution: ex }: { execution: Execution }) {
   return (
     <div className="flex flex-col gap-3 text-[13px]">
@@ -28,6 +28,23 @@ export function ExecutionCard({ execution: ex }: { execution: Execution }) {
 
       {ex.halted && <div className="rounded-sm border border-down/40 bg-down/10 px-2 py-1 text-down">熔断中：交易所持仓已平、止损单已撤，等待人工解除</div>}
 
+      {ex.paused && (
+        <div className="flex flex-col gap-1 rounded-sm border border-accent/40 bg-accent/10 px-2 py-1">
+          <div className="text-accent">暂停中：不下新单，仓位和止损单原样保留；每小时照常对账，记下本该下的单</div>
+          {ex.pause_reasons.map((r) => (
+            <div key={r.text}>
+              {r.text}
+              {r.since && (
+                <span className="text-muted">
+                  （<Time ts={r.since} /> 起）
+                </span>
+              )}
+            </div>
+          ))}
+          <div className="text-[11px] text-muted">查明原因后在终端运行 python -m trader demo resume 解除</div>
+        </div>
+      )}
+
       {ex.problems.length > 0 ? (
         <ul className="flex flex-col gap-1 rounded-sm border border-down/40 bg-down/10 px-2 py-1">
           {ex.problems.map((p) => (
@@ -38,7 +55,7 @@ export function ExecutionCard({ execution: ex }: { execution: Execution }) {
           <li className="text-[11px] text-muted">有问题的小时不下单，直到对账干净</li>
         </ul>
       ) : (
-        ex.synced_at && <div className="text-[12px] text-muted">上次对账账本与交易所一致</div>
+        ex.synced_at && !ex.paused && <div className="text-[12px] text-muted">上次对账账本与交易所一致</div>
       )}
 
       <div>

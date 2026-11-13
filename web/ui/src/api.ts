@@ -244,7 +244,7 @@ export interface Signal {
 }
 
 /** The demo account's hourly outcome for a signal it follows (ADR 0008). */
-export type Followed = 'executed' | 'no_change' | 'skipped' | 'blocked' | 'failed' | 'pending'
+export type Followed = 'executed' | 'no_change' | 'skipped' | 'blocked' | 'paused' | 'failed' | 'pending'
 
 export interface RatingStats {
   count: number
@@ -526,12 +526,21 @@ export interface PendingStop {
   client_id: string | null
 }
 
+/** Why the account is paused, and since when (ADR 0010). */
+export interface PauseReason {
+  text: string
+  since: string | null
+}
+
 /** The demo account's last reconciliation with the exchange; nothing here is live, `synced_at` says how old it is. */
 export interface Execution {
   synced_at: string | null
   equity: number | null
   cash: number | null
   halted: boolean | null
+  /** No new orders, positions and stops left as they are, until `python -m trader demo resume`. */
+  paused: boolean
+  pause_reasons: PauseReason[]
   /** The intraday hour the demo last followed. */
   decided_hour: string | null
   problems: string[]

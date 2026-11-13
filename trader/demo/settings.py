@@ -31,6 +31,10 @@ SYNC_OVERLAP_MS = 10 * 60_000  # each sync re-reads this far before the last one
 # ours (the mini's was 1-3 s behind on 2026-11-10 and a sync cut off two fills it had
 # just awaited): a sync reads this far past its own now. Overlap and bill ids cover the rest.
 CLOCK_SKEW_MS = 60_000
+# A position the booked fills do not explain pauses the account once a sync this long after
+# the first that found it still finds it: the next hourly sync books a fill the exchange
+# reports late (#26), while the syncs of one run are minutes apart.
+MISMATCH_GRACE_MS = 30 * 60_000
 ALERT_INTERVAL_MS = 6 * 3_600_000  # a failing run or a standing problem alerts at most this often
 
 # Client order id prefixes: how a fill is attributed when it comes back from the exchange.

@@ -289,9 +289,10 @@ def demo_halt(yes: bool = typer.Option(False, "--yes", "-y", help="不再确认�
 
 @demo_app.command("resume")
 def demo_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断；不加时解除暂停")) -> None:
-    """Lift the demo account's pause; with --kill, its kill switch, once the exchange is
-    flat and you have checked why it tripped."""
-    settings, account, notifier, _ = _open_demo()
+    """Lift the demo account's pause once a sync just now finds nothing that pauses it,
+    printing what it found and the reasons lifted (``demo_job.resume``); with --kill, its
+    kill switch, once the exchange is flat and you have checked why it tripped."""
+    settings, account, notifier, intraday = _open_demo()
     halted = account.ledger.get("halted")
     if kill:
         if not halted:
@@ -304,8 +305,7 @@ def demo_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断；
         return
     if not account.paused:
         _fail("demo 账户没有处于暂停" + ("；它处于熔断，解除熔断要加 --kill" if halted else ""))
-    with locked(settings.demo_lock_path):
-        account.unpause(_now_ms(), "demo resume：解除暂停")
+    _resume(settings, account, intraday)
     notifier.send("暂停已解除" + ("；账户仍在熔断中，不会交易。" if halted else "，下一小时恢复交易。"))
 
 
@@ -420,7 +420,7 @@ def live_init() -> None:
     ledger.initialize(balance.cash, now_ms)
     ledger.set("summarized_day", utc_date(now_ms))
     account = DemoAccount(ledger, OKX(), client, profile=live_account.LIVE)
-    account.pause(now_ms, "建账：影子运行，等解锁（ADR 0010）")
+    account.pause(now_ms, "建账：影子运行，等解锁（ADR 0010）", "init")
     typer.echo(f"live 账户已建立：本金 {balance.cash:,.2f} USDT（子账户钱包余额），账本在 {settings.live_ledger_path}")
     typer.echo("现在是影子运行：每小时照常对账，记下本该下的单，不下单、不改交易所的设置；解锁见 ADR 0010。")
     if sub_account is None:
@@ -467,17 +467,22 @@ def live_halt(yes: bool = typer.Option(False, "--yes", "-y", help="不再确认�
 
 @live_app.command("resume")
 def live_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断：live 不接受，见 ADR 0010")) -> None:
-    """Unpause the live account, ADR 0010's unlock: its next hourly run sets the account
-    up and trades. Refused, before the key file is read or the exchange asked anything,
-    with --kill (a live kill is never lifted) or while the unlock is closed
-    (``trader.live.account.UNLOCK_OPEN``); and unless the account is paused, is not
-    halted, and its key is established to place orders as live check establishes it."""
+    """Unpause the live account: the first time, ADR 0010's unlock, after which its next
+    hourly run sets the account up and trades. Refused, before the key file is read or
+    the exchange asked anything, with --kill (a live kill is never lifted) or while the
+    unlock is closed (``trader.live.account.UNLOCK_OPEN``); and unless the dashboard's
+    write endpoint wants a token (TRADER_WEB_TOKEN, a condition of the unlock), the
+    account is paused and not halted, its key is established to place orders as live
+    check establishes it, and a sync just now finds nothing that pauses it
+    (``demo_job.resume``), printed with the reasons lifted."""
     if kill:
         _fail(f"live 的熔断不解除：{live_account.LIVE.after_kill}")
     if not live_account.UNLOCK_OPEN:
-        _fail("live 还不能解锁：解锁的条件见 ADR 0010，由 #34 打开；现在只做影子运行")
+        _fail("live 还不能解锁：解锁的开关（trader/live/account.py 的 UNLOCK_OPEN）关着；现在只做影子运行")
     settings, client = _live_client()
-    account, notifier, _ = _live_account(settings, client)
+    if not settings.web_token:
+        _fail("还没有设 TRADER_WEB_TOKEN：看板的写入口要有令牌，ADR 0010 把它定为解锁的条件")
+    account, notifier, intraday = _live_account(settings, client)
     if not account.paused:
         _fail("live 账户没有处于暂停")
     if account.ledger.get("halted"):
@@ -491,10 +496,14 @@ def live_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断：
         _fail(f"OKX 正式环境没有应答：{jobs.error_text(exc)}")
     if not established:
         _fail(f"交易权限没有确立，不解锁。{line}")
-    with locked(settings.live_lock_path):
-        account.unpause(_now_ms(), "live resume：解锁，下一次运行起自动下单")
-    notifier.send("已解锁：下一次每小时运行先设好账户，然后自动下单。")
-    typer.echo("live 已解锁：下一次每小时运行起自动下单。")
+    unlock = not account.ledger.get("setup_done")
+    _resume(settings, account, intraday)
+    if unlock:
+        notifier.send("已解锁：下一次每小时运行先设好账户，然后自动下单。")
+        typer.echo("live 已解锁：下一次每小时运行起自动下单。")
+    else:
+        notifier.send("暂停已解除：下一次每小时运行起恢复自动下单。")
+        typer.echo("live 的暂停已解除：下一次每小时运行起恢复自动下单。")
 
 
 def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:
@@ -577,6 +586,21 @@ def _halt(settings: Settings, account: DemoAccount, notifier: Notifier, yes: boo
         _fail(f"{name} 没能熔断：{jobs.error_text(exc)}")
     for line in lines:
         typer.echo(line)
+
+
+def _resume(settings: Settings, account: DemoAccount, intraday: Ledger) -> None:
+    """``demo resume`` and ``live resume``: ``demo_job.resume``, what its sync found and
+    the reasons it lifted printed; a refusal fails the command with its reason."""
+    try:
+        reasons, result = demo_job.resume(settings, account, intraday)
+    except demo_job.Refused as exc:
+        _fail(f"{account.profile.name} 没有解除暂停：{exc}")
+    _print_sync(result)
+    if not reasons:
+        typer.echo("解除暂停：账本里没有记下原因")
+    for reason in reasons:
+        when = datetime.fromtimestamp(reason["since"] / 1000, UTC).strftime("%m-%d %H:%M")
+        typer.echo(f"解除暂停：{reason['text']}（{when} UTC 起）")
 
 
 def _balance(client: OKXPrivate) -> Balance | None:

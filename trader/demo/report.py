@@ -39,7 +39,8 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
     """The summary of the UTC day ``day`` ("YYYY-MM-DD"), sent on the first run after it:
     equity against the snapshot at the start of the day (the capital when there is
     none yet), the day's fills by kind, its funding, and the standing problems; for a
-    paused account, that it is, and how many orders the day's shadow run recorded."""
+    paused account, that it is, how many orders the day's shadow run recorded, and why
+    it is paused, since when, and what lifts it."""
     ledger = account.ledger
     day_start = int(datetime.fromisoformat(day).replace(tzinfo=UTC).timestamp() * 1000)
     day_end = day_start + DAY_MS
@@ -55,6 +56,13 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
             f"⏸ 暂停中（影子运行）：不下单，昨日本该下 {len(would)} 笔，"
             f"明细见 python -m trader {account.profile.name} report"
         )
+        reasons = account.pause_reasons
+        for reason in reasons:
+            since = datetime.fromtimestamp(reason["since"] / 1000, UTC).strftime("%m-%d %H:%M")
+            lines.append(f"  暂停原因（{since} UTC 起）：{reason['text']}")
+        if not reasons:
+            lines.append("  暂停原因：账本里没有记下")
+        lines.append(f"  查明原因后运行 {account.profile.resume_command} 解除")
     bases = [e for ts, e in ledger.equity_series() if ts <= day_start]
     change = (
         f"较昨日零点 {equity / bases[-1] - 1:+.2%}" if bases and bases[-1]

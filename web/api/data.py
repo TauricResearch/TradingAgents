@@ -766,10 +766,11 @@ def _signal(row: tuple) -> dict:
 
 # What the demo's events of an hour say it did about that hour's signals: an order that
 # failed, was refused or did not fill names its contract; a skipped hour (no intraday
-# decision in time) and a blocked one (the reconciliation found problems) are whole.
+# decision in time), a blocked one (the reconciliation found problems) and a paused one
+# (a shadow run, ADR 0010, whatever orders its shadow refused) are whole.
 _FOLLOWED_BY_EVENT = {
     "order_failed": "failed", "order_refused": "failed", "order_pending": "failed",
-    "skipped": "skipped", "problem": "blocked",
+    "skipped": "skipped", "problem": "blocked", "shadow_order": "paused", "shadow_none": "paused",
 }
 
 
@@ -779,8 +780,8 @@ def followed_signals(
     """GET /api/accounts/demo/signals: the intraday signals the demo account follows
     (ADR 0008), newest first, each with ``followed``, what the demo did about it that
     hour: executed (a trade of that contract filled), no_change (the hour was handled,
-    nothing to trade), skipped, blocked, failed (see _FOLLOWED_BY_EVENT), pending (the
-    demo has not handled that hour yet) or None (before the demo account existed)."""
+    nothing to trade), skipped, blocked, paused, failed (see _FOLLOWED_BY_EVENT), pending
+    (the demo has not handled that hour yet) or None (before the demo account existed)."""
     rows = source.signals(since_ms, limit)
     if not rows:
         return []
@@ -815,6 +816,8 @@ def followed_signals(
             return None
         if (hour, inst) in executed:
             return "executed"
+        if by_hour.get(hour) == "paused":
+            return "paused"
         if (hour, inst) in by_contract:
             return by_contract[(hour, inst)]
         if hour in by_hour:
@@ -921,8 +924,9 @@ def research_record(account: Account, coin: str, trade_date: str) -> bytes | Non
 def execution(account: Account, ledger: Ledger) -> dict:
     """GET /api/accounts/{id}/execution: the demo account's last reconciliation with the
     exchange, as its job left it in the ledger (ADR 0008): the exchange's equity and
-    wallet, what it held and had pending, the hour last followed and the problems found.
-    Nothing here is live; ``synced_at`` says how old it is."""
+    wallet, what it held and had pending, the hour last followed, the problems found,
+    and whether it is paused and why (ADR 0010). Nothing here is live; ``synced_at``
+    says how old it is."""
     positions = ledger.positions()
     held = ledger.get("exchange_positions") or {}
     return {
@@ -930,6 +934,10 @@ def execution(account: Account, ledger: Ledger) -> dict:
         "equity": ledger.get("equity"),
         "cash": ledger.get("cash"),
         "halted": ledger.get("halted"),
+        "paused": ledger.get("paused") is True,
+        "pause_reasons": [
+            {"text": r["text"], "since": _iso(r["since"])} for r in ledger.get("pause_reasons") or []
+        ],
         "decided_hour": _iso(ledger.get("decided_hour")),
         "problems": list(ledger.get("problems") or []),
         "positions": [

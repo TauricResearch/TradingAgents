@@ -48,6 +48,10 @@ PROBE_ORDER_MISSING = "51400"  # what a key that may trade is answered when it c
 DUPLICATE_CLIENT_ID = "51016"  # OKX's code for a clOrdId that already exists
 TIMESTAMP_EXPIRED = "50102"    # the request's timestamp was more than 30 s off OKX's clock
 _PAGE = 100                    # rows per page; the most fills and bills endpoints give
+# OKX's bill types (``type`` of /api/v5/account/bills-archive): 1 a transfer (subtype 11 in,
+# 12 out), 2 a trade, 8 a funding fee (subtypes 173 paid, 174 received). OKX's documentation
+# no longer lists them all; the signed /api/v5/account/subtypes serves the full list.
+TRANSFER_BILL, TRADE_BILL, FUNDING_BILL = "1", "2", "8"
 _DAY_MS = 86_400_000
 RECENT_FILLS_MS = 3 * _DAY_MS - 3_600_000  # the span the three-day fills endpoint is sure to hold
 _TIMEOUT = 10
@@ -194,6 +198,20 @@ class FundingBill:
     bill_id: str
     inst: str
     amount: float         # change of balance: negative when paid, positive when received
+    ts: int
+
+
+@dataclass(frozen=True)
+class Bill:
+    """A change of the account's balance as OKX bills it, of any ``type`` and ``sub_type``
+    (OKX's codes, TRADE_BILL and the like); ``inst`` is "" for one on no instrument, as a
+    transfer."""
+
+    bill_id: str
+    type: str
+    sub_type: str
+    inst: str
+    amount: float         # change of balance: negative when paid out, positive when received
     ts: int
 
 
@@ -497,9 +515,21 @@ class OKXPrivate:
         """Funding fees settled on swaps with ``begin_ms <= ts < end_ms``, oldest first,
         from the three-month bill archive (bill type 8)."""
         rows = self._pages("/api/v5/account/bills-archive",
-                           {"instType": "SWAP", "type": "8"}, begin_ms, end_ms)
+                           {"instType": "SWAP", "type": FUNDING_BILL}, begin_ms, end_ms)
         return [
             FundingBill(bill_id=r["billId"], inst=r["instId"], amount=_float(r["balChg"]), ts=int(r["ts"]))
+            for r in rows
+        ]
+
+    def bills(self, begin_ms: int, end_ms: int, ccy: str = "USDT") -> list[Bill]:
+        """Every bill of ``ccy`` with ``begin_ms <= ts < end_ms``, oldest first, whatever
+        its type: all that changed the balance, from the three-month bill archive."""
+        rows = self._pages("/api/v5/account/bills-archive", {"ccy": ccy}, begin_ms, end_ms)
+        return [
+            Bill(
+                bill_id=r["billId"], type=r.get("type") or "", sub_type=r.get("subType") or "",
+                inst=r.get("instId") or "", amount=_float(r.get("balChg")), ts=int(r["ts"]),
+            )
             for r in rows
         ]
 

@@ -76,7 +76,7 @@
 - 在 OKX「模拟交易」里建一个只勾“交易”权限的 API，把三个变量写进 `.env`（名字见 `deploy/trader.env.example`，值不进 git、不进日志），`python -m trader demo check` 看账户模式、余额、持仓，并探一次交易权限（key 的交易权限要勾到加密货币/永续合约，否则到下单才报 50123；账户模式要合约模式或跨币种保证金）。
 - `python -m trader demo init`：要求模拟账户没有持仓和挂单，本金取账户的 USDT 钱包余额，持仓模式切单向、三个合约设全仓 3×。
 - 装 launchd 代理，方式同前（`for job in demo`）：每小时 :10 运行 `python -m trader demo run`，等日内账户 :03 的决定最多 15 分钟；等不到本小时不交易。止损挂在交易所，程序不在线也会触发；下次运行对账时按成交入账。
-- 日常：`demo sync` 只读交易所入账、打印持仓和问题；`demo report` 看绩效；`demo halt` 停止交易并市价平掉全部仓位（先确认，加 `--yes` 不问）；熔断后在交易所确认平干净，`demo resume --kill` 解除（交易所里还有仓位就拒绝，并再发一次平仓），不加 `--kill` 的 `demo resume` 只解除暂停。读不到 USDT 余额时这次运行按出错处理并告警，不当成净值 0。对不上账（非程序成交、杠杆/保证金模式不对、持仓与成交推算不符）时本小时不下单并告警，每个问题 6 小时最多提醒一次。
+- 日常：`demo sync` 只读交易所入账、打印持仓和问题；`demo report` 看绩效；`demo halt` 停止交易并市价平掉全部仓位（先确认，加 `--yes` 不问）；熔断后在交易所确认平干净，`demo resume --kill` 解除（交易所里还有仓位就拒绝，并再发一次平仓），不加 `--kill` 的 `demo resume` 只解除暂停。读不到 USDT 余额时这次运行按出错处理并告警，不当成净值 0。杠杆/保证金模式不对、持仓与成交推算不符时本小时不下单并告警，每个问题 6 小时最多提醒一次。程序解释不了的变化让账户暂停（#34）：非程序成交（含强平）、成交和资金费以外的余额变动（如划转）、到下一个整点还对不上的持仓。暂停时不下新单，仓位和止损原样留着，每小时照常对账并记下本该下的单；每个原因告警一次，日报每天列出；回撤到线只告警。查明后 `demo resume` 解除：它先对一次账，有新原因、原因还在（持仓仍对不上）、或回撤已到熔断线就不解除，并说明原因。
 
 ## 实盘账户（第四个账户：用真钱跟随日内信号，小额、带期限）
 
@@ -87,7 +87,7 @@
 - 账户建立时处于暂停，这个阶段叫影子运行：照常对账、记录本该下的单、不下单。第一次解除暂停即解锁。
 - 解锁的条件：第 1、2 档的票合入，mini 关闭睡眠（#3），mini 上设 `TRADER_WEB_TOKEN`。演练（#42）要做，但不卡解锁。
 - 密钥和核对（#30）：live 的密钥放在 mini 的 `~/.config/tradingagents/okx-live.env`（权限 600，三行，格式见 `deploy/trader.env.example`；路径可用 `TRADER_OKX_LIVE_KEY_FILE` 改），不进 `.env`。`python -m trader live check` 只读核对账户模式、key 的权限、是不是子账户、有没有绑定 IP、余额、持仓和实际费率；加 `--base-url https://www.okx.com` 可以对比另一个域名。
-- live 账户（#31）：`python -m trader live init` 只读建账，要求子账户空仓、没有条件单、有 USDT，确认是主账户的 key 就拒绝；建好即暂停，不改交易所的设置。装 launchd 代理方式同前（`for job in live`）：每小时 :10 运行 `python -m trader live run`，和 demo 用同一个执行器，暂停期间是影子运行。装之前要有密钥文件、`live init` 建好的账户，和 `.env` 里的 `TRADER_LIVE_HEARTBEAT_URL`（外部监控服务给的地址，每次运行正常结束后请求一次，2 小时收不到由那边通知；没设就不发）。日常：`live sync` 只读对账，`live report` 看绩效和影子运行按小时记下的单；`live resume` 就是解锁，在 #34 打开 `trader/live/account.py` 的 `UNLOCK_OPEN` 之前一律拒绝。`live halt` 停止并平仓，暂停中也能用；live 熔断一次就不再解除（`live resume --kill` 一律拒绝），实验到此结束。各账户的 Telegram 消息前面带账户名（【demo】、【live】）。
+- live 账户（#31）：`python -m trader live init` 只读建账，要求子账户空仓、没有条件单、有 USDT，确认是主账户的 key 就拒绝；建好即暂停，不改交易所的设置。装 launchd 代理方式同前（`for job in live`）：每小时 :10 运行 `python -m trader live run`，和 demo 用同一个执行器，暂停期间是影子运行。装之前要有密钥文件、`live init` 建好的账户，和 `.env` 里的 `TRADER_LIVE_HEARTBEAT_URL`（外部监控服务给的地址，每次运行正常结束后请求一次，2 小时收不到由那边通知；没设就不发）。日常：`live sync` 只读对账，`live report` 看绩效和影子运行按小时记下的单；`live resume` 解除暂停，第一次就是解锁：要求设了 `TRADER_WEB_TOKEN`、交易权限确立，和 `demo resume` 一样先对一次账（#34 打开了 `trader/live/account.py` 的 `UNLOCK_OPEN`）。live 另在代码或 Signal 的指纹变了时暂停：每次部署改了 `trader/` 都会暂停一次，部署后要 `live resume`；净值超过 2,000 USDT 时暂停，单笔名义超过 4,000 USDT 拒单。`live halt` 停止并平仓，暂停中也能用；live 熔断一次就不再解除（`live resume --kill` 一律拒绝），实验到此结束。各账户的 Telegram 消息前面带账户名（【demo】、【live】）。
 
 | 档 | 票 | 内容 | 状态 |
 |---|---|---|---|
