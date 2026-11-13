@@ -338,7 +338,7 @@ UNFIT = "{path} 里 TRADER_OKX_LIVE_PASSPHRASE 的值含空白、控制字符或
     (lambda path: path.unlink(), "{path} 不存在"),
     (lambda path: path.chmod(0o644), "{path} 的权限是 644，比 600 宽：先 chmod 600 再运行"),
     (lambda path: write_key_file(path, TRADER_OKX_LIVE_SECRET=None), "{path} 里缺 TRADER_OKX_LIVE_SECRET"),
-    (lambda path: path.chmod(0o000), "{path} 读不了：Permission denied"),
+    (lambda path: path.chmod(0o000), "{path} 读不了：没有权限"),
     (lambda path: path.write_bytes(b"TRADER_OKX_LIVE_KEY=\xff\xfel\x00i\x00v\x00e\x00\n"), "{path} 不是 UTF-8 文本"),
     # A passphrase requests would quote in full in the error it raises on sending it: in
     # double quotes dotenv reads \n as a line break.
@@ -348,7 +348,7 @@ UNFIT = "{path} 里 TRADER_OKX_LIVE_PASSPHRASE 的值含空白、控制字符或
 def test_a_key_file_that_cannot_be_used_fails_the_command_with_an_alert(live, caplog, damage, reason):
     caplog.set_level(logging.DEBUG)
     damage(live.key_path)
-    if reason.endswith("Permission denied") and os.access(live.key_path, os.R_OK):
+    if reason.endswith("没有权限") and os.access(live.key_path, os.R_OK):
         pytest.skip("this user reads a file whatever its mode")
     reason = reason.format(path=live.key_path)
     result = live.run("check", answers=okx_answers())
