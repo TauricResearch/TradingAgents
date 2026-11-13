@@ -134,6 +134,26 @@ class ReadOnly:
         raise Paused(f"the account is paused: {name} is not a read")
 
 
+@dataclass(frozen=True)
+class Planned:
+    """An order of the hour as ``DemoAccount.plan`` sizes it: ``contracts`` of ``inst``
+    take the position from ``old_qty`` to ``new_qty`` (coins) at about ``price``, for
+    the coin's ``signal``. ``refused`` says why it must not be sent, when it must not."""
+
+    inst: str
+    signal: str | None
+    old_qty: float
+    new_qty: float
+    contracts: float
+    price: float
+    atr: float
+    refused: str | None = None
+
+    @property
+    def notional(self) -> float:
+        return abs(round(self.new_qty - self.old_qty, 12)) * self.price
+
+
 @dataclass
 class Sync:
     """What a sync found. ``problems`` are the things that stop the account from
@@ -623,31 +643,14 @@ class DemoAccount:
 
     # -- execution ------------------------------------------------------------
 
-    def execute(
-        self, hour: int, signals: dict[str, str | None], now_ms: int, equity: float, quotes: Quotes,
-        *, alerts: list[str] | None = None, desired: dict[str, float | None] | None = None,
-    ) -> tuple[list[str], dict[str, float | None]]:
-        """Trade each contract toward the target its signal sets, as ``IntradayPaper.execute``
-        sizes it, with market orders on the exchange; return the alerts and the stop
-        each traded position should have (for the sync that follows).
-
-        ``equity`` and the ledger's positions are the sync's just before. A change
-        whose notional exceeds MAX_GROSS_EXPOSURE of equity is refused as a bug. The
-        order's client id is the hour's: a rerun finds it already placed and only reads
-        it back. An order not filled within ORDER_POLLS looks is left to the next sync.
-        The first execution starts the validation period and fixes the baseline, as the
-        paper accounts do.
-
-        ``alerts`` and ``desired``, when given, are what is filled and returned: a
-        caller that passes its own still has the alerts raised and the stops of the
-        orders filled so far when a later order raises.
-        """
-        ledger = self.ledger
-        alerts = [] if alerts is None else alerts
-        desired = {} if desired is None else desired
-        if ledger.get("halted"):
-            return alerts, desired
-        positions = ledger.positions()
+    def plan(self, signals: dict[str, str | None], equity: float, quotes: Quotes) -> list[Planned]:
+        """The orders that take each contract toward the target its signal sets, as
+        ``IntradayPaper.execute`` sizes it against ``equity`` and the ledger's positions,
+        in watchlist order; none for a halted account. One whose notional exceeds
+        MAX_GROSS_EXPOSURE of equity is refused as a bug. Only reads."""
+        if self.ledger.get("halted"):
+            return []
+        positions = self.ledger.positions()
         units, currents, targets = {}, {}, {}
         for coin in self.watchlist:
             price, atr_value = quotes[coin.swap]
@@ -660,6 +663,7 @@ class DemoAccount:
                 signals.get(coin.research), units[coin.swap], currents[coin.swap], weights=WEIGHTS
             )
         targets = rules.apply_caps(targets, currents, equity)
+        planned = []
         for coin in self.watchlist:
             inst = coin.swap
             flatten = signals.get(coin.research) == "Flat" and inst in positions
@@ -676,19 +680,51 @@ class DemoAccount:
             if new_qty == old_qty:
                 continue
             delta = round(new_qty - old_qty, 12)
+            refused = None
             if abs(delta) * price > MAX_GROSS_EXPOSURE * equity:
-                text = (
+                refused = (
                     f"拒绝下单：{inst} 变动 {delta:+g} 名义 {abs(delta) * price:,.0f} USDT"
                     f" 超过净值 {equity:,.0f} 的 {MAX_GROSS_EXPOSURE:g} 倍，可能是算错了"
                 )
-                alerts.append(text)
-                ledger.add_event(now_ms, "order_refused", text)
+            planned.append(Planned(
+                inst, signals.get(coin.research), old_qty, new_qty, self._contracts(delta, inst),
+                price, atr_value, refused,
+            ))
+        return planned
+
+    def execute(
+        self, hour: int, signals: dict[str, str | None], now_ms: int, equity: float, quotes: Quotes,
+        *, alerts: list[str] | None = None, desired: dict[str, float | None] | None = None,
+    ) -> tuple[list[str], dict[str, float | None]]:
+        """Send the hour's orders (``plan``) to the exchange as market orders; return the
+        alerts and the stop each traded position should have (for the sync that follows).
+
+        ``equity`` and the ledger's positions are the sync's just before. A refused order
+        is alerted and not sent. The order's client id is the hour's: a rerun finds it
+        already placed and only reads it back. An order not filled within ORDER_POLLS
+        looks is left to the next sync. The first execution starts the validation
+        period and fixes the baseline, as the paper accounts do.
+
+        ``alerts`` and ``desired``, when given, are what is filled and returned: a
+        caller that passes its own still has the alerts raised and the stops of the
+        orders filled so far when a later order raises.
+        """
+        ledger = self.ledger
+        alerts = [] if alerts is None else alerts
+        desired = {} if desired is None else desired
+        if ledger.get("halted"):
+            return alerts, desired
+        positions = ledger.positions()
+        for planned in self.plan(signals, equity, quotes):
+            inst, contracts = planned.inst, planned.contracts
+            if planned.refused:
+                alerts.append(planned.refused)
+                ledger.add_event(now_ms, "order_refused", planned.refused)
                 continue
-            contracts = self._contracts(delta, inst)
             client_id = f"{TRADE_PREFIX}{hour // HOUR_MS}{_tag(inst)}"
             try:
                 self.private.place_market(
-                    inst, contracts, client_id, reduce_only=new_qty == 0, margin_mode=MARGIN_MODE
+                    inst, contracts, client_id, reduce_only=planned.new_qty == 0, margin_mode=MARGIN_MODE
                 )
             except OKXPrivateError as exc:
                 if exc.code != DUPLICATE_CLIENT_ID:
@@ -703,9 +739,9 @@ class DemoAccount:
                 alerts.append(text)
                 ledger.add_event(now_ms, "order_pending", text)
                 continue
-            fill_price = order.avg_price or price
+            fill_price = order.avg_price or planned.price
             old_stop = positions[inst].stop if inst in positions else None
-            desired[inst] = _stop_after(old_qty, new_qty, old_stop, fill_price, atr_value)
+            desired[inst] = _stop_after(planned.old_qty, planned.new_qty, old_stop, fill_price, planned.atr)
             ledger.add_event(now_ms, "order", f"{inst} {contracts:+g} 张 @ {fill_price:,.2f}（{client_id}）")
         if ledger.get("validation_start") is None:
             # The validation period starts with this UTC day, the baseline buys at the

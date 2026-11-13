@@ -10,7 +10,9 @@ step after the orders raises, the positions they left still get their stops (or 
 closed) before the run fails, and the alerts gathered so far go out either way. The
 daily summary goes out on the first run of each UTC day. The intraday ledger is
 opened read-only; this job never writes it. A paused account (``DemoAccount.paused``)
-is synced and its problems alerted, and nothing is set up, no stop kept, no order sent.
+is synced and its problems alerted, and nothing is set up, no stop kept, no order sent:
+its hour is a shadow run (ADR 0010), recording the orders it would have sent
+(``shadow_order``), or why there are none (``shadow_none``), and reporting no fills.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from trader.demo import report
-from trader.demo.account import DemoAccount, Quotes, Sync
+from trader.demo.account import DemoAccount, Planned, Quotes, Sync
 from trader.demo.settings import (
     ALERT_INTERVAL_MS,
     INTRADAY_POLL_SECONDS,
@@ -96,10 +98,10 @@ def _run(
     for text in _standing(ledger, result.problems, now_ms):
         notifier.send(text)
 
-    if (
-        not paused and not ledger.get("halted") and ledger.get("decided_hour") != hour
-        and not result.problems
-    ):
+    blocked = ledger.get("halted") or result.problems
+    if paused and blocked and ledger.get("decided_hour") != hour:
+        _shadow_none(ledger, now_ms, hour, result)
+    elif not blocked and ledger.get("decided_hour") != hour:
         signals = _signals_for(intraday, hour, account, now_fn, sleep)
         if signals is None:
             ledger.add_event(
@@ -112,7 +114,9 @@ def _run(
                 now_ms = _ms(now_fn())
                 result = account.sync(now_ms)  # the equity and positions the orders size against
                 alerts += result.alerts
-                if not result.problems:
+                if paused:
+                    _shadow(account, hour, signals, now_ms, result, quotes, alerts)
+                elif not result.problems:
                     result = _trade(account, hour, signals, now_ms, result.equity, quotes, alerts, now_fn, sleep)
                     ledger.set("decided_hour", hour)
             for text in _standing(ledger, result.problems, now_ms):
@@ -145,6 +149,49 @@ def _trade(
         account.protect(_ms(now_fn()), quotes, desired, alerts)
         raise
     return _settled(account, alerts, now_fn, sleep) if closed else result
+
+
+def _shadow(
+    account: DemoAccount, hour: int, signals: dict[str, str | None], now_ms: int, result: Sync,
+    quotes: Quotes, alerts: list[str],
+) -> None:
+    """Record what a paused account would have sent this hour, and send nothing: an
+    event per order ``plan`` sizes against the exchange's equity and positions
+    (``shadow_order``), or one saying why there is none (``shadow_none``); a refused
+    order is alerted and recorded as when trading. The hour is then decided, so a rerun
+    records nothing new."""
+    ledger = account.ledger
+    if result.problems:
+        _shadow_none(ledger, now_ms, hour, result)
+        return
+    planned = account.plan(signals, result.equity, quotes)
+    for order in planned:
+        if order.refused:
+            alerts.append(order.refused)
+            ledger.add_event(now_ms, "order_refused", order.refused)
+        else:
+            ledger.add_event(now_ms, "shadow_order", _would_send(order))
+    if all(order.refused for order in planned):
+        reason = "要下的单都被拒绝" if planned else "离目标仓位不远，或不到最小下单量"
+        ledger.add_event(now_ms, "shadow_none", f"本小时不下单：{reason}")
+    ledger.set("decided_hour", hour)
+
+
+def _shadow_none(ledger: Ledger, now_ms: int, hour: int, result: Sync) -> None:
+    """A paused account's hour that sizes no order, the account halted or its sync
+    finding problems: said, and decided."""
+    reason = "熔断中" if ledger.get("halted") else f"对账有 {len(result.problems)} 个问题"
+    ledger.add_event(now_ms, "shadow_none", f"本小时不下单：{reason}")
+    ledger.set("decided_hour", hour)
+
+
+def _would_send(order: Planned) -> str:
+    side = "买入" if order.contracts > 0 else "卖出"
+    close = "，平仓" if order.new_qty == 0 else ""
+    return (
+        f"{order.inst} {side} {abs(order.contracts):g} 张{close}，名义 {order.notional:,.0f} USDT，"
+        f"信号 {order.signal or '无信号'}"
+    )
 
 
 def _settled(

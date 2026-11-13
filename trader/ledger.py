@@ -213,6 +213,15 @@ class Ledger:
     def add_event(self, ts: int, kind: str, text: str) -> None:
         self.db.execute("INSERT INTO events (ts, kind, text) VALUES (?, ?, ?)", (ts, kind, text))
 
+    def events(self, since_ms: int = 0, kinds: tuple[str, ...] = ()) -> list[tuple[int, str, str]]:
+        """(ts, kind, text) of the events since ``since_ms`` in the order they were
+        added; of ``kinds`` only, when given."""
+        sql, params = "SELECT ts, kind, text FROM events WHERE ts >= ?", [since_ms]
+        if kinds:
+            sql += f" AND kind IN ({', '.join('?' * len(kinds))})"
+            params += kinds
+        return self.db.execute(sql + " ORDER BY id", params).fetchall()
+
     # -- research -----------------------------------------------------------
 
     def record_attempt(

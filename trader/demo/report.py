@@ -38,7 +38,8 @@ def hourly(account: DemoAccount, hour: int, signals: dict[str, str | None], fill
 def daily(account: DemoAccount, day: str, now_ms: int) -> str:
     """The summary of the UTC day ``day`` ("YYYY-MM-DD"), sent on the first run after it:
     equity against the snapshot at the start of the day (the capital when there is
-    none yet), the day's fills by kind, its funding, and the standing problems."""
+    none yet), the day's fills by kind, its funding, and the standing problems; for a
+    paused account, that it is, and how many orders the day's shadow run recorded."""
     ledger = account.ledger
     day_start = int(datetime.fromisoformat(day).replace(tzinfo=UTC).timestamp() * 1000)
     day_end = day_start + DAY_MS
@@ -46,6 +47,12 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
     lines = [f"日报 · {day}"]
     if ledger.get("halted"):
         lines.append(f"⚠ 熔断中：已平仓，不再下单。确认后运行 {account.profile.resume_command} 恢复。")
+    if account.paused:
+        would = [ts for ts, _, _ in ledger.events(day_start, ("shadow_order",)) if ts < day_end]
+        lines.append(
+            f"⏸ 暂停中（影子运行）：不下单，昨日本该下 {len(would)} 笔，"
+            f"明细见 python -m trader {account.profile.name} report"
+        )
     bases = [e for ts, e in ledger.equity_series() if ts <= day_start]
     change = (
         f"较昨日零点 {equity / bases[-1] - 1:+.2%}" if bases and bases[-1]
