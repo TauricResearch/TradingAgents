@@ -101,10 +101,10 @@ TRIGGER_PASSED = ("51278", "51280")
 class Profile:
     """Which account the executor is (ADR 0010). ``name`` labels the account's messages
     (``trader.notify.labeled``) and names its commands, its ledger and its lock in
-    ``Settings`` (``<name>_ledger_path``, ``<name>_lock_path``) and the meta key that
-    throttles its failure alerts. ``production`` is the environment of OKX its client
-    must be of: the production one, with real money, or else simulated trading. The last
-    three are the live account's guards (ADR 0010)."""
+    ``Settings`` (``<name>_ledger_path``, ``<name>_lock_path``) and the meta keys of its
+    failure alerts and of its messages not sent yet. ``production`` is the environment
+    of OKX its client must be of: the production one, with real money, or else simulated
+    trading. The last three are the live account's guards (ADR 0010)."""
 
     name: str
     production: bool = False
@@ -131,9 +131,14 @@ class Profile:
         return f"暂停：{reason}。不再下新单，仓位和止损单原样保留；查明原因后运行 {self.resume_command} 解除。"
 
     @property
-    def alerted_key(self) -> str:
-        """Meta: when a failed run of the account last alerted."""
-        return f"{self.name}_alerted_at"
+    def failures_key(self) -> str:
+        """Meta: when the alert of each kind of failure of the account's runs last went out."""
+        return f"{self.name}_failures_alerted"
+
+    @property
+    def unsent_key(self) -> str:
+        """Meta: the account's messages Telegram has not taken yet (``trader.notify.Outbox``)."""
+        return f"{self.name}_unsent"
 
     def ledger_path(self, settings: Settings) -> Path:
         return getattr(settings, f"{self.name}_ledger_path")
@@ -319,8 +324,11 @@ class DemoAccount:
 
         Fills, funding bills and the other bills since the last sync (less
         SYNC_OVERLAP_MS, up to CLOCK_SKEW_MS past now, deduplicated by bill id in meta
-        ``booked_bills``) are booked, a fill the program did not cause as MANUAL. The
-        positions become the exchange's, each keeping the stop the ledger tracked for it
+        ``booked_bills``) are booked, a fill the program did not cause as MANUAL. A stop
+        that fired on the exchange is alerted with what it traded and made
+        (``_fired_text``): its fills, unlike those of a close the program sent for want of
+        a stop, which that close's own alert announced, carry no client id. The positions
+        become the exchange's, each keeping the stop the ledger tracked for it
         (or the one in ``desired_stops``, set by an execution). One not in MARGIN_MODE
         at LEVERAGE is a problem. Cash is the wallet balance, equity includes unrealized
         PnL. Each UTC midnight passed since the last sync gets the current equity as its
@@ -350,6 +358,7 @@ class DemoAccount:
         begin = since - SYNC_OVERLAP_MS
         booked: dict[str, int] = ledger.get("booked_bills") or {}
         fills, funding, manual, unexplained, problems, alerts = [], [], [], [], [], []
+        fired: dict[str, list[tuple[float, Fill]]] = {}  # inst -> (contracts, fill) of its stop's fills
         end = now_ms + CLOCK_SKEW_MS
         for f in self.private.fills(begin, end):
             if f.bill_id in booked:
@@ -359,7 +368,10 @@ class DemoAccount:
             if reason == MANUAL:
                 manual.append(f)
             # OKX reports a paid fee as negative; the ledger keeps fees as costs.
-            fills.append(Fill(f.ts, f.inst, round(qty, 12), f.price, -f.fee, reason, utc_date(f.ts)))
+            fill = Fill(f.ts, f.inst, round(qty, 12), f.price, -f.fee, reason, utc_date(f.ts))
+            fills.append(fill)
+            if reason == "stop" and not f.client_id:
+                fired.setdefault(f.inst, []).append((f.contracts, fill))
             booked[f.bill_id] = f.ts
         for b in self.private.funding_bills(begin, end):
             if b.bill_id in booked:
@@ -375,6 +387,7 @@ class DemoAccount:
         booked = {bill: ts for bill, ts in booked.items() if ts >= begin}
 
         old = ledger.positions()
+        alerts += [_fired_text(inst, legs, old.get(inst)) for inst, legs in fired.items()]
         positions: dict[str, Position] = {}
         for inst, p in exchange.items():
             qty = round(p.contracts * self.spec(inst).contract_value, 12)
@@ -958,6 +971,21 @@ def _bill_text(bill: Bill) -> str:
     what = {"11": "转入", "12": "转出"}.get(bill.sub_type) if bill.type == TRANSFER_BILL else None
     what = what or f"账单类型 {bill.type}（子类型 {bill.sub_type}）"
     return f"{bill.inst} {what}".strip() + f" {bill.amount:+,.2f} USDT"
+
+
+def _fired_text(inst: str, legs: list[tuple[float, Fill]], held: Position | None) -> str:
+    """The alert of the stop of ``inst`` that fired on the exchange, from its fills
+    (contracts, the fill booked): what it traded at what average price and, from the
+    entry of the position the ledger held (``held``), what that made after the fees."""
+    contracts = sum(c for c, _ in legs)
+    qty = sum(f.qty for _, f in legs)
+    price = sum(f.qty * f.price for _, f in legs) / qty
+    fee = sum(f.fee for _, f in legs)
+    text = f"止损成交：{inst} {'卖出' if qty < 0 else '买入'} {contracts:g} 张 @ {price:,.2f}"
+    if held is None or (held.qty > 0) == (qty > 0):
+        return text + "，账本里没有它平掉的仓位，算不出盈亏"
+    pnl = -qty * (price - held.entry) - fee
+    return text + f"，盈亏 {pnl:+,.2f} USDT（开仓均价 {held.entry:,.2f}，含手续费 {fee:,.2f}）"
 
 
 def _stop_after(old_qty: float, new_qty: float, old_stop: float | None, fill_price: float, atr_value: float):

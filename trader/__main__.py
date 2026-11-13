@@ -17,7 +17,6 @@ from dotenv import find_dotenv, load_dotenv
 from trader import backup as account_backup, jobs, report
 from trader.demo import job as demo_job, report as demo_report
 from trader.demo.account import DEMO, DemoAccount, Sync
-from trader.demo.settings import ALERT_INTERVAL_MS
 from trader.evaluation.cli import evaluate_app
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
@@ -664,8 +663,8 @@ def _live_client(base_url: str = live_keys.BASE_URL, hourly: bool = False) -> tu
     """The settings and the production client on the key of the live key file (ADR
     0010). A file that is missing, unreadable, open to other users, incomplete or of
     values no header carries fails the calling command with an alert, and that command
-    alone: no other command reads the file. The ``hourly`` run alerts it at most every
-    ALERT_INTERVAL_MS, as it does its own failures (meta ``live_alerted_at``)."""
+    alone: no other command reads the file. The ``hourly`` run alerts it as it does its
+    own failures, through the account's outbox (``demo_job.alert_failure``)."""
     try:
         settings = Settings.from_env()
     except ValueError as exc:  # the demo key's variables are set in part, as in _demo_client
@@ -673,22 +672,14 @@ def _live_client(base_url: str = live_keys.BASE_URL, hourly: bool = False) -> tu
     try:
         return settings, live_keys.client(base_url)
     except live_keys.LiveKeyError as exc:
-        if not hourly or _alert_due(settings.live_ledger_path, live_account.LIVE.alerted_key):
-            labeled(Notifier(settings), live_account.LIVE.name).send(f"密钥文件有问题，这次没有运行：{exc}")
+        text = f"密钥文件有问题，这次没有运行：{exc}"
+        if hourly and settings.live_ledger_path.exists():
+            ledger = Ledger(settings.live_ledger_path)
+            box = demo_job.outbox(Notifier(settings), ledger, live_account.LIVE, _now_ms)
+            demo_job.alert_failure(ledger, box, live_account.LIVE, exc, text, _now_ms())
+        else:
+            labeled(Notifier(settings), live_account.LIVE.name).send(text)
         _fail(f"live 的密钥文件有问题：{exc}")
-
-
-def _alert_due(path: Path, key: str) -> bool:
-    """Whether an alert throttled by meta ``key`` of the ledger at ``path`` may go out
-    now, recording that it does; there is no throttle without the ledger."""
-    if not path.exists():
-        return True
-    ledger = Ledger(path)
-    now_ms = _now_ms()
-    if now_ms - ledger.get(key, 0) < ALERT_INTERVAL_MS:
-        return False
-    ledger.set(key, now_ms)
-    return True
 
 
 def _sub_account(config) -> bool | None:

@@ -47,7 +47,8 @@ def test_each_account_has_its_own_ledger_lock_throttle_and_resume_command(tmp_pa
         tmp_path / "live" / "ledger.sqlite", tmp_path / "live" / "trader.lock",
     )
     assert settings.live_ledger_path in [tmp_path / rel for rel in backup.LEDGERS]
-    assert (DEMO.alerted_key, LIVE.alerted_key) == ("demo_alerted_at", "live_alerted_at")
+    assert (DEMO.failures_key, LIVE.failures_key) == ("demo_failures_alerted", "live_failures_alerted")
+    assert (DEMO.unsent_key, LIVE.unsent_key) == ("demo_unsent", "live_unsent")
     assert (DEMO.resume_command, LIVE.resume_command) == (
         "python -m trader demo resume", "python -m trader live resume",
     )
@@ -82,9 +83,11 @@ def test_a_live_run_labels_what_it_sends_and_keeps_to_its_own_lock_and_throttle(
     for now_ms in (RUN0 + HOUR_MS, RUN0 + 2 * HOUR_MS):
         with pytest.raises(OKXError):
             run(env, account, exchange, now_ms)
-    assert env.inbox.sent[1:] == ["【live】运行失败：OKXError: balance failed with code 50001: service unavailable"]
-    assert account.ledger.get("live_alerted_at") == RUN0 + HOUR_MS
-    assert account.ledger.get("demo_alerted_at") is None and env.ledger.get("demo_alerted_at") is None
+    # The account holds the position: each failure is alerted, the second saying why.
+    failed = "【live】运行失败：OKXError: balance failed with code 50001: service unavailable"
+    assert env.inbox.sent[1:] == [failed, failed + "（账户可能有仓位：恢复之前每次失败都报）"]
+    assert account.ledger.get("live_failures_alerted") == {"OKXError": RUN0 + 2 * HOUR_MS}
+    assert account.ledger.get("demo_failures_alerted") is None and env.ledger.get("demo_failures_alerted") is None
 
 
 def test_the_events_and_reports_of_a_live_account_name_it(tmp_path):
