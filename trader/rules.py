@@ -38,13 +38,20 @@ def atr(highs: list[float], lows: list[float], closes: list[float], days: int = 
     return sum(ranges) / days
 
 
+def usable_prices(*values: float) -> bool:
+    """Whether every one of ``values``, prices from OKX or an ATR, is a positive finite
+    number, as anything traded, stopped or marked on them needs. A price of 0 would fill
+    a long's stop at 0, a NaN one carry into the cash and the equity for good, an
+    infinite one make the equity infinite; an ATR of 0 would divide ``unit_notional``
+    by zero."""
+    return all(math.isfinite(x) and x > 0 for x in values)
+
+
 def usable_quote(price: float, atr_value: float) -> bool:
-    """Whether a contract can be traded on a last price and an ATR: both must be
-    positive finite numbers. A price of 0 would fill a long's stop at 0, an infinite
-    one make the equity infinite, an ATR of 0 divide ``unit_notional`` by zero. Every
-    executor leaves a contract whose quote is not usable out of the round: not traded,
-    its stop not moved, its position not marked at that price."""
-    return all(math.isfinite(x) and x > 0 for x in (price, atr_value))
+    """Whether a contract can be traded on a last price and an ATR (``usable_prices``).
+    Every executor leaves a contract whose quote is not usable out of the round: not
+    traded, its stop not moved, its position not marked at that price."""
+    return usable_prices(price, atr_value)
 
 
 def unit_notional(

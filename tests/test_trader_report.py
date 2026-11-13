@@ -3,7 +3,7 @@ import math
 import pytest
 import requests
 
-from tests.test_trader_paper import BTC, DAY0, FakeOKX
+from tests.test_trader_paper import BAD_PRICES, BTC, DAY0, FakeOKX, Market
 from trader import report
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS, Bar
@@ -82,7 +82,7 @@ def test_daily_report_goes_out_at_the_last_marks_when_okx_is_down(tmp_path):
     )
     assert "净值 10,100.00 USDT" in text  # 0.1 BTC from 80,000, marked at the 81,000 mark
     assert "验证期累计 +1.00%，扣 LLM 费用后 +1.00%\n" in text  # no spot baseline after it
-    assert text.splitlines()[-1].startswith("⚠ 行情暂不可用（OKX）")
+    assert text.splitlines()[-1] == "⚠ 行情暂不可用（OKX）：净值按最近一次标记价计，三币等权现货略去。"
 
 
 def test_daily_report_marks_a_contract_without_a_mark_at_its_entry(tmp_path):
@@ -118,3 +118,46 @@ def test_daily_report_prices_the_baseline_only_for_coins_the_period_started_with
     states = {c.research: ("done", "Hold") for c in (BTC, eth)}
     text = report.daily(paper, "2026-01-09", states, DAY0 + DAY_MS, DAY0, None)
     assert "三币等权现货 +2.50%" in text  # BTC alone: 82,000 / 80,000
+
+
+def validating(tmp_path):
+    """A ledger in its validation period, its baseline bought BTC at 80,000; it holds 0.1
+    BTC from 80,000, last marked at 81,000."""
+    ledger = Ledger(tmp_path / "ledger.sqlite")
+    ledger.initialize(10_000.0, DAY0)
+    ledger.commit(
+        positions={BTC.swap: Position(0.1, 80_000.0, 75_000.0)}, cash=10_000.0,
+        snapshots=[(DAY0, 10_000.0)],
+        meta={
+            "validation_start": DAY0, "baseline_ref": {BTC.research: 80_000.0},
+            "marks": {BTC.swap: 81_000.0},
+        },
+    )
+    return ledger
+
+
+def daily_text(ledger, okx):
+    states = {BTC.research: ("done", "Hold")}
+    return report.daily(Paper(ledger, okx, (BTC,)), "2026-01-09", states, DAY0, DAY0, None)
+
+
+@pytest.mark.parametrize("price", [price for price, _ in BAD_PRICES])
+def test_daily_report_leaves_out_a_baseline_whose_last_price_cannot_be_used(tmp_path, price):
+    okx = Market(last=82_000.0)
+    okx.prices[BTC.spot] = price
+    text = daily_text(validating(tmp_path), okx)
+    assert "净值 10,200.00 USDT" in text  # the contract's own last price, 82,000, was usable
+    assert "验证期累计 +2.00%，扣 LLM 费用后 +2.00%\n" in text
+    assert text.splitlines()[-1] == "⚠ 行情暂不可用（OKX）：三币等权现货略去。"
+
+
+@pytest.mark.parametrize("price", [price for price, _ in BAD_PRICES])
+def test_daily_report_marks_a_contract_whose_last_price_cannot_be_used_at_its_mark(
+    tmp_path, price,
+):
+    okx = Market(last=82_000.0)
+    okx.prices[BTC.swap] = price
+    text = daily_text(validating(tmp_path), okx)
+    assert "净值 10,100.00 USDT" in text  # at the 81,000 mark
+    assert "验证期累计 +1.00%，扣 LLM 费用后 +1.00%；三币等权现货 +2.50%\n" in text  # spot usable
+    assert text.splitlines()[-1] == "⚠ 行情暂不可用（OKX）：净值按最近一次标记价计。"

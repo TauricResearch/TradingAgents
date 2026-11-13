@@ -1,3 +1,4 @@
+import dataclasses
 import math
 import sqlite3
 from datetime import UTC, datetime
@@ -5,7 +6,7 @@ from datetime import UTC, datetime
 import pytest
 
 from trader import rules
-from trader.intraday.paper import HOUR_MS
+from trader.intraday.paper import HOUR_MS, IntradayPaper
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger, Position
 from trader.okx import DAY_MS, MINUTE_MS, Bar, ContractSpec, FundingEvent
@@ -435,3 +436,157 @@ def test_an_atr_below_zero_is_refused_too(ledger, monkeypatch):
     assert unusable_events(ledger) == alerts
     assert ledger.positions() == {ETH.swap: Position(1.0, 2_000.0, 1_800.0)}
     assert ledger.fills() == [] and ledger.get("cash") == 10_000.0
+
+
+# -- candles and last prices that cannot be used ------------------------------------------
+
+MIDNIGHT = DAY0 + DAY_MS
+FIELDS = {"open": "开", "high": "高", "low": "低", "close": "收"}  # as the alert names them
+BAD_PRICES = [(0.0, "0.00"), (-1.0, "-1.00"), (math.nan, "nan"), (math.inf, "inf")]
+AS_MISSING = "；开高低收都要是大于 0 的有限数，这几分钟不判断止损，净值按之前的收盘价算"
+
+
+def refused_alert(head, field, shown):
+    """The alert ``head`` begins, of candles the first of which is at 81,000 but for
+    ``field``, shown as ``shown``."""
+    prices = "，".join(
+        f"{name} {shown if key == field else '81,000.00'}" for key, name in FIELDS.items()
+    )
+    return f"K 线不能用：{head} {prices}{AS_MISSING}"
+
+
+def bar_events(ledger):
+    return [text for _, _, text in ledger.events(kinds=("bar_unusable",))]
+
+
+class Minutes(FakeOKX):
+    """FakeOKX with each contract's own 1-minute candles."""
+
+    def __init__(self, series, **kwargs):
+        super().__init__(**kwargs)
+        self.series = series
+
+    def bars(self, inst, bar, start_ms, end_ms):
+        if bar != "1m":
+            return super().bars(inst, bar, start_ms, end_ms)
+        return [b for b in self.series[inst] if start_ms <= b.ts < end_ms]
+
+
+@pytest.mark.parametrize("account", [Paper, IntradayPaper])
+@pytest.mark.parametrize(("qty", "stop"), [(0.04, 75_000.0), (-0.04, 85_000.0)])
+@pytest.mark.parametrize("field", list(FIELDS))
+@pytest.mark.parametrize(("value", "shown"), BAD_PRICES)
+def test_a_candle_with_a_price_that_cannot_be_used_counts_as_missing(
+    ledger, account, qty, stop, field, value, shown,
+):
+    # The minute before midnight is refused. Read, a long's stop would fill at an open or
+    # a low of 0 or below, a short's at an infinite open or high, and its close would
+    # mark the midnight snapshot and price the funding settled at midnight.
+    start = MIDNIGHT - 2 * MINUTE_MS
+    ledger.commit(
+        positions={BTC.swap: Position(qty, 80_000.0, stop)}, cash=10_000.0,
+        meta={"processed_to": start},
+    )
+    refused = dataclasses.replace(
+        Bar(MIDNIGHT - MINUTE_MS, 81_000.0, 81_000.0, 81_000.0, 81_000.0), **{field: value}
+    )
+    okx = FakeOKX(
+        minute=[
+            *minutes(start - MINUTE_MS, [80_000, 80_000]), refused,
+            *minutes(MIDNIGHT, [82_000, 82_000]),
+        ],
+        funding=[FundingEvent(MIDNIGHT, 0.0001)],
+    )
+    alerts = account(ledger, okx, (BTC,)).replay(MIDNIGHT + 2 * MINUTE_MS)
+    head = "BTC-USDT-SWAP 有 1 根 1 分钟 K 线按缺失处理，最早一根 01-10 23:59 UTC"
+    assert alerts == [refused_alert(head, field, shown)] and bar_events(ledger) == alerts
+    # No stop fills at it; midnight and its funding are priced at the close before it,
+    # 80,000; the candles after it are replayed as usual.
+    assert ledger.positions() == {BTC.swap: Position(qty, 80_000.0, stop)}
+    assert ledger.fills() == []
+    assert ledger.equity_series() == [(MIDNIGHT, 10_000.0)]
+    cash = 10_000 - qty * 80_000 * 0.0001
+    assert ledger.get("cash") == pytest.approx(cash)
+    assert ledger.get("marks") == {BTC.swap: 82_000.0}
+    assert ledger.get("peak") == pytest.approx(max(10_000, cash + qty * 2_000))
+    assert ledger.get("processed_to") == MIDNIGHT + 2 * MINUTE_MS
+
+
+def test_the_candles_after_a_refused_one_and_other_contracts_replay_as_usual(ledger):
+    ledger.commit(
+        positions={
+            BTC.swap: Position(0.04, 80_000.0, 75_000.0), ETH.swap: Position(1.0, 2_000.0, 1_900.0),
+        },
+        cash=10_000.0,
+    )
+    okx = Minutes({
+        # BTC opens at 0 at T0, a gap through its stop were it read; it reaches it at T0 + 1.
+        BTC.swap: minutes(
+            T0 - MINUTE_MS, [80_000, (0, 80_000, 80_000, 80_000), (76_000, 76_000, 74_000, 74_500)]
+        ),
+        ETH.swap: minutes(T0 - MINUTE_MS, [2_000, (1_950, 1_950, 1_850, 1_880), 1_880]),
+    })
+    alerts = Paper(ledger, okx, (BTC, ETH)).replay(T0 + 2 * MINUTE_MS)
+    assert alerts[0] == bar_events(ledger)[0]
+    assert alerts[0].startswith(
+        "K 线不能用：BTC-USDT-SWAP 有 1 根 1 分钟 K 线按缺失处理，最早一根 01-10 00:30 UTC 开 0.00，"
+    )
+    assert [a.split(" ")[0] for a in alerts[1:]] == ["止损：ETH-USDT-SWAP", "止损：BTC-USDT-SWAP"]
+    assert [(f.inst, f.ts, f.reason) for f in ledger.fills()] == [
+        (ETH.swap, T0, "stop"), (BTC.swap, T0 + MINUTE_MS, "stop"),
+    ]
+    assert [f.price for f in ledger.fills()] == [
+        pytest.approx(1_900 * 0.9995), pytest.approx(75_000 * 0.9995),
+    ]
+    assert ledger.positions() == {}
+
+
+def test_refused_candles_at_the_end_wait_for_the_next_replay_and_alert_once(ledger):
+    hold(ledger, 0.04, 80_000, 70_000)
+    zero_close = (80_000, 80_000, 80_000, 0.0)
+    okx = FakeOKX(minute=minutes(T0 - MINUTE_MS, [80_000, 80_000, zero_close, zero_close]))
+    paper = Paper(ledger, okx, (BTC,))
+    assert paper.replay(T0 + 3 * MINUTE_MS) == []  # nothing usable after T0 yet: wait
+    assert ledger.get("processed_to") == T0 + MINUTE_MS
+    assert bar_events(ledger) == []
+    okx.minute += minutes(T0 + 3 * MINUTE_MS, [80_500])
+    alerts = paper.replay(T0 + 4 * MINUTE_MS)
+    head = "BTC-USDT-SWAP 有 2 根 1 分钟 K 线按缺失处理，最早一根 01-10 00:31 UTC"
+    assert alerts == [refused_alert(head, "close", "0.00").replace("81,000", "80,000")]
+    assert bar_events(ledger) == alerts
+    assert ledger.get("processed_to") == T0 + 4 * MINUTE_MS
+    assert ledger.get("marks") == {BTC.swap: 80_500.0}
+    assert ledger.fills() == [] and ledger.get("halted") is False
+
+
+def test_refused_candles_stall_the_replay_as_missing_ones_do(ledger):
+    hold(ledger, 0.04, 80_000, 70_000)
+    nan_close = (80_000, 80_000, 80_000, math.nan)
+    okx = FakeOKX(minute=minutes(T0 - MINUTE_MS, [80_000, 80_000] + [nan_close] * 29))
+    with pytest.raises(ReplayStalled, match="no usable closed 1m candles"):
+        Paper(ledger, okx, (BTC,)).replay(T0 + 30 * MINUTE_MS)
+    assert ledger.get("processed_to") == T0
+    assert bar_events(ledger) == []
+
+
+@pytest.mark.parametrize("seed", [None, (80_000, 80_000, 80_000, math.nan)])
+def test_without_a_usable_candle_before_it_a_replay_starts_at_the_last_mark(ledger, seed):
+    # Long 0.04 BTC from 60,000, last marked at 80,000; funding settles at the first minute.
+    ledger.commit(
+        positions={BTC.swap: Position(0.04, 60_000.0, 50_000.0)}, cash=10_000.0,
+        meta={"marks": {BTC.swap: 80_000.0}},
+    )
+    candles = minutes(T0 - MINUTE_MS, [seed, 80_100]) if seed else minutes(T0, [80_100])
+    okx = FakeOKX(minute=candles, funding=[FundingEvent(T0, 0.0001)])
+    # The candle before T0 belongs to the replay before: no alert for it here.
+    assert Paper(ledger, okx, (BTC,)).replay(T0 + MINUTE_MS) == []
+    assert ledger.funding_total() == pytest.approx(-0.04 * 80_000 * 0.0001)  # not at 60,000
+
+
+@pytest.mark.parametrize("account", [Paper, IntradayPaper])
+@pytest.mark.parametrize("price", [price for price, _ in BAD_PRICES])
+def test_a_last_price_that_cannot_be_used_is_reported_at_the_last_mark(ledger, account, price):
+    hold(ledger, 0.04, 80_000, 75_000)
+    ledger.set("marks", {BTC.swap: 81_000.0})
+    equity, unavailable = account(ledger, FakeOKX(last=price), (BTC,)).equity_now()
+    assert (equity, unavailable) == (pytest.approx(10_040.0), True)

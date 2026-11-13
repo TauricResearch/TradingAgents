@@ -25,6 +25,7 @@ from trader.rules import (
     tighten,
     to_quantity,
     unit_notional,
+    usable_prices,
     usable_quote,
 )
 
@@ -95,6 +96,19 @@ def test_atr_takes_the_largest_term_for_each_bar():
     # TR2 = max(6, |118-120|, |112-120|) = 8    (gap down)
     # TR3 = max(30, |130-115|, |100-115|) = 30  (own range); mean = 63 / 3 = 21
     assert atr(highs, lows, closes, days=3) == pytest.approx(21.0)
+
+
+# ------------------------------------------------------------------ usable_prices
+
+
+@pytest.mark.parametrize("bad", [0.0, -0.01, -80_000.0, math.nan, math.inf, -math.inf])
+def test_prices_are_usable_only_when_every_one_is_a_positive_finite_number(bad):
+    assert usable_prices(80_000.0, 80_100.0, 79_900.0, 80_050.0) is True
+    assert usable_prices() is True  # nothing to refuse
+    for i in range(4):
+        prices = [80_000.0] * 4
+        prices[i] = bad
+        assert usable_prices(*prices) is False
 
 
 # ------------------------------------------------------------------ usable_quote
