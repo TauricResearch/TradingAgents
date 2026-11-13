@@ -7,7 +7,7 @@ const FOLLOWED: Record<Followed, { label: string; cls: string; title: string }> 
   skipped: { label: '未赶上', cls: 'border-accent/50 bg-accent/10 text-accent', title: '等到截止时间日内账户还没决定，这个小时没有交易' },
   blocked: { label: '对账阻塞', cls: 'border-accent/50 bg-accent/10 text-accent', title: '对账发现问题，这个小时不下单（见总览的执行对账）' },
   paused: { label: '暂停中', cls: 'border-accent/50 bg-accent/10 text-accent', title: '账户暂停，这个小时只记下本该下的单，不下单（原因见总览的执行对账）' },
-  failed: { label: '下单失败', cls: 'border-down/50 bg-down/15 text-down', title: '订单被交易所拒绝、被程序拒绝或没有成交（见历史页的事件）' },
+  failed: { label: '下单失败', cls: 'border-down/50 bg-down/15 text-down', title: '订单被交易所拒绝、被程序拒绝或没有成交；或者这个币的报价不能用，本小时没有交易（见历史页的事件）' },
   pending: { label: '待处理', cls: 'border-border bg-panel-2 text-muted', title: 'Demo 还没跑到这个小时（每小时第 10 分运行）' },
 }
 
