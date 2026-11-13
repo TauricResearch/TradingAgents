@@ -4,14 +4,17 @@
 fills stops (at the open when a candle gaps through one), books funding at each
 settlement, marks equity at every close, tracks the peak, flattens everything
 once the drawdown reaches KILL_DRAWDOWN, and snapshots equity at each UTC
-midnight. ``execute`` trades between minutes, at the last price.
+midnight. A candle with a price that is not a positive finite number counts as
+missing. ``execute`` trades between minutes, at the last price.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from trader import rules
 from trader.ledger import Fill, Ledger, Position
-from trader.okx import DAY_MS, MINUTE_MS, OKX, REQUEST_ERRORS
+from trader.okx import DAY_MS, MINUTE_MS, OKX, REQUEST_ERRORS, Bar
 from trader.settings import ATR_DAYS, KILL_DRAWDOWN, STOP_ATR_MULT, WATCHLIST, Coin
 
 STALL_MS = 10 * MINUTE_MS
@@ -20,7 +23,7 @@ Quotes = dict[str, tuple[float, float]]  # contract -> (last price, ATR)
 
 
 class ReplayStalled(RuntimeError):
-    """OKX has served no closed candle for a held contract in the last STALL_MS."""
+    """OKX has served no usable closed candle for a held contract in the last STALL_MS."""
 
 
 class Paper:
@@ -38,15 +41,19 @@ class Paper:
         )
 
     def equity_now(self) -> tuple[float, bool]:
-        """Equity at OKX's last prices, for a report. A contract OKX gives no price for
-        (REQUEST_ERRORS) is marked at its last mark (meta ``marks``, else its entry), and
-        the flag says so: a report must go out even when OKX is down."""
+        """Equity at OKX's last prices, for a report. A contract OKX gives no usable price
+        for (REQUEST_ERRORS, or one ``rules.usable_prices`` refuses) is marked at its last
+        mark (meta ``marks``, else its entry), and the flag says so: a report must go out
+        even when OKX is down."""
         marks, prices, unavailable = self.ledger.get("marks") or {}, {}, False
         for inst, pos in self.ledger.positions().items():
             try:
-                prices[inst] = self.okx.last_price(inst)
+                price = self.okx.last_price(inst)
             except REQUEST_ERRORS:
-                prices[inst], unavailable = marks.get(inst, pos.entry), True
+                price = None
+            if price is None or not rules.usable_prices(price):
+                price, unavailable = marks.get(inst, pos.entry), True
+            prices[inst] = price
         return self.equity(prices), unavailable
 
     def replay(self, now_ms: int) -> list[str]:
@@ -64,11 +71,17 @@ class Paper:
             )
             return []
 
-        # The candle before ``start`` seeds the close that prices funding settled at ``start``.
-        bars = {
-            inst: {b.ts: b for b in self.okx.bars(inst, "1m", start - MINUTE_MS, end)}
-            for inst in positions
-        }
+        # From the minute before ``start``, whose close prices funding settled at ``start``.
+        # A candle ``rules.usable_prices`` refuses counts as missing: no stop fills at it,
+        # no position is marked at it.
+        bars, refused = {}, {}
+        for inst in positions:
+            bars[inst], refused[inst] = {}, []
+            for b in self.okx.bars(inst, "1m", start - MINUTE_MS, end):
+                if rules.usable_prices(b.open, b.high, b.low, b.close):
+                    bars[inst][b.ts] = b
+                else:
+                    refused[inst].append(b)
         # Equity needs every held contract's close, so replay stops where the
         # shortest candle series does.
         stop_at = min(
@@ -76,19 +89,29 @@ class Paper:
             for series in bars.values()
         )
         if end - stop_at > STALL_MS:
-            raise ReplayStalled(f"no closed 1m candles for {sorted(bars)} since {stop_at}")
+            raise ReplayStalled(
+                f"no usable closed 1m candles for {sorted(bars)} since {stop_at}"
+            )
         if stop_at <= start:
             return []
         events = sorted(
             (e.ts, inst, e.rate) for inst in positions for e in self.okx.funding(inst, start, stop_at)
         )
+        # Without that candle a contract starts at its last mark (meta ``marks``), else
+        # its entry, as ``equity_now`` marks it.
+        marks = self.ledger.get("marks") or {}
         last_close = {
             inst: series[start - MINUTE_MS].close if start - MINUTE_MS in series
-            else positions[inst].entry
+            else marks.get(inst, positions[inst].entry)
             for inst, series in bars.items()
         }
+        unusable = []  # an alert a contract, for its refused candles among the minutes replayed
+        for inst, series in refused.items():
+            replayed = [b for b in series if start <= b.ts < stop_at]
+            if replayed:
+                unusable.append(_bars_alert(inst, replayed))
         halted = self.ledger.get("halted")
-        alerts, fills, funding, snapshots = [], [], [], []
+        alerts, fills, funding, snapshots = list(unusable), [], [], []
         for t in range(start, stop_at, MINUTE_MS):
             # Funding settles at the start of minute t, on the position held then.
             while events and events[0][0] <= t:
@@ -125,6 +148,7 @@ class Paper:
                 "peak": peak, "halted": halted, "processed_to": stop_at,
                 "marks": self.marks(last_close),
             },
+            events=[(now_ms, "bar_unusable", text) for text in unusable],
         )
         return alerts
 
@@ -299,6 +323,17 @@ def _midnights(start: int, end: int) -> list[int]:
 
 def _stop_alert(inst: str, qty: float, price: float, pnl: float) -> str:
     return f"止损：{inst} {qty:+g} 在 {price:,.2f} 平仓，盈亏 {pnl:+,.2f} USDT"
+
+
+def _bars_alert(inst: str, refused: list[Bar]) -> str:
+    """The alert of the candles of ``inst`` a replay counted as missing, oldest first."""
+    first = refused[0]
+    when = datetime.fromtimestamp(first.ts / 1000, UTC).strftime("%m-%d %H:%M")
+    return (
+        f"K 线不能用：{inst} 有 {len(refused)} 根 1 分钟 K 线按缺失处理，最早一根 {when} UTC "
+        f"开 {first.open:,.2f}，高 {first.high:,.2f}，低 {first.low:,.2f}，收 {first.close:,.2f}；"
+        "开高低收都要是大于 0 的有限数，这几分钟不判断止损，净值按之前的收盘价算"
+    )
 
 
 def _unusable_alert(inst: str, price: float, atr_value: float, when: str) -> str:

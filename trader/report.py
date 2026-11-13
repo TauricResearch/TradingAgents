@@ -120,12 +120,13 @@ def daily(
     month_start_ms: int, cap: float | None,
 ) -> str:
     """The report sent after each daily run. ``states`` maps research tickers to
-    ``jobs.coin_state`` results. The report goes out even when OKX is down: equity is
-    then marked at the last marks (``Paper.equity_now``), the spot baseline is left
-    out, and a last line says so."""
+    ``jobs.coin_state`` results. The report goes out even when OKX is down or serves a
+    price ``rules.usable_prices`` refuses: equity is then marked at the last marks
+    (``Paper.equity_now``), the spot baseline is left out, and a last line says which."""
     ledger = paper.ledger
     positions = ledger.positions()
-    equity, unavailable = paper.equity_now()
+    equity, marked = paper.equity_now()
+    unavailable = ["净值按最近一次标记价计"] if marked else []
     lines = [f"模拟盘日报 · 研判日 {trade_date}"]
     if ledger.get("halted"):
         lines.append("⚠ 熔断中：只研判，不交易。确认后运行 python -m trader resume 恢复。")
@@ -163,12 +164,14 @@ def daily(
         held = [c for c in paper.watchlist if c.research in ref]
         line = f"验证期累计 {equity / base - 1:+.2%}，扣 LLM 费用后 {(equity - spent) / base - 1:+.2%}"
         try:
-            ratios = [paper.okx.last_price(c.spot) / ref[c.research] for c in held]
-        except REQUEST_ERRORS:  # the baseline has no mark to fall back on: left out
-            unavailable = True
-        else:
-            if ratios:
-                line += f"；三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}"
+            spots = [paper.okx.last_price(c.spot) for c in held]
+        except REQUEST_ERRORS:
+            spots = None
+        if spots is None or not rules.usable_prices(*spots):  # no mark to fall back on
+            unavailable.append("三币等权现货略去")
+        elif spots:
+            ratios = [spot / ref[c.research] for spot, c in zip(spots, held, strict=True)]
+            line += f"；三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}"
         lines.append(line)
 
     today, unknown_today = ledger.cost_of(trade_date)
@@ -181,9 +184,7 @@ def daily(
     unknown = "；有调用费用未知，没算进去" if unknown_today or unknown_month else ""
     lines.append(f"LLM 费用：今日 ${today:,.2f}，本月 ${month:,.2f}，{limit}{unknown}")
     if unavailable:
-        lines.append(
-            "⚠ 行情暂不可用（OKX）：净值按最近一次标记价计，三币等权现货略去。"
-        )
+        lines.append(f"⚠ 行情暂不可用（OKX）：{'，'.join(unavailable)}。")
     return "\n".join(lines)
 
 
