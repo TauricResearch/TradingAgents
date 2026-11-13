@@ -54,3 +54,23 @@ def _chunks(text: str) -> list[str]:
         chunks.append(current)
     # A single line longer than the limit is cut where it must be.
     return [c[i:i + _LIMIT] for c in chunks for i in range(0, len(c), _LIMIT)]
+
+
+class Labeled:
+    """A notifier that heads each message with ``【label】``: the accounts that share the
+    chat, one of them with real money (ADR 0010), are told apart at a glance. A message
+    split into several goes out with the label on its first piece."""
+
+    def __init__(self, notifier: Notifier, label: str):
+        self.notifier = notifier
+        self.label = label
+
+    def send(self, text: str) -> bool:
+        return self.notifier.send(f"【{self.label}】{text}")
+
+
+def labeled(notifier: Notifier | Labeled, label: str) -> Labeled:
+    """``notifier`` labeled with ``label``; one that already is comes back as it is."""
+    if isinstance(notifier, Labeled) and notifier.label == label:
+        return notifier
+    return Labeled(notifier, label)

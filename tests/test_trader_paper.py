@@ -239,6 +239,7 @@ def test_replay_kills_at_the_drawdown_limit(ledger):
         10_000 + (fill_price - 80_000) - fill_price * 0.0005
     )
     assert "熔断" in alerts[0]
+    assert alerts[0].endswith("确认后运行 python -m trader resume 恢复。")
     paper = Paper(ledger, FakeOKX(), (BTC,))
     assert paper.execute("2026-01-09", {BTC.research: "Buy"}, T0 + 4 * MINUTE_MS) == []
     assert ledger.positions() == {}

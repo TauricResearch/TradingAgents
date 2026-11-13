@@ -54,6 +54,8 @@ class FakeExchange:
     ``gaps`` lists the contracts a cancellation left without a closing stop while still
     held; ``at_close`` what was pending for a contract each time its close was asked."""
 
+    simulated = True  # OKXPrivate.simulated: a client of OKX's simulated trading, as the demo's
+
     def __init__(self, cash=10_000.0, price=80_000.0, leverage=3.0, margin_mode="cross"):
         self.cash = cash
         self.price = price

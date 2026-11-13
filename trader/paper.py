@@ -22,6 +22,8 @@ class ReplayStalled(RuntimeError):
 
 
 class Paper:
+    resume_command = "python -m trader resume"  # named in the kill switch's alert
+
     def __init__(self, ledger: Ledger, okx: OKX, watchlist: tuple[Coin, ...] = WATCHLIST):
         self.ledger = ledger
         self.okx = okx
@@ -111,7 +113,7 @@ class Paper:
                     price = rules.slipped(last_close[inst], -pos.qty)
                     cash += _move(positions, inst, 0.0, price, 0.0, t + MINUTE_MS, "kill", fills)
                 halted = True
-                alerts.append(_kill_alert(equity, peak))
+                alerts.append(_kill_alert(equity, peak, self.resume_command))
                 equity = cash
             if (t + MINUTE_MS) % DAY_MS == 0:
                 snapshots.append((t + MINUTE_MS, equity))
@@ -263,8 +265,9 @@ def _stop_alert(inst: str, qty: float, price: float, pnl: float) -> str:
     return f"止损：{inst} {qty:+g} 在 {price:,.2f} 平仓，盈亏 {pnl:+,.2f} USDT"
 
 
-def _kill_alert(equity: float, peak: float) -> str:
+def _kill_alert(equity: float, peak: float, resume: str) -> str:
+    """The kill switch's alert, naming ``resume``, the command that lifts it."""
     return (
         f"熔断：净值 {equity:,.2f} 比峰值 {peak:,.2f} 回撤 {rules.drawdown(equity, peak):.1%}，"
-        "已全部平仓并停止交易。确认后运行 python -m trader resume 恢复。"
+        f"已全部平仓并停止交易。确认后运行 {resume} 恢复。"
     )

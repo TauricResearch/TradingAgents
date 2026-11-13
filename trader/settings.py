@@ -9,7 +9,7 @@ environment. The models and their prices may also come from the dashboard's
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from trader import overrides, prices
@@ -111,6 +111,9 @@ class Settings:
     llm: dict | None = None  # the "llm" object of settings.json; None without the file
     web_token: str | None = None  # the dashboard's write endpoint wants it as a Bearer token
     okx_demo: OKXCredentials | None = None  # the demo account's API key (ADR 0008); masked repr
+    # The live account's heartbeat address (ADR 0010). Whoever has it can beat in the
+    # live run's place, so repr leaves it out.
+    live_heartbeat_url: str | None = field(default=None, repr=False)
 
     @property
     def ledger_path(self) -> Path:
@@ -141,6 +144,15 @@ class Settings:
     @property
     def demo_lock_path(self) -> Path:
         return self.home / "demo" / "trader.lock"
+
+    # The live account (ADR 0010), on the demo's executor.
+    @property
+    def live_ledger_path(self) -> Path:
+        return self.home / "live" / "ledger.sqlite"
+
+    @property
+    def live_lock_path(self) -> Path:
+        return self.home / "live" / "trader.lock"
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -177,4 +189,5 @@ class Settings:
             llm=data["llm"] if data else None,
             web_token=os.getenv("TRADER_WEB_TOKEN", "").strip() or None,
             okx_demo=OKXCredentials.from_env(),
+            live_heartbeat_url=os.getenv("TRADER_LIVE_HEARTBEAT_URL", "").strip() or None,
         )

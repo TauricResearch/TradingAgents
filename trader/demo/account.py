@@ -11,6 +11,17 @@ at market. ``execute`` sizes the intraday signals with the intraday constants
 against the demo's own equity and sends market orders whose client ids make a
 rerun harmless. ``protect`` gives the positions their stops when a step after the
 orders has raised.
+
+One executor serves each account that trades on OKX (ADR 0010): a ``Profile`` says
+which one it is, the demo's by default.
+
+An account may be paused (meta ``paused``): ``pause`` sets it and ``unpause`` clears
+it, each recording an event of kind ``pause`` or ``unpause`` with its reason. A paused
+account syncs, books what it finds and alerts, and changes nothing on the exchange: its
+``private`` is then a ``ReadOnly`` view that raises ``Paused`` on any call but a read,
+so there is no setup, no stop kept, no order and no kill; a drawdown to the kill line,
+and a position without a stop, are problems left to a person. An account whose profile
+is ``born_paused`` is paused until its ledger says otherwise.
 """
 
 from __future__ import annotations
@@ -20,6 +31,7 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from trader import rules
 from trader.demo.settings import (
@@ -54,7 +66,7 @@ from trader.okx_private import (
     StopOrder,
 )
 from trader.paper import _kill_alert, _midnights
-from trader.settings import KILL_DRAWDOWN, MAX_GROSS_EXPOSURE, WATCHLIST, Coin
+from trader.settings import KILL_DRAWDOWN, MAX_GROSS_EXPOSURE, WATCHLIST, Coin, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +78,80 @@ MANUAL = "manual"  # a fill the program did not cause
 # be higher" (a long's). From OKX's error table, not yet met on the exchange (#42); a
 # refusal under any other code goes the way of every other failed stop.
 TRIGGER_PASSED = ("51278", "51280")
+
+
+@dataclass(frozen=True)
+class Profile:
+    """Which account the executor is (ADR 0010). ``name`` labels the account's messages
+    (``trader.notify.labeled``) and names its commands, its ledger and its lock in
+    ``Settings`` (``<name>_ledger_path``, ``<name>_lock_path``) and the meta key that
+    throttles its failure alerts. ``production`` is the environment of OKX its client
+    must be of: the production one, with real money, or else simulated trading."""
+
+    name: str
+    production: bool = False
+    born_paused: bool = False  # paused until the ledger records otherwise (DemoAccount.paused)
+
+    @property
+    def resume_command(self) -> str:
+        """The command that lifts the account's kill switch, named in its alerts."""
+        return f"python -m trader {self.name} resume"
+
+    @property
+    def alerted_key(self) -> str:
+        """Meta: when a failed run of the account last alerted."""
+        return f"{self.name}_alerted_at"
+
+    def ledger_path(self, settings: Settings) -> Path:
+        return getattr(settings, f"{self.name}_ledger_path")
+
+    def lock_path(self, settings: Settings) -> Path:
+        return getattr(settings, f"{self.name}_lock_path")
+
+
+DEMO = Profile("demo")
+
+
+class Paused(RuntimeError):
+    """A paused account was about to change something on the exchange."""
+
+
+class ReadOnly:
+    """The reads of an OKXPrivate: all a paused account may ask of the exchange. Any
+    other call raises Paused before a request is sent."""
+
+    READS = frozenset({
+        "simulated", "base_url", "account_config", "balance", "positions", "pending_stops",
+        "fills", "funding_bills", "order", "fee_rate",
+    })
+
+    def __init__(self, client: OKXPrivate):
+        self._client = client
+
+    def __getattr__(self, name: str):
+        if name in self.READS:
+            return getattr(self._client, name)
+        raise Paused(f"the account is paused: {name} is not a read")
+
+
+@dataclass(frozen=True)
+class Planned:
+    """An order of the hour as ``DemoAccount.plan`` sizes it: ``contracts`` of ``inst``
+    take the position from ``old_qty`` to ``new_qty`` (coins) at about ``price``, for
+    the coin's ``signal``. ``refused`` says why it must not be sent, when it must not."""
+
+    inst: str
+    signal: str | None
+    old_qty: float
+    new_qty: float
+    contracts: float
+    price: float
+    atr: float
+    refused: str | None = None
+
+    @property
+    def notional(self) -> float:
+        return abs(round(self.new_qty - self.old_qty, 12)) * self.price
 
 
 @dataclass
@@ -91,14 +177,39 @@ class DemoAccount:
         private: OKXPrivate,
         watchlist: tuple[Coin, ...] = WATCHLIST,
         sleep: Callable[[float], None] = time.sleep,
+        profile: Profile = DEMO,
     ):
+        if private.simulated == profile.production:
+            where = "OKX's production environment" if profile.production else "OKX's simulated trading"
+            raise ValueError(f"the {profile.name} account trades on {where}; this client is not on it")
+        self.profile = profile
         self.ledger = ledger
         self.okx = okx          # public market data: last prices, candles, contract specs
-        self.private = private  # the signed calls
+        self._private = private  # the signed calls, through ``private``
         self.watchlist = watchlist
         self.sleep = sleep
         self._specs: dict[str, ContractSpec] = {}
         self._seq = 0  # keeps the client ids of one run apart
+
+    @property
+    def private(self) -> OKXPrivate:
+        """The signed calls; while the account is paused, only those that read."""
+        return ReadOnly(self._private) if self.paused else self._private
+
+    @property
+    def paused(self) -> bool:
+        return bool(self.ledger.get("paused", self.profile.born_paused))
+
+    def pause(self, now_ms: int, reason: str) -> None:
+        self._set_paused(True, now_ms, reason)
+
+    def unpause(self, now_ms: int, reason: str) -> None:
+        self._set_paused(False, now_ms, reason)
+
+    def _set_paused(self, paused: bool, now_ms: int, reason: str) -> None:
+        with self.ledger.transaction():
+            self.ledger.set("paused", paused)
+            self.ledger.add_event(now_ms, "pause" if paused else "unpause", reason)
 
     # -- exchange setup -------------------------------------------------------
 
@@ -152,8 +263,9 @@ class DemoAccount:
         explain, or one not in MARGIN_MODE at LEVERAGE, is a problem. Cash is the
         wallet balance, equity includes unrealized PnL; the peak follows equity and a
         drawdown of KILL_DRAWDOWN closes everything at market, cancels the stops and
-        halts. Each UTC midnight passed since the last sync gets the current equity
-        as its snapshot.
+        halts; a paused account closes nothing, the drawdown is a problem, and so is a
+        position without a stop. Each UTC midnight passed since the last sync gets the
+        current equity as its snapshot.
         """
         ledger = self.ledger
         balance = self.private.balance()
@@ -213,12 +325,21 @@ class DemoAccount:
         peak = max(ledger.get("peak"), equity)
         halted = ledger.get("halted")
         killed = False
-        if positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
+        if self.paused:
+            # What the run would have done about these changes the exchange: a person
+            # sees to it.
+            if positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
+                problems.append(f"回撤已到熔断线 {KILL_DRAWDOWN:.0%}：账户暂停中，程序不平仓，请人工处理")
+            problems += [
+                f"{inst} 有仓位没有止损单：账户暂停中，程序不补挂，请人工处理"
+                for inst in positions if not any(s.inst == inst for s in stops)
+            ]
+        elif positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
             for inst in positions:
                 self.private.close_position(inst, MARGIN_MODE, client_id=self._client_id(KILL_PREFIX, now_ms, inst))
             self.private.cancel_stops(stops)
             halted, killed = True, True
-            text = _kill_alert(equity, peak)
+            text = _kill_alert(equity, peak, self.profile.resume_command)
             alerts.append(text)
             ledger.add_event(now_ms, "kill", text)
         snapshots = [(m, equity) for m in _midnights(ledger.get("snapshot_to", since), now_ms)]
@@ -522,31 +643,14 @@ class DemoAccount:
 
     # -- execution ------------------------------------------------------------
 
-    def execute(
-        self, hour: int, signals: dict[str, str | None], now_ms: int, equity: float, quotes: Quotes,
-        *, alerts: list[str] | None = None, desired: dict[str, float | None] | None = None,
-    ) -> tuple[list[str], dict[str, float | None]]:
-        """Trade each contract toward the target its signal sets, as ``IntradayPaper.execute``
-        sizes it, with market orders on the exchange; return the alerts and the stop
-        each traded position should have (for the sync that follows).
-
-        ``equity`` and the ledger's positions are the sync's just before. A change
-        whose notional exceeds MAX_GROSS_EXPOSURE of equity is refused as a bug. The
-        order's client id is the hour's: a rerun finds it already placed and only reads
-        it back. An order not filled within ORDER_POLLS looks is left to the next sync.
-        The first execution starts the validation period and fixes the baseline, as the
-        paper accounts do.
-
-        ``alerts`` and ``desired``, when given, are what is filled and returned: a
-        caller that passes its own still has the alerts raised and the stops of the
-        orders filled so far when a later order raises.
-        """
-        ledger = self.ledger
-        alerts = [] if alerts is None else alerts
-        desired = {} if desired is None else desired
-        if ledger.get("halted"):
-            return alerts, desired
-        positions = ledger.positions()
+    def plan(self, signals: dict[str, str | None], equity: float, quotes: Quotes) -> list[Planned]:
+        """The orders that take each contract toward the target its signal sets, as
+        ``IntradayPaper.execute`` sizes it against ``equity`` and the ledger's positions,
+        in watchlist order; none for a halted account. One whose notional exceeds
+        MAX_GROSS_EXPOSURE of equity is refused as a bug. Only reads."""
+        if self.ledger.get("halted"):
+            return []
+        positions = self.ledger.positions()
         units, currents, targets = {}, {}, {}
         for coin in self.watchlist:
             price, atr_value = quotes[coin.swap]
@@ -559,6 +663,7 @@ class DemoAccount:
                 signals.get(coin.research), units[coin.swap], currents[coin.swap], weights=WEIGHTS
             )
         targets = rules.apply_caps(targets, currents, equity)
+        planned = []
         for coin in self.watchlist:
             inst = coin.swap
             flatten = signals.get(coin.research) == "Flat" and inst in positions
@@ -575,19 +680,51 @@ class DemoAccount:
             if new_qty == old_qty:
                 continue
             delta = round(new_qty - old_qty, 12)
+            refused = None
             if abs(delta) * price > MAX_GROSS_EXPOSURE * equity:
-                text = (
+                refused = (
                     f"拒绝下单：{inst} 变动 {delta:+g} 名义 {abs(delta) * price:,.0f} USDT"
                     f" 超过净值 {equity:,.0f} 的 {MAX_GROSS_EXPOSURE:g} 倍，可能是算错了"
                 )
-                alerts.append(text)
-                ledger.add_event(now_ms, "order_refused", text)
+            planned.append(Planned(
+                inst, signals.get(coin.research), old_qty, new_qty, self._contracts(delta, inst),
+                price, atr_value, refused,
+            ))
+        return planned
+
+    def execute(
+        self, hour: int, signals: dict[str, str | None], now_ms: int, equity: float, quotes: Quotes,
+        *, alerts: list[str] | None = None, desired: dict[str, float | None] | None = None,
+    ) -> tuple[list[str], dict[str, float | None]]:
+        """Send the hour's orders (``plan``) to the exchange as market orders; return the
+        alerts and the stop each traded position should have (for the sync that follows).
+
+        ``equity`` and the ledger's positions are the sync's just before. A refused order
+        is alerted and not sent. The order's client id is the hour's: a rerun finds it
+        already placed and only reads it back. An order not filled within ORDER_POLLS
+        looks is left to the next sync. The first execution starts the validation
+        period and fixes the baseline, as the paper accounts do.
+
+        ``alerts`` and ``desired``, when given, are what is filled and returned: a
+        caller that passes its own still has the alerts raised and the stops of the
+        orders filled so far when a later order raises.
+        """
+        ledger = self.ledger
+        alerts = [] if alerts is None else alerts
+        desired = {} if desired is None else desired
+        if ledger.get("halted"):
+            return alerts, desired
+        positions = ledger.positions()
+        for planned in self.plan(signals, equity, quotes):
+            inst, contracts = planned.inst, planned.contracts
+            if planned.refused:
+                alerts.append(planned.refused)
+                ledger.add_event(now_ms, "order_refused", planned.refused)
                 continue
-            contracts = self._contracts(delta, inst)
             client_id = f"{TRADE_PREFIX}{hour // HOUR_MS}{_tag(inst)}"
             try:
                 self.private.place_market(
-                    inst, contracts, client_id, reduce_only=new_qty == 0, margin_mode=MARGIN_MODE
+                    inst, contracts, client_id, reduce_only=planned.new_qty == 0, margin_mode=MARGIN_MODE
                 )
             except OKXPrivateError as exc:
                 if exc.code != DUPLICATE_CLIENT_ID:
@@ -602,9 +739,9 @@ class DemoAccount:
                 alerts.append(text)
                 ledger.add_event(now_ms, "order_pending", text)
                 continue
-            fill_price = order.avg_price or price
+            fill_price = order.avg_price or planned.price
             old_stop = positions[inst].stop if inst in positions else None
-            desired[inst] = _stop_after(old_qty, new_qty, old_stop, fill_price, atr_value)
+            desired[inst] = _stop_after(planned.old_qty, planned.new_qty, old_stop, fill_price, planned.atr)
             ledger.add_event(now_ms, "order", f"{inst} {contracts:+g} 张 @ {fill_price:,.2f}（{client_id}）")
         if ledger.get("validation_start") is None:
             # The validation period starts with this UTC day, the baseline buys at the

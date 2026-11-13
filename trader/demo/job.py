@@ -1,4 +1,5 @@
-"""The hourly job of the demo account (ADR 0008).
+"""The hourly job of an account on the exchange: the demo (ADR 0008), the live account
+(ADR 0010). What it sends is labeled with the account's name.
 
 Every run: set the exchange up once, sync, keep the stops, send what that raised.
 Then, unless halted, already decided this hour, or stopped by a problem the sync
@@ -8,7 +9,10 @@ A position closed at market for want of a stop is booked by one more sync. When 
 step after the orders raises, the positions they left still get their stops (or are
 closed) before the run fails, and the alerts gathered so far go out either way. The
 daily summary goes out on the first run of each UTC day. The intraday ledger is
-opened read-only; this job never writes it.
+opened read-only; this job never writes it. A paused account (``DemoAccount.paused``)
+is synced and its problems alerted, and nothing is set up, no stop kept, no order sent:
+its hour is a shadow run (ADR 0010), recording the orders it would have sent
+(``shadow_order``), or why there are none (``shadow_none``), and reporting no fills.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 from trader.demo import report
-from trader.demo.account import DemoAccount, Quotes, Sync
+from trader.demo.account import DemoAccount, Planned, Quotes, Sync
 from trader.demo.settings import (
     ALERT_INTERVAL_MS,
     INTRADAY_POLL_SECONDS,
@@ -30,7 +34,7 @@ from trader.demo.settings import (
 from trader.intraday.paper import HOUR_MS, utc_date
 from trader.jobs import error_text
 from trader.ledger import Ledger, locked
-from trader.notify import Notifier
+from trader.notify import Notifier, labeled
 from trader.okx import DAY_MS
 from trader.settings import Settings
 
@@ -46,14 +50,17 @@ def run(
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
     """One hourly run; a failure alerts at most every ALERT_INTERVAL_MS (meta
-    ``demo_alerted_at``) and is raised so the scheduler records it."""
+    ``<name>_alerted_at``, ``Profile.alerted_key``) and is raised so the scheduler
+    records it."""
+    notifier = labeled(notifier, account.profile.name)
     try:
         _run(settings, account, notifier, intraday, now_fn, sleep)
     except Exception as exc:
         now_ms = _ms(now_fn())
-        if now_ms - account.ledger.get("demo_alerted_at", 0) >= ALERT_INTERVAL_MS:
-            notifier.send(f"demo 运行失败：{error_text(exc)}")
-            account.ledger.set("demo_alerted_at", now_ms)
+        key = account.profile.alerted_key
+        if now_ms - account.ledger.get(key, 0) >= ALERT_INTERVAL_MS:
+            notifier.send(f"运行失败：{error_text(exc)}")
+            account.ledger.set(key, now_ms)
         raise
 
 
@@ -66,11 +73,13 @@ def _run(
     sleep: Callable[[float], None],
 ) -> None:
     ledger = account.ledger
+    lock = account.profile.lock_path(settings)
     now_ms = _ms(now_fn())
     hour = now_ms - now_ms % HOUR_MS
     alerts: list[str] = []
-    with _sending(notifier, alerts), locked(settings.demo_lock_path):
-        if not ledger.get("setup_done"):
+    with _sending(notifier, alerts), locked(lock):
+        paused = account.paused
+        if not paused and not ledger.get("setup_done"):
             for note in account.setup():
                 ledger.add_event(now_ms, "setup", note)
             ledger.set("setup_done", True)
@@ -82,26 +91,32 @@ def _run(
             result = account.sync(_ms(now_fn()))
             alerts += result.alerts
         quotes = account.quotes(hour, result.positions)
-        _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
-        if closed:
-            result = _settled(account, alerts, now_fn, sleep)
+        if not paused:
+            _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
+            if closed:
+                result = _settled(account, alerts, now_fn, sleep)
     for text in _standing(ledger, result.problems, now_ms):
         notifier.send(text)
 
-    if not ledger.get("halted") and ledger.get("decided_hour") != hour and not result.problems:
+    blocked = ledger.get("halted") or result.problems
+    if paused and blocked and ledger.get("decided_hour") != hour:
+        _shadow_none(ledger, now_ms, hour, result)
+    elif not blocked and ledger.get("decided_hour") != hour:
         signals = _signals_for(intraday, hour, account, now_fn, sleep)
         if signals is None:
             ledger.add_event(
                 now_ms, "skipped",
-                f"日内账户到 {_clock(_ms(now_fn()))} 还没决定 {_clock(hour)} 这个小时，demo 本小时不交易",
+                f"日内账户到 {_clock(_ms(now_fn()))} 还没决定 {_clock(hour)} 这个小时，{account.profile.name} 本小时不交易",
             )
         else:
             alerts = []
-            with _sending(notifier, alerts), locked(settings.demo_lock_path):
+            with _sending(notifier, alerts), locked(lock):
                 now_ms = _ms(now_fn())
                 result = account.sync(now_ms)  # the equity and positions the orders size against
                 alerts += result.alerts
-                if not result.problems:
+                if paused:
+                    _shadow(account, hour, signals, now_ms, result, quotes, alerts)
+                elif not result.problems:
                     result = _trade(account, hour, signals, now_ms, result.equity, quotes, alerts, now_fn, sleep)
                     ledger.set("decided_hour", hour)
             for text in _standing(ledger, result.problems, now_ms):
@@ -136,6 +151,49 @@ def _trade(
     return _settled(account, alerts, now_fn, sleep) if closed else result
 
 
+def _shadow(
+    account: DemoAccount, hour: int, signals: dict[str, str | None], now_ms: int, result: Sync,
+    quotes: Quotes, alerts: list[str],
+) -> None:
+    """Record what a paused account would have sent this hour, and send nothing: an
+    event per order ``plan`` sizes against the exchange's equity and positions
+    (``shadow_order``), or one saying why there is none (``shadow_none``); a refused
+    order is alerted and recorded as when trading. The hour is then decided, so a rerun
+    records nothing new."""
+    ledger = account.ledger
+    if result.problems:
+        _shadow_none(ledger, now_ms, hour, result)
+        return
+    planned = account.plan(signals, result.equity, quotes)
+    for order in planned:
+        if order.refused:
+            alerts.append(order.refused)
+            ledger.add_event(now_ms, "order_refused", order.refused)
+        else:
+            ledger.add_event(now_ms, "shadow_order", _would_send(order))
+    if all(order.refused for order in planned):
+        reason = "要下的单都被拒绝" if planned else "离目标仓位不远，或不到最小下单量"
+        ledger.add_event(now_ms, "shadow_none", f"本小时不下单：{reason}")
+    ledger.set("decided_hour", hour)
+
+
+def _shadow_none(ledger: Ledger, now_ms: int, hour: int, result: Sync) -> None:
+    """A paused account's hour that sizes no order, the account halted or its sync
+    finding problems: said, and decided."""
+    reason = "熔断中" if ledger.get("halted") else f"对账有 {len(result.problems)} 个问题"
+    ledger.add_event(now_ms, "shadow_none", f"本小时不下单：{reason}")
+    ledger.set("decided_hour", hour)
+
+
+def _would_send(order: Planned) -> str:
+    side = "买入" if order.contracts > 0 else "卖出"
+    close = "，平仓" if order.new_qty == 0 else ""
+    return (
+        f"{order.inst} {side} {abs(order.contracts):g} 张{close}，名义 {order.notional:,.0f} USDT，"
+        f"信号 {order.signal or '无信号'}"
+    )
+
+
 def _settled(
     account: DemoAccount, alerts: list[str], now_fn: Callable[[], datetime], sleep: Callable[[float], None],
 ) -> Sync:
@@ -166,7 +224,9 @@ def _signals_for(
     ``decided_hour``), waiting up to INTRADAY_WAIT_MS; None when it has not. A halted
     intraday account is flat, so the demo follows with Flat for every coin."""
     if intraday.get("halted"):
-        account.ledger.add_event(_ms(now_fn()), "follow_halt", "日内账户熔断中，demo 跟随平仓")
+        account.ledger.add_event(
+            _ms(now_fn()), "follow_halt", f"日内账户熔断中，{account.profile.name} 跟随平仓"
+        )
         return {coin.research: "Flat" for coin in account.watchlist}
     started = _ms(now_fn())
     while intraday.get("decided_hour") != hour:
@@ -194,7 +254,7 @@ def _standing(ledger: Ledger, problems: list[str], now_ms: int) -> list[str]:
         ledger.add_event(now_ms, "problem", text)
         if now_ms - sent.get(text, 0) >= ALERT_INTERVAL_MS:
             sent[text] = now_ms
-            out.append(f"demo 对账：{text}")
+            out.append(f"对账：{text}")
     if problems:
         ledger.set("problem_alerts", {t: ts for t, ts in sent.items() if now_ms - ts < ALERT_INTERVAL_MS})
     return out

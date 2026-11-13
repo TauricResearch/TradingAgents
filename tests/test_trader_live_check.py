@@ -354,7 +354,7 @@ def test_a_key_file_that_cannot_be_used_fails_the_command_with_an_alert(live, ca
     result = live.run("check", answers=okx_answers())
     assert result.exit_code == 1
     assert result.output.strip() == f"live 的密钥文件有问题：{reason}"
-    assert live.inbox.sent == [f"live 的密钥文件有问题，这次没有运行：{reason}"]
+    assert live.inbox.sent == [f"【live】密钥文件有问题，这次没有运行：{reason}"]
     assert live.session.calls == []  # nothing was asked of OKX
     live.assert_nothing_secret(caplog.text)
     for text in (result.output, *live.inbox.sent, caplog.text):
