@@ -3,8 +3,9 @@
 
 Every run: set the exchange up once, sync, keep the stops, send what that raised.
 Then, unless halted, already decided this hour, or stopped by a problem the sync
-found, wait for the intraday account to decide the hour, size its signals and
-trade, sync again, hang the stops of what was traded, and report the hour's fills.
+found, wait for the intraday account to decide the hour, read the prices again, size
+its signals and trade, sync again, hang the stops of what was traded, and report the
+hour's fills. A contract whose quote is unusable sits the hour out.
 A position closed at market, for want of a stop or by the kill switch, is booked by
 one more sync; a kill tripped by the sync before the orders leaves the hour untraded.
 ``halt`` trips the kill switch by hand. When a step after the orders raises, the
@@ -141,7 +142,7 @@ def _run(
         alerts += result.alerts
         if result.killed:
             result = _settled(account, alerts, now_fn, sleep)
-        quotes = account.quotes(hour, result.positions)
+        quotes = account.quotes(hour, result.positions, now_ms, alerts)
         if not account.paused:  # the sync pauses the account for what it cannot explain
             _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
             if closed:
@@ -322,9 +323,12 @@ def _trade(
     quotes: Quotes, alerts: list[str], now_fn: Callable[[], datetime], sleep: Callable[[float], None],
 ) -> Sync:
     """Send the hour's orders, book them and hang their stops; the last sync's result.
-    When a step raises, the positions the orders have left still get their stops or
-    are closed (``DemoAccount.protect``) before the exception goes on. ``alerts``
-    gathers what every step raised, whether or not the next one fails."""
+    The orders, the stops and their checks all go by prices read again just before the
+    orders (``DemoAccount.requote``): ``quotes`` are minutes old by then. When a step
+    raises, the positions the orders have left still get their stops or are closed
+    (``DemoAccount.protect``) before the exception goes on. ``alerts`` gathers what
+    every step raised, whether or not the next one fails."""
+    quotes = account.requote(quotes, now_ms, alerts)
     desired: dict[str, float | None] = {}
     try:
         account.execute(hour, signals, now_ms, equity, quotes, alerts=alerts, desired=desired)
@@ -342,15 +346,15 @@ def _shadow(
     quotes: Quotes, alerts: list[str],
 ) -> None:
     """Record what a paused account would have sent this hour, and send nothing: an
-    event per order ``plan`` sizes against the exchange's equity and positions
-    (``shadow_order``), or one saying why there is none (``shadow_none``); a refused
-    order is alerted and recorded as when trading. The hour is then decided, so a rerun
-    records nothing new."""
+    event per order ``plan`` sizes against the exchange's equity and positions, at
+    prices read again as when trading (``shadow_order``), or one saying why there is
+    none (``shadow_none``); a refused order is alerted and recorded as when trading.
+    The hour is then decided, so a rerun records nothing new."""
     ledger = account.ledger
     if ledger.get("halted") or result.problems:
         _shadow_none(ledger, now_ms, hour, result)
         return
-    planned = account.plan(signals, result.equity, quotes)
+    planned = account.plan(signals, result.equity, account.requote(quotes, now_ms, alerts))
     for order in planned:
         if order.refused:
             alerts.append(order.refused)

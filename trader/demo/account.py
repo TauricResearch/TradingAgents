@@ -10,7 +10,9 @@ successor is pending, and a position whose stop cannot be made to stand is close
 at market. ``execute`` sizes the intraday signals with the intraday constants
 against the demo's own equity and sends market orders whose client ids make a
 rerun harmless. ``protect`` gives the positions their stops when a step after the
-orders has raised.
+orders has raised. A contract whose price or ATR is not a positive finite number is
+neither traded nor has its stop moved (``quotes``), and an order that would leave a
+position the rules never size is refused (``plan``).
 
 One executor serves each account that trades on OKX (ADR 0010): a ``Profile`` says
 which one it is, the demo's by default.
@@ -39,6 +41,7 @@ An account whose profile is ``born_paused`` is paused until its ledger says othe
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections.abc import Callable
 from contextlib import suppress
@@ -83,13 +86,16 @@ from trader.okx_private import (
     StopOrder,
 )
 from trader.paper import _midnights
-from trader.settings import KILL_DRAWDOWN, MAX_GROSS_EXPOSURE, WATCHLIST, Coin, Settings
+from trader.settings import KILL_DRAWDOWN, MAX_COIN_EXPOSURE, WATCHLIST, Coin, Settings
 
 logger = logging.getLogger(__name__)
 
 Quotes = dict[str, tuple[float, float]]  # inst -> (last price, hourly ATR)
 REASONS = ((TRADE_PREFIX, "trade"), (STOP_PREFIX, "stop"), (KILL_PREFIX, "kill"))
 MANUAL = "manual"  # a fill the program did not cause
+# How far over a coin's cap, as a share of it, a position the rules sized at the cap may come
+# out: rules.to_quantity lets float noise round up to a whole lot, which adds under 1e-9.
+ROUNDING = 1e-6
 # OKX's codes for refusing a stop whose trigger the last price has already passed: 51278
 # "SL trigger price cannot be lower than the last price" (a short's stop), 51280 "cannot
 # be higher" (a long's). From OKX's error table, not yet met on the exchange (#42); a
@@ -112,7 +118,7 @@ class Profile:
     kill_final: bool = False  # a kill is never lifted: it ends the account's experiment (ADR 0010)
     fingerprinted: bool = False  # paused when the code or the Signal its orders follow changes
     max_equity: float | None = None  # paused with more equity than this, USDT
-    max_order: float | None = None  # an order of a larger notional is refused, USDT
+    max_position: float | None = None  # an order leaving a larger position is refused, USDT notional
 
     @property
     def resume_command(self) -> str:
@@ -304,9 +310,14 @@ class DemoAccount:
         swaps = [coin.swap for coin in self.watchlist]
         return swaps + [inst for inst in positions if inst not in swaps]
 
-    def quotes(self, hour: int, positions: dict[str, Position]) -> Quotes:
+    def quotes(
+        self, hour: int, positions: dict[str, Position], now_ms: int, alerts: list[str],
+    ) -> Quotes:
         """Last price and hourly ATR (ATR_BARS candles closed before ``hour``) of every
-        contract the account quotes, as the intraday account measures them."""
+        contract the account quotes, as the intraday account measures them. A contract
+        whose price or ATR is not a positive finite number is left out, and alerted
+        (into ``alerts``, and an event ``quote_unusable``): it is not traded this hour
+        (``plan``), and its stop is not moved (``manage_stops``)."""
         out = {}
         for inst in self.instruments(positions):
             hourly = self.okx.bars(inst, ATR_BAR, hour - (ATR_BARS + 5) * HOUR_MS, hour)
@@ -315,6 +326,30 @@ class DemoAccount:
                 days=ATR_BARS,
             )
             out[inst] = (self.okx.last_price(inst), atr_value)
+        return self._usable(out, now_ms, alerts)
+
+    def requote(self, quotes: Quotes, now_ms: int, alerts: list[str]) -> Quotes:
+        """``quotes`` with each contract's last price read again, for the orders, which
+        come minutes after the hour's first quotes; the ATR, of candles closed before
+        the hour, stays. A price that is not usable is left out and alerted as in
+        ``quotes``; a contract ``quotes`` left out stays out."""
+        return self._usable(
+            {inst: (self.okx.last_price(inst), atr_value) for inst, (_, atr_value) in quotes.items()},
+            now_ms, alerts,
+        )
+
+    def _usable(self, quotes: Quotes, now_ms: int, alerts: list[str]) -> Quotes:
+        """The quotes whose price and ATR are both positive finite numbers; every other
+        one is alerted."""
+        out = {}
+        for inst, (price, atr_value) in quotes.items():
+            if all(math.isfinite(x) and x > 0 for x in (price, atr_value)):
+                out[inst] = (price, atr_value)
+            else:
+                self._alert(now_ms, "quote_unusable", alerts, (
+                    f"报价不能用：{inst} 现价 {price:,.2f}，ATR {atr_value:,.2f}，都要是大于 0 的有限数；"
+                    "这个币本小时不交易，止损也不按它调整"
+                ))
         return out
 
     # -- reconciliation -------------------------------------------------------
@@ -804,16 +839,25 @@ class DemoAccount:
     def plan(self, signals: dict[str, str | None], equity: float, quotes: Quotes) -> list[Planned]:
         """The orders that take each contract toward the target its signal sets, as
         ``IntradayPaper.execute`` sizes it against ``equity`` and the ledger's positions,
-        in watchlist order; none for a halted account. One whose notional exceeds
-        MAX_GROSS_EXPOSURE of equity is refused as a bug, and one above the profile's
-        ``max_order``. Only reads."""
+        in watchlist order; none for a halted account. A contract without a quote
+        (``quotes`` left it out) is not traded: its position is held, and counts toward
+        the gross cap at its entry price. Only reads.
+
+        An order that only reduces a position is never refused. Any other is refused
+        when the position it leaves is over MAX_COIN_EXPOSURE of equity, which the rules
+        never size, so the sizing went wrong, or over the profile's ``max_position``. A
+        flip is judged by the position it opens, not by the size of the order, which
+        also closes the old one."""
         if self.ledger.get("halted"):
             return []
         positions = self.ledger.positions()
         units, currents, targets = {}, {}, {}
         for coin in self.watchlist:
-            price, atr_value = quotes[coin.swap]
             pos = positions.get(coin.swap)
+            if coin.swap not in quotes:
+                currents[coin.swap] = targets[coin.swap] = pos.qty * pos.entry if pos else 0.0
+                continue
+            price, atr_value = quotes[coin.swap]
             currents[coin.swap] = pos.qty * price if pos else 0.0
             units[coin.swap] = rules.unit_notional(
                 equity, atr_value, price, risk=RISK_PER_UNIT, stop_mult=STOP_ATR_MULT
@@ -825,6 +869,8 @@ class DemoAccount:
         planned = []
         for coin in self.watchlist:
             inst = coin.swap
+            if inst not in quotes:
+                continue
             flatten = signals.get(coin.research) == "Flat" and inst in positions
             if not flatten and not rules.needs_trade(
                 targets[inst], currents[inst], units[inst], threshold=REBALANCE_THRESHOLD
@@ -839,20 +885,27 @@ class DemoAccount:
             if new_qty == old_qty:
                 continue
             delta = round(new_qty - old_qty, 12)
-            refused = None
-            notional, cap = abs(delta) * price, self.profile.max_order
-            if notional > MAX_GROSS_EXPOSURE * equity:
-                refused = (
-                    f"拒绝下单：{inst} 变动 {delta:+g} 名义 {notional:,.0f} USDT"
-                    f" 超过净值 {equity:,.0f} 的 {MAX_GROSS_EXPOSURE:g} 倍，可能是算错了"
-                )
-            elif cap is not None and notional > cap:
-                refused = f"拒绝下单：{inst} 变动 {delta:+g} 名义 {notional:,.0f} USDT 超过单笔上限 {cap:,.0f} USDT"
             planned.append(Planned(
                 inst, signals.get(coin.research), old_qty, new_qty, self._contracts(delta, inst),
-                price, atr_value, refused,
+                price, atr_value, self._refusal(inst, old_qty, new_qty, price, equity),
             ))
         return planned
+
+    def _refusal(
+        self, inst: str, old_qty: float, new_qty: float, price: float, equity: float,
+    ) -> str | None:
+        """Why the order taking ``inst`` from ``old_qty`` to ``new_qty`` must not be sent
+        (``plan``); None when it may be."""
+        if old_qty * new_qty >= 0 and abs(new_qty) < abs(old_qty):
+            return None
+        after = abs(new_qty) * price
+        head = f"拒绝下单：{inst} 变动 {round(new_qty - old_qty, 12):+g}，成交后名义 {after:,.0f} USDT"
+        if after > MAX_COIN_EXPOSURE * equity * (1 + ROUNDING):
+            return f"{head}，超过净值 {equity:,.0f} 的 {MAX_COIN_EXPOSURE:g} 倍，可能是算错了"
+        cap = self.profile.max_position
+        if cap is not None and after > cap:
+            return f"{head}，超过单币上限 {cap:,.0f} USDT"
+        return None
 
     def execute(
         self, hour: int, signals: dict[str, str | None], now_ms: int, equity: float, quotes: Quotes,

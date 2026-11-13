@@ -4,7 +4,8 @@ The demo and live accounts pause on what their sync cannot explain: a fill the p
 did not make, a change of the balance that no trade, fee or funding explains, a
 position the booked fills still do not explain at the next hourly sync. The live account
 also pauses when what its orders follow changes (the code of ``trader/`` or the Signal)
-and while its equity is over MAX_EQUITY, and refuses an order over MAX_ORDER notional.
+and while its equity is over MAX_EQUITY, and refuses an order that would leave a position
+of more than MAX_POSITION notional.
 Paused, an account sends nothing that changes a position, an order or a setting, its
 drawdown alerts and kills nothing, and a person's halt still closes it out; ``resume``
 lifts the pause once a sync finds nothing that pauses it."""
@@ -19,7 +20,7 @@ from tests.test_live_pause import LiveEnv
 from trader.demo import job
 from trader.demo.account import DEMO, DemoAccount
 from trader.intraday.paper import HOUR_MS
-from trader.live.account import LIVE, MAX_EQUITY, MAX_ORDER
+from trader.live.account import LIVE, MAX_EQUITY, MAX_POSITION
 from trader.okx import DAY_MS
 from trader.okx_private import TRADE_BILL, Bill
 from trader.settings import KILL_DRAWDOWN
@@ -255,18 +256,18 @@ def test_live_equity_over_its_cap_pauses_the_account_and_holds_the_resume(tradin
     assert len(pause_alerts(trading)) == 1
 
 
-def test_a_live_order_over_its_cap_is_refused_and_alerted(trading):
-    capped = replace(LIVE, max_order=300.0)
+def test_a_live_order_leaving_a_position_over_its_cap_is_refused_and_alerted(trading):
+    capped = replace(LIVE, max_position=300.0)
     trading.account = DemoAccount(
         trading.ledger, trading.okx, trading.exchange, watchlist=(BTC,), sleep=lambda s: None, profile=capped
     )
     run(trading, 0)
-    refused = "拒绝下单：BTC-USDT-SWAP 变动 +0.005 名义 400 USDT 超过单笔上限 300 USDT"
+    refused = "拒绝下单：BTC-USDT-SWAP 变动 +0.005，成交后名义 400 USDT，超过单币上限 300 USDT"
     assert trading.inbox.sent == [f"【live】{refused}"] and orders(trading) == []
     assert events(trading, "order_refused") == [refused]
 
 
 def test_the_live_caps_are_adr_0010s_and_the_demo_has_none():
-    assert (LIVE.max_equity, LIVE.max_order) == (MAX_EQUITY, MAX_ORDER) == (2_000.0, 4_000.0)
-    assert (DEMO.max_equity, DEMO.max_order, DEMO.fingerprinted) == (None, None, False)
+    assert (LIVE.max_equity, LIVE.max_position) == (MAX_EQUITY, MAX_POSITION) == (2_000.0, 4_000.0)
+    assert (DEMO.max_equity, DEMO.max_position, DEMO.fingerprinted) == (None, None, False)
     assert LIVE.fingerprinted

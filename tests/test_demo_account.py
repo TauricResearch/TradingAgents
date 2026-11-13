@@ -409,7 +409,7 @@ def account(ledger, okx, exchange):
 
 def quotes(account, last=80_000.0):
     account.okx.last = last
-    return account.quotes(HOUR, account.ledger.positions())
+    return account.quotes(HOUR, account.ledger.positions(), T0, [])
 
 
 def go_long(account, exchange, now=T0):
@@ -793,11 +793,11 @@ def test_an_order_that_does_not_fill_in_time_is_left_to_the_next_sync(account, e
     assert desired == {} and account.sleeps == [ORDER_POLL_SECONDS] * (ORDER_POLLS - 1)
 
 
-def test_an_order_beyond_the_gross_cap_is_refused_as_a_bug(account, exchange, monkeypatch):
-    monkeypatch.setattr(account_module, "MAX_GROSS_EXPOSURE", 0.5)
+def test_an_order_leaving_more_than_a_coins_cap_is_refused_as_a_bug(account, exchange, monkeypatch):
+    monkeypatch.setattr(account_module, "MAX_COIN_EXPOSURE", 0.5)
     result = account.sync(T0)
     alerts, _ = account.execute(HOUR, {BTC.research: "Long"}, T0, result.equity, quotes(account))
-    assert alerts == ["拒绝下单：BTC-USDT-SWAP 变动 +0.1 名义 8,000 USDT 超过净值 10,000 的 0.5 倍，可能是算错了"]
+    assert alerts == ["拒绝下单：BTC-USDT-SWAP 变动 +0.1，成交后名义 8,000 USDT，超过净值 10,000 的 0.5 倍，可能是算错了"]
     assert exchange.fill_rows == []
 
 
