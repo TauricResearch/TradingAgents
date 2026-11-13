@@ -249,6 +249,32 @@ def test_live_halt_kills_the_paused_account_and_resume_never_lifts_the_kill(live
     assert ledger(live).get("halted") is True and len(live.inbox.sent) == 1
 
 
+def test_live_reconcile_books_what_the_syncs_missed_and_only_reads_the_exchange(live):
+    assert invoke("init").exit_code == 0
+    live.exchange.now = T0 + 5 * 60_000
+    live.exchange.manual_fill(BTC.swap, 5)
+    row = live.exchange.fill_rows.pop()  # reported after the sync has read past it
+    live.now[0] = T0 + 30 * 60_000
+    assert invoke("sync").exit_code == 0
+    live.exchange.fill_rows.append(row)
+    calls = list(live.exchange.calls)
+    live.now[0] = T0 + 40 * 60_000
+    result = invoke("reconcile", "--yes", "--note", "OKX 晚报了这笔成交")
+    assert result.exit_code == 0, result.output
+    text = "修复账本（python -m trader live reconcile）：补记漏掉的成交 1 笔；说明：OKX 晚报了这笔成交"
+    assert result.output.splitlines() == [
+        "重读了 2026-01-10 00:30 到 2026-01-10 01:01 UTC 的成交和资金费",
+        "补记漏掉的成交 1 笔：",
+        "  2026-01-10 00:35 BTC-USDT-SWAP +0.05 @ 80,000.00，手续费 2.00，非程序",
+        f"已写入：{text}",
+        "账户仍在暂停中：运行 python -m trader live resume，它先对一次账，对得上才解除暂停。",
+    ]
+    assert live.exchange.calls == calls and live.inbox.sent == []
+    book = ledger(live)
+    assert book.net_fills() == {BTC.swap: 0.05}
+    assert book.events(kinds=("reconcile",)) == [(T0 + 40 * 60_000, "reconcile", text)]
+
+
 def test_live_resume_kill_is_refused_before_the_key_is_read(live, monkeypatch):
     monkeypatch.setattr(keys, "client", lambda base_url=keys.BASE_URL: pytest.fail("the key was read"))
     result = invoke("resume", "--kill")

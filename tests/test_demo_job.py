@@ -555,6 +555,86 @@ def test_demo_halt_whose_sync_fails_says_the_kill_stands(demo_cli):
     assert Ledger(settings.demo_ledger_path, readonly=True).get("halted") is True
 
 
+def late_fill(runner, exchange, now):
+    """A demo account opened at T0 whose exchange filled 5 contracts at 00:35 and reported
+    the fill only after the sync of 01:00 had read past it; the account holds them."""
+    assert runner.invoke(cli.app, ["demo", "init"]).exit_code == 0
+    exchange.now = T0 + 5 * 60_000
+    exchange.manual_fill(BTC.swap, 5)
+    row = exchange.fill_rows.pop()
+    now[0] = T0 + 30 * 60_000
+    assert runner.invoke(cli.app, ["demo", "sync"]).exit_code == 0
+    exchange.fill_rows.append(row)
+
+
+def test_demo_reconcile_shows_the_repair_and_writes_it_only_once_told_yes(demo_cli, monkeypatch):
+    runner, exchange, settings = demo_cli
+    now = [T0]
+    monkeypatch.setattr(cli, "_now_ms", lambda: now[0])
+    late_fill(runner, exchange, now)
+    result = runner.invoke(cli.app, ["demo", "reconcile"])
+    assert result.exit_code == 1
+    assert "demo 没有修复：demo 账户没有暂停也没有熔断：只有暂停或熔断时才能修复账本" in result.output
+    now[0] = T0 + 60 * 60_000
+    assert "暂停：账本与交易所持仓不一致" in runner.invoke(cli.app, ["demo", "sync"]).output
+    now[0] = T0 + 70 * 60_000
+    plan = [
+        "重读了 2026-01-10 00:30 到 2026-01-10 01:31 UTC 的成交和资金费",
+        "补记漏掉的成交 1 笔：",
+        "  2026-01-10 00:35 BTC-USDT-SWAP +0.05 @ 80,000.00，手续费 2.00，非程序",
+    ]
+    for answer in ("n\n", "\n"):  # Enter alone is a no
+        result = runner.invoke(cli.app, ["demo", "reconcile"], input=answer)
+        assert result.exit_code == 1 and result.output.splitlines()[:3] == plan
+        assert "把上面这些写进账本吗？" in result.output
+    ledger = Ledger(settings.demo_ledger_path, readonly=True)
+    assert ledger.fills() == [] and ledger.events(kinds=("reconcile",)) == []
+
+    def synced_meanwhile(*args, **kwargs):  # the hourly run synced while the person read the plan
+        Ledger(settings.demo_ledger_path).set("synced_to", now[0])
+        return True
+
+    with monkeypatch.context() as m:
+        m.setattr(cli.typer, "confirm", synced_meanwhile)
+        result = runner.invoke(cli.app, ["demo", "reconcile"])
+    assert result.exit_code == 1
+    assert "demo 没有修复：账本在确认期间变了（多半是每小时的运行刚对过账），这份修复已经不对了：请重新运行" in result.output
+    assert ledger.fills() == []
+    plan[0] = "重读了 2026-01-10 00:30 到 2026-01-10 01:41 UTC 的成交和资金费"
+    result = runner.invoke(cli.app, ["demo", "reconcile"], input="y\n")
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[:3] == plan
+    assert result.output.splitlines()[-2:] == [
+        "已写入：修复账本（python -m trader demo reconcile）：补记漏掉的成交 1 笔",
+        "账户仍在暂停中：运行 python -m trader demo resume，它先对一次账，对得上才解除暂停。",
+    ]
+    assert [f.reason for f in ledger.fills()] == ["manual"]
+    result = runner.invoke(cli.app, ["demo", "reconcile"])
+    assert result.exit_code == 0
+    assert result.output.splitlines()[-1] == "账本和交易所对得上：没有漏记的成交和资金费，持仓也一致，不用修复。"
+    result = runner.invoke(cli.app, ["demo", "resume"])
+    assert result.exit_code == 0, result.output
+
+
+def test_demo_reconcile_of_a_halted_account_leaves_the_kill_standing(demo_cli, monkeypatch):
+    runner, exchange, settings = demo_cli
+    now = [T0]
+    monkeypatch.setattr(cli, "_now_ms", lambda: now[0])
+    late_fill(runner, exchange, now)
+    ledger = Ledger(settings.demo_ledger_path)
+    ledger.set("halted", True)
+    ledger.db.close()
+    exchange.fail("fills", requests.ConnectionError("down"), times=1)
+    result = runner.invoke(cli.app, ["demo", "reconcile", "--yes"])
+    assert result.exit_code == 1 and "demo 没有修复：读交易所失败（ConnectionError: down）" in result.output
+    result = runner.invoke(cli.app, ["demo", "reconcile", "--yes"])
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[-1] == (
+        "账户仍在熔断中：确认交易所里已经空仓、查明原因后，运行 python -m trader demo resume --kill 解除。"
+    )
+    assert exchange.book[BTC.swap][0] == 5.0  # a repair closes nothing
+
+
 def test_demo_check_shows_an_account_without_usdt_and_init_refuses_it(demo_cli):
     runner, exchange, settings = demo_cli
 

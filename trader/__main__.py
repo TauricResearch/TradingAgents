@@ -15,7 +15,7 @@ import typer
 from dotenv import find_dotenv, load_dotenv
 
 from trader import backup as account_backup, jobs, report
-from trader.demo import job as demo_job, report as demo_report
+from trader.demo import job as demo_job, reconcile, report as demo_report
 from trader.demo.account import DEMO, DemoAccount, Sync
 from trader.evaluation.cli import evaluate_app
 from trader.intraday import job as intraday_job, report as intraday_report
@@ -308,6 +308,20 @@ def demo_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断；
     notifier.send("暂停已解除" + ("；账户仍在熔断中，不会交易。" if halted else "，下一小时恢复交易。"))
 
 
+@demo_app.command("reconcile")
+def demo_reconcile(
+    yes: bool = typer.Option(False, "--yes", "-y", help="不再确认，直接写入"),
+    note: str = typer.Option("", "--note", help="为什么修复，写进事件"),
+) -> None:
+    """Repair the demo ledger where it no longer agrees with the exchange, only while the
+    account is paused or halted (``trader.demo.reconcile``): book the fills and funding
+    fees the syncs missed, read again from the account's opening, and record what still
+    differs as an adjustment. Prints what it would write and asks once; with --yes, it
+    does not ask."""
+    settings, account, _, _ = _open_demo()
+    _reconcile(settings, account, yes, note)
+
+
 @live_app.callback()
 def live_main() -> None:
     """The live account: real money on OKX's production environment (ADR 0010)."""
@@ -505,6 +519,18 @@ def live_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断：
         typer.echo("live 的暂停已解除：下一次每小时运行起恢复自动下单。")
 
 
+@live_app.command("reconcile")
+def live_reconcile(
+    yes: bool = typer.Option(False, "--yes", "-y", help="不再确认，直接写入"),
+    note: str = typer.Option("", "--note", help="为什么修复，写进事件"),
+) -> None:
+    """Repair the live ledger where it no longer agrees with the production account, as
+    ``demo reconcile`` does: only while paused or halted, asked once unless --yes. It
+    reads the exchange and writes only the ledger."""
+    settings, account, _, _ = _open_live()
+    _reconcile(settings, account, yes, note)
+
+
 def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:
     settings = Settings.from_env()
     notifier = Notifier(settings)
@@ -600,6 +626,38 @@ def _resume(settings: Settings, account: DemoAccount, intraday: Ledger) -> None:
     for reason in reasons:
         when = datetime.fromtimestamp(reason["since"] / 1000, UTC).strftime("%m-%d %H:%M")
         typer.echo(f"解除暂停：{reason['text']}（{when} UTC 起）")
+
+
+def _reconcile(settings: Settings, account: DemoAccount, yes: bool, note: str) -> None:
+    """``demo reconcile`` and ``live reconcile``: the plan, made under the account's lock,
+    printed; asked once unless ``yes``; then written under the lock again. A refusal, or
+    an exchange that does not answer, fails the command with its reason; a no writes
+    nothing."""
+    profile = account.profile
+    lock = profile.lock_path(settings)
+    try:
+        with locked(lock):
+            repair = reconcile.plan(account, _now_ms())
+    except reconcile.Refused as exc:
+        _fail(f"{profile.name} 没有修复：{exc}")
+    except REQUEST_ERRORS as exc:
+        _fail(f"{profile.name} 没有修复：读交易所失败（{jobs.error_text(exc)}）")
+    for line in reconcile.describe(repair):
+        typer.echo(line)
+    if repair.empty:
+        return
+    if not yes:
+        typer.confirm("把上面这些写进账本吗？", default=False, abort=True)
+    try:
+        with locked(lock):
+            text = reconcile.apply(account, repair, _now_ms(), note)
+    except reconcile.Refused as exc:
+        _fail(f"{profile.name} 没有修复：{exc}")
+    typer.echo(f"已写入：{text}")
+    if account.ledger.get("halted"):
+        typer.echo(f"账户仍在熔断中：{profile.after_kill}")
+    else:
+        typer.echo(f"账户仍在暂停中：运行 {profile.resume_command}，它先对一次账，对得上才解除暂停。")
 
 
 def _balance(client: OKXPrivate) -> Balance | None:
