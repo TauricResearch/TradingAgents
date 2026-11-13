@@ -22,7 +22,7 @@ from trader.evaluation.cli import evaluate_app
 from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
-from trader.live import account as live_account, keys as live_keys
+from trader.live import account as live_account, heartbeat, keys as live_keys
 from trader.notify import Notifier, labeled
 from trader.okx import OKX, REQUEST_ERRORS, OKXError
 from trader.okx_private import PROBE_ORDER_MISSING, OKXPrivate, OKXPrivateError
@@ -419,9 +419,11 @@ def live_init() -> None:
 @live_app.command("run")
 def live_run() -> None:
     """The live account's hourly run, after the intraday job: a shadow run while the
-    account is paused, otherwise the demo's run on the production account."""
+    account is paused, otherwise the demo's run on the production account. A run that
+    returns beats the heartbeat (ADR 0010), when TRADER_LIVE_HEARTBEAT_URL names one."""
     settings, account, notifier, intraday = _open_live(require_utc=True, hourly=True)
     demo_job.run(settings, account, notifier, intraday)
+    heartbeat.beat(settings.live_heartbeat_url)
 
 
 @live_app.command("sync")

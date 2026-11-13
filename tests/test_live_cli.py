@@ -58,6 +58,7 @@ class LiveExchange(FakeExchange):
 def live(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setenv("TRADER_HOME", str(tmp_path))
+    monkeypatch.delenv("TRADER_LIVE_HEARTBEAT_URL", raising=False)
     exchange, inbox, now = LiveExchange(), Inbox(), [T0]
     monkeypatch.setattr(keys, "client", lambda base_url=keys.BASE_URL: exchange)
     monkeypatch.setattr(cli, "OKX", FakeOKX)
@@ -137,6 +138,25 @@ def test_run_runs_the_hour_of_the_live_account_in_utc_only(live, monkeypatch):
     result = invoke("run")
     assert result.exit_code == 1 and len(runs) == 1
     assert live.inbox.sent[-1] == "【live】trader 不在 UTC 时区运行，已退出。请用 TZ=UTC 启动。"
+
+
+def test_a_run_that_returns_beats_the_heartbeat_and_one_that_fails_or_cannot_start_does_not(live, monkeypatch):
+    monkeypatch.setattr(cli.time, "localtime", lambda: SimpleNamespace(tm_gmtoff=0))
+    beats, failure = [], []
+    monkeypatch.setattr(cli.heartbeat, "beat", beats.append)
+
+    def hour(settings, account, notifier, intraday):
+        if failure:
+            raise failure[0]
+
+    monkeypatch.setattr(cli.demo_job, "run", hour)
+    assert invoke("run").exit_code == 1 and beats == []
+    assert invoke("init").exit_code == 0
+    assert invoke("run").exit_code == 0 and beats == [None]
+    monkeypatch.setenv("TRADER_LIVE_HEARTBEAT_URL", "https://hc-ping.example/9b1f0c52")
+    assert invoke("run").exit_code == 0 and beats == [None, "https://hc-ping.example/9b1f0c52"]
+    failure.append(RuntimeError("the hour failed"))
+    assert invoke("run").exit_code == 1 and len(beats) == 2
 
 
 def test_the_hourly_run_alerts_a_bad_key_file_once_per_interval_and_the_other_commands_each_time(live, monkeypatch):
