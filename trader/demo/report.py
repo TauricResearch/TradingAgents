@@ -46,7 +46,9 @@ def daily(account: DemoAccount, day: str, now_ms: int) -> str:
     equity = ledger.get("equity", ledger.get("cash"))
     lines = [f"日报 · {day}"]
     if ledger.get("halted"):
-        lines.append(f"⚠ 熔断中：已平仓，不再下单。确认后运行 {account.profile.resume_command} 恢复。")
+        held = ledger.positions()
+        state = f"交易所里还有 {len(held)} 个仓位，每次运行都再平" if held else "已平仓"
+        lines.append(f"⚠ 熔断中：{state}，不再下单。{account.profile.after_kill}")
     if account.paused:
         would = [ts for ts, _, _ in ledger.events(day_start, ("shadow_order",)) if ts < day_end]
         lines.append(

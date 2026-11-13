@@ -279,17 +279,34 @@ def demo_report_command() -> None:
     typer.echo(demo_report.full(account))
 
 
-@demo_app.command("resume")
-def demo_resume() -> None:
-    """Lift the demo account's kill switch, after you have checked why it tripped."""
+@demo_app.command("halt")
+def demo_halt(yes: bool = typer.Option(False, "--yes", "-y", help="不再确认，直接执行")) -> None:
+    """Trip the demo account's kill switch by hand: stop trading and close every position
+    at market, with positions open or not. With --yes, one command from a phone over SSH."""
     settings, account, notifier, _ = _open_demo()
-    if not account.ledger.get("halted"):
-        _fail("demo 账户没有处于熔断")
+    _halt(settings, account, notifier, yes)
+
+
+@demo_app.command("resume")
+def demo_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断；不加时解除暂停")) -> None:
+    """Lift the demo account's pause; with --kill, its kill switch, once the exchange is
+    flat and you have checked why it tripped."""
+    settings, account, notifier, _ = _open_demo()
+    halted = account.ledger.get("halted")
+    if kill:
+        if not halted:
+            _fail("demo 账户没有处于熔断")
+        with locked(settings.demo_lock_path):
+            if account.sync(_now_ms()).positions:
+                _fail("交易所里还有持仓：这次对账已经再发了市价平仓，确认空仓后再解除熔断")
+            account.resume(_now_ms())
+        notifier.send("熔断已解除" + ("；账户仍在暂停中，不会交易。" if account.paused else "，下一小时恢复交易。"))
+        return
+    if not account.paused:
+        _fail("demo 账户没有处于暂停" + ("；它处于熔断，解除熔断要加 --kill" if halted else ""))
     with locked(settings.demo_lock_path):
-        if account.sync(_now_ms()).positions:
-            _fail("交易所里还有持仓，平掉再解除熔断")
-        account.resume(_now_ms())
-    notifier.send("熔断已解除，下一小时恢复交易。")
+        account.unpause(_now_ms(), "demo resume：解除暂停")
+    notifier.send("暂停已解除" + ("；账户仍在熔断中，不会交易。" if halted else "，下一小时恢复交易。"))
 
 
 @live_app.callback()
@@ -439,13 +456,24 @@ def live_report_command() -> None:
     typer.echo(demo_report.shadow(account))
 
 
+@live_app.command("halt")
+def live_halt(yes: bool = typer.Option(False, "--yes", "-y", help="不再确认，直接执行")) -> None:
+    """Trip the live account's kill switch by hand: stop trading and close every position
+    at market, with positions open or not, paused or not (ADR 0010). A live kill is never
+    lifted: it ends the experiment. With --yes, one command from a phone over SSH."""
+    settings, account, notifier, _ = _open_live()
+    _halt(settings, account, notifier, yes)
+
+
 @live_app.command("resume")
-def live_resume() -> None:
+def live_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断：live 不接受，见 ADR 0010")) -> None:
     """Unpause the live account, ADR 0010's unlock: its next hourly run sets the account
     up and trades. Refused, before the key file is read or the exchange asked anything,
-    while the unlock is closed (``trader.live.account.UNLOCK_OPEN``); and unless the
-    account is paused, is not halted, and its key is established to place orders as
-    live check establishes it."""
+    with --kill (a live kill is never lifted) or while the unlock is closed
+    (``trader.live.account.UNLOCK_OPEN``); and unless the account is paused, is not
+    halted, and its key is established to place orders as live check establishes it."""
+    if kill:
+        _fail(f"live 的熔断不解除：{live_account.LIVE.after_kill}")
     if not live_account.UNLOCK_OPEN:
         _fail("live 还不能解锁：解锁的条件见 ADR 0010，由 #34 打开；现在只做影子运行")
     settings, client = _live_client()
@@ -453,7 +481,7 @@ def live_resume() -> None:
     if not account.paused:
         _fail("live 账户没有处于暂停")
     if account.ledger.get("halted"):
-        _fail("live 账户处于熔断：ADR 0010 规定熔断一次实验就结束，不在这里解除")
+        _fail(f"live 账户处于熔断，不解锁：{live_account.LIVE.after_kill}")
     try:
         config = client.account_config()
         established, line = _live_trade_verdict(client, config.permissions.split(","))
@@ -532,6 +560,23 @@ def _open_demo(require_utc: bool = False) -> tuple[Settings, DemoAccount, Notifi
         _fail("没有日内账本可跟随：python -m trader intraday init")
     intraday = Ledger(settings.intraday_ledger_path, readonly=True)
     return settings, DemoAccount(ledger, OKX(), client), notifier, intraday
+
+
+def _halt(settings: Settings, account: DemoAccount, notifier: Notifier, yes: bool) -> None:
+    """``demo halt`` and ``live halt``: asked once unless ``yes``, then ``demo_job.halt``."""
+    name = account.profile.name
+    if not yes:
+        typer.confirm(
+            f"停止 {name} 账户的交易，市价平掉交易所里的全部仓位。{account.profile.after_kill}确定吗？", abort=True
+        )
+    try:
+        lines = demo_job.halt(settings, account, notifier)
+    except Exception as exc:
+        if account.ledger.get("halted"):
+            _fail(f"{name} 已熔断，但这次没做完：{jobs.error_text(exc)}")
+        _fail(f"{name} 没能熔断：{jobs.error_text(exc)}")
+    for line in lines:
+        typer.echo(line)
 
 
 def _balance(client: OKXPrivate) -> Balance | None:

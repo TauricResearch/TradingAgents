@@ -16,6 +16,9 @@ ORDER_POLL_SECONDS = 1.0
 # Pause between close orders (a kill's, or a position closed for want of a stop) and
 # the sync that books them.
 KILL_SETTLE_SECONDS = 3.0
+# How many such syncs a halt by hand waits through while each still sends closes: the
+# sync after a close that failed sends it again.
+HALT_SYNCS = 3
 
 # A position left without a stop for its whole size: how many times the stop is placed
 # before the position is closed at market instead, and the pause between the tries. The

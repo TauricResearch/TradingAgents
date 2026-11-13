@@ -2,6 +2,7 @@
 simulated exchange, alert, summarize; and the ``demo`` CLI around it."""
 
 import random
+import sqlite3
 from datetime import UTC, datetime
 from functools import partial
 
@@ -20,7 +21,7 @@ from trader.intraday.paper import HOUR_MS
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger
 from trader.okx import DAY_MS, OKXError
-from trader.okx_private import OKXPrivateError
+from trader.okx_private import NoBalance, OKXPrivateError
 from trader.settings import Settings
 
 RUN0 = HOUR + 10 * 60_000  # the job's slot: ten past the hour
@@ -150,8 +151,10 @@ def test_a_kill_in_the_sync_settles_its_fills_before_anything_else(env):
     assert env.ledger.get("halted") is True
     assert [f.reason for f in env.ledger.fills()] == ["trade", "kill"]
     assert env.exchange.book[BTC.swap][0] == 0 and env.exchange.stops == []
-    assert env.inbox.sent[-1].startswith("【demo】熔断：净值")
-    assert env.inbox.sent[-1].endswith("确认后运行 python -m trader demo resume 恢复。")
+    *_, kill, flat = env.inbox.sent
+    assert kill.startswith("【demo】熔断：净值") and "已对 BTC-USDT-SWAP 发出市价平仓" in kill
+    assert kill.endswith("运行 python -m trader demo resume --kill 解除。")
+    assert flat == "【demo】熔断后核实：交易所里已经空仓。"
     assert env.ledger.get("decided_hour") == HOUR  # the second hour was not traded
 
 
@@ -353,9 +356,12 @@ def test_a_kill_at_the_sync_before_the_orders_still_sends_its_alert(env):
     clock.on_sleep = fall_and_decide
     env.exchange.now = RUN0 + HOUR_MS
     job.run(env.settings, env.account, env.inbox, env.intraday, now_fn=clock.now, sleep=clock.sleep)
-    assert clock.sleeps == [INTRADAY_POLL_SECONDS]
+    assert clock.sleeps == [INTRADAY_POLL_SECONDS, KILL_SETTLE_SECONDS]
     assert env.ledger.get("halted") is True and env.exchange.book[BTC.swap][0] == 0
-    assert len(env.inbox.sent) == 2 and env.inbox.sent[1].startswith("【demo】熔断：净值 7,896.00 比峰值 10,000.00")
+    assert len(env.inbox.sent) == 3 and env.inbox.sent[1].startswith("【demo】熔断：净值 7,896.00 比峰值 10,000.00")
+    # The closes are booked, and the hour is not traded.
+    assert env.inbox.sent[2] == "【demo】熔断后核实：交易所里已经空仓。"
+    assert [f.reason for f in env.ledger.fills()] == ["trade", "kill"] and env.ledger.get("decided_hour") == HOUR
 
 
 def test_whatever_fails_once_the_orders_start_no_position_is_left_without_a_stop_and_unnamed(tmp_path):
@@ -471,17 +477,99 @@ def test_demo_sync_report_and_resume(demo_cli):
     result = runner.invoke(cli.app, ["demo", "report"])
     assert result.exit_code == 0 and "demo 账户还没开始" in result.output
     result = runner.invoke(cli.app, ["demo", "resume"])
+    assert result.exit_code == 1 and "没有处于暂停" in result.output
+    result = runner.invoke(cli.app, ["demo", "resume", "--kill"])
     assert result.exit_code == 1 and "没有处于熔断" in result.output
     ledger = Ledger(settings.demo_ledger_path)
     ledger.set("halted", True)
     ledger.db.close()
+    result = runner.invoke(cli.app, ["demo", "resume"])
+    assert result.exit_code == 1 and "它处于熔断，解除熔断要加 --kill" in result.output
     exchange.manual_fill(BTC.swap, 5)
-    result = runner.invoke(cli.app, ["demo", "resume"])
+    result = runner.invoke(cli.app, ["demo", "resume", "--kill"])
     assert result.exit_code == 1 and "交易所里还有持仓" in result.output
-    exchange.manual_fill(BTC.swap, -5)
-    result = runner.invoke(cli.app, ["demo", "resume"])
+    assert exchange.book[BTC.swap][0] == 0  # the halted account's sync closed it
+    result = runner.invoke(cli.app, ["demo", "resume", "--kill"])
     assert result.exit_code == 0, result.output
     assert Ledger(settings.demo_ledger_path, readonly=True).get("halted") is False
+
+
+def test_demo_resume_lifts_a_pause_and_leaves_a_kill_to_its_flag(demo_cli):
+    runner, exchange, settings = demo_cli
+    assert runner.invoke(cli.app, ["demo", "init"]).exit_code == 0
+    ledger = Ledger(settings.demo_ledger_path)
+    DemoAccount(ledger, FakeOKX(), exchange).pause(T0, "对不上账")
+    ledger.set("halted", True)
+    ledger.db.close()
+    result = runner.invoke(cli.app, ["demo", "resume"])
+    assert result.exit_code == 0, result.output
+    ledger = Ledger(settings.demo_ledger_path, readonly=True)
+    assert ledger.get("paused") is False and ledger.get("halted") is True
+
+
+def test_demo_resume_kill_on_an_account_still_paused_says_it_will_not_trade(demo_cli, monkeypatch):
+    runner, exchange, settings = demo_cli
+    inbox = Inbox()
+    monkeypatch.setattr(cli, "Notifier", lambda settings: inbox)
+    assert runner.invoke(cli.app, ["demo", "init"]).exit_code == 0
+    ledger = Ledger(settings.demo_ledger_path)
+    DemoAccount(ledger, FakeOKX(), exchange).pause(T0, "对不上账")
+    ledger.set("halted", True)
+    ledger.db.close()
+    result = runner.invoke(cli.app, ["demo", "resume", "--kill"])
+    assert result.exit_code == 0, result.output
+    assert inbox.sent == ["【demo】熔断已解除；账户仍在暂停中，不会交易。"]
+    ledger = Ledger(settings.demo_ledger_path, readonly=True)
+    assert ledger.get("halted") is False and ledger.get("paused") is True
+
+
+def test_demo_halt_asks_first_unless_told_yes(demo_cli):
+    runner, _, settings = demo_cli
+    assert runner.invoke(cli.app, ["demo", "init"]).exit_code == 0
+    result = runner.invoke(cli.app, ["demo", "halt"], input="n\n")
+    assert result.exit_code == 1 and "停止 demo 账户的交易，市价平掉交易所里的全部仓位。" in result.output
+    assert not Ledger(settings.demo_ledger_path, readonly=True).get("halted")
+    result = runner.invoke(cli.app, ["demo", "halt", "--yes"])
+    assert result.exit_code == 0, result.output
+    assert result.output.startswith("人工熔断：停止交易，平掉 0 个仓位，还剩 0 个。")
+    assert Ledger(settings.demo_ledger_path, readonly=True).get("halted") is True
+
+
+def test_demo_halt_that_cannot_record_the_kill_says_it_did_not_halt(demo_cli, monkeypatch):
+    runner, _, settings = demo_cli
+    assert runner.invoke(cli.app, ["demo", "init"]).exit_code == 0
+
+    def locked_db(self, now_ms, reason):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(DemoAccount, "halt", locked_db)
+    result = runner.invoke(cli.app, ["demo", "halt", "--yes"])
+    assert result.exit_code == 1 and "demo 没能熔断：OperationalError: database is locked" in result.output
+    assert not Ledger(settings.demo_ledger_path, readonly=True).get("halted")
+
+
+def test_demo_halt_whose_sync_fails_says_the_kill_stands(demo_cli):
+    runner, exchange, settings = demo_cli
+    assert runner.invoke(cli.app, ["demo", "init"]).exit_code == 0
+    exchange.fail("positions", requests.ConnectionError("down"))
+    result = runner.invoke(cli.app, ["demo", "halt", "--yes"])
+    assert result.exit_code == 1 and "demo 已熔断，但这次没做完：ConnectionError: down" in result.output
+    assert Ledger(settings.demo_ledger_path, readonly=True).get("halted") is True
+
+
+def test_demo_check_shows_an_account_without_usdt_and_init_refuses_it(demo_cli):
+    runner, exchange, settings = demo_cli
+
+    def none(ccy="USDT"):
+        raise NoBalance("the account's balance has no USDT row")
+
+    exchange.balance = none
+    result = runner.invoke(cli.app, ["demo", "check"])
+    assert result.exit_code == 0, result.output
+    assert "USDT 没有余额：模拟账户里还没有 USDT，先在 OKX 模拟盘领取资金" in result.output
+    result = runner.invoke(cli.app, ["demo", "init"])
+    assert result.exit_code == 1 and "模拟账户里没有 USDT" in result.output
+    assert not settings.demo_ledger_path.exists() or not Ledger(settings.demo_ledger_path).initialized
 
 
 def test_demo_run_needs_an_account_and_a_utc_clock(demo_cli, monkeypatch):

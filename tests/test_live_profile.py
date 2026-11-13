@@ -1,6 +1,6 @@
 """The executor's accounts (ADR 0010): a profile says which account the executor is, and
-with it the ledger, the lock, the throttle of the failure alerts, the command that lifts
-the kill switch, the label on every message, and the environment its client must be of."""
+with it the ledger, the lock, the throttle of the failure alerts, what follows a kill, the
+label on every message, and the environment its client must be of."""
 
 import pytest
 
@@ -12,13 +12,14 @@ from trader.demo import job, report
 from trader.demo.account import DEMO, DemoAccount, Profile
 from trader.intraday.paper import HOUR_MS, IntradayPaper
 from trader.ledger import Ledger
+from trader.live import account as live
 from trader.okx import OKXError
 from trader.paper import Paper, _kill_alert
 from trader.settings import Settings
 
 # The live account's profile as the executor sees it, built here to test the executor on
 # its own: trader.live.account holds the one the commands use.
-LIVE = Profile("live", production=True)
+LIVE = Profile("live", production=True, kill_final=True)
 
 
 def live_account(env):
@@ -99,10 +100,10 @@ def test_the_events_and_reports_of_a_live_account_name_it(tmp_path):
     assert performance[0].startswith("live 绩效：自 2026-01-10 起") and performance[1].startswith("live（交易所权益）")
     account.ledger.set("halted", True)
     daily = report.daily(account, "2026-01-09", RUN0).splitlines()
-    assert daily[:2] == ["日报 · 2026-01-09", "⚠ 熔断中：已平仓，不再下单。确认后运行 python -m trader live resume 恢复。"]
+    assert daily[:2] == ["日报 · 2026-01-09", "⚠ 熔断中：已平仓，不再下单。按 ADR 0010，live 熔断一次就不再解除，实验到此结束。"]
 
 
-def test_a_live_kill_alert_names_the_live_resume_command(tmp_path):
+def test_a_live_kill_alert_says_the_experiment_is_over(tmp_path):
     env = Env(tmp_path)
     account, exchange = live_account(env)
     env.decide(HOUR, "Long")
@@ -111,14 +112,15 @@ def test_a_live_kill_alert_names_the_live_resume_command(tmp_path):
     env.decide(HOUR + HOUR_MS, "Long")
     run(env, account, exchange, RUN0 + HOUR_MS)
     assert account.ledger.get("halted") is True and exchange.book[BTC.swap][0] == 0
-    assert env.inbox.sent[-1].startswith("【live】熔断：净值")
-    assert env.inbox.sent[-1].endswith("确认后运行 python -m trader live resume 恢复。")
+    (kill,) = [text for text in env.inbox.sent if text.startswith("【live】熔断：净值")]
+    assert kill.endswith("停止交易；已对 BTC-USDT-SWAP 发出市价平仓。按 ADR 0010，live 熔断一次就不再解除，实验到此结束。")
+    assert (DEMO.kill_final, LIVE.kill_final, live.LIVE.kill_final) == (False, True, True)
 
 
 def test_each_paper_account_names_its_own_resume_command():
     assert Paper.resume_command == "python -m trader resume"
     assert IntradayPaper.resume_command == "python -m trader intraday resume"
-    assert _kill_alert(8_000.0, 10_000.0, LIVE.resume_command) == (
+    assert _kill_alert(8_000.0, 10_000.0, Paper.resume_command) == (
         "熔断：净值 8,000.00 比峰值 10,000.00 回撤 20.0%，已全部平仓并停止交易。"
-        "确认后运行 python -m trader live resume 恢复。"
+        "确认后运行 python -m trader resume 恢复。"
     )

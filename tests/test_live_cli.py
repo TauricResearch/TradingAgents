@@ -21,7 +21,7 @@ from trader.intraday.paper import HOUR_MS
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger
 from trader.live import account as live_account, keys
-from trader.okx_private import PROBE_ORDER_MISSING, OKXPrivateError, StopOrder
+from trader.okx_private import PROBE_ORDER_MISSING, NoBalance, OKXPrivateError, StopOrder
 from trader.settings import Settings
 
 NO_SUCH_ORDER = OKXPrivateError(
@@ -213,6 +213,36 @@ def test_resume_is_refused_while_the_unlock_is_closed_before_the_key_file_or_the
     assert live.exchange.calls == [] and live.inbox.sent == []
 
 
+def test_live_halt_kills_the_paused_account_and_resume_never_lifts_the_kill(live):
+    assert invoke("init").exit_code == 0
+    final = "按 ADR 0010，live 熔断一次就不再解除，实验到此结束。"
+    result = invoke("halt", "--yes")
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines() == [f"人工熔断：停止交易，平掉 0 个仓位，还剩 0 个。{final}"]
+    assert live.inbox.sent == [f"【live】人工熔断：停止交易，平掉 0 个仓位，还剩 0 个。{final}"]
+    book = ledger(live)
+    assert book.get("halted") is True and book.get("paused") is True
+    result = invoke("resume", "--kill")
+    assert result.exit_code == 1 and f"live 的熔断不解除：{final}" in result.output
+    assert ledger(live).get("halted") is True and len(live.inbox.sent) == 1
+
+
+def test_live_resume_kill_is_refused_before_the_key_is_read(live, monkeypatch):
+    monkeypatch.setattr(keys, "client", lambda base_url=keys.BASE_URL: pytest.fail("the key was read"))
+    result = invoke("resume", "--kill")
+    assert result.exit_code == 1 and "live 的熔断不解除" in result.output
+
+
+def test_live_init_refuses_a_sub_account_without_usdt(live):
+    def none(ccy="USDT"):
+        raise NoBalance("the account's balance has no USDT row")
+
+    live.exchange.balance = none
+    result = invoke("init")
+    assert result.exit_code == 1 and "子账户里没有 USDT，先划转再 init" in result.output
+    assert not ledger(live).initialized
+
+
 @pytest.fixture
 def unlocked(live, monkeypatch):
     monkeypatch.setattr(live_account, "UNLOCK_OPEN", True)
@@ -225,7 +255,7 @@ def unlocked(live, monkeypatch):
     (lambda live: setattr(live.exchange, "permissions", "read_only"), "权限里没有 trade"),
     (lambda live: setattr(live.exchange, "probe", READ_ONLY), "50120"),
     (lambda live: setattr(live.exchange, "probe", None), "这个应答没见过"),
-    (lambda live: ledger(live).set("halted", True), "熔断一次实验就结束"),
+    (lambda live: ledger(live).set("halted", True), "不解锁：按 ADR 0010，live 熔断一次就不再解除"),
 ])
 def test_an_open_unlock_still_refuses_a_key_not_established_to_trade_and_a_halted_account(unlocked, arrange, refusal):
     arrange(unlocked)
