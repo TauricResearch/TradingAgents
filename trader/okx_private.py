@@ -46,6 +46,7 @@ SIMULATED_HEADER = "x-simulated-trading"
 PROBE_ORDER_ID = "1"  # OKX order ids are 18-digit; this one can never exist
 PROBE_ORDER_MISSING = "51400"  # what a key that may trade is answered when it cancels that order
 DUPLICATE_CLIENT_ID = "51016"  # OKX's code for a clOrdId that already exists
+NO_ORDER = "51603"             # OKX's code for an order it does not know
 TIMESTAMP_EXPIRED = "50102"    # the request's timestamp was more than 30 s off OKX's clock
 _PAGE = 100                    # rows per page; the most fills and bills endpoints give
 # OKX's bill types (``type`` of /api/v5/account/bills-archive): 1 a transfer (subtype 11 in,
@@ -393,7 +394,7 @@ class OKXPrivate:
         return None
 
     def order(self, inst: str, client_id: str | None = None, order_id: str | None = None) -> Order:
-        """An order by client or exchange id; OKXPrivateError (code 51603) when there
+        """An order by client or exchange id; OKXPrivateError (code NO_ORDER) when there
         is none."""
         if not (client_id or order_id):
             raise ValueError("order() needs a client_id or an order_id")

@@ -76,6 +76,7 @@ from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, ContractSpec
 from trader.okx_private import (
     DUPLICATE_CLIENT_ID,
     FUNDING_BILL,
+    NO_ORDER,
     TRADE_BILL,
     TRANSFER_BILL,
     Bill,
@@ -358,8 +359,9 @@ class DemoAccount:
         ``booked_bills``) are booked, a fill the program did not cause as MANUAL, and a
         transfer into the trading account or out of it (``_transfer``) as a transfer. A stop
         that fired on the exchange is alerted with what it traded and made
-        (``_fired_text``): its fills, unlike those of a close the program sent for want of
-        a stop, which that close's own alert announced, carry no client id. The positions
+        (``_fired_text``); a close the program sent for want of a stop is not, that
+        close's own alert having announced it (``_reason`` tells the two apart, and raises
+        before anything is booked when it cannot read a fill's order). The positions
         become the exchange's, each keeping the stop the ledger tracked for it
         (or the one in ``desired_stops``, set by an execution). One not in MARGIN_MODE
         at LEVERAGE is a problem. Cash is the wallet balance, equity includes unrealized
@@ -405,13 +407,13 @@ class DemoAccount:
             if f.bill_id in booked:
                 continue
             qty = f.contracts * self.spec(f.inst).contract_value * (1 if f.side == "buy" else -1)
-            reason = self._reason(f)
+            reason, fired_stop = self._reason(f)
             if reason == MANUAL:
                 manual.append(f)
             # OKX reports a paid fee as negative; the ledger keeps fees as costs.
             fill = Fill(f.ts, f.inst, round(qty, 12), f.price, -f.fee, reason, utc_date(f.ts))
             fills.append(fill)
-            if reason == "stop" and not f.client_id:
+            if fired_stop:
                 fired.setdefault(f.inst, []).append((f.contracts, fill))
             booked[f.bill_id] = f.ts
         for b in self.private.funding_bills(begin, end):
@@ -578,20 +580,29 @@ class DemoAccount:
                 failed.append(f"已平仓合约的 {len(loose)} 张止损单没撤掉（{_error(exc)}），下一次运行再撤")
         return sent, pending, failed
 
-    def _reason(self, fill: ExchangeFill) -> str:
-        """trade / stop / kill by the client id prefix; a stop's fill carries the algo's
-        client id on its order rather than on the fill, so the order is looked up."""
-        client_id = fill.client_id
-        if not client_id:
-            try:
-                order = self.private.order(fill.inst, order_id=fill.order_id)
-                client_id = order.algo_client_id or order.client_id
-            except REQUEST_ERRORS:
-                client_id = ""
-        for prefix, reason in REASONS:
-            if client_id.startswith(prefix):
-                return reason
-        return MANUAL
+    def _reason(self, fill: ExchangeFill) -> tuple[str, bool]:
+        """(trade / stop / kill or MANUAL, whether a stop that fired on the exchange made it).
+
+        An order the program sent carries the program's client id on its fills. The
+        order a stop places when it fires does not: the exchange names that order itself
+        ("O" and digits, #50) and keeps the stop's client id as the order's algo client
+        id, so the order of every other fill is read. An order the exchange does not
+        know is not the program's. One that cannot be read raises: the sync books nothing
+        and the next asks again, where a stop's fill taken for a person's would pause
+        the account for something that did not happen."""
+        reason = _program_reason(fill.client_id)
+        if reason:
+            return reason, False
+        try:
+            order = self.private.order(fill.inst, order_id=fill.order_id)
+        except OKXPrivateError as exc:
+            if exc.code != NO_ORDER:
+                raise
+            return MANUAL, False
+        reason = _program_reason(order.algo_client_id)
+        if reason:
+            return reason, reason == "stop"
+        return _program_reason(order.client_id) or MANUAL, False
 
     def _funding_rate(self, inst: str, ts: int) -> float:
         """The rate that settled at ``ts`` (within a minute), from the public history; 0
@@ -1004,7 +1015,7 @@ class DemoAccount:
             try:
                 order = self.private.order(inst, client_id=client_id)
             except OKXPrivateError as exc:
-                if exc.code == "51603":  # not visible yet
+                if exc.code == NO_ORDER:  # not visible yet
                     continue
                 raise
             if order.state == "filled":
@@ -1038,6 +1049,11 @@ class DemoAccount:
 
 def _error(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"[:200]
+
+
+def _program_reason(client_id: str) -> str | None:
+    """trade / stop / kill by the prefix of a client id the program made; None of any other."""
+    return next((reason for prefix, reason in REASONS if client_id.startswith(prefix)), None)
 
 
 def _transfer(bill: Bill) -> bool:
