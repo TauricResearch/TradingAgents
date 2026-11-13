@@ -23,7 +23,7 @@ from pathlib import Path
 from trader import jobs, overrides, prices, report, rules, settings as strategy_constants
 from trader.intraday import report as intraday_report
 from trader.intraday.paper import HOUR_MS
-from trader.ledger import Fill, Ledger, Position
+from trader.ledger import Fill, Ledger, Position, Snapshot
 from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, Bar
 from trader.paper import Paper, _move
 from trader.research import build_config
@@ -393,6 +393,8 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
         "equity": equity,
         "cash": cash,
         "capital": capital,
+        "contributed": ledger.contributed(),
+        "transfers": len(ledger.transfers()),
         "peak": peak,
         "drawdown": rules.drawdown(equity, peak) if equity is not None else None,
         "halted": ledger.get("halted"),
@@ -400,7 +402,7 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
         "validation_start": _iso(ledger.get("validation_start")),
         "days": max(len(series) - 1, 0),
         "today": _today(ledger, equity, now),
-        "totals": _totals(capital, cash, equity, positions, prices),
+        "totals": _totals(ledger, cash, equity, positions, prices),
         "performance": {
             "strategy": _performance(values),
             "equal_weight": _performance(equal),
@@ -434,45 +436,65 @@ def _marked(ledger: Ledger, positions: dict, prices: dict[str, float | None]) ->
 
 def _today(ledger: Ledger, equity: float | None, now: datetime) -> dict:
     """The day's PnL: the live equity against the latest midnight snapshot at or before
-    today's UTC midnight. The hourly job writes today's at its first run after midnight;
-    until then the base is yesterday's, and ``since`` says which. Null without a
-    snapshot (``since`` null too) or without the quotes that price ``equity``."""
+    today's UTC midnight, the transfers since left out (``_change``). The hourly job
+    writes today's at its first run after midnight; until then the base is yesterday's,
+    and ``since`` says which. Null without a snapshot (``since`` null too) or without
+    the quotes that price ``equity``."""
     midnight = _ms(now.replace(hour=0, minute=0, second=0, microsecond=0))
-    row = ledger.db.execute(
-        "SELECT ts, equity FROM equity WHERE ts <= ? ORDER BY ts DESC LIMIT 1", (midnight,)
-    ).fetchone()
-    if row is None or equity is None:
-        return {"since": _iso(row[0]) if row else None, "pnl": None, "pct": None}
-    since, base = row
-    return {"since": _iso(since), "pnl": equity - base, "pct": (equity - base) / base}
+    base = ([s for s in ledger.snapshots() if s.ts <= midnight] or [None])[-1]
+    if base is None or equity is None:
+        return {"since": _iso(base.ts) if base else None, "pnl": None, "pct": None}
+    pnl, pct, _ = _change(base, equity, ledger.units(), ledger.contributed())
+    return {"since": _iso(base.ts), "pnl": pnl, "pct": pct}
+
+
+def _change(
+    start: Snapshot, close: float | None, units: float, contributed: float
+) -> tuple[float | None, float | None, float]:
+    """PnL and return from the snapshot ``start`` to the equity ``close``, measured with
+    ``units`` and ``contributed``, and what was transferred in between, net. A transfer
+    is no PnL, and the return is the change of the equity per unit (``Snapshot``); both
+    are the plain change of the equity while nothing was transferred."""
+    moved = contributed - start.contributed
+    if close is None:
+        return None, None, moved
+    # In the units of the start: ``close`` itself, the same float, without transfers.
+    scaled = close * (start.units / units)
+    return close - start.equity - moved, (scaled - start.equity) / start.equity, moved
 
 
 def _totals(
-    capital: float, cash: float, equity: float | None, positions: dict,
+    ledger: Ledger, cash: float, equity: float | None, positions: dict,
     prices: dict[str, float | None],
 ) -> dict:
     """The account's sums the way an exchange shows them. Realized is what trading has
-    put into the cash since the account opened (fees and funding included); the marked
-    sums are null while a position has no quote: a partial sum would read as the whole."""
+    put into the cash since the account opened (fees and funding included): the cash
+    less the capital put in, the transfers counted (``Ledger.contributed``). The PnL
+    is the equity less that capital, its percentage time-weighted: the change of the
+    equity per unit since the account opened (``Snapshot``), the PnL over the capital
+    while nothing was transferred. The marked sums are null while a position has no
+    quote: a partial sum would read as the whole."""
+    capital, contributed = ledger.get("capital"), ledger.contributed()
     marked = equity is not None
     notional = sum(abs(p.qty) * prices[i] for i, p in positions.items()) if marked else None
     return {
         "unrealized": equity - cash if marked else None,
         "notional": notional,
         "leverage": notional / equity if marked and equity else None,
-        "realized": cash - capital,
-        "pnl": equity - capital if marked else None,
-        "pnl_pct": (equity - capital) / capital if marked else None,
+        "realized": cash - contributed,
+        "pnl": equity - contributed if marked else None,
+        "pnl_pct": (equity * (capital / ledger.units()) - capital) / capital if marked else None,
     }
 
 
 def _net_equity(account: Account, ledger: Ledger) -> list[tuple[int, float]]:
     """The midnight equity less the LLM spend: the attempts' for the daily account, the
     signals' for the intraday one; an exchange account spends nothing, and its equity is
-    the exchange's, already net of fees and funding."""
+    the exchange's, already net of fees and funding, less what was transferred
+    (``Ledger.adjusted_series``)."""
     if account.exchange:
         start = ledger.get("validation_start")
-        return ledger.equity_series(start) if start is not None else []
+        return ledger.adjusted_series(start) if start is not None else []
     if account.intraday:
         return intraday_report.net_equity(ledger)
     return report.net_equity(ledger)
@@ -627,9 +649,11 @@ def daily(account: Account, ledger: Ledger, market: Market, limit: int) -> dict:
     and by month. A day runs from one UTC midnight snapshot to the next; the day of the
     last snapshot runs to the live equity and is ``partial`` (null PnL without quotes).
     Each day counts its fills and sums its funding and LLM spend (the attempts' for the
-    daily account, the signals' for the intraday one; unknown costs count as zero)."""
+    daily account, the signals' for the intraday one; unknown costs count as zero). A
+    day's PnL and return leave out the transfers in it, which ``transfers`` sums
+    (``_change``)."""
     start = ledger.get("validation_start")
-    series = ledger.equity_series(start) if start is not None else []
+    series = ledger.snapshots(start) if start is not None else []
     if not series:
         return {"days": [], "months": [], "market": market.status()}
     positions = ledger.positions()
@@ -642,24 +666,31 @@ def daily(account: Account, ledger: Ledger, market: Market, limit: int) -> dict:
     cost_by_day: Counter = Counter()
     for ts, cost in costs:
         cost_by_day[_day_of(ts)] += cost or 0.0
+    spans = [
+        _Span(s, following.equity, following.units, following.contributed, False) if following
+        else _Span(s, live, ledger.units(), ledger.contributed(), True)
+        for s, following in zip(series, [*series[1:], None], strict=True)
+    ]
     days = []
-    for (ts, open_), following in zip(series, [*series[1:], None], strict=True):
-        close = following[1] if following else live
+    for span in spans:
+        ts = span.start.ts
+        pnl, pct, moved = _change(span.start, span.close, span.units, span.contributed)
         days.append({
             "date": datetime.fromtimestamp(ts / 1000, UTC).date().isoformat(),
             "start_ts": _iso(ts),
-            "open": open_,
-            "close": close,
-            "pnl": close - open_ if close is not None else None,
-            "pct": (close - open_) / open_ if close is not None else None,
+            "open": span.start.equity,
+            "close": span.close,
+            "pnl": pnl,
+            "pct": pct,
+            "transfers": moved,
             "fills": fills_by_day.get(ts, 0),
             "funding": funding_by_day.get(ts, 0.0),
             "llm_cost": cost_by_day.get(ts, 0.0),
-            "partial": following is None,
+            "partial": span.partial,
         })
     return {
         "days": days[::-1][:limit],
-        "months": _months(days)[::-1],
+        "months": _months(spans)[::-1],
         "market": market.status(),
     }
 
@@ -669,25 +700,38 @@ def _day_of(ts: int) -> int:
     return ts - ts % DAY_MS
 
 
-def _months(days: list[dict]) -> list[dict]:
+@dataclass(frozen=True)
+class _Span:
+    """A day of ``daily``: from the snapshot ``start`` to the equity ``close``, measured
+    with ``units`` and ``contributed``: the next snapshot's, or for the day in progress
+    (``partial``) the live equity and the account's now."""
+
+    start: Snapshot
+    close: float | None
+    units: float
+    contributed: float
+    partial: bool
+
+
+def _months(spans: list[_Span]) -> list[dict]:
     """The days (oldest first) by calendar month: equity at the month's first midnight
-    to its last day's close, oldest month first; ``partial`` while the month has the
-    day in progress."""
+    to its last day's close, as ``_change`` measures a day, oldest month first;
+    ``partial`` while the month has the day in progress."""
     out: list[dict] = []
-    for day in days:
-        month = day["date"][:7]
+    starts: list[Snapshot] = []
+    for span in spans:
+        month = datetime.fromtimestamp(span.start.ts / 1000, UTC).strftime("%Y-%m")
         if not out or out[-1]["month"] != month:
             out.append({
-                "month": month, "open": day["open"], "close": None, "pnl": None, "pct": None,
-                "days": 0, "partial": False,
+                "month": month, "open": span.start.equity, "close": None, "pnl": None, "pct": None,
+                "transfers": 0.0, "days": 0, "partial": False,
             })
-        current, close = out[-1], day["close"]
+            starts.append(span.start)
+        current = out[-1]
+        pnl, pct, moved = _change(starts[-1], span.close, span.units, span.contributed)
         current.update(
-            close=close,
-            pnl=close - current["open"] if close is not None else None,
-            pct=(close - current["open"]) / current["open"] if close is not None else None,
-            days=current["days"] + 1,
-            partial=day["partial"],
+            close=span.close, pnl=pnl, pct=pct, transfers=moved, days=current["days"] + 1,
+            partial=span.partial,
         )
     return out
 
@@ -720,6 +764,13 @@ def fills(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[d
         }
         for f, realized, after in reversed(rows)
     ]
+
+
+def transfers(ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
+    """The transfers since ``since_ms``, newest first, at most ``limit``: USDT moved into
+    the account, negative when moved out."""
+    rows = ledger.transfers(since_ms)[::-1][:limit]
+    return [{"ts": _iso(ts), "amount": amount} for ts, amount in rows]
 
 
 def funding(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
@@ -993,7 +1044,7 @@ def mirror(account: Account, ledger: Ledger, other: Account, source: Ledger, lim
     fill of the same hour and contract and the slippage between the two prices (basis
     points, positive when the account paid more for what it bought or got less for what
     it sold); ``equity`` is both accounts' return since the account's first midnight,
-    where both have a snapshot."""
+    where both have a snapshot, the transfers left out (``Ledger.adjusted_series``)."""
     mine, theirs = ledger.positions(), source.positions()
     positions = [
         {
@@ -1030,8 +1081,8 @@ def mirror(account: Account, ledger: Ledger, other: Account, source: Ledger, lim
                 ),
                 "slippage_bps": slippage,
             })
-        own_equity = dict(ledger.equity_series(start))
-        other_equity = dict(source.equity_series(start))
+        own_equity = dict(ledger.adjusted_series(start))
+        other_equity = dict(source.adjusted_series(start))
         shared = sorted(set(own_equity) & set(other_equity))
         if shared:
             base_own, base_other = own_equity[shared[0]], other_equity[shared[0]]

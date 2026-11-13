@@ -163,6 +163,24 @@ def test_live_beside_the_intraday_account_by_default_and_beside_the_demo_on_requ
     assert trade["own"]["price"] == 78_039.0 and trade["other"]["price"] == 78_117.0
 
 
+def test_live_beside_the_demo_leaves_out_the_money_moved_into_the_demo(tmp_path):
+    client = build_live(tmp_path)
+    settings = Settings(home=tmp_path)
+    demo = Ledger(settings.demo_ledger_path)
+    # 10,040 moved in at 1.004 a unit bought 10,000 units: 20,080 is still 1.004 a unit.
+    demo.commit(
+        positions=demo.positions(), cash=demo.get("cash"), snapshots=[(DAY0 + 3 * DAY_MS, 20_080.0)],
+        meta={"units": 20_000.0, "contributed": 20_040.0},
+    )
+    demo.db.close()
+    live = Ledger(settings.live_ledger_path)
+    live.commit(positions=live.positions(), cash=live.get("cash"), snapshots=[(DAY0 + 3 * DAY_MS, 1_004.0)])
+    live.db.close()
+    body = client.get("/api/accounts/live/mirror", params={"against": "demo"}).json()
+    assert [(p["own"], p["other"]) for p in body["equity"]][-1] == (pytest.approx(0.004), pytest.approx(0.004))
+    assert body["summary"]["other_return"] == pytest.approx(0.004)
+
+
 def test_live_is_compared_with_the_intraday_account_or_the_other_exchange_account_only(tmp_path):
     client = build_live(tmp_path)
     for against in ("paper", "live", "nope"):

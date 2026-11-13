@@ -61,7 +61,8 @@ export interface Position {
   stop_distance: number | null
 }
 
-/** The day's PnL against the midnight snapshot `since` (null before the first one). */
+/** The day's PnL against the midnight snapshot `since` (null before the first one), the
+ * transfers since left out (#40). */
 export interface Today {
   since: string | null
   /** Null without the snapshot or without the quotes that price the equity. */
@@ -74,9 +75,13 @@ export interface Totals {
   unrealized: number | null
   notional: number | null
   leverage: number | null
-  /** Cash less capital: what closed trades, fees and funding have added since the account opened. */
+  /** Cash less the capital put in (`Overview.contributed`): what closed trades, fees and funding
+   * have added since the account opened. */
   realized: number
+  /** Equity less the capital put in. */
   pnl: number | null
+  /** Time-weighted: the change of the equity per unit since the account opened, which no
+   * transfer moves (#40); `pnl` over the capital while nothing was transferred. */
   pnl_pct: number | null
 }
 
@@ -113,7 +118,12 @@ export interface Overview {
   /** Null with `drawdown` while OKX gives no quote for a position (see `market`). */
   equity: number | null
   cash: number
+  /** The capital the account opened with. */
   capital: number
+  /** The capital put in: `capital` and the transfers since, net (#40). */
+  contributed: number
+  /** How many transfers were booked (#40); with any, `totals.pnl_pct` is time-weighted. */
+  transfers: number
   peak: number
   drawdown: number | null
   halted: boolean
@@ -154,8 +164,11 @@ export interface DailyRow {
   open: number
   /** Null for the day in progress while OKX gives no quote; `pnl` and `pct` with it. */
   close: number | null
+  /** Without the day's transfers, which `transfers` sums. */
   pnl: number | null
   pct: number | null
+  /** USDT moved in less moved out during the day (#40); 0 on a paper account. */
+  transfers: number
   fills: number
   funding: number
   llm_cost: number
@@ -170,6 +183,7 @@ export interface MonthRow {
   close: number | null
   pnl: number | null
   pct: number | null
+  transfers: number
   days: number
   partial: boolean
 }
@@ -201,6 +215,12 @@ export interface Fill {
   realized_net: number
   /** The signed position the fill left; 0 when it closed. */
   position_after: number
+}
+
+/** Money a person moved into an account on the exchange (positive) or out of it (#40). */
+export interface Transfer {
+  ts: string
+  amount: number
 }
 
 export interface Funding {
