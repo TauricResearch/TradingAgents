@@ -1,3 +1,4 @@
+import math
 from typing import Annotated
 
 import yfinance as yf
@@ -18,6 +19,62 @@ from tradingagents.dataflows.vendors.yahoo.common import (
 
 # Quote currencies Yahoo gives in a minor unit, and the main unit of each.
 _MAIN_UNIT = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
+
+
+def _fcf_from_statement(frame, n_columns):
+    """Standard free cash flow summed over a statement's last ``n_columns``.
+
+    Returns None when the statement is missing, empty, has fewer than
+    ``n_columns`` columns, or lacks either row. yfinance reports capital
+    expenditure as a negative cash outflow, so its magnitude is subtracted;
+    ``abs`` also covers a source that reports it positive. A NaN anywhere
+    means the figure is not trustworthy, so the whole sum is refused.
+    """
+    if frame is None or getattr(frame, "empty", True):
+        return None
+    try:
+        if len(frame.columns) < n_columns:
+            return None
+        ocf = frame.loc["Operating Cash Flow"].iloc[-n_columns:]
+        capex = frame.loc["Capital Expenditure"].iloc[-n_columns:]
+    except (AttributeError, KeyError, TypeError):
+        return None
+    try:
+        total = sum(float(o) - abs(float(c)) for o, c in zip(ocf, capex, strict=True))
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(total):
+        return None
+    return total
+
+
+def _standard_free_cash_flow(canonical):
+    """Standard free cash flow (operating cash flow minus capital expenditure)
+    from the cash-flow statement, with its period label.
+
+    Prefers the trailing twelve months (the last four quarterly columns);
+    falls back to the most recent annual column, labelled FY, when fewer
+    than four quarters are available. Returns ``(None, None)`` when the
+    statement cannot be read — the overview then simply omits the line
+    instead of failing, because the figure is additive, not load-bearing.
+    A fetch failure is swallowed for the same reason: ``get_fundamentals``
+    must not lose the whole profile over one derived line.
+    """
+    try:
+        quarterly = yf_retry(lambda: yf.Ticker(canonical).quarterly_cashflow)
+    except Exception:
+        quarterly = None
+    ttm = _fcf_from_statement(quarterly, 4)
+    if ttm is not None:
+        return ttm, "TTM"
+    try:
+        annual = yf_retry(lambda: yf.Ticker(canonical).cashflow)
+    except Exception:
+        annual = None
+    fy = _fcf_from_statement(annual, 1)
+    if fy is not None:
+        return fy, "FY"
+    return None, None
 
 
 def get_fundamentals(
@@ -60,6 +117,23 @@ def get_fundamentals(
         value = info.get(key)
         return None if value is None else f"{value} {currency}" if currency else value
 
+    # Yahoo's ``freeCashflow`` is *levered* free cash flow (TTM), not the
+    # standard operating-cash-flow-minus-capex figure (#1693) — it used to be
+    # printed as plain "Free Cash Flow", understating cash generation ~3x on
+    # NVDA. Print the standard figure computed from the cash-flow statement
+    # under its own name, and keep Yahoo's figure under its honest label.
+    fcf_value, fcf_period = _standard_free_cash_flow(canonical)
+    fcf_line = (
+        []
+        if fcf_value is None
+        else [
+            (
+                f"Free Cash Flow ({fcf_period})",
+                f"{fcf_value} {reported}" if reported else fcf_value,
+            )
+        ]
+    )
+
     fields = [
         ("Name", info.get("longName")),
         ("Sector", info.get("sector")),
@@ -89,7 +163,8 @@ def get_fundamentals(
          else f"{debt_to_equity}% ({debt_to_equity / 100:.2f}x)"),
         ("Current Ratio", info.get("currentRatio")),
         ("Book Value", money("bookValue", main)),
-        ("Free Cash Flow", money("freeCashflow", reported)),
+        *fcf_line,
+        ("Levered Free Cash Flow (TTM)", money("freeCashflow", reported)),
     ]
 
     lines = [f"{label}: {v}" for label, v in fields if v is not None]
