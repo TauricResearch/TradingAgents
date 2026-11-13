@@ -24,7 +24,7 @@ from trader import jobs, overrides, prices, report, rules, settings as strategy_
 from trader.intraday import report as intraday_report
 from trader.intraday.paper import HOUR_MS
 from trader.ledger import Fill, Ledger, Position, Snapshot
-from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, Bar
+from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, Bar, OKXError
 from trader.paper import Paper, _move
 from trader.research import build_config
 from trader.settings import BENCHMARK, BUDGET_LEARNING_DAYS, WATCHLIST, Coin, Settings
@@ -110,7 +110,8 @@ class Market:
     When a request to OKX fails (MARKET_ERRORS), the value fetched before, however
     old, is served instead, OKX is left alone for FAILURE_TTL, and ``status`` reports
     the failure until a request succeeds again; a quote never fetched raises
-    MarketUnavailable. One request at a time: FastAPI calls this from worker threads.
+    MarketUnavailable. A last price ``rules.usable_prices`` refuses fails like such a
+    request. One request at a time: FastAPI calls this from worker threads.
     """
 
     def __init__(self, okx: OKX):
@@ -122,7 +123,7 @@ class Market:
         self._error: str | None = None
 
     def last_price(self, inst: str) -> float:
-        return self._cached(("last", inst), PRICE_TTL, lambda: self.okx.last_price(inst))
+        return self._cached(("last", inst), PRICE_TTL, lambda: _usable_last(self.okx, inst))
 
     def bars(self, inst: str, bar: str, start_ms: int, end_ms: int) -> list[Bar]:
         key = ("bars", inst, bar, start_ms, end_ms)
@@ -163,6 +164,14 @@ class Market:
         if hit is None:
             raise MarketUnavailable(self._error)
         return hit[1]
+
+
+def _usable_last(okx: OKX, inst: str) -> float:
+    """OKX's last price of ``inst``; OKXError when ``rules.usable_prices`` refuses it."""
+    price = okx.last_price(inst)
+    if not rules.usable_prices(price):
+        raise OKXError(f"OKX quotes {inst} at {price}, not a positive finite number")
+    return price
 
 
 # -- strategy -----------------------------------------------------------------
@@ -625,11 +634,14 @@ def _baselines(
     market: Market, watchlist: tuple[Coin, ...], midnights: list[int], capital: float
 ) -> list[tuple[float | None, float | None]]:
     """(equal-weight, BTC-only) buy-and-hold at each midnight, as report.baselines
-    prices them, with (None, None) at a midnight whose closes OKX lacks."""
+    prices them, with (None, None) at a midnight whose closes OKX lacks, or serves one
+    ``rules.usable_prices`` refuses."""
     start = midnights[0]
     closes = {
         coin.research: {
-            b.ts: b.close for b in market.bars(coin.spot, "1Dutc", start - DAY_MS, midnights[-1])
+            b.ts: b.close
+            for b in market.bars(coin.spot, "1Dutc", start - DAY_MS, midnights[-1])
+            if rules.usable_prices(b.close)
         }
         for coin in watchlist
     }

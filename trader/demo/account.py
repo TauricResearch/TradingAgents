@@ -84,7 +84,7 @@ from trader.okx_private import (
     OKXPrivateError,
     StopOrder,
 )
-from trader.paper import _midnights, _unusable_alert
+from trader.paper import _baseline_ref, _midnights, _unusable_alert
 from trader.settings import KILL_DRAWDOWN, MAX_COIN_EXPOSURE, WATCHLIST, Coin, Settings
 
 logger = logging.getLogger(__name__)
@@ -595,12 +595,14 @@ class DemoAccount:
 
     def _funding_rate(self, inst: str, ts: int) -> float:
         """The rate that settled at ``ts`` (within a minute), from the public history; 0
-        when OKX cannot say, since the bill already carries the amount."""
+        when OKX cannot say, or says one ``rules.usable_rate`` refuses (the funding table
+        takes no NaN), since the bill already carries the amount."""
         try:
             events = self.okx.funding(inst, ts - 60_000, ts + 60_000)
         except REQUEST_ERRORS:
             return 0.0
-        return min(events, key=lambda e: abs(e.ts - ts)).rate if events else 0.0
+        rate = min(events, key=lambda e: abs(e.ts - ts)).rate if events else 0.0
+        return rate if rules.usable_rate(rate) else 0.0
 
     # -- stops ----------------------------------------------------------------
 
@@ -982,19 +984,16 @@ class DemoAccount:
             ledger.add_event(now_ms, "order", f"{inst} {contracts:+g} 张 @ {fill_price:,.2f}（{client_id}）")
         if ledger.get("validation_start") is None:
             # The validation period starts with this UTC day, the baseline buys at the
-            # spot closes of the day before, as the paper accounts do.
+            # spot closes of the day before, as the paper accounts do (``_baseline_ref``).
             day_start = now_ms - now_ms % DAY_MS
-            ledger.commit(
-                positions=positions, cash=ledger.get("cash"), snapshots=[(day_start, equity)],
-                meta={
-                    "validation_start": day_start,
-                    "baseline_ref": {
-                        coin.research:
-                            self.okx.bars(coin.spot, "1Dutc", day_start - DAY_MS, day_start)[-1].close
-                        for coin in self.watchlist
-                    },
-                },
-            )
+            ref, deferred = _baseline_ref(self.okx, self.watchlist, day_start)
+            if deferred:
+                self._alert(now_ms, "validation_deferred", alerts, deferred)
+            else:
+                ledger.commit(
+                    positions=positions, cash=ledger.get("cash"), snapshots=[(day_start, equity)],
+                    meta={"validation_start": day_start, "baseline_ref": ref},
+                )
         return alerts, desired
 
     def _await_fill(self, inst: str, client_id: str):

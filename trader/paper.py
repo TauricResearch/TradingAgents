@@ -5,7 +5,8 @@ fills stops (at the open when a candle gaps through one), books funding at each
 settlement, marks equity at every close, tracks the peak, flattens everything
 once the drawdown reaches KILL_DRAWDOWN, and snapshots equity at each UTC
 midnight. A candle with a price that is not a positive finite number counts as
-missing. ``execute`` trades between minutes, at the last price.
+missing; a settlement whose rate is not a finite number is not booked.
+``execute`` trades between minutes, at the last price.
 """
 
 from __future__ import annotations
@@ -110,16 +111,23 @@ class Paper:
             replayed = [b for b in series if start <= b.ts < stop_at]
             if replayed:
                 unusable.append(_bars_alert(inst, replayed))
+        logged = [(now_ms, "bar_unusable", text) for text in unusable]
         halted = self.ledger.get("halted")
         alerts, fills, funding, snapshots = list(unusable), [], [], []
         for t in range(start, stop_at, MINUTE_MS):
-            # Funding settles at the start of minute t, on the position held then.
+            # Funding settles at the start of minute t, on the position held then, unless
+            # ``rules.usable_rate`` refuses its rate: that settlement is alerted, not booked.
             while events and events[0][0] <= t:
                 ts, inst, rate = events.pop(0)
-                if inst in positions:
-                    amount = rules.funding_payment(positions[inst].qty, last_close[inst], rate)
-                    cash += amount
-                    funding.append((ts, inst, rate, amount))
+                if inst not in positions:
+                    continue
+                if not rules.usable_rate(rate):
+                    alerts.append(_funding_alert(inst, ts, rate))
+                    logged.append((now_ms, "funding_unusable", alerts[-1]))
+                    continue
+                amount = rules.funding_payment(positions[inst].qty, last_close[inst], rate)
+                cash += amount
+                funding.append((ts, inst, rate, amount))
             for inst, pos in list(positions.items()):
                 bar = bars[inst].get(t)
                 hit = bar and rules.stop_fill(pos.qty, pos.stop, bar.open, bar.high, bar.low)
@@ -148,7 +156,7 @@ class Paper:
                 "peak": peak, "halted": halted, "processed_to": stop_at,
                 "marks": self.marks(last_close),
             },
-            events=[(now_ms, "bar_unusable", text) for text in unusable],
+            events=logged,
         )
         return alerts
 
@@ -192,7 +200,10 @@ class Paper:
         while halted. A position in a contract no longer on the watchlist is not
         traded; its stop is managed until it closes the position. A contract whose
         quote is not usable (``usable``) sits the trade date out: it is alerted, not
-        traded, its stop is not moved, and its position counts at its last mark.
+        traded, its stop is not moved, and its position counts at its last mark. The
+        first execution starts the validation period, unless ``_baseline_ref`` finds no
+        usable spot close of the day before for a coin: that is alerted and left to a
+        later trade date.
         """
         if self.ledger.executed(trade_date) or self.ledger.get("halted"):
             return []
@@ -259,21 +270,20 @@ class Paper:
             )
 
         meta = {"marks": self.marks({inst: price for inst, (price, _) in quotes.items()})}
-        snapshots = []
+        snapshots, events = [], [(now_ms, "quote_unusable", text) for text in unusable]
         if self.ledger.get("validation_start") is None:
             # The validation period starts with this trade date: the baseline buys
             # at the closes the research saw, and equity is marked as it stood.
-            meta["validation_start"] = day_start
-            meta["baseline_ref"] = {
-                coin.research:
-                    self.okx.bars(coin.spot, "1Dutc", day_start - DAY_MS, day_start)[-1].close
-                for coin in self.watchlist
-            }
-            snapshots.append((day_start, equity))
+            ref, deferred = _baseline_ref(self.okx, self.watchlist, day_start)
+            if deferred:
+                alerts.append(deferred)
+                events.append((now_ms, "validation_deferred", deferred))
+            else:
+                meta.update(validation_start=day_start, baseline_ref=ref)
+                snapshots.append((day_start, equity))
         self.ledger.commit(
             positions=positions, cash=cash, fills=fills, snapshots=snapshots, meta=meta,
-            executed=(trade_date, now_ms),
-            events=[(now_ms, "quote_unusable", text) for text in unusable],
+            executed=(trade_date, now_ms), events=events,
         )
         return alerts
 
@@ -333,6 +343,39 @@ def _bars_alert(inst: str, refused: list[Bar]) -> str:
         f"K 线不能用：{inst} 有 {len(refused)} 根 1 分钟 K 线按缺失处理，最早一根 {when} UTC "
         f"开 {first.open:,.2f}，高 {first.high:,.2f}，低 {first.low:,.2f}，收 {first.close:,.2f}；"
         "开高低收都要是大于 0 的有限数，这几分钟不判断止损，净值按之前的收盘价算"
+    )
+
+
+def _funding_alert(inst: str, ts: int, rate: float) -> str:
+    """The alert of a settlement a replay does not book, ``rules.usable_rate`` refusing
+    its rate."""
+    when = datetime.fromtimestamp(ts / 1000, UTC).strftime("%m-%d %H:%M")
+    return f"资金费率不能用：{inst} {when} UTC 结算的费率是 {rate}，要是有限数；这次资金费不记"
+
+
+def _baseline_ref(
+    okx: OKX, watchlist: tuple[Coin, ...], day_start: int,
+) -> tuple[dict[str, float], str | None]:
+    """Meta ``baseline_ref`` of a validation period starting at ``day_start``: each
+    coin's spot close of the day before, which the baseline buys it at; and None, or the
+    alert that the period does not start yet when a coin has no such close
+    ``rules.usable_prices`` takes. A later execution tries again, so that the baseline
+    holds every coin, as ``report.baselines`` and the dashboard price it."""
+    ref, problems = {}, []
+    for coin in watchlist:
+        bars = okx.bars(coin.spot, "1Dutc", day_start - DAY_MS, day_start)
+        if not bars:
+            problems.append(f"{coin.spot} 还没有这根日线")
+        elif not rules.usable_prices(bars[-1].close):
+            problems.append(f"{coin.spot} 的收盘价 {bars[-1].close:,.2f} 不能用（要是大于 0 的有限数）")
+        else:
+            ref[coin.research] = bars[-1].close
+    if not problems:
+        return ref, None
+    day = datetime.fromtimestamp((day_start - DAY_MS) / 1000, UTC).strftime("%Y-%m-%d")
+    return ref, (
+        f"验证期推迟开始：对照组合按 {day} 的现货日线收盘价买入，{'，'.join(problems)}；"
+        "这次照常交易，下次执行再试"
     )
 
 

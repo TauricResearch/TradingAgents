@@ -47,8 +47,9 @@ export function ErrorBox({ error, onRetry }: { error: Error; onRetry?: () => voi
 }
 
 /**
- * Banner while the API gets no quotes from OKX: prices shown are the last ones it
- * got, and what it never got shows as "—". Nothing while the market is fine.
+ * Banner while the API gets no usable quotes from OKX: prices shown are the last
+ * usable ones it got, and what it never got shows as "—". Nothing while the market
+ * is fine.
  */
 export function MarketNote({ market }: { market: MarketStatus | undefined }) {
   if (!market || market.ok) return null
@@ -59,7 +60,7 @@ export function MarketNote({ market }: { market: MarketStatus | undefined }) {
       title={market.error ?? undefined}
     >
       <span className="font-medium text-accent">行情暂不可用</span>
-      {market.since && <span className="num text-muted">（自 {fmtTime(market.since)} 起连不上 OKX）</span>}
+      {market.since && <span className="num text-muted">（自 {fmtTime(market.since)} 起拿不到 OKX 的可用报价）</span>}
       ：净值和现价按最后拿到的报价显示，没拿到过的显示“—”；账本里的现金、持仓、成交不受影响。
     </div>
   )

@@ -70,12 +70,15 @@ def net_equity(ledger: Ledger) -> list[tuple[int, float]]:
 
 def baselines(paper: Paper, midnights: list[int], capital: float) -> tuple[list[float], list[float]]:
     """Equal-weight and BTC-only buy-and-hold at each midnight, bought at the spot
-    closes of the day before the validation period, the closes its research saw."""
+    closes of the day before the validation period, the closes its research saw. A
+    close ``rules.usable_prices`` refuses counts as missing: a midnight without every
+    close it needs is left out."""
     start = midnights[0]
     closes = {
         coin.research: {
             b.ts: b.close
             for b in paper.okx.bars(coin.spot, "1Dutc", start - DAY_MS, midnights[-1])
+            if rules.usable_prices(b.close)
         }
         for coin in paper.watchlist
     }
@@ -159,9 +162,12 @@ def daily(
         base = ledger.equity_series(start)[0][1]
         spent, _ = ledger.cost_since(start)
         # The baseline holds the coins the period started with; a coin added since
-        # has no reference close and is left out of it.
+        # has no reference close and is left out of it, as is one whose reference close
+        # ``rules.usable_prices`` refuses (``trader.paper._baseline_ref`` writes none).
         ref = ledger.get("baseline_ref") or {}
-        held = [c for c in paper.watchlist if c.research in ref]
+        held = [
+            c for c in paper.watchlist if c.research in ref and rules.usable_prices(ref[c.research])
+        ]
         line = f"验证期累计 {equity / base - 1:+.2%}，扣 LLM 费用后 {(equity - spent) / base - 1:+.2%}"
         try:
             spots = [paper.okx.last_price(c.spot) for c in held]
