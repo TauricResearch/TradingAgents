@@ -5,7 +5,9 @@ next 1 to 4 hours, "Long", "Short" or "Flat", with a conviction and a one-line
 reason. The model sees the day's multi-agent research (the latest record under
 ``results_dir``) as the higher-timeframe view, and OKX intraday data as the
 lower-timeframe evidence: 24 hours of 15-minute candles, the hourly ATR, the last
-price, the funding rate and the open interest.
+price, the funding rate and the open interest. Without a usable last price and ATR
+(``rules.usable_quote``) the model is not asked; any other number OKX gets wrong is
+left out of the prompt or reads n/a.
 
 It decides nothing else. Position size, stop and kill switch are computed by the
 job from the rules (ADR 0003, ADR 0006), so the prompt asks for no price targets
@@ -20,12 +22,13 @@ import logging
 import math
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from trader import rules
 from trader.intraday.settings import ATR_BAR, ATR_BARS, SIGNAL_BAR, SIGNAL_HOURS
 from trader.intraday.types import SIGNALS, SignalResult
 from trader.ledger import Position
@@ -126,10 +129,18 @@ def build_prompt(
     its 1h/4h/24h changes, the hourly ATR, funding, open interest, one row per candle
     (``HH:MM open high low close``, oldest first), then the research: trade date,
     rating, the whole final decision and the three cut reports, or NO_RESEARCH.
+
+    ``market.last`` and ``market.atr`` are a quote ``rules.usable_quote`` takes
+    (``Signaler.run`` asks no model otherwise). A funding rate or forecast
+    ``rules.usable_rate`` refuses, or an open interest that is not a positive finite
+    number, reads n/a; a candle with a price ``rules.usable_prices`` refuses is left
+    out of the rows and of the changes, and the candles' header says how many were.
     """
     price = _price_format(market.last)
     symbol = coin.research.split("-")[0]
-    funding = market.funding
+    usable = [b for b in market.bars if rules.usable_prices(b.open, b.high, b.low, b.close)]
+    left_out = len(market.bars) - len(usable)
+    market = replace(market, bars=usable)
     lines = [
         f"Instrument: {coin.swap} ({symbol} USDT-margined perpetual)",
         f"Time: {_stamp(now_ms)}",
@@ -140,11 +151,10 @@ def build_prompt(
         ),
         f"Hourly ATR ({ATR_BARS} bars): {price(market.atr)} "
         f"({market.atr / market.last:.2%} of price)",
-        f"Funding rate: current {funding.rate:+.4%} ({_who_pays(funding.rate)}), "
-        f"settles {_stamp(funding.time)}; next period forecast {_forecast(funding)}",
-        f"Open interest: {market.open_interest / 1e6:,.1f}M USD",
+        f"Funding rate: {_funding(market.funding)}",
+        f"Open interest: {_open_interest(market.open_interest)}",
         "",
-        *_candles(market.bars, price),
+        *_candles(market.bars, price, left_out),
         "",
         *_research_text(research),
     ]
@@ -210,12 +220,16 @@ class Signaler:
         """The signal for ``coin`` at ``now_ms``, holding ``position`` (None when flat).
 
         Reads the research, fetches the market data, asks the model once and parses the
-        answer. Any exception, from OKX or the model, becomes signal None with ``error``
-        set; an answer without a usable signal keeps the tokens it cost.
+        answer. Without a usable last price and hourly ATR (``rules.usable_quote``) it
+        asks no model: signal None, and the error says why. Any exception, from OKX or
+        the model, becomes signal None with ``error`` set; an answer without a usable
+        signal keeps the tokens it cost.
         """
         try:
             research = load_research(self.results_dir, coin.research, self.now_fn().date())
             market = self._market(coin, now_ms)
+            if not rules.usable_quote(market.last, market.atr):
+                return SignalResult(None, None, "", _unusable_quote(market))
             system, user = build_prompt(coin, now_ms, position, market, research)
             answer = self.llm.invoke([SystemMessage(system), HumanMessage(user)])
             tokens_in, tokens_out, cost = self._usage(answer)
@@ -274,9 +288,32 @@ def _price_format(last: float) -> Callable[[float], str]:
     return lambda p: f"{p:.{decimals}f}"
 
 
+def _unusable_quote(market: Market) -> str:
+    """The error of a decision the model is not asked for, ``rules.usable_quote``
+    refusing the last price or the hourly ATR."""
+    return (
+        f"unusable quote: last price {market.last}, hourly ATR {market.atr}; both must be "
+        "positive finite numbers, so the model was not asked"
+    )
+
+
+def _funding(funding: FundingRate) -> str:
+    """The current rate and the side that pays it, when it settles, and the forecast; a
+    rate ``rules.usable_rate`` refuses reads n/a, with no side."""
+    current = (
+        f"{funding.rate:+.4%} ({_who_pays(funding.rate)})"
+        if rules.usable_rate(funding.rate) else "n/a"
+    )
+    return (
+        f"current {current}, settles {_stamp(funding.time)}; "
+        f"next period forecast {_forecast(funding)}"
+    )
+
+
 def _forecast(funding: FundingRate) -> str:
-    """The forecast rate and when it settles; "n/a" when OKX gives no forecast."""
-    if funding.next_rate is None:
+    """The forecast rate and when it settles; "n/a" when OKX gives no forecast, or one
+    ``rules.usable_rate`` refuses."""
+    if funding.next_rate is None or not rules.usable_rate(funding.next_rate):
         return "n/a"
     return f"{funding.next_rate:+.4%} (settles {_stamp(funding.next_time)})"
 
@@ -285,6 +322,11 @@ def _who_pays(rate: float) -> str:
     if rate == 0:
         return "neither side pays"
     return "longs pay shorts" if rate > 0 else "shorts pay longs"
+
+
+def _open_interest(usd: float) -> str:
+    """Open interest in millions of USD; n/a unless it is a positive finite number."""
+    return f"{usd / 1e6:,.1f}M USD" if math.isfinite(usd) and usd > 0 else "n/a"
 
 
 def _position_text(position: Position | None, last: float, symbol: str, price) -> str:
@@ -310,12 +352,15 @@ def _change(market: Market, now_ms: int, hours: int) -> str:
     return f"{market.last / reference - 1:+.2%}"
 
 
-def _candles(bars: list[Bar], price) -> list[str]:
+def _candles(bars: list[Bar], price, left_out: int) -> list[str]:
+    """The header and one row per candle; the header says how many candles were
+    ``left_out`` for prices that cannot be used."""
+    note = f", {left_out} with unusable prices left out" if left_out else ""
     if not bars:
-        return [f"{SIGNAL_BAR} candles of the last {SIGNAL_HOURS} hours: none"]
+        return [f"{SIGNAL_BAR} candles of the last {SIGNAL_HOURS} hours: none{note}"]
     span = f"from {_stamp(bars[0].ts)} to {_stamp(bars[-1].ts + _bar_ms(SIGNAL_BAR))}"
     header = (
-        f"{SIGNAL_BAR} candles of the last {SIGNAL_HOURS} hours, {span}, oldest first "
+        f"{SIGNAL_BAR} candles of the last {SIGNAL_HOURS} hours, {span}{note}, oldest first "
         "(time open high low close):"
     )
     rows = [

@@ -1,12 +1,16 @@
+import dataclasses
 import json
 import logging
+import math
 import re
 from datetime import UTC, datetime
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from tests.test_trader_paper import BAD_PRICES, BAD_RATES
 from trader.intraday import signal
+from trader.intraday.job import transient
 from trader.intraday.signal import (
     NO_RESEARCH,
     PROMPT_VERSION,
@@ -236,13 +240,17 @@ def _market(last, bars, atr=412.3456):
     return Market(last, bars, atr, FUNDING, 2_625_395_188.25)
 
 
-def test_changes_compare_the_last_price_with_the_last_close_before_the_horizon():
-    # Six candles ending at 12:03; the 1h horizon (11:03) has one candle closed by then,
-    # the 4h and 24h horizons have none and fall back to the oldest candle's open.
+def _six_candles():
+    """Six candles ending at 12:03; the 1h horizon (11:03) has candles closed by then,
+    the 4h and 24h horizons have none and fall back to the oldest candle's open."""
     bars = [Bar(NOW_MS - (6 - i) * M15, 100_000, 100_100, 99_900, 100_000) for i in range(6)]
     bars[0] = Bar(bars[0].ts, 98_000, 99_100, 97_900, 99_000)
     bars[1] = Bar(bars[1].ts, 99_000, 100_100, 98_900, 100_020)
-    _, user = build_prompt(BTC, NOW_MS, None, _market(101_000.0, bars), None)
+    return bars
+
+
+def test_changes_compare_the_last_price_with_the_last_close_before_the_horizon():
+    _, user = build_prompt(BTC, NOW_MS, None, _market(101_000.0, _six_candles()), None)
     assert "Change: 1h +0.98%, 4h +3.06%, 24h +3.06%" in user
     assert ROW.findall(user)[0] == "10:33 98000 99100 97900 99000"
 
@@ -380,6 +388,110 @@ def test_too_few_hourly_candles_for_the_atr_is_an_error(tmp_path, logs):
 
     result = signaler(tmp_path, okx=ShortOKX()).run(BTC, NOW_MS)
     assert result.signal is None and result.error.startswith("ValueError: ATR over 14 days")
+
+
+# -- market data that cannot be used -------------------------------------------
+
+
+class HourlyOKX(FakeOKX):
+    """FakeOKX whose hourly candles never move (ATR 0), or whose last one reaches ``high``."""
+
+    def __init__(self, high=None):
+        super().__init__()
+        self.high = high
+
+    def bars(self, inst, bar, start_ms, end_ms):
+        out = super().bars(inst, bar, start_ms, end_ms)
+        if bar != "1H":
+            return out
+        if self.high is None:
+            return [Bar(b.ts, 100_000, 100_000, 100_000, 100_000) for b in out]
+        return [*out[:-1], dataclasses.replace(out[-1], high=self.high)]
+
+
+@pytest.mark.parametrize("last", [last for last, _ in BAD_PRICES])
+def test_without_a_usable_last_price_the_model_is_not_asked(tmp_path, logs, last):
+    llm = FakeLLM()
+    result = signaler(tmp_path, llm, FakeOKX(last=last)).run(BTC, NOW_MS)
+    assert result == SignalResult(None, None, "", (
+        f"unusable quote: last price {last}, hourly ATR 500.0; both must be positive finite "
+        "numbers, so the model was not asked"
+    ))
+    assert llm.calls == []
+    assert not transient(result.error)  # the job does not ask again within the hour
+
+
+@pytest.mark.parametrize("high, shown", [(None, "0.0"), (math.nan, "nan"), (math.inf, "inf")])
+def test_without_a_usable_hourly_atr_the_model_is_not_asked(tmp_path, logs, high, shown):
+    llm = FakeLLM()
+    result = signaler(tmp_path, llm, HourlyOKX(high)).run(BTC, NOW_MS)
+    assert result.signal is None and llm.calls == []
+    assert result.error.startswith(f"unusable quote: last price 100000.0, hourly ATR {shown};")
+
+
+def test_the_model_is_still_asked_without_usable_funding_or_open_interest(tmp_path, logs):
+    llm = FakeLLM()
+    funding = FundingRate(math.nan, NOW_MS + 4 * HOUR_MS, math.inf, NOW_MS + 12 * HOUR_MS)
+    result = signaler(tmp_path, llm, FakeOKX(funding=funding, open_interest=math.nan)).run(
+        BTC, NOW_MS
+    )
+    assert result.signal == "Long" and result.error is None
+    user = user_message(llm)
+    assert ("Funding rate: current n/a, settles 2026-11-07 16:03 UTC; "
+            "next period forecast n/a\n") in user
+    assert "Open interest: n/a\n" in user
+
+
+@pytest.mark.parametrize("rate", BAD_RATES)
+def test_a_funding_rate_that_is_not_a_finite_number_reads_n_a_with_no_side(rate):
+    funding = FundingRate(rate, NOW_MS + 4 * HOUR_MS, -0.00005, NOW_MS + 12 * HOUR_MS)
+    _, user = build_prompt(BTC, NOW_MS, None, Market(100_000.0, [], 400.0, funding, 1e9), None)
+    assert ("Funding rate: current n/a, settles 2026-11-07 16:03 UTC; "
+            "next period forecast -0.0050% (settles 2026-11-08 00:03 UTC)\n") in user
+
+
+@pytest.mark.parametrize("rate", BAD_RATES)
+def test_a_forecast_that_is_not_a_finite_number_reads_n_a(rate):
+    funding = FundingRate(0.0001, NOW_MS + 4 * HOUR_MS, rate, NOW_MS + 12 * HOUR_MS)
+    _, user = build_prompt(BTC, NOW_MS, None, Market(100_000.0, [], 400.0, funding, 1e9), None)
+    assert ("Funding rate: current +0.0100% (longs pay shorts), settles 2026-11-07 16:03 UTC; "
+            "next period forecast n/a\n") in user
+
+
+@pytest.mark.parametrize("usd", [usd for usd, _ in BAD_PRICES])
+def test_open_interest_that_is_not_a_positive_finite_number_reads_n_a(usd):
+    _, user = build_prompt(BTC, NOW_MS, None, Market(100_000.0, [], 400.0, FUNDING, usd), None)
+    assert "Open interest: n/a\n" in user
+
+
+ANY_ROW = re.compile(r"^\d\d:\d\d .*$", re.MULTILINE)
+
+
+@pytest.mark.parametrize("field", ["open", "high", "low", "close"])
+@pytest.mark.parametrize("bad", [bad for bad, _ in BAD_PRICES])
+def test_a_candle_with_a_price_that_cannot_be_used_is_left_out(field, bad):
+    bars = _six_candles()
+    bars[1] = dataclasses.replace(bars[1], **{field: bad})
+    _, user = build_prompt(BTC, NOW_MS, None, _market(101_000.0, bars), None)
+    assert "Change: 1h +2.02%, 4h +3.06%, 24h +3.06%" in user  # 1h: the first candle's close
+    times = [row[:5] for row in ANY_ROW.findall(user)]
+    assert times == ["10:33", "11:03", "11:18", "11:33", "11:48"]
+    assert ("15m candles of the last 24 hours, from 2026-11-07 10:33 UTC to 2026-11-07 12:03 UTC, "
+            "1 with unusable prices left out, oldest first (time open high low close):") in user
+
+
+def test_without_the_oldest_candle_the_next_one_opens_the_longer_changes():
+    bars = _six_candles()
+    bars[0] = dataclasses.replace(bars[0], close=math.nan)
+    _, user = build_prompt(BTC, NOW_MS, None, _market(101_000.0, bars), None)
+    assert "Change: 1h +0.98%, 4h +2.02%, 24h +2.02%" in user
+
+
+def test_with_every_candle_left_out_the_prompt_says_so():
+    bars = [dataclasses.replace(b, low=0.0) for b in _six_candles()]
+    _, user = build_prompt(BTC, NOW_MS, None, _market(101_000.0, bars), None)
+    assert "Change: 1h n/a, 4h n/a, 24h n/a" in user
+    assert "15m candles of the last 24 hours: none, 6 with unusable prices left out" in user
 
 
 # -- usage, cost, fingerprint --------------------------------------------------
