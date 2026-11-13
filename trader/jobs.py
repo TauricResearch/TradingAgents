@@ -148,18 +148,22 @@ def budget_cap(ledger: Ledger, trade_date: str) -> float | None:
 def fingerprint(config: dict, watchlist: tuple[Coin, ...]) -> dict:
     """What the research under validation runs on: library version, models, code,
     and the coins researched."""
-    root = Path(tradingagents.__file__).parent
-    digest = hashlib.sha256()
-    for path in sorted(root.rglob("*.py")):
-        digest.update(str(path.relative_to(root)).encode())
-        digest.update(path.read_bytes())
     return {
         "version": tradingagents.__version__,
         "deep": config["deep_think_llm"],
         "quick": config["quick_think_llm"],
-        "code": digest.hexdigest()[:16],
+        "code": code_digest(Path(tradingagents.__file__).parent),
         "watchlist": sorted(coin.research for coin in watchlist),
     }
+
+
+def code_digest(root: Path) -> str:
+    """A digest of the Python files under root, their paths and contents."""
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob("*.py")):
+        digest.update(str(path.relative_to(root)).encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:16]
 
 
 def check_fingerprint(ledger: Ledger, current: dict, now_ms: int) -> list[str]:

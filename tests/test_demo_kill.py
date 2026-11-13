@@ -7,6 +7,7 @@ import pytest
 
 from tests.test_demo_account import BTC, ETH, HOUR, T0, FakeExchange
 from tests.test_demo_job import RUN0, Clock, Env
+from tests.test_live_pause import LIVE_CAPITAL
 from trader.demo import job, report
 from trader.demo.account import DemoAccount
 from trader.demo.settings import KILL_SETTLE_SECONDS
@@ -190,9 +191,9 @@ def test_halt_closes_out_a_paused_account_too(tmp_path):
     # ADR 0010: a paused account's drawdown kills nothing, but a person can kill it.
     env = Env(tmp_path)
     ledger = Ledger(env.settings.live_ledger_path)
-    ledger.initialize(10_000.0, T0 - HOUR_MS)
+    ledger.initialize(LIVE_CAPITAL, T0 - HOUR_MS)
     ledger.set("summarized_day", "2026-01-10")
-    exchange = FakeExchange()
+    exchange = FakeExchange(cash=LIVE_CAPITAL)
     exchange.simulated = False
     account = DemoAccount(ledger, env.okx, exchange, watchlist=(BTC,), sleep=lambda s: None, profile=LIVE)
     exchange.now = RUN0
@@ -234,9 +235,9 @@ def test_a_halt_while_the_run_waits_for_the_hours_decision_leaves_the_hour_untra
 def test_a_halt_while_a_paused_account_waits_for_the_hours_decision_leaves_a_shadow_of_nothing(tmp_path):
     env = Env(tmp_path)
     ledger = Ledger(env.settings.live_ledger_path)
-    ledger.initialize(10_000.0, T0 - HOUR_MS)
+    ledger.initialize(LIVE_CAPITAL, T0 - HOUR_MS)
     ledger.set("summarized_day", "2026-01-10")
-    exchange = FakeExchange()
+    exchange = FakeExchange(cash=LIVE_CAPITAL)
     exchange.simulated = False
     account = DemoAccount(ledger, env.okx, exchange, watchlist=(BTC,), sleep=lambda s: None, profile=LIVE)
 

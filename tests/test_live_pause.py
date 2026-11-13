@@ -14,17 +14,20 @@ from trader.live.account import LIVE
 from trader.okx_private import StopOrder
 from trader.settings import KILL_DRAWDOWN
 
+# The live account's first transfer (ADR 0010), well under its cap on equity.
+LIVE_CAPITAL = 500.0
+
 
 class LiveEnv(Env):
     """``Env`` with the live account in the demo's place: born paused, on a production
-    client, its ledger at the live path and never set up."""
+    client holding LIVE_CAPITAL, its ledger at the live path and never set up."""
 
     def __init__(self, tmp_path, watchlist=(BTC,)):
         super().__init__(tmp_path, watchlist)
         self.ledger = Ledger(self.settings.live_ledger_path)
-        self.ledger.initialize(10_000.0, T0 - HOUR_MS)
+        self.ledger.initialize(LIVE_CAPITAL, T0 - HOUR_MS)
         self.ledger.set("summarized_day", "2026-01-10")
-        self.exchange = FakeExchange()
+        self.exchange = FakeExchange(cash=LIVE_CAPITAL)
         self.exchange.simulated = False
         self.exchange.now = HOUR
         self.account = DemoAccount(
@@ -51,7 +54,7 @@ def test_the_live_account_is_born_paused_and_each_change_is_recorded_with_its_re
 def test_a_paused_account_can_only_read(live):
     private = live.account.private
     assert isinstance(private, ReadOnly) and private.simulated is False
-    assert private.balance().equity == 10_000.0 and private.positions() == [] and private.pending_stops() == []
+    assert private.balance().equity == LIVE_CAPITAL and private.positions() == [] and private.pending_stops() == []
     for name in ("set_position_mode", "set_leverage", "place_market", "close_position", "place_stop",
                  "amend_stop", "cancel_stops", "check_trade_permission", "probe_trade_permission"):
         with pytest.raises(Paused):
@@ -68,18 +71,19 @@ def test_a_paused_run_syncs_and_changes_nothing_on_the_exchange(live):
     live.run(RUN0)
     assert live.exchange.calls == [] and live.exchange.book == {}
     assert live.inbox.sent == []
-    assert live.ledger.get("synced_at") == RUN0 and live.ledger.get("equity") == 10_000.0
+    assert live.ledger.get("synced_at") == RUN0 and live.ledger.get("equity") == LIVE_CAPITAL
     assert live.ledger.get("setup_done") is None
 
 
 def test_a_paused_account_alerts_its_reconciliation_problems_and_fixes_none(live):
     live.exchange.leverage = 5.0
-    live.exchange.manual_fill(BTC.swap, 5)
+    live.exchange.manual_fill(BTC.swap, 0.5)
     live.decide(HOUR, "Long")
     live.run(RUN0)
-    assert live.exchange.calls == [] and live.exchange.book[BTC.swap][0] == 5
+    assert live.exchange.calls == [] and live.exchange.book[BTC.swap][0] == 0.5
     assert live.inbox.sent == [
-        "【live】对账：交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00",
+        "【live】暂停：交易所里有不是程序下的成交：BTC-USDT-SWAP buy 0.5 张 @ 80,000.00。"
+        "不再下新单，仓位和止损单原样保留；查明原因后运行 python -m trader live resume 解除。",
         "【live】对账：BTC-USDT-SWAP 在交易所是 cross 5×，不是设计的 cross 3×",
         "【live】对账：BTC-USDT-SWAP 有仓位没有止损单：账户暂停中，程序不补挂，请人工处理",
     ]
@@ -104,13 +108,13 @@ def test_a_paused_account_leaves_a_stop_that_does_not_fit_its_position(live):
 
 
 def test_a_paused_account_at_the_kill_line_alerts_and_closes_nothing(live):
-    live.exchange.manual_fill(BTC.swap, 10)
-    live.exchange.stops.append(StopOrder("a1", "", BTC.swap, "sell", 10.0, 50_000.0, True, HOUR))
+    live.exchange.manual_fill(BTC.swap, 0.5)
+    live.exchange.stops.append(StopOrder("a1", "", BTC.swap, "sell", 0.5, 50_000.0, True, HOUR))
     live.run(RUN0)
     live.exchange.mark[BTC.swap] = live.exchange.prices[BTC.swap] = 59_000.0
     live.run(RUN0 + HOUR_MS)
     live.run(RUN0 + 2 * HOUR_MS)
-    assert live.exchange.calls == [] and live.exchange.book[BTC.swap][0] == 10
+    assert live.exchange.calls == [] and live.exchange.book[BTC.swap][0] == 0.5
     assert live.ledger.get("halted") is False and "kill" not in live.events()
     assert [text for text in live.inbox.sent if "熔断" in text] == [
         f"【live】对账：回撤已到熔断线 {KILL_DRAWDOWN:.0%}：账户暂停中，程序不平仓，请人工处理",

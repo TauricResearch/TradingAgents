@@ -22,8 +22,12 @@ what the exchange still holds, each contract on its own, and cancels the stops o
 contracts it no longer holds; a contract still held keeps its stop, and is closed again,
 and alerted, on each sync until the exchange is flat.
 
-An account may be paused (meta ``paused``): ``pause`` sets it and ``unpause`` clears
-it, each recording an event of kind ``pause`` or ``unpause`` with its reason. A paused
+An account may be paused (meta ``paused``), for the reasons meta ``pause_reasons`` keeps
+with the time each entered: ``pause`` adds one and ``unpause`` lifts them all, each
+recording an event of kind ``pause`` or ``unpause``. ``sync`` pauses the account for what
+it cannot explain (ADR 0010): a fill the program did not cause, a change of the balance
+other than a trade's or a funding fee's, a position the fills still do not explain at a
+later sync, and equity above the profile's ``max_equity``. A paused
 account syncs, books what it finds and alerts, and changes nothing on the exchange: its
 ``private`` is then a ``ReadOnly`` view that raises ``Paused`` on any call but a read,
 so there is no setup, no stop kept, no order and no kill by drawdown; a drawdown to the
@@ -47,6 +51,7 @@ from trader.demo.settings import (
     KILL_PREFIX,
     LEVERAGE,
     MARGIN_MODE,
+    MISMATCH_GRACE_MS,
     ORDER_POLL_SECONDS,
     ORDER_POLLS,
     STOP_PREFIX,
@@ -68,6 +73,10 @@ from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, ContractSpec
 from trader.okx_private import (
     DUPLICATE_CLIENT_ID,
+    FUNDING_BILL,
+    TRADE_BILL,
+    TRANSFER_BILL,
+    Bill,
     ExchangeFill,
     OKXPrivate,
     OKXPrivateError,
@@ -94,12 +103,16 @@ class Profile:
     (``trader.notify.labeled``) and names its commands, its ledger and its lock in
     ``Settings`` (``<name>_ledger_path``, ``<name>_lock_path``) and the meta key that
     throttles its failure alerts. ``production`` is the environment of OKX its client
-    must be of: the production one, with real money, or else simulated trading."""
+    must be of: the production one, with real money, or else simulated trading. The last
+    three are the live account's guards (ADR 0010)."""
 
     name: str
     production: bool = False
     born_paused: bool = False  # paused until the ledger records otherwise (DemoAccount.paused)
     kill_final: bool = False  # a kill is never lifted: it ends the account's experiment (ADR 0010)
+    fingerprinted: bool = False  # paused when the code or the Signal its orders follow changes
+    max_equity: float | None = None  # paused with more equity than this, USDT
+    max_order: float | None = None  # an order of a larger notional is refused, USDT
 
     @property
     def resume_command(self) -> str:
@@ -112,6 +125,10 @@ class Profile:
         if self.kill_final:
             return f"按 ADR 0010，{self.name} 熔断一次就不再解除，实验到此结束。"
         return f"确认交易所里已经空仓、查明原因后，运行 {self.resume_command} --kill 解除。"
+
+    def pause_alert(self, reason: str) -> str:
+        """The alert of the account paused for ``reason``."""
+        return f"暂停：{reason}。不再下新单，仓位和止损单原样保留；查明原因后运行 {self.resume_command} 解除。"
 
     @property
     def alerted_key(self) -> str:
@@ -138,7 +155,7 @@ class ReadOnly:
 
     READS = frozenset({
         "simulated", "base_url", "account_config", "balance", "positions", "pending_stops",
-        "fills", "funding_bills", "order", "fee_rate",
+        "fills", "funding_bills", "bills", "order", "fee_rate",
     })
 
     def __init__(self, client: OKXPrivate):
@@ -174,7 +191,10 @@ class Planned:
 class Sync:
     """What a sync found. ``problems`` are the things that stop the account from
     trading this hour; ``alerts`` go out whatever happens. ``killed``: the kill switch
-    sent close orders, which fill in a moment and one more sync books."""
+    sent close orders, which fill in a moment and one more sync books. ``paused``: the
+    reasons the sync paused the account for, new ones only; ``holding``: what would pause
+    it again were the pause lifted now (a position the fills do not explain, equity above
+    the cap)."""
 
     equity: float
     cash: float
@@ -184,6 +204,8 @@ class Sync:
     problems: list[str] = field(default_factory=list)
     alerts: list[str] = field(default_factory=list)
     killed: bool = False
+    paused: list[str] = field(default_factory=list)
+    holding: list[str] = field(default_factory=list)
 
 
 class DemoAccount:
@@ -217,16 +239,33 @@ class DemoAccount:
     def paused(self) -> bool:
         return bool(self.ledger.get("paused", self.profile.born_paused))
 
-    def pause(self, now_ms: int, reason: str) -> None:
-        self._set_paused(True, now_ms, reason)
+    @property
+    def pause_reasons(self) -> list[dict]:
+        """Why the account is paused: each reason's ``key``, ``text`` and ``since`` (when
+        it entered, ms), in the order they entered."""
+        return list(self.ledger.get("pause_reasons") or [])
+
+    def pause(self, now_ms: int, reason: str, key: str | None = None) -> bool:
+        """Pause the account for ``reason``, kept under ``key`` (the reason itself by
+        default) with the time it entered, and record a ``pause`` event. False, and
+        nothing written, when a reason under ``key`` already stands: each reason enters,
+        and is alerted, once."""
+        key = key or reason
+        with self.ledger.transaction():
+            reasons = self.pause_reasons
+            if any(r["key"] == key for r in reasons):
+                return False
+            self.ledger.set("paused", True)
+            self.ledger.set("pause_reasons", [*reasons, {"key": key, "text": reason, "since": now_ms}])
+            self.ledger.add_event(now_ms, "pause", reason)
+        return True
 
     def unpause(self, now_ms: int, reason: str) -> None:
-        self._set_paused(False, now_ms, reason)
-
-    def _set_paused(self, paused: bool, now_ms: int, reason: str) -> None:
+        """Lift the pause and all its reasons, recording an ``unpause`` event."""
         with self.ledger.transaction():
-            self.ledger.set("paused", paused)
-            self.ledger.add_event(now_ms, "pause" if paused else "unpause", reason)
+            self.ledger.set("paused", False)
+            self.ledger.set("pause_reasons", [])
+            self.ledger.add_event(now_ms, "unpause", reason)
 
     def halt(self, now_ms: int, reason: str) -> None:
         """Trip the kill switch: meta ``halted`` and a ``kill`` event saying ``reason``,
@@ -278,20 +317,30 @@ class DemoAccount:
     def sync(self, now_ms: int, desired_stops: dict[str, float | None] | None = None) -> Sync:
         """Read the exchange into the ledger and judge whether the account may trade.
 
-        Fills and funding bills since the last sync (less SYNC_OVERLAP_MS, up to
-        CLOCK_SKEW_MS past now, deduplicated by bill id in meta ``booked_bills``) are
-        booked; a fill the program did not
-        cause is booked as MANUAL and is a problem. The positions become the
-        exchange's, each keeping the stop the ledger tracked for it (or the one in
-        ``desired_stops``, set by an execution). A position the booked fills do not
-        explain, or one not in MARGIN_MODE at LEVERAGE, is a problem. Cash is the
-        wallet balance, equity includes unrealized PnL; the peak follows equity, and a
-        drawdown of KILL_DRAWDOWN with positions open trips the kill switch (``halt``).
-        A halted account's positions are closed at market (``_flatten``), and what that
-        did, failed to do or found already flat is alerted. A paused account trips
-        nothing: the drawdown is a problem, and so is a position without a stop. Each
-        UTC midnight passed since the last sync gets the current equity as its snapshot.
-        A balance that cannot be read raises (``NoBalance``) before anything is booked.
+        Fills, funding bills and the other bills since the last sync (less
+        SYNC_OVERLAP_MS, up to CLOCK_SKEW_MS past now, deduplicated by bill id in meta
+        ``booked_bills``) are booked, a fill the program did not cause as MANUAL. The
+        positions become the exchange's, each keeping the stop the ledger tracked for it
+        (or the one in ``desired_stops``, set by an execution). One not in MARGIN_MODE
+        at LEVERAGE is a problem. Cash is the wallet balance, equity includes unrealized
+        PnL. Each UTC midnight passed since the last sync gets the current equity as its
+        snapshot. A balance that cannot be read raises (``NoBalance``) before anything
+        is booked.
+
+        What the sync cannot explain pauses the account (``pause``, ADR 0010), before
+        anything is judged on the equity: a MANUAL fill (a liquidation's among them), a
+        bill other than a trade's or a funding fee's that changed the balance, a
+        position the booked fills still do not explain at a sync MISMATCH_GRACE_MS after
+        the one that first found it (until then a problem: the next hourly sync books
+        a fill the exchange reports late), and equity above the profile's
+        ``max_equity``. Each reason is alerted once, when it enters.
+
+        The peak follows equity, and a drawdown of KILL_DRAWDOWN with positions open
+        trips the kill switch (``halt``). A paused account trips nothing: the drawdown is
+        a problem, and so is a position without a stop. While a bill nothing explains
+        pauses the account, its equity measures nothing: the peak stays and the drawdown
+        is not judged. A halted account's positions are closed at market (``_flatten``),
+        and what that did, failed to do or found already flat is alerted.
         """
         ledger = self.ledger
         balance = self.private.balance()
@@ -300,7 +349,7 @@ class DemoAccount:
         since = ledger.get("synced_to", ledger.get("processed_to"))
         begin = since - SYNC_OVERLAP_MS
         booked: dict[str, int] = ledger.get("booked_bills") or {}
-        fills, funding, problems, alerts = [], [], [], []
+        fills, funding, manual, unexplained, problems, alerts = [], [], [], [], [], []
         end = now_ms + CLOCK_SKEW_MS
         for f in self.private.fills(begin, end):
             if f.bill_id in booked:
@@ -308,9 +357,7 @@ class DemoAccount:
             qty = f.contracts * self.spec(f.inst).contract_value * (1 if f.side == "buy" else -1)
             reason = self._reason(f)
             if reason == MANUAL:
-                problems.append(
-                    f"交易所里有不是程序下的成交：{f.inst} {f.side} {f.contracts:g} 张 @ {f.price:,.2f}"
-                )
+                manual.append(f)
             # OKX reports a paid fee as negative; the ledger keeps fees as costs.
             fills.append(Fill(f.ts, f.inst, round(qty, 12), f.price, -f.fee, reason, utc_date(f.ts)))
             booked[f.bill_id] = f.ts
@@ -318,6 +365,12 @@ class DemoAccount:
             if b.bill_id in booked:
                 continue
             funding.append((b.ts, b.inst, self._funding_rate(b.inst, b.ts), b.amount))
+            booked[b.bill_id] = b.ts
+        for b in self.private.bills(begin, end):
+            # A trade's bill and a funding fee's are what the fills and the funding book.
+            if b.bill_id in booked or b.type in (TRADE_BILL, FUNDING_BILL) or not b.amount:
+                continue
+            unexplained.append(b)
             booked[b.bill_id] = b.ts
         booked = {bill: ts for bill, ts in booked.items() if ts >= begin}
 
@@ -339,19 +392,47 @@ class DemoAccount:
         implied = ledger.net_fills()
         for f in fills:
             implied[f.inst] = implied.get(f.inst, 0.0) + f.qty
+        reasons: list[tuple[str, str]] = []  # (key, text) of each reason to pause the account
+        if manual:
+            reasons.append((f"fill:{manual[0].bill_id}", "交易所里有不是程序下的成交：" + "；".join(
+                f"{f.inst} {f.side} {f.contracts:g} 张 @ {f.price:,.2f}" for f in manual
+            )))
+        if unexplained:
+            reasons.append((f"bill:{unexplained[0].bill_id}", "余额有成交和资金费以外的变动：" + "；".join(
+                _bill_text(b) for b in unexplained
+            )))
+        holding: list[str] = []
+        first_seen = ledger.get("mismatched") or {}
+        mismatched: dict[str, int] = {}  # inst -> when a sync first found its position unexplained
         for inst in sorted(set(implied) | set(positions)):
             want = positions[inst].qty if inst in positions else 0.0
             have = implied.get(inst, 0.0)
             if abs(want - have) > 1e-9:
-                problems.append(
-                    f"账本与交易所持仓不一致：{inst} 账本推算 {have:+g}，交易所 {want:+g}，已按交易所为准"
-                )
+                text = f"账本与交易所持仓不一致：{inst} 账本推算 {have:+g}，交易所 {want:+g}，已按交易所为准"
+                holding.append(text)
+                mismatched[inst] = first_seen.get(inst, now_ms)
+                if now_ms - mismatched[inst] >= MISMATCH_GRACE_MS:
+                    reasons.append((f"position:{inst}", text))
+                else:
+                    problems.append(text)
 
         cash, equity = balance.cash, balance.equity
-        peak = max(ledger.get("peak"), equity)
+        cap = self.profile.max_equity
+        if cap is not None and equity > cap:
+            text = f"净值 {equity:,.2f} USDT 超过上限 {cap:,.0f} USDT"
+            holding.append(text)
+            reasons.append(("equity", text))
+        paused = [text for key, text in reasons if self.pause(now_ms, text, key)]
+        alerts += [self.profile.pause_alert(text) for text in paused]
+        # While a bill nothing explains pauses the account, its equity measures nothing.
+        unmeasured = any(r["key"].startswith("bill:") for r in self.pause_reasons)
+        peak = ledger.get("peak") if unmeasured else max(ledger.get("peak"), equity)
         halted = ledger.get("halted")
         tripped = killed = False
-        if positions and not halted and (drawdown := rules.drawdown(equity, peak)) >= KILL_DRAWDOWN:
+        if (
+            positions and not halted and not unmeasured
+            and (drawdown := rules.drawdown(equity, peak)) >= KILL_DRAWDOWN
+        ):
             if self.paused:
                 # Closing changes the exchange: while paused, a person sees to it.
                 problems.append(f"回撤已到熔断线 {KILL_DRAWDOWN:.0%}：账户暂停中，程序不平仓，请人工处理")
@@ -384,7 +465,8 @@ class DemoAccount:
             positions=positions, cash=cash, fills=fills, funding=funding, snapshots=snapshots,
             meta={
                 "peak": peak, "halted": halted, "synced_to": now_ms, "snapshot_to": now_ms,
-                "booked_bills": booked, "equity": equity, "synced_at": now_ms, "problems": problems,
+                "booked_bills": booked, "mismatched": mismatched, "equity": equity, "synced_at": now_ms,
+                "problems": problems,
                 "exchange_positions": {
                     inst: {"contracts": p.contracts, "avg_price": p.avg_price, "unrealized": p.unrealized,
                            "leverage": p.leverage, "margin_mode": p.margin_mode,
@@ -398,7 +480,7 @@ class DemoAccount:
                 ],
             },
         )
-        return Sync(equity, cash, positions, stops, fills, problems, alerts, killed)
+        return Sync(equity, cash, positions, stops, fills, problems, alerts, killed, paused, holding)
 
     def _flatten(
         self, now_ms: int, positions: dict[str, Position], stops: list[StopOrder]
@@ -710,7 +792,8 @@ class DemoAccount:
         """The orders that take each contract toward the target its signal sets, as
         ``IntradayPaper.execute`` sizes it against ``equity`` and the ledger's positions,
         in watchlist order; none for a halted account. One whose notional exceeds
-        MAX_GROSS_EXPOSURE of equity is refused as a bug. Only reads."""
+        MAX_GROSS_EXPOSURE of equity is refused as a bug, and one above the profile's
+        ``max_order``. Only reads."""
         if self.ledger.get("halted"):
             return []
         positions = self.ledger.positions()
@@ -744,11 +827,14 @@ class DemoAccount:
                 continue
             delta = round(new_qty - old_qty, 12)
             refused = None
-            if abs(delta) * price > MAX_GROSS_EXPOSURE * equity:
+            notional, cap = abs(delta) * price, self.profile.max_order
+            if notional > MAX_GROSS_EXPOSURE * equity:
                 refused = (
-                    f"拒绝下单：{inst} 变动 {delta:+g} 名义 {abs(delta) * price:,.0f} USDT"
+                    f"拒绝下单：{inst} 变动 {delta:+g} 名义 {notional:,.0f} USDT"
                     f" 超过净值 {equity:,.0f} 的 {MAX_GROSS_EXPOSURE:g} 倍，可能是算错了"
                 )
+            elif cap is not None and notional > cap:
+                refused = f"拒绝下单：{inst} 变动 {delta:+g} 名义 {notional:,.0f} USDT 超过单笔上限 {cap:,.0f} USDT"
             planned.append(Planned(
                 inst, signals.get(coin.research), old_qty, new_qty, self._contracts(delta, inst),
                 price, atr_value, refused,
@@ -865,6 +951,13 @@ class DemoAccount:
 
 def _error(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"[:200]
+
+
+def _bill_text(bill: Bill) -> str:
+    """A bill nothing explains, as the pause it causes names it."""
+    what = {"11": "转入", "12": "转出"}.get(bill.sub_type) if bill.type == TRANSFER_BILL else None
+    what = what or f"账单类型 {bill.type}（子类型 {bill.sub_type}）"
+    return f"{bill.inst} {what}".strip() + f" {bill.amount:+,.2f} USDT"
 
 
 def _stop_after(old_qty: float, new_qty: float, old_stop: float | None, fill_price: float, atr_value: float):

@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 
 from tests.test_demo_account import BTC, T0, FakeExchange
 from tests.test_demo_job import RUN0, Clock
+from tests.test_live_pause import LIVE_CAPITAL
 from tests.test_trader_jobs import Inbox
 from tests.test_trader_paper import FakeOKX
 from trader import __main__ as cli
@@ -41,7 +42,7 @@ class LiveExchange(FakeExchange):
     base_url = "https://openapi.okx.com"
 
     def __init__(self):
-        super().__init__()
+        super().__init__(cash=LIVE_CAPITAL)
         self.permissions = "read_only"
         self.uids = {"uid": "698827017768230914", "main_uid": "44705892343619584"}
         self.probe = NO_SUCH_ORDER
@@ -59,6 +60,7 @@ def live(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setenv("TRADER_HOME", str(tmp_path))
     monkeypatch.delenv("TRADER_LIVE_HEARTBEAT_URL", raising=False)
+    monkeypatch.delenv("TRADER_WEB_TOKEN", raising=False)
     exchange, inbox, now = LiveExchange(), Inbox(), [T0]
     monkeypatch.setattr(keys, "client", lambda base_url=keys.BASE_URL: exchange)
     monkeypatch.setattr(cli, "OKX", FakeOKX)
@@ -82,13 +84,14 @@ def test_init_opens_the_account_paused_on_the_wallet_and_changes_nothing_on_the_
     result = invoke("init")
     assert result.exit_code == 0, result.output
     assert result.output.splitlines() == [
-        f"live 账户已建立：本金 10,000.00 USDT（子账户钱包余额），账本在 {live.settings.live_ledger_path}",
+        f"live 账户已建立：本金 500.00 USDT（子账户钱包余额），账本在 {live.settings.live_ledger_path}",
         "现在是影子运行：每小时照常对账，记下本该下的单，不下单、不改交易所的设置；解锁见 ADR 0010。",
     ]
     book = ledger(live)
-    assert book.get("capital") == 10_000.0 and book.get("paused") is True
+    assert book.get("capital") == LIVE_CAPITAL and book.get("paused") is True
     assert book.get("setup_done") is None and book.get("summarized_day") == "2026-01-10"
     assert [(kind, text) for _, kind, text in book.events()] == [("pause", "建账：影子运行，等解锁（ADR 0010）")]
+    assert book.get("pause_reasons") == [{"key": "init", "text": "建账：影子运行，等解锁（ADR 0010）", "since": T0}]
     assert live.exchange.calls == [] and live.inbox.sent == []
     again = invoke("init")
     assert again.exit_code == 1 and "里已经有账户了" in again.output
@@ -190,25 +193,25 @@ def test_report_prints_the_performance_and_the_shadow_orders_by_hour(live):
     empty = invoke("report")
     assert empty.exit_code == 0 and empty.output.splitlines()[-1] == "影子运行还没有记录。"
     book = ledger(live)
-    book.add_event(RUN0, "shadow_order", "BTC-USDT-SWAP 买入 10 张，名义 8,000 USDT，信号 Long")
+    book.add_event(RUN0, "shadow_order", "BTC-USDT-SWAP 买入 0.5 张，名义 400 USDT，信号 Long")
     book.add_event(RUN0 + HOUR_MS, "shadow_none", "本小时不下单：离目标仓位不远，或不到最小下单量")
     result = invoke("report")
     assert result.exit_code == 0, result.output
     assert result.output.splitlines()[-2:] == [
         "影子运行：本该下的单 1 笔，另有 1 个小时没有要下的单",
-        "  01-10 00:00 UTC  BTC-USDT-SWAP 买入 10 张，名义 8,000 USDT，信号 Long",
+        "  01-10 00:00 UTC  BTC-USDT-SWAP 买入 0.5 张，名义 400 USDT，信号 Long",
     ]
     assert "live 账户还没开始" in result.output
 
 
 def test_resume_is_refused_while_the_unlock_is_closed_before_the_key_file_or_the_exchange(live, monkeypatch):
+    monkeypatch.setattr(live_account, "UNLOCK_OPEN", False)
     assert invoke("init").exit_code == 0
     live.exchange.permissions = "read_only,trade"
     monkeypatch.setattr(keys, "client", lambda base_url=keys.BASE_URL: pytest.fail("the key file was read"))
     result = invoke("resume")
-    assert live_account.UNLOCK_OPEN is False
     assert result.exit_code == 1
-    assert result.output.strip() == "live 还不能解锁：解锁的条件见 ADR 0010，由 #34 打开；现在只做影子运行"
+    assert result.output.strip() == "live 还不能解锁：解锁的开关（trader/live/account.py 的 UNLOCK_OPEN）关着；现在只做影子运行"
     assert ledger(live).get("paused") is True
     assert live.exchange.calls == [] and live.inbox.sent == []
 
@@ -246,6 +249,7 @@ def test_live_init_refuses_a_sub_account_without_usdt(live):
 @pytest.fixture
 def unlocked(live, monkeypatch):
     monkeypatch.setattr(live_account, "UNLOCK_OPEN", True)
+    monkeypatch.setenv("TRADER_WEB_TOKEN", "web-token-of-the-tests")
     assert invoke("init").exit_code == 0
     live.exchange.permissions = "read_only,trade"
     return live
@@ -262,6 +266,14 @@ def test_an_open_unlock_still_refuses_a_key_not_established_to_trade_and_a_halte
     result = invoke("resume")
     assert result.exit_code == 1 and refusal in result.output
     assert ledger(unlocked).get("paused") is True and unlocked.inbox.sent == []
+
+
+def test_an_open_unlock_is_refused_without_the_dashboards_token_before_the_exchange_is_asked(unlocked, monkeypatch):
+    monkeypatch.delenv("TRADER_WEB_TOKEN")
+    result = invoke("resume")
+    assert result.exit_code == 1 and "还没有设 TRADER_WEB_TOKEN" in result.output
+    assert ledger(unlocked).get("paused") is True
+    assert unlocked.exchange.calls == [] and unlocked.inbox.sent == []
 
 
 def test_an_open_unlock_unpauses_the_account_and_its_next_hour_sets_it_up_and_trades(unlocked):
@@ -282,9 +294,16 @@ def test_an_open_unlock_unpauses_the_account_and_its_next_hour_sets_it_up_and_tr
     assert live.exchange.calls == [] and live.exchange.book == {}
     result = invoke("resume")
     assert result.exit_code == 0, result.output
-    assert result.output.strip() == "live 已解锁：下一次每小时运行起自动下单。"
+    assert result.output.splitlines()[-2:] == [
+        "解除暂停：建账：影子运行，等解锁（ADR 0010）（01-10 00:30 UTC 起）",
+        "live 已解锁：下一次每小时运行起自动下单。",
+    ]
     assert live.inbox.sent == ["【live】已解锁：下一次每小时运行先设好账户，然后自动下单。"]
-    assert not account.paused and [kind for _, kind, _ in account.ledger.events(kinds=("pause", "unpause"))] == ["pause", "unpause"]
+    assert not account.paused and account.pause_reasons == []
+    assert [(kind, text) for _, kind, text in account.ledger.events(kinds=("pause", "unpause"))] == [
+        ("pause", "建账：影子运行，等解锁（ADR 0010）"),
+        ("unpause", "python -m trader live resume：解除暂停（建账：影子运行，等解锁（ADR 0010））"),
+    ]
     assert live.exchange.calls == [("probe_trade_permission", "BTC-USDT-SWAP")]
     run(RUN0 + HOUR_MS)
     calls = [call[0] for call in live.exchange.calls]
@@ -292,3 +311,12 @@ def test_an_open_unlock_unpauses_the_account_and_its_next_hour_sets_it_up_and_tr
     assert live.exchange.book[BTC.swap][0] > 0 and account.ledger.get("setup_done") is True
     again = invoke("resume")
     assert again.exit_code == 1 and "没有处于暂停" in again.output
+    # Paused again, by a fill the program did not make: the resume lifts a pause, not the unlock.
+    live.exchange.manual_fill(BTC.swap, -0.1)
+    run(RUN0 + 2 * HOUR_MS)
+    assert account.paused
+    result = invoke("resume")
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[-1] == "live 的暂停已解除：下一次每小时运行起恢复自动下单。"
+    assert live.inbox.sent[-1] == "【live】暂停已解除：下一次每小时运行起恢复自动下单。"
+    assert not account.paused

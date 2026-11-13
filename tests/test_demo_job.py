@@ -124,20 +124,18 @@ def test_a_halted_intraday_account_makes_the_demo_flat(env):
 
 
 def test_a_reconciliation_problem_blocks_the_hour_and_alerts_once_per_interval(env):
-    env.exchange.leverage = 5.0
-    env.exchange.manual_fill(BTC.swap, 5)
     env.decide(HOUR, "Long")
     env.run(RUN0)
-    assert len(env.exchange.fill_rows) == 1  # nothing traded on top of the odd position
-    assert env.ledger.get("decided_hour") is None
-    assert env.inbox.sent == [
-        "【demo】对账：交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00",
-        "【demo】对账：BTC-USDT-SWAP 在交易所是 cross 5×，不是设计的 cross 3×",
-    ]
-    env.decide(HOUR + HOUR_MS, "Long")
+    env.exchange.leverage = 5.0  # set by hand on the exchange
+    env.decide(HOUR + HOUR_MS, "Short")
     env.run(RUN0 + HOUR_MS)
-    assert len(env.inbox.sent) == 2  # the leverage problem persists but is not repeated yet
-    assert env.events().count("problem") == 3
+    assert len(env.exchange.fill_rows) == 1  # nothing traded at the odd leverage
+    assert env.ledger.get("decided_hour") == HOUR
+    assert env.inbox.sent[1:] == ["【demo】对账：BTC-USDT-SWAP 在交易所是 cross 5×，不是设计的 cross 3×"]
+    env.decide(HOUR + 2 * HOUR_MS, "Short")
+    env.run(RUN0 + 2 * HOUR_MS)
+    assert len(env.inbox.sent) == 2  # the problem persists but is not repeated yet
+    assert env.events().count("problem") == 2
     assert len(env.exchange.fill_rows) == 1
 
 

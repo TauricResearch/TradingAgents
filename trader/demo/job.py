@@ -14,7 +14,10 @@ run of each UTC day. The intraday ledger is opened read-only; this job never wri
 it. A paused account (``DemoAccount.paused``) is synced and its problems alerted, and
 nothing is set up, no stop kept, no order sent: its hour is a shadow run (ADR 0010),
 recording the orders it would have sent (``shadow_order``), or why there are none
-(``shadow_none``), and reporting no fills.
+(``shadow_none``), and reporting no fills. So is the hour of an account a sync of the run
+pauses. An account whose profile is ``fingerprinted`` is paused when the code or the
+Signal its orders follow changes (``check_fingerprint``), looked at before anything is
+set up and again once the hour's signals are there. ``resume`` lifts a pause.
 """
 
 from __future__ import annotations
@@ -24,7 +27,10 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from functools import cache
+from pathlib import Path
 
+from trader import rules
 from trader.demo import report
 from trader.demo.account import DemoAccount, Planned, Quotes, Sync
 from trader.demo.settings import (
@@ -35,11 +41,11 @@ from trader.demo.settings import (
     KILL_SETTLE_SECONDS,
 )
 from trader.intraday.paper import HOUR_MS, utc_date
-from trader.jobs import error_text
+from trader.jobs import code_digest, error_text
 from trader.ledger import Ledger, locked
 from trader.notify import Notifier, labeled
 from trader.okx import DAY_MS
-from trader.settings import Settings
+from trader.settings import KILL_DRAWDOWN, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +87,9 @@ def _run(
     hour = now_ms - now_ms % HOUR_MS
     alerts: list[str] = []
     with _sending(notifier, alerts), locked(lock):
-        paused = account.paused
-        if not paused and not ledger.get("setup_done"):
+        if account.profile.fingerprinted:
+            alerts += map(account.profile.pause_alert, check_fingerprint(account, intraday, now_ms))
+        if not account.paused and not ledger.get("setup_done"):
             for note in account.setup():
                 ledger.add_event(now_ms, "setup", note)
             ledger.set("setup_done", True)
@@ -91,10 +98,11 @@ def _run(
         if result.killed:
             result = _settled(account, alerts, now_fn, sleep)
         quotes = account.quotes(hour, result.positions)
-        if not paused:
+        if not account.paused:  # the sync pauses the account for what it cannot explain
             _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
             if closed:
                 result = _settled(account, alerts, now_fn, sleep)
+        paused = account.paused
     for text in _standing(ledger, result.problems, now_ms):
         notifier.send(text)
 
@@ -112,11 +120,14 @@ def _run(
             alerts = []
             with _sending(notifier, alerts), locked(lock):
                 now_ms = _ms(now_fn())
+                if account.profile.fingerprinted:
+                    # The hour is decided: the intraday ledger holds the fingerprint of its Signal.
+                    alerts += map(account.profile.pause_alert, check_fingerprint(account, intraday, now_ms))
                 result = account.sync(now_ms)  # the equity and positions the orders size against
                 alerts += result.alerts
                 if result.killed:
                     result = _settled(account, alerts, now_fn, sleep)
-                if paused:
+                if paused or account.paused:  # paused at any point of the run: a shadow hour
                     _shadow(account, hour, signals, now_ms, result, quotes, alerts)
                 elif not result.problems and not ledger.get("halted"):
                     result = _trade(account, hour, signals, now_ms, result.equity, quotes, alerts, now_fn, sleep)
@@ -169,6 +180,97 @@ def halt(
     summary += "。" + account.profile.after_kill
     notifier.send(summary)
     return [*lines, summary]
+
+
+class Refused(Exception):
+    """``resume`` left the pause standing, for the reason it says."""
+
+
+def resume(
+    settings: Settings,
+    account: DemoAccount,
+    intraday: Ledger,
+    now_fn: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> tuple[list[dict], Sync]:
+    """Lift the account's pause (``python -m trader <name> resume``) once a sync just now
+    finds nothing that pauses it; return the reasons lifted and what that sync found.
+
+    The sync, and the fingerprint of a fingerprinted account, recorded anew (the resume
+    is the person's look at the change, ADR 0010), come first. Raises Refused, the pause
+    standing, when they found a reason not seen before, which the next resume lifts
+    having said it; when what would pause the account again still holds
+    (``Sync.holding``); or when an account not halted is down KILL_DRAWDOWN from its
+    peak, so that its first sync with a position open would trip the kill switch."""
+    ledger, profile = account.ledger, account.profile
+    with locked(profile.lock_path(settings)):
+        now_ms = _ms(now_fn())
+        found = check_fingerprint(account, intraday, now_ms) if profile.fingerprinted else []
+        result = account.sync(now_ms)
+        found += result.paused
+        if found:
+            raise Refused(_listed("对账发现了新的暂停原因，这次不解除；看过之后再运行一次", found))
+        if result.holding:
+            raise Refused(_listed("这些情况还在，解除了也会再暂停", result.holding))
+        peak = ledger.get("peak")
+        drawdown = rules.drawdown(result.equity, peak)
+        if not ledger.get("halted") and drawdown >= KILL_DRAWDOWN:
+            way_out = (
+                f"要结束实验就运行 python -m trader {profile.name} halt" if profile.kill_final
+                else f"要平仓并重置峰值，先运行 python -m trader {profile.name} halt，再运行 {profile.resume_command} --kill"
+            )
+            raise Refused(
+                f"回撤 {drawdown:.1%} 已到熔断线 {KILL_DRAWDOWN:.0%}（净值 {result.equity:,.2f}，峰值 {peak:,.2f}）："
+                f"解除之后一有持仓就会熔断。回撤若来自转出的资金，出入金记账（#40）之前只能把钱转回；{way_out}。"
+            )
+        reasons = account.pause_reasons
+        texts = "；".join(r["text"] for r in reasons) or "没有记下原因"
+        account.unpause(now_ms, f"{profile.resume_command}：解除暂停（{texts}）")
+    return reasons, result
+
+
+def check_fingerprint(account: DemoAccount, intraday: Ledger, now_ms: int) -> list[str]:
+    """Pause the account when what its orders follow (``fingerprint``) is not what it
+    was at its last run, or its last resume, then record it (ADR 0010); the reason, when
+    it is a new one. Each change is a reason of its own, alerted when found."""
+    ledger = account.ledger
+    current, stored = fingerprint(intraday), ledger.get("fingerprint")
+    new = []
+    if stored is not None and stored != current:
+        text = "指纹变了：" + "，".join(
+            f"{label}（{_change(stored.get(part), current.get(part))}）"
+            for part, label in (("code", "trader/ 的代码"), ("signal", "Signal 的指纹"))
+            if stored.get(part) != current.get(part)
+        )
+        if account.pause(now_ms, text):
+            new.append(text)
+    # Recorded after the pause, so that a run failing in between leaves the change to the next.
+    ledger.set("fingerprint", current)
+    return new
+
+
+def fingerprint(intraday: Ledger) -> dict:
+    """What the orders of an account follow: the code of ``trader/`` and the Signal's
+    fingerprint (model, prompt, watchlist), as the intraday ledger last recorded it."""
+    return {"code": trader_digest(), "signal": intraday.get("fingerprint")}
+
+
+@cache
+def trader_digest() -> str:
+    """The ``code_digest`` of the ``trader/`` package, as this process first read it."""
+    return code_digest(Path(__file__).resolve().parents[1])
+
+
+def _change(old, new) -> str:
+    if isinstance(old, dict) and isinstance(new, dict):
+        return "，".join(
+            f"{key} {old.get(key)} → {new.get(key)}" for key in sorted(old.keys() | new.keys())
+            if old.get(key) != new.get(key)
+        )
+    return f"{old} → {new}"
+
+
+def _listed(head: str, items: list[str]) -> str:
+    return head + "：\n" + "\n".join(f"  {item}" for item in items)
 
 
 def _trade(

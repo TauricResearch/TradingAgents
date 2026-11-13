@@ -14,13 +14,17 @@ import requests
 from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
 from trader.demo import account as account_module
 from trader.demo.account import DemoAccount
-from trader.demo.settings import ORDER_POLL_SECONDS, ORDER_POLLS
+from trader.demo.settings import MISMATCH_GRACE_MS, ORDER_POLL_SECONDS, ORDER_POLLS
 from trader.intraday.paper import HOUR_MS
 from trader.ledger import Fill, Ledger
 from trader.okx import DAY_MS, FundingEvent
 from trader.okx_private import (
+    FUNDING_BILL,
+    TRADE_BILL,
+    TRANSFER_BILL,
     AccountConfig,
     Balance,
+    Bill,
     ExchangeFill,
     ExchangePosition,
     FundingBill,
@@ -40,8 +44,9 @@ HOUR_ID = HOUR // HOUR_MS
 class FakeExchange:
     """OKX's simulated trading in memory: a USDT wallet, net positions in contracts,
     market orders filled at ``price`` (per instrument in ``prices``) with the taker
-    fee, conditional stops, fills and funding bills with bill ids. ``mark`` prices the
-    positions for equity. ``now`` stamps what happens.
+    fee, conditional stops, fills and funding bills with bill ids, and the bills of every
+    change of the balance: the trades', the funding fees' and the transfers a person makes
+    (``transfer``). ``mark`` prices the positions for equity. ``now`` stamps what happens.
 
     What is not known of the real exchange's stops is a switch here, so that both
     answers can be tested: whether a second stop may pend beside the first
@@ -69,7 +74,8 @@ class FakeExchange:
         self.orders = {}    # (inst, client id or order id) -> Order
         self.fill_rows = []
         self.stops = []
-        self.bills = []
+        self.funding = []     # FundingBill
+        self.other_bills = []  # Bill beside the fills' and the funding fees': a transfer, or a test's
         self.calls = []
         self.fill_state = "filled"  # what a placed market order does
         self.place_error = None     # OKXPrivateError to raise from place_market
@@ -273,7 +279,16 @@ class FakeExchange:
             raise error
 
     def funding_bills(self, begin_ms, end_ms):
-        return [b for b in self.bills if begin_ms <= b.ts < end_ms]
+        return [b for b in self.funding if begin_ms <= b.ts < end_ms]
+
+    def bills(self, begin_ms, end_ms):
+        error, _ = self._failing("bills")
+        if error:
+            raise error
+        rows = [Bill(f.bill_id, TRADE_BILL, "1", f.inst, f.fee, f.ts) for f in self.fill_rows]
+        rows += [Bill(b.bill_id, FUNDING_BILL, "173", b.inst, b.amount, b.ts) for b in self.funding]
+        rows += self.other_bills
+        return sorted((b for b in rows if begin_ms <= b.ts < end_ms), key=lambda b: b.ts)
 
     # -- what the market does -------------------------------------------------
 
@@ -287,7 +302,13 @@ class FakeExchange:
 
     def settle_funding(self, inst, amount):
         self.cash += amount
-        self.bills.append(FundingBill(str(self._next()), inst, amount, self.now))
+        self.funding.append(FundingBill(str(self._next()), inst, amount, self.now))
+
+    def transfer(self, amount):
+        """A person moves ``amount`` USDT into the trading account, or out of it when negative."""
+        self.cash += amount
+        sub_type = "11" if amount > 0 else "12"
+        self.other_bills.append(Bill(str(self._next()), TRANSFER_BILL, sub_type, "", amount, self.now))
 
     def manual_fill(self, inst, contracts):
         self._fill(inst, contracts, "")
@@ -605,15 +626,25 @@ def test_funding_is_booked_with_the_public_rate_and_not_twice(account, ledger, e
     assert ledger.get("cash") == pytest.approx(9_996.0 - 0.8)
 
 
-def test_a_fill_the_program_did_not_make_is_a_problem_but_still_booked(account, ledger, exchange):
+def test_a_fill_the_program_did_not_make_is_booked_and_pauses_the_account_once(account, ledger, exchange):
     go_long(account, exchange)
     exchange.now = T0 + HOUR_MS
     exchange.manual_fill(BTC.swap, 5)
+    exchange.manual_fill(BTC.swap, -2)
     result = account.sync(T0 + HOUR_MS)
-    assert result.problems == ["交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00"]
-    assert ledger.fills()[-1].reason == "manual"
-    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.15)
-    assert ledger.get("problems") == result.problems
+    text = "交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00；BTC-USDT-SWAP sell 2 张 @ 80,000.00"
+    assert result.problems == [] and result.paused == [text] and result.holding == []
+    assert result.alerts == [
+        f"暂停：{text}。不再下新单，仓位和止损单原样保留；查明原因后运行 python -m trader demo resume 解除。"
+    ]
+    (reason,) = account.pause_reasons
+    assert account.paused and reason["text"] == text and reason["since"] == T0 + HOUR_MS
+    assert [f.reason for f in ledger.fills()] == ["trade", "manual", "manual"]
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.13)
+    # The next sync reads the fills again in its overlap: booked once, and paused for once.
+    again = account.sync(T0 + HOUR_MS + 60_000)
+    assert again.paused == [] and again.alerts == [] and len(account.pause_reasons) == 1
+    assert len(ledger.fills()) == 3
 
 
 def test_a_position_the_fills_do_not_explain_is_a_problem_and_the_exchange_wins(account, ledger, exchange):
@@ -658,15 +689,19 @@ def test_a_fill_the_exchange_stamps_after_our_clock_is_still_this_syncs(account,
     assert [f.qty for f in ledger.fills(T0 + HOUR_MS)] == [pytest.approx(0.1)]
 
 
-def test_a_position_still_unexplained_at_the_next_sync_stays_a_problem(account, ledger, exchange):
+def test_a_position_still_unexplained_at_the_next_hourly_sync_pauses_the_account(account, ledger, exchange):
     go_long(account, exchange)
     exchange.book[BTC.swap] = [30.0, 80_000.0]
-    account.sync(T0 + HOUR_MS)
-    result = account.sync(T0 + 2 * HOUR_MS)
-    assert result.problems == [
-        "账本与交易所持仓不一致：BTC-USDT-SWAP 账本推算 +0.1，交易所 +0.3，已按交易所为准"
-    ]
-    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.3)
+    text = "账本与交易所持仓不一致：BTC-USDT-SWAP 账本推算 +0.1，交易所 +0.3，已按交易所为准"
+    first = account.sync(T0 + HOUR_MS)
+    assert first.problems == [text] and first.holding == [text] and not account.paused
+    # A sync of the same run, minutes later, still leaves a late fill its time.
+    soon = account.sync(T0 + HOUR_MS + MISMATCH_GRACE_MS - 1)
+    assert soon.problems == [text] and soon.paused == [] and not account.paused
+    later = account.sync(T0 + 2 * HOUR_MS)
+    assert later.problems == [] and later.paused == [text] and later.holding == [text]
+    assert account.paused and ledger.positions()[BTC.swap].qty == pytest.approx(0.3)
+    assert account.sync(T0 + 3 * HOUR_MS).alerts == []  # paused for it once
 
 
 def test_the_fills_add_up_per_instrument(ledger):

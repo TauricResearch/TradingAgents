@@ -28,7 +28,7 @@ def test_a_paused_hour_records_the_orders_it_would_send_and_sends_none(live):
     live.decide(HOUR, "Long")
     live.run(RUN0)
     assert live.exchange.calls == [] and live.inbox.sent == []
-    assert shadow(live) == [("shadow_order", "BTC-USDT-SWAP 买入 10 张，名义 8,000 USDT，信号 Long")]
+    assert shadow(live) == [("shadow_order", "BTC-USDT-SWAP 买入 0.5 张，名义 400 USDT，信号 Long")]
     assert live.ledger.get("decided_hour") == HOUR
     live.run(RUN0 + 60_000)  # the same hour again records nothing new
     assert len(shadow(live)) == 1 and live.exchange.calls == []
@@ -57,7 +57,8 @@ def test_an_hour_without_an_order_to_send_says_why(live):
 
 
 def test_an_hour_the_sync_finds_problems_in_sizes_nothing_and_says_why(live):
-    live.exchange.manual_fill(BTC.swap, 5)  # not the program's, and without a stop
+    live.exchange.leverage = 5.0
+    live.exchange.manual_fill(BTC.swap, 0.5)  # not the program's, which pauses, and without a stop
     live.decide(HOUR, "Long")
     live.run(RUN0)
     assert shadow(live) == [("shadow_none", "本小时不下单：对账有 2 个问题")]
@@ -76,7 +77,7 @@ def test_a_refused_order_is_alerted_and_recorded_as_when_trading(live, monkeypat
     monkeypatch.setattr(account_module, "MAX_GROSS_EXPOSURE", 0.5)
     live.decide(HOUR, "Long")
     live.run(RUN0)
-    refused = "拒绝下单：BTC-USDT-SWAP 变动 +0.1 名义 8,000 USDT 超过净值 10,000 的 0.5 倍，可能是算错了"
+    refused = "拒绝下单：BTC-USDT-SWAP 变动 +0.005 名义 400 USDT 超过净值 500 的 0.5 倍，可能是算错了"
     assert live.inbox.sent == [f"【live】{refused}"]
     assert shadow(live) == [("order_refused", refused), ("shadow_none", "本小时不下单：要下的单都被拒绝")]
     assert live.exchange.calls == []
@@ -94,9 +95,11 @@ def test_the_daily_summary_of_a_paused_account_counts_the_orders_it_would_have_s
     live.decide(HOUR + DAY_MS, "Long")
     live.run(RUN0 + DAY_MS)
     (daily,) = live.inbox.sent
-    assert daily.splitlines()[:2] == [
+    assert daily.splitlines()[:4] == [
         "【live】日报 · 2026-01-10",
         "⏸ 暂停中（影子运行）：不下单，昨日本该下 1 笔，明细见 python -m trader live report",
+        "  暂停原因：账本里没有记下",  # born paused, as a ledger paused before #34
+        "  查明原因后运行 python -m trader live resume 解除",
     ]
     assert len(shadow(live)) == 2 and live.exchange.calls == []
 
