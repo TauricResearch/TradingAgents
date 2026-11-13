@@ -305,7 +305,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'history-page',
   },
   execution: {
-    text: `Demo 账户上一次与 OKX 模拟盘对账的结果：交易所里的权益、持仓、挂着的止损单，以及对不上的地方；不是实时的，每小时作业跑完更新一次。`,
+    text: `Demo 账户上一次与 OKX 模拟盘对账的结果：交易所里的权益、持仓、挂着的止损单，以及对不上的地方；账户暂停时列出暂停的原因和开始时间。不是实时的，每小时作业跑完更新一次。`,
     section: 'demo',
   },
   mirror: {
@@ -313,7 +313,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'demo',
   },
   followed: {
-    text: `Demo 账户自己不做研判，这里是它跟随的日内账户的信号（同一张表），“Demo 执行”是它在那个小时做了什么：已执行（有成交）、无需调仓、未赶上（等不到决定）、对账阻塞、下单失败、待处理。每小时第 10 分运行后更新。`,
+    text: `Demo 账户自己不做研判，这里是它跟随的日内账户的信号（同一张表），“Demo 执行”是它在那个小时做了什么：已执行（有成交）、无需调仓、未赶上（等不到决定）、对账阻塞、暂停中（只记下本该下的单）、下单失败、待处理。每小时第 10 分运行后更新。`,
     section: 'demo',
   },
 }

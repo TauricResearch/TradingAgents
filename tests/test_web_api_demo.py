@@ -83,6 +83,8 @@ def test_execution_reads_the_last_reconciliation_as_the_job_left_it(tmp_path):
         "equity": 10_038.4,
         "cash": 9_999.2,
         "halted": False,
+        "paused": False,
+        "pause_reasons": [],
         "decided_hour": "2026-01-10T00:00:00Z",
         "problems": [PROBLEM],
         "positions": [{
@@ -103,9 +105,21 @@ def test_execution_of_a_fresh_demo_ledger_is_empty(tmp_path):
     ledger.initialize(10_000.0, T0)
     ledger.db.close()
     assert client.get("/api/accounts/demo/execution").json() == {
-        "synced_at": None, "equity": None, "cash": 10_000.0, "halted": False,
-        "decided_hour": None, "problems": [], "positions": [], "stops": [],
+        "synced_at": None, "equity": None, "cash": 10_000.0, "halted": False, "paused": False,
+        "pause_reasons": [], "decided_hour": None, "problems": [], "positions": [], "stops": [],
     }
+
+
+def test_execution_says_the_demo_is_paused_and_why(tmp_path):
+    client = build(tmp_path)
+    ledger = Ledger(Settings(home=tmp_path).demo_ledger_path)
+    ledger.initialize(10_000.0, T0)
+    reason = {"key": "bill:7", "text": "余额有成交和资金费以外的变动：转出 -3,000.00 USDT", "since": DAY0 + HOUR}
+    ledger.commit(positions={}, cash=10_000.0, meta={"paused": True, "pause_reasons": [reason]})
+    ledger.db.close()
+    body = client.get("/api/accounts/demo/execution").json()
+    assert body["paused"] is True
+    assert body["pause_reasons"] == [{"text": reason["text"], "since": "2026-01-10T01:00:00Z"}]
 
 
 def test_mirror_pairs_the_demo_trades_with_the_intraday_fills_of_the_hour(tmp_path):
@@ -220,6 +234,25 @@ def test_demo_signals_are_the_intraday_ones_with_what_the_demo_did_each_hour(tmp
     # Before the demo account existed (its ledger opened at T0): nothing to say.
     before = [r["followed"] for r in rows if r["ts"] < "2026-01-10"]
     assert len(before) == 3 and before == [None, None, None]
+
+
+def test_a_paused_hour_of_the_demo_is_paused_for_every_coin_whatever_its_shadow_refused(tmp_path):
+    client = build_demo(tmp_path)
+    settings = Settings(home=tmp_path)
+    intraday = Ledger(settings.intraday_ledger_path)
+    for coin in ("BTC-USD", "ETH-USD", "SOL-USD"):
+        intraday.record_signal(DAY0 + HOUR + 3 * MINUTE, coin, SignalResult("Long", 2, "up", None, 100, 10, 0.1))
+    intraday.db.close()
+    demo = Ledger(settings.demo_ledger_path)
+    with demo.transaction():
+        demo.add_event(DAY0 + HOUR + 10 * MINUTE, "order_refused", "拒绝下单：SOL-USDT-SWAP 变动 +40 名义 6,000 USDT 超过净值 10,000 的 0.5 倍，可能是算错了")
+        demo.add_event(DAY0 + HOUR + 10 * MINUTE, "shadow_order", "ETH-USDT-SWAP 买入 3 张，名义 9,000 USDT，信号 Long")
+    demo.commit(positions=demo.positions(), cash=demo.get("cash"), meta={"decided_hour": DAY0 + HOUR})
+    demo.db.close()
+    rows = client.get("/api/accounts/demo/signals").json()
+    assert {r["coin"]: r["followed"] for r in rows if r["ts"] == "2026-01-10T01:03:00Z"} == {
+        "BTC-USD": "paused", "ETH-USD": "paused", "SOL-USD": "paused",
+    }
 
 
 def test_demo_signals_honour_since_and_limit_and_are_empty_without_any(tmp_path):
