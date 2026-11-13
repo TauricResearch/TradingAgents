@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Execution } from '../api'
+import type { Account, Execution } from '../api'
 import { coinLabel, fmtNum, fmtSigned, fmtUsdt } from '../format'
 import { Num, Side } from './Num'
 import { Time } from './Time'
@@ -13,8 +13,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** The demo account's last reconciliation with the exchange: what the exchange held, had pending, what did not add up, and why it is paused. */
-export function ExecutionCard({ execution: ex }: { execution: Execution }) {
+/** An exchange account's last reconciliation with the exchange: what the exchange held, had pending, what did not add up, and why it is paused. */
+export function ExecutionCard({ execution: ex, account }: { execution: Execution; account: Account }) {
+  const resume = `python -m trader ${account.id} resume`
   return (
     <div className="flex flex-col gap-3 text-[13px]">
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">
@@ -26,11 +27,21 @@ export function ExecutionCard({ execution: ex }: { execution: Execution }) {
         </Field>
       </dl>
 
-      {ex.halted && <div className="rounded-sm border border-down/40 bg-down/10 px-2 py-1 text-down">熔断中：交易所持仓已平、止损单已撤，等待人工解除</div>}
+      {ex.halted && (
+        <div className="rounded-sm border border-down/40 bg-down/10 px-2 py-1 text-down">
+          {account.live
+            ? '已熔断，实验结束：每次对账都平掉交易所里剩下的仓位、撤掉止损单；live 的熔断不再解除'
+            : '熔断中：交易所持仓已平、止损单已撤，等待人工解除'}
+        </div>
+      )}
 
       {ex.paused && (
         <div className="flex flex-col gap-1 rounded-sm border border-accent/40 bg-accent/10 px-2 py-1">
-          <div className="text-accent">暂停中：不下新单，仓位和止损单原样保留；每小时照常对账，记下本该下的单</div>
+          <div className="text-accent">
+            {ex.shadow_run
+              ? '影子运行中，还没解锁：不下单，每小时照常对账，记下本该下的单'
+              : '暂停中：不下新单，仓位和止损单原样保留；每小时照常对账，记下本该下的单'}
+          </div>
           {ex.pause_reasons.map((r) => (
             <div key={r.text}>
               {r.text}
@@ -41,7 +52,9 @@ export function ExecutionCard({ execution: ex }: { execution: Execution }) {
               )}
             </div>
           ))}
-          <div className="text-[11px] text-muted">查明原因后在终端运行 python -m trader demo resume 解除</div>
+          <div className="text-[11px] text-muted">
+            {ex.shadow_run ? `解锁要满足实验规定的条件，在终端运行 ${resume}` : `查明原因后在终端运行 ${resume} 解除`}
+          </div>
         </div>
       )}
 

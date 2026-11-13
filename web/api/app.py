@@ -39,6 +39,7 @@ TRADE_DATE = r"^\d{4}-\d{2}-\d{2}$"
 
 Since = Annotated[datetime | None, Query(description="ISO 8601; UTC when it has no offset")]
 Limit = Annotated[int, Query(ge=1)]
+Against = Annotated[str, Query(description="intraday, or the other exchange account")]
 
 
 class TierChoice(BaseModel):
@@ -147,7 +148,7 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
 
     @app.get("/api/accounts/{account_id}/signals")
     def signals(account: AccountDep, ledger: LedgerDep, since: Since = None, limit: Limit = 500):
-        if account.demo:  # the intraday signals it follows, with what it did about each
+        if account.exchange:  # the intraday signals it follows, with what it did about each
             with _open(accounts["intraday"]) as source:
                 return data.followed_signals(account, ledger, source, _since_ms(since), limit)
         return data.signals(account, ledger, _since_ms(since), limit)
@@ -164,23 +165,27 @@ def create_app(settings: Settings, okx: OKX | None = None) -> FastAPI:
     def accuracy(account: AccountDep):
         return data.accuracy(account)
 
-    # The demo account executes on the exchange (ADR 0008): its last reconciliation,
-    # and how it compares with the intraday account whose signals it follows.
-    def _demo(account: AccountDep) -> data.Account:
-        if not account.demo:
+    # The accounts that execute on an exchange, demo (ADR 0008) and live (ADR 0010):
+    # the last reconciliation, and how one compares with the intraday account whose
+    # signals it follows, or with the other exchange account.
+    def _exchange(account: AccountDep) -> data.Account:
+        if not account.exchange:
             raise HTTPException(404, f"account {account.id!r} does not execute on an exchange")
         return account
 
-    DemoDep = Annotated[data.Account, Depends(_demo)]
+    ExchangeDep = Annotated[data.Account, Depends(_exchange)]
 
     @app.get("/api/accounts/{account_id}/execution")
-    def execution(account: DemoDep, ledger: LedgerDep):
+    def execution(account: ExchangeDep, ledger: LedgerDep):
         return data.execution(account, ledger)
 
     @app.get("/api/accounts/{account_id}/mirror")
-    def mirror(account: DemoDep, ledger: LedgerDep, limit: Limit = 500):
-        with _open(accounts["intraday"]) as source:
-            return data.mirror(account, ledger, source, limit)
+    def mirror(account: ExchangeDep, ledger: LedgerDep, against: Against = "intraday", limit: Limit = 500):
+        other = accounts.get(against)
+        if other is None or other.id == account.id or not (other.intraday or other.exchange):
+            raise HTTPException(404, f"account {account.id!r} is not compared with {against!r}")
+        with _open(other) as source:
+            return data.mirror(account, ledger, other, source, limit)
 
     # The research records are the paper account's; an account would enter the
     # path once there is more than one.

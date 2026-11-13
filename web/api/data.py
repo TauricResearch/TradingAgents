@@ -51,9 +51,12 @@ class Account:
     memory_log_path: Path  # the settled ratings, scored by tradingagents.backtest
     watchlist: tuple[Coin, ...]
     intraday: bool = False  # the hourly account (ADR 0006): its LLM spend is in the signals table
-    # The account that executes on the exchange (ADR 0008): it follows the intraday
-    # account's signals, so it has no LLM spend, ratings or signals of its own.
-    demo: bool = False
+    # An account that executes on an OKX exchange, demo (ADR 0008) or live (ADR 0010): it
+    # follows the intraday account's signals, so it has no LLM spend, ratings or signals
+    # of its own.
+    exchange: bool = False
+    live: bool = False  # trades real money (ADR 0010)
+    born_paused: bool = False  # paused while its ledger says nothing (Profile.born_paused)
 
     def coin_of(self, inst: str) -> str | None:
         """The research ticker traded through swap ``inst``; None for an unknown contract."""
@@ -62,9 +65,9 @@ class Account:
 
 def accounts(settings: Settings) -> dict[str, Account]:
     """The accounts the API serves, by id, the daily paper account first: the dashboard
-    opens the first one. The intraday account (ADR 0006) and the demo account (ADR 0008)
-    read the daily research records and keep no memory log, so their paths name files
-    that never exist."""
+    opens the first one. The intraday account (ADR 0006) and the exchange accounts, demo
+    (ADR 0008) and live (ADR 0010), read the daily research records and keep no memory
+    log, so their paths name files that never exist."""
     return {
         "paper": Account(
             "paper", "paper", settings.ledger_path, settings.home / "logs",
@@ -76,7 +79,13 @@ def accounts(settings: Settings) -> dict[str, Account]:
         ),
         "demo": Account(
             "demo", "demo", settings.demo_ledger_path, settings.home / "logs",
-            settings.home / "demo" / "none.md", WATCHLIST, demo=True,
+            settings.home / "demo" / "none.md", WATCHLIST, exchange=True,
+        ),
+        "live": Account(
+            "live", "live", settings.live_ledger_path, settings.home / "logs",
+            settings.home / "live" / "none.md", WATCHLIST, exchange=True, live=True,
+            # LIVE.born_paused: the dashboard does not import trader.live (ADR 0010).
+            born_paused=True,
         ),
     }
 
@@ -256,10 +265,12 @@ def _price_note(price: prices.Price | None) -> str | None:
 def _applied(accounts: dict[str, Account], deep: str, quick: str) -> dict[str, bool]:
     """Per account whose ledger holds a research fingerprint: whether it names the current
     models. The daily account's is jobs.fingerprint's {version, deep, quick, code}; the
-    intraday account's is the signaler's {model, prompt}, its model the deep one."""
+    intraday account's is the signaler's {model, prompt}, its model the deep one. The live
+    account's is of the code and the signals it trades on (ADR 0010) and names no model,
+    so the accounts that execute on an exchange are not listed."""
     out = {}
     for account in accounts.values():
-        if not account.ledger_path.is_file():
+        if account.exchange or not account.ledger_path.is_file():
             continue
         with open_ledger(account) as ledger:
             stored = ledger.get("fingerprint")
@@ -333,7 +344,7 @@ def summary(account: Account) -> dict:
             start = _iso(ledger.get("validation_start"))
     return {
         "id": account.id, "kind": account.kind, "intraday": account.intraday,
-        "demo": account.demo, "capital": capital,
+        "exchange": account.exchange, "live": account.live, "capital": capital,
         "validation_start": start, "halted": halted,
         "watchlist": [
             {"research": c.research, "swap": c.swap, "spot": c.spot} for c in account.watchlist
@@ -360,7 +371,7 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
         )
     except MarketUnavailable:
         equal, btc = [], []
-    if account.demo:  # follows the intraday signals: no LLM calls of its own (ADR 0008)
+    if account.exchange:  # follows the intraday signals: no LLM calls of its own (ADR 0008)
         llm = latest = None
     elif account.intraday:  # spend in the signals table, no budget and no ratings (ADR 0006)
         llm, latest = _intraday_llm(ledger, now), None
@@ -457,9 +468,9 @@ def _totals(
 
 def _net_equity(account: Account, ledger: Ledger) -> list[tuple[int, float]]:
     """The midnight equity less the LLM spend: the attempts' for the daily account, the
-    signals' for the intraday one; the demo account spends nothing, and its equity is
+    signals' for the intraday one; an exchange account spends nothing, and its equity is
     the exchange's, already net of fees and funding."""
-    if account.demo:
+    if account.exchange:
         start = ledger.get("validation_start")
         return ledger.equity_series(start) if start is not None else []
     if account.intraday:
@@ -749,7 +760,7 @@ def attempts(ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
 def signals(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
     """The intraday account's hourly signals, newest first. The daily account has none:
     []. Its ledger is not asked, as a reader does not create the signals table and a
-    ledger from before it lacks it. The demo account's are followed_signals."""
+    ledger from before it lacks it. An exchange account's are followed_signals."""
     if not account.intraday:
         return []
     return [_signal(row) for row in ledger.signals(since_ms, limit)]
@@ -764,11 +775,11 @@ def _signal(row: tuple) -> dict:
     }
 
 
-# What the demo's events of an hour say it did about that hour's signals: an order that
-# failed, was refused or did not fill, and a quote that was unusable, name their contract;
-# a skipped hour (no intraday decision in time), a blocked one (the reconciliation found
-# problems) and a paused one (a shadow run, ADR 0010, whatever orders its shadow refused)
-# are whole.
+# What an exchange account's events of an hour say it did about that hour's signals: an
+# order that failed, was refused or did not fill, and a quote that was unusable, name their
+# contract; a skipped hour (no intraday decision in time), a blocked one (the reconciliation
+# found problems) and a paused one (a shadow run, ADR 0010, whatever orders its shadow
+# refused) are whole.
 _FOLLOWED_BY_EVENT = {
     "order_failed": "failed", "order_refused": "failed", "order_pending": "failed",
     "quote_unusable": "failed", "skipped": "skipped", "problem": "blocked",
@@ -779,11 +790,11 @@ _FOLLOWED_BY_EVENT = {
 def followed_signals(
     account: Account, ledger: Ledger, source: Ledger, since_ms: int, limit: int,
 ) -> list[dict]:
-    """GET /api/accounts/demo/signals: the intraday signals the demo account follows
-    (ADR 0008), newest first, each with ``followed``, what the demo did about it that
-    hour: executed (a trade of that contract filled), no_change (the hour was handled,
-    nothing to trade), skipped, blocked, paused, failed (see _FOLLOWED_BY_EVENT), pending
-    (the demo has not handled that hour yet) or None (before the demo account existed)."""
+    """GET /api/accounts/{demo,live}/signals: the intraday signals an exchange account
+    follows (ADR 0008, 0010), newest first, each with ``followed``, what the account did
+    about it that hour: executed (a trade of that contract filled), no_change (the hour was
+    handled, nothing to trade), skipped, blocked, paused, failed (see _FOLLOWED_BY_EVENT),
+    pending (the account has not handled that hour yet) or None (before it existed)."""
     rows = source.signals(since_ms, limit)
     if not rows:
         return []
@@ -920,23 +931,27 @@ def research_record(account: Account, coin: str, trade_date: str) -> bytes | Non
 # -- time ---------------------------------------------------------------------
 
 
-# -- the demo account (ADR 0008) ----------------------------------------------------
+# -- the exchange accounts: demo (ADR 0008) and live (ADR 0010) ---------------------
 
 
 def execution(account: Account, ledger: Ledger) -> dict:
-    """GET /api/accounts/{id}/execution: the demo account's last reconciliation with the
-    exchange, as its job left it in the ledger (ADR 0008): the exchange's equity and
+    """GET /api/accounts/{id}/execution: an exchange account's last reconciliation with
+    the exchange, as its job left it in the ledger (ADR 0008): the exchange's equity and
     wallet, what it held and had pending, the hour last followed, the problems found,
-    and whether it is paused and why (ADR 0010). Nothing here is live; ``synced_at``
+    whether it is paused and why (ADR 0010), and whether that pause is the live account's
+    shadow run: paused and never set up, the setup being the first sync after an unlock
+    (``setup_done``, as live resume counts it). Nothing here is current; ``synced_at``
     says how old it is."""
     positions = ledger.positions()
+    paused = bool(ledger.get("paused", account.born_paused))
     held = ledger.get("exchange_positions") or {}
     return {
         "synced_at": _iso(ledger.get("synced_at")),
         "equity": ledger.get("equity"),
         "cash": ledger.get("cash"),
         "halted": ledger.get("halted"),
-        "paused": ledger.get("paused") is True,
+        "paused": paused,
+        "shadow_run": account.live and paused and not ledger.get("setup_done"),
         "pause_reasons": [
             {"text": r["text"], "since": _iso(r["since"])} for r in ledger.get("pause_reasons") or []
         ],
@@ -970,20 +985,22 @@ def execution(account: Account, ledger: Ledger) -> dict:
     }
 
 
-def mirror(account: Account, ledger: Ledger, source: Ledger, limit: int) -> dict:
-    """GET /api/accounts/{id}/mirror: the demo account beside the intraday account it
-    follows (ADR 0008). ``positions`` puts both sides of each coin together; ``trades``
-    lists the demo's trades newest first, each with the intraday fill of the same hour
-    and contract and the slippage between the two prices (basis points, positive when
-    the demo paid more for what it bought or got less for what it sold); ``equity``
-    is both accounts' return since the demo's first midnight, where both have a snapshot."""
+def mirror(account: Account, ledger: Ledger, other: Account, source: Ledger, limit: int) -> dict:
+    """GET /api/accounts/{id}/mirror: an exchange account beside ``other`` (``source`` its
+    ledger), the intraday account whose signals it follows or the other exchange account,
+    which follows them too (ADR 0008, 0010). ``positions`` puts both sides of each coin
+    together; ``trades`` lists the account's trades newest first, each with the other's
+    fill of the same hour and contract and the slippage between the two prices (basis
+    points, positive when the account paid more for what it bought or got less for what
+    it sold); ``equity`` is both accounts' return since the account's first midnight,
+    where both have a snapshot."""
     mine, theirs = ledger.positions(), source.positions()
     positions = [
         {
             "inst": coin.swap,
             "coin": coin.research,
-            "demo": _side(mine.get(coin.swap)),
-            "intraday": _side(theirs.get(coin.swap)),
+            "own": _side(mine.get(coin.swap)),
+            "other": _side(theirs.get(coin.swap)),
             "same_side": _sign(mine.get(coin.swap)) == _sign(theirs.get(coin.swap)),
         }
         for coin in account.watchlist
@@ -1006,28 +1023,29 @@ def mirror(account: Account, ledger: Ledger, source: Ledger, limit: int) -> dict
                 "hour": _iso(hour),
                 "inst": f.inst,
                 "coin": account.coin_of(f.inst),
-                "demo": {"ts": _iso(f.ts), "qty": f.qty, "price": f.price, "fee": f.fee},
-                "intraday": (
+                "own": {"ts": _iso(f.ts), "qty": f.qty, "price": f.price, "fee": f.fee},
+                "other": (
                     {"ts": _iso(match.ts), "qty": match.qty, "price": match.price, "fee": match.fee}
                     if match is not None else None
                 ),
                 "slippage_bps": slippage,
             })
-        own = dict(ledger.equity_series(start))
-        other = dict(source.equity_series(start))
-        shared = sorted(set(own) & set(other))
+        own_equity = dict(ledger.equity_series(start))
+        other_equity = dict(source.equity_series(start))
+        shared = sorted(set(own_equity) & set(other_equity))
         if shared:
-            base_own, base_other = own[shared[0]], other[shared[0]]
+            base_own, base_other = own_equity[shared[0]], other_equity[shared[0]]
             equity = [
                 {
                     "ts": _iso(ts),
-                    "demo": own[ts] / base_own - 1 if base_own else None,
-                    "intraday": other[ts] / base_other - 1 if base_other else None,
+                    "own": own_equity[ts] / base_own - 1 if base_own else None,
+                    "other": other_equity[ts] / base_other - 1 if base_other else None,
                 }
                 for ts in shared
             ]
     slippages = [t["slippage_bps"] for t in trades if t["slippage_bps"] is not None]
     return {
+        "against": other.id,
         "positions": positions,
         "trades": trades,
         "equity": equity,
@@ -1035,8 +1053,8 @@ def mirror(account: Account, ledger: Ledger, source: Ledger, limit: int) -> dict
             "trades": len(trades),
             "matched": len(slippages),
             "avg_slippage_bps": sum(slippages) / len(slippages) if slippages else None,
-            "demo_return": equity[-1]["demo"] if equity else None,
-            "intraday_return": equity[-1]["intraday"] if equity else None,
+            "own_return": equity[-1]["own"] if equity else None,
+            "other_return": equity[-1]["other"] if equity else None,
         },
     }
 

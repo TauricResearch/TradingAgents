@@ -16,8 +16,10 @@ export interface Account {
   watchlist: WatchlistEntry[]
   /** The hourly-signal account (ADR 0006): no rating settlement, no monthly budget cap. */
   intraday: boolean
-  /** The account that executes on the exchange (ADR 0008), following the intraday signals: no LLM spend of its own. */
-  demo: boolean
+  /** Executes on an OKX exchange, demo (ADR 0008) or live (ADR 0010), following the intraday signals: no LLM spend of its own. */
+  exchange: boolean
+  /** Trades real money (ADR 0010). */
+  live: boolean
 }
 
 export interface Perf {
@@ -532,16 +534,18 @@ export interface PauseReason {
   since: string | null
 }
 
-/** The demo account's last reconciliation with the exchange; nothing here is live, `synced_at` says how old it is. */
+/** An exchange account's last reconciliation with the exchange; nothing here is current, `synced_at` says how old it is. */
 export interface Execution {
   synced_at: string | null
   equity: number | null
   cash: number | null
   halted: boolean | null
-  /** No new orders, positions and stops left as they are, until `python -m trader demo resume`. */
+  /** No new orders, positions and stops left as they are, until `python -m trader <account> resume`. */
   paused: boolean
+  /** The live account paused before its unlock (ADR 0010): it records the orders it would place and places none. */
+  shadow_run: boolean
   pause_reasons: PauseReason[]
-  /** The intraday hour the demo last followed. */
+  /** The intraday hour the account last followed. */
   decided_hour: string | null
   problems: string[]
   positions: ExchangePosition[]
@@ -557,8 +561,8 @@ export interface MirrorSide {
 export interface MirrorPosition {
   inst: string
   coin: string
-  demo: MirrorSide | null
-  intraday: MirrorSide | null
+  own: MirrorSide | null
+  other: MirrorSide | null
   same_side: boolean
 }
 
@@ -569,25 +573,26 @@ export interface MirrorFill {
   fee: number
 }
 
-/** One demo trade beside the intraday fill of the same hour and contract. */
+/** One trade of the account beside the other account's fill of the same hour and contract. */
 export interface MirrorTrade {
   hour: string
   inst: string
   coin: string | null
-  demo: MirrorFill
-  intraday: MirrorFill | null
-  /** Basis points, positive when the demo did worse than the intraday price; null without a match. */
+  own: MirrorFill
+  other: MirrorFill | null
+  /** Basis points, positive when the account did worse than the other's price; null without a match. */
   slippage_bps: number | null
 }
 
 export interface MirrorPoint {
   ts: string
-  demo: number | null
-  intraday: number | null
+  own: number | null
+  other: number | null
 }
 
-/** The demo account beside the intraday account it follows. */
+/** An exchange account beside `against`: the intraday account it follows, or the other exchange account. */
 export interface Mirror {
+  against: string
   positions: MirrorPosition[]
   trades: MirrorTrade[]
   equity: MirrorPoint[]
@@ -595,7 +600,7 @@ export interface Mirror {
     trades: number
     matched: number
     avg_slippage_bps: number | null
-    demo_return: number | null
-    intraday_return: number | null
+    own_return: number | null
+    other_return: number | null
   }
 }

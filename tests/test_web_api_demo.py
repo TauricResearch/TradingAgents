@@ -84,6 +84,7 @@ def test_execution_reads_the_last_reconciliation_as_the_job_left_it(tmp_path):
         "cash": 9_999.2,
         "halted": False,
         "paused": False,
+        "shadow_run": False,
         "pause_reasons": [],
         "decided_hour": "2026-01-10T00:00:00Z",
         "problems": [PROBLEM],
@@ -106,7 +107,8 @@ def test_execution_of_a_fresh_demo_ledger_is_empty(tmp_path):
     ledger.db.close()
     assert client.get("/api/accounts/demo/execution").json() == {
         "synced_at": None, "equity": None, "cash": 10_000.0, "halted": False, "paused": False,
-        "pause_reasons": [], "decided_hour": None, "problems": [], "positions": [], "stops": [],
+        "shadow_run": False, "pause_reasons": [], "decided_hour": None, "problems": [],
+        "positions": [], "stops": [],
     }
 
 
@@ -120,32 +122,35 @@ def test_execution_says_the_demo_is_paused_and_why(tmp_path):
     body = client.get("/api/accounts/demo/execution").json()
     assert body["paused"] is True
     assert body["pause_reasons"] == [{"text": reason["text"], "since": "2026-01-10T01:00:00Z"}]
+    # Never set up, but the shadow run is the live account's alone.
+    assert body["shadow_run"] is False
 
 
 def test_mirror_pairs_the_demo_trades_with_the_intraday_fills_of_the_hour(tmp_path):
     body = build_demo(tmp_path).get("/api/accounts/demo/mirror").json()
+    assert body["against"] == "intraday"  # by default
     assert body["positions"][0] == {
         "inst": "BTC-USDT-SWAP", "coin": "BTC-USD",
-        "demo": {"qty": 0.02, "entry": 78_039.0, "stop": 77_000.0},
-        "intraday": {"qty": 0.03, "entry": 78_000.0, "stop": 74_000.0},
+        "own": {"qty": 0.02, "entry": 78_039.0, "stop": 77_000.0},
+        "other": {"qty": 0.03, "entry": 78_000.0, "stop": 74_000.0},
         "same_side": True,
     }
     assert body["positions"][1] == {
-        "inst": "ETH-USDT-SWAP", "coin": "ETH-USD", "demo": None, "intraday": None, "same_side": True,
+        "inst": "ETH-USDT-SWAP", "coin": "ETH-USD", "own": None, "other": None, "same_side": True,
     }
     (trade,) = body["trades"]
     assert trade["hour"] == "2026-01-10T00:00:00Z" and trade["coin"] == "BTC-USD"
-    assert trade["demo"] == {"ts": "2026-01-10T00:37:00Z", "qty": 0.02, "price": 78_039.0, "fee": 0.78}
-    assert trade["intraday"] == {"ts": "2026-01-10T00:30:00Z", "qty": 0.03, "price": 78_000.0, "fee": 1.17}
+    assert trade["own"] == {"ts": "2026-01-10T00:37:00Z", "qty": 0.02, "price": 78_039.0, "fee": 0.78}
+    assert trade["other"] == {"ts": "2026-01-10T00:30:00Z", "qty": 0.03, "price": 78_000.0, "fee": 1.17}
     assert trade["slippage_bps"] == pytest.approx(5.0)
-    assert [(p["demo"], p["intraday"]) for p in body["equity"]] == [
+    assert [(p["own"], p["other"]) for p in body["equity"]] == [
         (0.0, 0.0),
         (pytest.approx(0.005), pytest.approx(0.01)),
         (pytest.approx(0.004), pytest.approx(0.005)),
     ]
     assert body["summary"] == {
         "trades": 1, "matched": 1, "avg_slippage_bps": pytest.approx(5.0),
-        "demo_return": pytest.approx(0.004), "intraday_return": pytest.approx(0.005),
+        "own_return": pytest.approx(0.004), "other_return": pytest.approx(0.005),
     }
 
 
@@ -158,7 +163,7 @@ def test_mirror_slippage_is_positive_when_the_demo_sold_lower(tmp_path):
     )
     ledger.db.close()
     trades = client.get("/api/accounts/demo/mirror").json()["trades"]
-    assert [t["demo"]["qty"] for t in trades] == [-0.02, 0.02]  # newest first
+    assert [t["own"]["qty"] for t in trades] == [-0.02, 0.02]  # newest first
     assert trades[0]["slippage_bps"] == pytest.approx(5.0)
 
 
@@ -170,7 +175,7 @@ def test_mirror_without_a_matching_intraday_fill_has_no_slippage(tmp_path):
     ledger.db.close()
     body = client.get("/api/accounts/demo/mirror").json()
     (trade,) = body["trades"]
-    assert trade["intraday"] is None and trade["slippage_bps"] is None
+    assert trade["other"] is None and trade["slippage_bps"] is None
     assert body["summary"]["matched"] == 0 and body["summary"]["avg_slippage_bps"] is None
 
 
@@ -180,7 +185,7 @@ def test_mirror_takes_a_limit(tmp_path):
     assert client.get("/api/accounts/demo/mirror", params={"limit": 1}).json()["summary"]["trades"] == 1
 
 
-def test_execution_and_mirror_belong_to_the_demo_account_only(tmp_path):
+def test_execution_and_mirror_belong_to_the_exchange_accounts_only(tmp_path):
     client = build_demo(tmp_path)
     for account in ("paper", "intraday"):
         for route in ("execution", "mirror"):

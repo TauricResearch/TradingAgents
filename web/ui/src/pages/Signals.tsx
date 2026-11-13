@@ -10,6 +10,7 @@ import { Table } from '../components/Table'
 import { Time } from '../components/Time'
 import { fmtInt, fmtUsd, truncate } from '../format'
 import { useFetch } from '../hooks'
+import { ACCOUNT_LABEL } from '../llmSettings'
 
 const REFRESH_MS = 60_000
 
@@ -45,22 +46,22 @@ const costColumns: Column<Signal>[] = [
   { key: 'cost', header: '费用', align: 'right', render: (s) => fmtUsd(s.cost_usd) },
 ]
 
-/** The demo account follows the intraday signals: what it did about each in its hour. */
-const followedColumn: Column<Signal> = {
-  key: 'followed',
-  header: 'Demo 执行',
-  render: (s) => <FollowedChip followed={s.followed} />,
+/** An exchange account follows the intraday signals: what it did about each in its hour. */
+function followedColumn(label: string): Column<Signal> {
+  return { key: 'followed', header: `${label} 执行`, render: (s) => <FollowedChip followed={s.followed} /> }
 }
 
 export function Signals() {
   const { account } = useAccount()
   const signals = useFetch<Signal[]>(accountPath(account.id, 'signals?limit=500'), REFRESH_MS)
-  const columns = account.demo ? [...signalColumns, followedColumn] : [...signalColumns, ...costColumns]
+  const columns = account.exchange
+    ? [...signalColumns, followedColumn(ACCOUNT_LABEL[account.id] ?? account.id)]
+    : [...signalColumns, ...costColumns]
 
   return (
     <Panel
-      title={account.demo ? '跟随的信号 · 来自日内账户' : '信号记录'}
-      help={account.demo ? 'followed' : undefined}
+      title={account.exchange ? '跟随的信号 · 来自日内账户' : '信号记录'}
+      help={account.exchange ? 'followed' : undefined}
       aside={<StaleNote error={signals.error} />}
       flush
     >

@@ -13,9 +13,9 @@ import { Tabs } from '../components/Tabs'
 import { Time } from '../components/Time'
 import { daySpan } from '../daily'
 import { fmtDay, fmtInt, fmtPct, fmtQty, fmtSigned, fmtTimeFull, fmtUsd, fmtUsdt } from '../format'
-import { useFetch } from '../hooks'
+import { type FetchState, useFetch } from '../hooks'
 
-type TabKey = 'daily' | 'fills' | 'funding' | 'attempts' | 'events' | 'mirror'
+type TabKey = 'daily' | 'fills' | 'funding' | 'attempts' | 'events' | 'mirror' | 'mirror_demo'
 
 const dailyColumns: Column<DailyRow>[] = [
   {
@@ -125,8 +125,14 @@ const eventColumns: Column<LedgerEvent>[] = [
   { key: 'text', header: '内容', className: 'whitespace-normal', render: (e) => e.text },
 ]
 
+function MirrorTab({ state, account }: { state: FetchState<Mirror>; account: string }) {
+  if (state.error && !state.data) return <ErrorBox error={state.error} onRetry={state.refresh} />
+  if (!state.data) return <Loading />
+  return <MirrorView mirror={state.data} account={account} />
+}
+
 export function History() {
-  const { account } = useAccount()
+  const { account, accounts } = useAccount()
   const [params, setParams] = useSearchParams()
   const raw = params.get('tab')
 
@@ -135,12 +141,15 @@ export function History() {
   const daily = { ...dailyRaw, data: dailyRaw.data?.days ?? null }
   const fills = useFetch<Fill[]>(accountPath(account.id, 'fills?limit=500'))
   const funding = useFetch<Funding[]>(accountPath(account.id, 'funding?limit=500'))
-  // The intraday and demo accounts have no daily research, so nothing to fetch for the attempts tab.
-  const research = !account.intraday && !account.demo
+  // The intraday and exchange accounts have no daily research, so nothing to fetch for the attempts tab.
+  const research = !account.intraday && !account.exchange
   const attempts = useFetch<Attempt[]>(research ? accountPath(account.id, 'attempts?limit=500') : null)
   const events = useFetch<LedgerEvent[]>(accountPath(account.id, 'events?limit=500'))
-  // The demo account beside the intraday account it follows (ADR 0008).
-  const mirror = useFetch<Mirror>(account.demo ? accountPath(account.id, 'mirror?limit=500') : null)
+  // An exchange account beside the intraday account it follows (ADR 0008), and the live account
+  // beside the demo one too, when the demo account is there (ADR 0010).
+  const mirror = useFetch<Mirror>(account.exchange ? accountPath(account.id, 'mirror?limit=500') : null)
+  const besideDemo = account.live && accounts.some((a) => a.id === 'demo')
+  const demoMirror = useFetch<Mirror>(besideDemo ? accountPath(account.id, 'mirror?against=demo&limit=500') : null)
 
   const tabs = [
     { key: 'daily' as const, label: '每日收益', count: daily.data?.length },
@@ -148,13 +157,16 @@ export function History() {
     { key: 'funding' as const, label: '资金费', count: funding.data?.length },
     { key: 'attempts' as const, label: '研判记录', count: attempts.data?.length },
     { key: 'mirror' as const, label: '与日内对照', count: mirror.data?.trades.length },
+    { key: 'mirror_demo' as const, label: '与 Demo 对照', count: demoMirror.data?.trades.length },
     { key: 'events' as const, label: '事件', count: events.data?.length },
-  ].filter((t) => (t.key === 'attempts' ? research : t.key === 'mirror' ? account.demo : true))
+  ].filter((t) =>
+    t.key === 'attempts' ? research : t.key === 'mirror' ? account.exchange : t.key === 'mirror_demo' ? besideDemo : true,
+  )
   // A tab in the URL that is not among this account's tabs falls back to the fills.
   const active: TabKey = tabs.find((t) => t.key === raw)?.key ?? 'fills'
-  const current = { daily, fills, funding, attempts, events, mirror }[active]
-  // An intraday or demo fill's date is the UTC day of its hour, not a research day.
-  const fillCols = account.intraday || account.demo
+  const current = { daily, fills, funding, attempts, events, mirror, mirror_demo: demoMirror }[active]
+  // An intraday or exchange account's fill is dated by the UTC day of its hour, not a research day.
+  const fillCols = account.intraday || account.exchange
     ? fillColumns.map((c) => (c.key === 'trade_date' ? { ...c, header: 'UTC 日' } : c))
     : fillColumns
 
@@ -188,14 +200,8 @@ export function History() {
           <Table state={attempts} columns={attemptColumns} rowKey={(a, i) => `${a.trade_date}-${a.coin}-${a.ts}-${i}`} />
         )}
         {active === 'events' && <Table state={events} columns={eventColumns} rowKey={(e, i) => `${e.ts}-${i}`} />}
-        {active === 'mirror' &&
-          (mirror.error && !mirror.data ? (
-            <ErrorBox error={mirror.error} onRetry={mirror.refresh} />
-          ) : !mirror.data ? (
-            <Loading />
-          ) : (
-            <MirrorView mirror={mirror.data} />
-          ))}
+        {active === 'mirror' && <MirrorTab state={mirror} account={account.id} />}
+        {active === 'mirror_demo' && <MirrorTab state={demoMirror} account={account.id} />}
       </Panel>
     </div>
   )
