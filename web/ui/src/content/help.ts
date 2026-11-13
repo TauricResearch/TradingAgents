@@ -289,7 +289,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'history-page',
   },
   fill_reason: {
-    text: `成交原因：调仓（按评级主动调整）、止损（触达止损价自动平仓）、熔断（回撤超 {{kill_drawdown_pct}} 全部平仓）；Demo 账户的“止损”还包括程序在止损挂不上、或止损价已被现价穿越时做的市价平仓，另有“非程序”，指交易所里不是程序下的成交。`,
+    text: `成交原因：调仓（按评级主动调整）、止损（触达止损价自动平仓）、熔断（回撤超 {{kill_drawdown_pct}} 全部平仓；Demo 账户还包括人工执行停止并平仓）；Demo 账户的“止损”还包括程序在止损挂不上、或止损价已被现价穿越时做的市价平仓，另有“非程序”，指交易所里不是程序下的成交。`,
     section: 'history-page',
   },
   funding: {
