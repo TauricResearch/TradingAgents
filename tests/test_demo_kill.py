@@ -100,7 +100,7 @@ def test_the_kill_alert_goes_out_though_the_run_then_fails_and_failure_alerts_ar
     env.ledger.set(DEMO.failures_key, {"OKXError": RUN0 + HOUR_MS - 60_000})
     fall(env)
 
-    def down(hour, positions):
+    def down(hour, positions, now_ms, alerts):
         raise OKXError("candles failed with code 50001: service unavailable")
 
     env.account.quotes = down

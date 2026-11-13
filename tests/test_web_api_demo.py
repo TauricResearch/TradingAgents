@@ -255,6 +255,26 @@ def test_a_paused_hour_of_the_demo_is_paused_for_every_coin_whatever_its_shadow_
     }
 
 
+def test_a_coin_whose_quote_was_unusable_failed_that_hour(tmp_path):
+    client = build_demo(tmp_path)
+    settings = Settings(home=tmp_path)
+    intraday = Ledger(settings.intraday_ledger_path)
+    for coin in ("BTC-USD", "ETH-USD", "SOL-USD"):
+        intraday.record_signal(DAY0 + HOUR + 3 * MINUTE, coin, SignalResult("Long", 2, "up", None, 100, 10, 0.1))
+    intraday.db.close()
+    demo = Ledger(settings.demo_ledger_path)
+    with demo.transaction():
+        demo.add_event(DAY0 + HOUR + 10 * MINUTE, "quote_unusable", (
+            "报价不能用：SOL-USDT-SWAP 现价 0.00，ATR 0.35，都要是大于 0 的有限数；这个币本小时不交易，止损也不按它调整"
+        ))
+    demo.commit(positions=demo.positions(), cash=demo.get("cash"), meta={"decided_hour": DAY0 + HOUR})
+    demo.db.close()
+    rows = client.get("/api/accounts/demo/signals").json()
+    assert {r["coin"]: r["followed"] for r in rows if r["ts"] == "2026-01-10T01:03:00Z"} == {
+        "BTC-USD": "no_change", "ETH-USD": "no_change", "SOL-USD": "failed",
+    }
+
+
 def test_demo_signals_honour_since_and_limit_and_are_empty_without_any(tmp_path):
     client = build_demo(tmp_path)
     rows = client.get("/api/accounts/demo/signals", params={"limit": 2}).json()

@@ -765,12 +765,14 @@ def _signal(row: tuple) -> dict:
 
 
 # What the demo's events of an hour say it did about that hour's signals: an order that
-# failed, was refused or did not fill names its contract; a skipped hour (no intraday
-# decision in time), a blocked one (the reconciliation found problems) and a paused one
-# (a shadow run, ADR 0010, whatever orders its shadow refused) are whole.
+# failed, was refused or did not fill, and a quote that was unusable, name their contract;
+# a skipped hour (no intraday decision in time), a blocked one (the reconciliation found
+# problems) and a paused one (a shadow run, ADR 0010, whatever orders its shadow refused)
+# are whole.
 _FOLLOWED_BY_EVENT = {
     "order_failed": "failed", "order_refused": "failed", "order_pending": "failed",
-    "skipped": "skipped", "problem": "blocked", "shadow_order": "paused", "shadow_none": "paused",
+    "quote_unusable": "failed", "skipped": "skipped", "problem": "blocked",
+    "shadow_order": "paused", "shadow_none": "paused",
 }
 
 
