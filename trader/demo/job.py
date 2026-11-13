@@ -9,7 +9,8 @@ A position closed at market for want of a stop is booked by one more sync. When 
 step after the orders raises, the positions they left still get their stops (or are
 closed) before the run fails, and the alerts gathered so far go out either way. The
 daily summary goes out on the first run of each UTC day. The intraday ledger is
-opened read-only; this job never writes it.
+opened read-only; this job never writes it. A paused account (``DemoAccount.paused``)
+is synced and its problems alerted, and nothing is set up, no stop kept, no order sent.
 """
 
 from __future__ import annotations
@@ -75,7 +76,8 @@ def _run(
     hour = now_ms - now_ms % HOUR_MS
     alerts: list[str] = []
     with _sending(notifier, alerts), locked(lock):
-        if not ledger.get("setup_done"):
+        paused = account.paused
+        if not paused and not ledger.get("setup_done"):
             for note in account.setup():
                 ledger.add_event(now_ms, "setup", note)
             ledger.set("setup_done", True)
@@ -87,13 +89,17 @@ def _run(
             result = account.sync(_ms(now_fn()))
             alerts += result.alerts
         quotes = account.quotes(hour, result.positions)
-        _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
-        if closed:
-            result = _settled(account, alerts, now_fn, sleep)
+        if not paused:
+            _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
+            if closed:
+                result = _settled(account, alerts, now_fn, sleep)
     for text in _standing(ledger, result.problems, now_ms):
         notifier.send(text)
 
-    if not ledger.get("halted") and ledger.get("decided_hour") != hour and not result.problems:
+    if (
+        not paused and not ledger.get("halted") and ledger.get("decided_hour") != hour
+        and not result.problems
+    ):
         signals = _signals_for(intraday, hour, account, now_fn, sleep)
         if signals is None:
             ledger.add_event(

@@ -14,6 +14,14 @@ orders has raised.
 
 One executor serves each account that trades on OKX (ADR 0010): a ``Profile`` says
 which one it is, the demo's by default.
+
+An account may be paused (meta ``paused``): ``pause`` sets it and ``unpause`` clears
+it, each recording an event of kind ``pause`` or ``unpause`` with its reason. A paused
+account syncs, books what it finds and alerts, and changes nothing on the exchange: its
+``private`` is then a ``ReadOnly`` view that raises ``Paused`` on any call but a read,
+so there is no setup, no stop kept, no order and no kill; a drawdown to the kill line,
+and a position without a stop, are problems left to a person. An account whose profile
+is ``born_paused`` is paused until its ledger says otherwise.
 """
 
 from __future__ import annotations
@@ -82,6 +90,7 @@ class Profile:
 
     name: str
     production: bool = False
+    born_paused: bool = False  # paused until the ledger records otherwise (DemoAccount.paused)
 
     @property
     def resume_command(self) -> str:
@@ -101,6 +110,28 @@ class Profile:
 
 
 DEMO = Profile("demo")
+
+
+class Paused(RuntimeError):
+    """A paused account was about to change something on the exchange."""
+
+
+class ReadOnly:
+    """The reads of an OKXPrivate: all a paused account may ask of the exchange. Any
+    other call raises Paused before a request is sent."""
+
+    READS = frozenset({
+        "simulated", "base_url", "account_config", "balance", "positions", "pending_stops",
+        "fills", "funding_bills", "order", "fee_rate",
+    })
+
+    def __init__(self, client: OKXPrivate):
+        self._client = client
+
+    def __getattr__(self, name: str):
+        if name in self.READS:
+            return getattr(self._client, name)
+        raise Paused(f"the account is paused: {name} is not a read")
 
 
 @dataclass
@@ -134,11 +165,31 @@ class DemoAccount:
         self.profile = profile
         self.ledger = ledger
         self.okx = okx          # public market data: last prices, candles, contract specs
-        self.private = private  # the signed calls
+        self._private = private  # the signed calls, through ``private``
         self.watchlist = watchlist
         self.sleep = sleep
         self._specs: dict[str, ContractSpec] = {}
         self._seq = 0  # keeps the client ids of one run apart
+
+    @property
+    def private(self) -> OKXPrivate:
+        """The signed calls; while the account is paused, only those that read."""
+        return ReadOnly(self._private) if self.paused else self._private
+
+    @property
+    def paused(self) -> bool:
+        return bool(self.ledger.get("paused", self.profile.born_paused))
+
+    def pause(self, now_ms: int, reason: str) -> None:
+        self._set_paused(True, now_ms, reason)
+
+    def unpause(self, now_ms: int, reason: str) -> None:
+        self._set_paused(False, now_ms, reason)
+
+    def _set_paused(self, paused: bool, now_ms: int, reason: str) -> None:
+        with self.ledger.transaction():
+            self.ledger.set("paused", paused)
+            self.ledger.add_event(now_ms, "pause" if paused else "unpause", reason)
 
     # -- exchange setup -------------------------------------------------------
 
@@ -192,8 +243,9 @@ class DemoAccount:
         explain, or one not in MARGIN_MODE at LEVERAGE, is a problem. Cash is the
         wallet balance, equity includes unrealized PnL; the peak follows equity and a
         drawdown of KILL_DRAWDOWN closes everything at market, cancels the stops and
-        halts. Each UTC midnight passed since the last sync gets the current equity
-        as its snapshot.
+        halts; a paused account closes nothing, the drawdown is a problem, and so is a
+        position without a stop. Each UTC midnight passed since the last sync gets the
+        current equity as its snapshot.
         """
         ledger = self.ledger
         balance = self.private.balance()
@@ -253,7 +305,16 @@ class DemoAccount:
         peak = max(ledger.get("peak"), equity)
         halted = ledger.get("halted")
         killed = False
-        if positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
+        if self.paused:
+            # What the run would have done about these changes the exchange: a person
+            # sees to it.
+            if positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
+                problems.append(f"回撤已到熔断线 {KILL_DRAWDOWN:.0%}：账户暂停中，程序不平仓，请人工处理")
+            problems += [
+                f"{inst} 有仓位没有止损单：账户暂停中，程序不补挂，请人工处理"
+                for inst in positions if not any(s.inst == inst for s in stops)
+            ]
+        elif positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
             for inst in positions:
                 self.private.close_position(inst, MARGIN_MODE, client_id=self._client_id(KILL_PREFIX, now_ms, inst))
             self.private.cancel_stops(stops)
