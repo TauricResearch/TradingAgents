@@ -277,6 +277,29 @@ def test_an_order_that_filled_before_the_execution_raised_still_gets_its_stop(en
     assert env.inbox.sent == ["demo 运行失败：ConnectionError: connection reset"]
 
 
+def test_the_stop_is_measured_from_the_fill_where_it_is_not_at_the_quote(env):
+    # The order fills 400 above the quote. The trade sets the stop 1,000 below the
+    # fill, and that is what hangs: measured from the quote it would be 400 lower.
+    env.decide(HOUR, "Long")
+    env.exchange.price = 80_400.0
+    env.run(RUN0)
+    assert env.exchange.book[BTC.swap] == [10.0, 80_400.0]
+    assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_400.0)]
+    assert env.ledger.positions()[BTC.swap].stop == 79_400.0
+
+
+def test_after_a_failure_the_stop_that_hangs_is_still_the_one_measured_from_the_fill(env):
+    env.decide(HOUR, "Long")
+    env.exchange.price = 80_400.0
+    failure = OKXError("fills failed with code 50001: service unavailable")
+    env.account.execute = wrap(env.account.execute, after=lambda: env.exchange.fail("fills", failure))
+    with pytest.raises(OKXError):
+        env.run(RUN0)
+    assert env.exchange.book[BTC.swap] == [10.0, 80_400.0] and env.exchange.bare() == []
+    assert [(s.side, s.contracts, s.trigger) for s in env.exchange.stops] == [("sell", 10.0, 79_400.0)]
+    assert env.ledger.positions()[BTC.swap].stop == 79_400.0
+
+
 def test_the_alerts_gathered_before_an_exception_still_go_out_and_the_filled_contract_gets_its_stop(tmp_path):
     env = Env(tmp_path, watchlist=(BTC, ETH))
     env.decide(HOUR, "Long")
