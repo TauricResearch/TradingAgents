@@ -45,7 +45,7 @@ from trader.okx import _RETRY_PAUSES, BASE_URL, OKXError
 SIMULATED_HEADER = "x-simulated-trading"
 PROBE_ORDER_ID = "1"  # OKX order ids are 18-digit; this one can never exist
 PROBE_ORDER_MISSING = "51400"  # what a key that may trade is answered when it cancels that order
-DUPLICATE_CLIENT_ID = "51016"  # OKX's code for a clOrdId / algoClOrdId that already exists
+DUPLICATE_CLIENT_ID = "51016"  # OKX's code for a clOrdId that already exists
 TIMESTAMP_EXPIRED = "50102"    # the request's timestamp was more than 30 s off OKX's clock
 _PAGE = 100                    # rows per page; the most fills and bills endpoints give
 _DAY_MS = 86_400_000
@@ -427,7 +427,8 @@ class OKXPrivate:
     ) -> str:
         """A reduce-only conditional order closing ``contracts`` of a position (positive
         for a long, negative for a short) at market once the last price crosses
-        ``trigger``; returns the algo id. Idempotent on ``client_id`` like place_market."""
+        ``trigger``; returns the algo id. Nothing relies on a second placement with the
+        same ``client_id`` being refused: OKX documents code 51065 for it, untested."""
         if contracts == 0:
             raise ValueError("a stop needs a non-zero contract count")
         row = self._post("/api/v5/trade/order-algo", {
