@@ -688,22 +688,30 @@ def test_a_position_not_at_the_designed_leverage_is_a_problem(account, exchange)
 # -- the kill switch ----------------------------------------------------------------
 
 
-def test_a_drawdown_of_a_fifth_closes_everything_cancels_the_stops_and_halts(account, ledger, exchange):
+def test_a_drawdown_of_a_fifth_trips_the_kill_switch_and_closes_everything(account, ledger, exchange):
     go_long(account, exchange)
     exchange.mark[BTC.swap] = 59_000.0  # unrealized -2,100 on 9,996: a 21% drawdown
     exchange.prices[BTC.swap] = 59_000.0
     exchange.now = T0 + HOUR_MS
+    before = len(exchange.calls)
     result = account.sync(T0 + HOUR_MS)
-    assert result.killed and result.stops == []
-    assert result.alerts[0].startswith("熔断：净值 7,896.00 比峰值 10,000.00 回撤 21.0%")
-    assert ledger.get("halted") is True
-    close = [c for c in exchange.calls if c[0] == "close_position"]
-    assert close[0][1] == BTC.swap and close[0][2].startswith("kil")
+    assert result.killed and ledger.get("halted") is True
+    assert result.alerts == [
+        "熔断：净值 7,896.00 比峰值 10,000.00 回撤 21.0%，停止交易；已对 BTC-USDT-SWAP 发出市价平仓。"
+        "确认交易所里已经空仓、查明原因后，运行 python -m trader demo resume --kill 解除。"
+    ]
+    (close,) = exchange.calls[before:]
+    assert close[:2] == ("close_position", BTC.swap) and close[2].startswith("kil")
+    # Only sent: the contract was held when this sync read it, so its stop is kept.
+    assert [s.inst for s in result.stops] == [BTC.swap]
     assert exchange.stops == [] and exchange.book[BTC.swap][0] == 0
-    # The next sync books the closing fill as a kill; nothing trades until resume.
+    # The next sync books the closing fill as a kill and finds the exchange flat;
+    # nothing trades until resume.
     result = account.sync(T0 + HOUR_MS + 5_000)
     assert [f.reason for f in ledger.fills()] == ["trade", "kill"] and result.problems == []
-    assert ledger.positions() == {}
+    assert ledger.positions() == {} and result.stops == [] and not result.killed
+    assert result.alerts == ["熔断后核实：交易所里已经空仓。"]
+    assert account.sync(T0 + HOUR_MS + 6_000).alerts == []
     assert account.execute(HOUR + HOUR_MS, {BTC.research: "Long"}, T0 + HOUR_MS, result.equity, quotes(account)) == ([], {})
     account.resume(T0 + 2 * HOUR_MS)
     assert ledger.get("halted") is False and ledger.get("peak") == ledger.get("cash")

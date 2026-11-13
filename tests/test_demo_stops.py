@@ -310,10 +310,13 @@ def test_a_contract_whose_stop_fails_does_not_keep_the_next_from_its_stop_or_the
 
 
 def test_while_halted_only_the_ledger_is_updated(account, ledger, exchange):
+    # A halted account's sync closes what it holds (test_demo_kill); a position the
+    # exchange still shows meanwhile has its stop moved in the ledger alone.
     go_long(account, exchange)
     exchange.stops = []
     ledger.set("halted", True)
-    assert hourly(account, exchange, last=82_000.0) == ([], [])
+    now = exchange.now = T0 + HOUR_MS
+    assert account.manage_stops(now, quotes(account, 82_000.0), []) == ([], [])
     assert exchange.stops == [] and calls(exchange) == ["place_stop"]
     assert ledger.positions()[BTC.swap].stop == 81_000.0
 

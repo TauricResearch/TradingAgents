@@ -25,6 +25,7 @@ from trader.okx_private import (
     ExchangePosition,
     FeeRate,
     FundingBill,
+    NoBalance,
     OKXCredentials,
     OKXPrivate,
     OKXPrivateError,
@@ -161,7 +162,7 @@ def test_the_timestamp_is_iso_8601_utc_with_milliseconds():
 
 def test_every_request_is_signed_over_its_query_and_body_and_marked_simulated():
     okx, session = client([
-        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": []}]),
+        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [{"ccy": "USDT", "eq": "1", "cashBal": "1", "availBal": "1"}]}]),
         (("POST", "/api/v5/trade/order"), [{"ordId": "1", "clOrdId": "trd1btc", "sCode": "0"}]),
     ])
     okx.balance()
@@ -184,7 +185,7 @@ def test_every_request_is_signed_over_its_query_and_body_and_marked_simulated():
 
 def test_a_production_client_signs_the_same_and_sends_no_simulated_header():
     okx, session = client([
-        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": []}]),
+        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [{"ccy": "USDT", "eq": "1", "cashBal": "1", "availBal": "1"}]}]),
         (("POST", "/api/v5/trade/order"), [{"ordId": "1", "clOrdId": "trd1btc", "sCode": "0"}]),
     ], simulated=False)
     okx.balance()
@@ -472,15 +473,32 @@ def test_the_probe_hands_back_what_okx_answered_for_a_caller_that_must_tell_more
 # -- account ---------------------------------------------------------------------
 
 
-def test_balance_reads_the_usdt_row_and_is_zero_without_one():
+def test_balance_reads_the_usdt_row_and_raises_without_one_or_without_its_equity_or_cash():
+    # Read as zero, a missing balance would be a total loss and trip the kill switch (#33).
     okx, _ = client([
         (("GET", "/api/v5/account/balance?ccy=USDT"), [{"totalEq": "10012.5", "details": [
             {"ccy": "USDT", "eq": "10012.5", "cashBal": "10000", "availBal": "9700.25", "upl": "12.5"},
         ]}]),
         (("GET", "/api/v5/account/balance?ccy=USDT"), [{"totalEq": "0", "details": []}]),
+        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [
+            {"ccy": "USDT", "eq": "", "cashBal": "10000", "availBal": "", "upl": ""},
+        ]}]),
+        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [
+            {"ccy": "USDT", "eq": "10000", "cashBal": "", "availBal": "", "upl": ""},
+        ]}]),
+        (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [
+            {"ccy": "USDT", "eq": "0", "cashBal": "0", "availBal": "", "upl": ""},
+        ]}]),
     ])
     assert okx.balance() == Balance("USDT", 10012.5, 10000.0, 9700.25, 12.5)
-    assert okx.balance() == Balance("USDT", 0.0, 0.0, 0.0, 0.0)
+    with pytest.raises(NoBalance, match="has no USDT row"):
+        okx.balance()
+    with pytest.raises(NoBalance, match="no equity or cash: eq='', cashBal='10000'"):
+        okx.balance()
+    with pytest.raises(NoBalance, match="no equity or cash: eq='10000', cashBal=''"):
+        okx.balance()
+    assert okx.balance() == Balance("USDT", 0.0, 0.0, 0.0, 0.0)  # zeros that came back are zeros
+    assert issubclass(NoBalance, OKXError)  # a failed read: the run fails and alerts
 
 
 def test_positions_are_signed_by_side_and_skip_the_closed_ones():

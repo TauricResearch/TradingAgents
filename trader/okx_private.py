@@ -64,6 +64,12 @@ class OKXPrivateError(OKXError):
         self.message = message
 
 
+class NoBalance(OKXError):
+    """The account's balance came back without a row for the currency, or with one that
+    has no equity or cash: an answer to read as missing, since as zero it would be a
+    total loss."""
+
+
 @dataclass(frozen=True, repr=False)
 class OKXCredentials:
     """An OKX API key, of either environment: the demo account's comes from the
@@ -258,12 +264,15 @@ class OKXPrivate:
                    {"instId": inst, "lever": str(leverage), "mgnMode": margin_mode})
 
     def balance(self, ccy: str = "USDT") -> Balance:
-        """The balance of ``ccy``; all zero when the account holds none of it."""
+        """The balance of ``ccy``. NoBalance when the answer has no row for it, as for an
+        account that has never held any, or a row without its equity or cash."""
         details = self._get("/api/v5/account/balance", ccy=ccy)[0]["details"]
         rows = [d for d in details if d["ccy"] == ccy]
         if not rows:
-            return Balance(ccy, 0.0, 0.0, 0.0, 0.0)
+            raise NoBalance(f"the account's balance has no {ccy} row")
         row = rows[0]
+        if not row.get("eq") or not row.get("cashBal"):
+            raise NoBalance(f"the {ccy} balance has no equity or cash: eq={row.get('eq')!r}, cashBal={row.get('cashBal')!r}")
         return Balance(
             ccy=ccy,
             equity=_float(row["eq"]),

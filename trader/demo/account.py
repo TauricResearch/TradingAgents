@@ -15,13 +15,21 @@ orders has raised.
 One executor serves each account that trades on OKX (ADR 0010): a ``Profile`` says
 which one it is, the demo's by default.
 
+The kill switch (meta ``halted``) is tripped by a drawdown of KILL_DRAWDOWN in ``sync``,
+or by a person with ``halt``, and is recorded before anything is closed: a run that
+fails halfway leaves the account halted. Every sync of a halted account closes at market
+what the exchange still holds, each contract on its own, and cancels the stops of the
+contracts it no longer holds; a contract still held keeps its stop, and is closed again,
+and alerted, on each sync until the exchange is flat.
+
 An account may be paused (meta ``paused``): ``pause`` sets it and ``unpause`` clears
 it, each recording an event of kind ``pause`` or ``unpause`` with its reason. A paused
 account syncs, books what it finds and alerts, and changes nothing on the exchange: its
 ``private`` is then a ``ReadOnly`` view that raises ``Paused`` on any call but a read,
-so there is no setup, no stop kept, no order and no kill; a drawdown to the kill line,
-and a position without a stop, are problems left to a person. An account whose profile
-is ``born_paused`` is paused until its ledger says otherwise.
+so there is no setup, no stop kept, no order and no kill by drawdown; a drawdown to the
+kill line, and a position without a stop, are problems left to a person. The kill a
+person orders is the exception (ADR 0010): a halted account closes out, paused or not.
+An account whose profile is ``born_paused`` is paused until its ledger says otherwise.
 """
 
 from __future__ import annotations
@@ -65,7 +73,7 @@ from trader.okx_private import (
     OKXPrivateError,
     StopOrder,
 )
-from trader.paper import _kill_alert, _midnights
+from trader.paper import _midnights
 from trader.settings import KILL_DRAWDOWN, MAX_GROSS_EXPOSURE, WATCHLIST, Coin, Settings
 
 logger = logging.getLogger(__name__)
@@ -91,11 +99,19 @@ class Profile:
     name: str
     production: bool = False
     born_paused: bool = False  # paused until the ledger records otherwise (DemoAccount.paused)
+    kill_final: bool = False  # a kill is never lifted: it ends the account's experiment (ADR 0010)
 
     @property
     def resume_command(self) -> str:
-        """The command that lifts the account's kill switch, named in its alerts."""
+        """The command that lifts the account's pause; with ``--kill``, its kill switch."""
         return f"python -m trader {self.name} resume"
+
+    @property
+    def after_kill(self) -> str:
+        """What comes after a kill, as its alert and the daily summary say."""
+        if self.kill_final:
+            return f"按 ADR 0010，{self.name} 熔断一次就不再解除，实验到此结束。"
+        return f"确认交易所里已经空仓、查明原因后，运行 {self.resume_command} --kill 解除。"
 
     @property
     def alerted_key(self) -> str:
@@ -157,7 +173,8 @@ class Planned:
 @dataclass
 class Sync:
     """What a sync found. ``problems`` are the things that stop the account from
-    trading this hour; ``alerts`` go out whatever happens."""
+    trading this hour; ``alerts`` go out whatever happens. ``killed``: the kill switch
+    sent close orders, which fill in a moment and one more sync books."""
 
     equity: float
     cash: float
@@ -211,6 +228,13 @@ class DemoAccount:
             self.ledger.set("paused", paused)
             self.ledger.add_event(now_ms, "pause" if paused else "unpause", reason)
 
+    def halt(self, now_ms: int, reason: str) -> None:
+        """Trip the kill switch: meta ``halted`` and a ``kill`` event saying ``reason``,
+        written before anything is closed; each sync from now on closes what is held."""
+        with self.ledger.transaction():
+            self.ledger.set("halted", True)
+            self.ledger.add_event(now_ms, "kill", reason)
+
     # -- exchange setup -------------------------------------------------------
 
     def setup(self) -> list[str]:
@@ -261,11 +285,13 @@ class DemoAccount:
         exchange's, each keeping the stop the ledger tracked for it (or the one in
         ``desired_stops``, set by an execution). A position the booked fills do not
         explain, or one not in MARGIN_MODE at LEVERAGE, is a problem. Cash is the
-        wallet balance, equity includes unrealized PnL; the peak follows equity and a
-        drawdown of KILL_DRAWDOWN closes everything at market, cancels the stops and
-        halts; a paused account closes nothing, the drawdown is a problem, and so is a
-        position without a stop. Each UTC midnight passed since the last sync gets the
-        current equity as its snapshot.
+        wallet balance, equity includes unrealized PnL; the peak follows equity, and a
+        drawdown of KILL_DRAWDOWN with positions open trips the kill switch (``halt``).
+        A halted account's positions are closed at market (``_flatten``), and what that
+        did, failed to do or found already flat is alerted. A paused account trips
+        nothing: the drawdown is a problem, and so is a position without a stop. Each
+        UTC midnight passed since the last sync gets the current equity as its snapshot.
+        A balance that cannot be read raises (``NoBalance``) before anything is booked.
         """
         ledger = self.ledger
         balance = self.private.balance()
@@ -324,24 +350,35 @@ class DemoAccount:
         cash, equity = balance.cash, balance.equity
         peak = max(ledger.get("peak"), equity)
         halted = ledger.get("halted")
-        killed = False
-        if self.paused:
-            # What the run would have done about these changes the exchange: a person
-            # sees to it.
-            if positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
+        tripped = killed = False
+        if positions and not halted and (drawdown := rules.drawdown(equity, peak)) >= KILL_DRAWDOWN:
+            if self.paused:
+                # Closing changes the exchange: while paused, a person sees to it.
                 problems.append(f"回撤已到熔断线 {KILL_DRAWDOWN:.0%}：账户暂停中，程序不平仓，请人工处理")
+            else:
+                self.halt(now_ms, f"回撤 {drawdown:.1%} 到了熔断线：净值 {equity:,.2f}，峰值 {peak:,.2f}")
+                halted = tripped = True
+        if halted:
+            sent, stops, failed = self._flatten(now_ms, positions, stops)
+            killed = bool(sent)
+            if tripped:
+                head = f"熔断：净值 {equity:,.2f} 比峰值 {peak:,.2f} 回撤 {drawdown:.1%}，停止交易"
+            elif positions:
+                head = f"熔断中：{'、'.join(positions)} 还有仓位"
+            elif failed:
+                head = "熔断中"
+            else:
+                head = "熔断后核实：交易所里已经空仓" if old else ""
+            if head:
+                closing = [f"已对 {'、'.join(sent)} 发出市价平仓"] if sent else []
+                text = "；".join([head, *closing, *failed]) + "。" + (self.profile.after_kill if tripped else "")
+                alerts.append(text)
+                ledger.add_event(now_ms, "kill", text)
+        elif self.paused:
             problems += [
                 f"{inst} 有仓位没有止损单：账户暂停中，程序不补挂，请人工处理"
                 for inst in positions if not any(s.inst == inst for s in stops)
             ]
-        elif positions and not halted and rules.drawdown(equity, peak) >= KILL_DRAWDOWN:
-            for inst in positions:
-                self.private.close_position(inst, MARGIN_MODE, client_id=self._client_id(KILL_PREFIX, now_ms, inst))
-            self.private.cancel_stops(stops)
-            halted, killed = True, True
-            text = _kill_alert(equity, peak, self.profile.resume_command)
-            alerts.append(text)
-            ledger.add_event(now_ms, "kill", text)
         snapshots = [(m, equity) for m in _midnights(ledger.get("snapshot_to", since), now_ms)]
         ledger.commit(
             positions=positions, cash=cash, fills=fills, funding=funding, snapshots=snapshots,
@@ -357,11 +394,37 @@ class DemoAccount:
                 "pending_stops": [
                     {"inst": s.inst, "side": s.side, "contracts": s.contracts, "trigger": s.trigger,
                      "client_id": s.client_id}
-                    for s in ([] if killed else stops)
+                    for s in stops
                 ],
             },
         )
-        return Sync(equity, cash, positions, [] if killed else stops, fills, problems, alerts, killed)
+        return Sync(equity, cash, positions, stops, fills, problems, alerts, killed)
+
+    def _flatten(
+        self, now_ms: int, positions: dict[str, Position], stops: list[StopOrder]
+    ) -> tuple[list[str], list[StopOrder], list[str]]:
+        """Close at market each contract a halted account holds, each on its own, and
+        cancel the stops of the contracts it no longer holds: a contract whose close
+        fails keeps its stop until a sync finds it gone. This goes through the raw
+        client, paused or not: the kill was tripped by a person, or by the drawdown of
+        an account that was not paused (ADR 0010). Returns the contracts whose close was
+        sent, the stops still pending and what failed."""
+        sent, failed = [], []
+        for inst in positions:
+            try:
+                self._private.close_position(inst, MARGIN_MODE, client_id=self._client_id(KILL_PREFIX, now_ms, inst))
+                sent.append(inst)
+            except REQUEST_ERRORS as exc:
+                failed.append(f"{inst} 平仓失败（{_error(exc)}），止损单留着，下一次运行再平")
+        loose = [s for s in stops if s.inst not in positions]
+        pending = [s for s in stops if s.inst in positions]
+        if loose:
+            try:
+                self._private.cancel_stops(loose)
+            except REQUEST_ERRORS as exc:
+                pending += loose
+                failed.append(f"已平仓合约的 {len(loose)} 张止损单没撤掉（{_error(exc)}），下一次运行再撤")
+        return sent, pending, failed
 
     def _reason(self, fill: ExchangeFill) -> str:
         """trade / stop / kill by the client id prefix; a stop's fill carries the algo's
@@ -798,6 +861,10 @@ class DemoAccount:
     def _client_id(self, prefix: str, now_ms: int, inst: str) -> str:
         self._seq += 1
         return f"{prefix}{now_ms // 1000}{_tag(inst)}{self._seq}"
+
+
+def _error(exc: BaseException) -> str:
+    return f"{type(exc).__name__}: {exc}"[:200]
 
 
 def _stop_after(old_qty: float, new_qty: float, old_stop: float | None, fill_price: float, atr_value: float):

@@ -5,14 +5,16 @@ Every run: set the exchange up once, sync, keep the stops, send what that raised
 Then, unless halted, already decided this hour, or stopped by a problem the sync
 found, wait for the intraday account to decide the hour, size its signals and
 trade, sync again, hang the stops of what was traded, and report the hour's fills.
-A position closed at market for want of a stop is booked by one more sync. When a
-step after the orders raises, the positions they left still get their stops (or are
-closed) before the run fails, and the alerts gathered so far go out either way. The
-daily summary goes out on the first run of each UTC day. The intraday ledger is
-opened read-only; this job never writes it. A paused account (``DemoAccount.paused``)
-is synced and its problems alerted, and nothing is set up, no stop kept, no order sent:
-its hour is a shadow run (ADR 0010), recording the orders it would have sent
-(``shadow_order``), or why there are none (``shadow_none``), and reporting no fills.
+A position closed at market, for want of a stop or by the kill switch, is booked by
+one more sync; a kill tripped by the sync before the orders leaves the hour untraded.
+``halt`` trips the kill switch by hand. When a step after the orders raises, the
+positions they left still get their stops (or are closed) before the run fails, and
+the alerts gathered so far go out either way. The daily summary goes out on the first
+run of each UTC day. The intraday ledger is opened read-only; this job never writes
+it. A paused account (``DemoAccount.paused``) is synced and its problems alerted, and
+nothing is set up, no stop kept, no order sent: its hour is a shadow run (ADR 0010),
+recording the orders it would have sent (``shadow_order``), or why there are none
+(``shadow_none``), and reporting no fills.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from trader.demo import report
 from trader.demo.account import DemoAccount, Planned, Quotes, Sync
 from trader.demo.settings import (
     ALERT_INTERVAL_MS,
+    HALT_SYNCS,
     INTRADAY_POLL_SECONDS,
     INTRADAY_WAIT_MS,
     KILL_SETTLE_SECONDS,
@@ -86,10 +89,7 @@ def _run(
         result = account.sync(now_ms)
         alerts += result.alerts
         if result.killed:
-            # The close orders fill in a moment; book them before anything else.
-            sleep(KILL_SETTLE_SECONDS)
-            result = account.sync(_ms(now_fn()))
-            alerts += result.alerts
+            result = _settled(account, alerts, now_fn, sleep)
         quotes = account.quotes(hour, result.positions)
         if not paused:
             _, closed = account.manage_stops(now_ms, quotes, result.stops, alerts=alerts)
@@ -114,9 +114,11 @@ def _run(
                 now_ms = _ms(now_fn())
                 result = account.sync(now_ms)  # the equity and positions the orders size against
                 alerts += result.alerts
+                if result.killed:
+                    result = _settled(account, alerts, now_fn, sleep)
                 if paused:
                     _shadow(account, hour, signals, now_ms, result, quotes, alerts)
-                elif not result.problems:
+                elif not result.problems and not ledger.get("halted"):
                     result = _trade(account, hour, signals, now_ms, result.equity, quotes, alerts, now_fn, sleep)
                     ledger.set("decided_hour", hour)
             for text in _standing(ledger, result.problems, now_ms):
@@ -129,6 +131,44 @@ def _run(
     if ledger.get("summarized_day") != today:
         notifier.send(report.daily(account, utc_date(now_ms - DAY_MS), now_ms))
         ledger.set("summarized_day", today)
+
+
+def halt(
+    settings: Settings,
+    account: DemoAccount,
+    notifier: Notifier,
+    now_fn: Callable[[], datetime] = lambda: datetime.now(UTC),
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[str]:
+    """The kill switch by hand (``python -m trader <name> halt``): trip it, positions open
+    or not and paused or not (ADR 0010), close what the exchange holds, book the closes
+    (through up to HALT_SYNCS syncs while closes are still being sent), and send how
+    many positions were closed and how many are left. Returns what the syncs alerted and
+    that summary, for the terminal. When a sync raises, the switch stays tripped and the
+    hourly runs go on closing; that is sent, and the error raised."""
+    notifier = labeled(notifier, account.profile.name)
+    ledger = account.ledger
+    with locked(account.profile.lock_path(settings)):
+        now_ms = _ms(now_fn())
+        if not ledger.get("halted"):
+            account.halt(now_ms, f"人工熔断：python -m trader {account.profile.name} halt")
+        try:
+            result = account.sync(now_ms)
+            held, lines = list(result.positions), list(result.alerts)
+            for _ in range(HALT_SYNCS):
+                if not result.killed:
+                    break
+                result = _settled(account, lines, now_fn, sleep)
+        except Exception as exc:
+            notifier.send(f"人工熔断：已停止交易，但这次没能平仓（{error_text(exc)}）；每小时的运行会接着平。")
+            raise
+    left = list(result.positions)
+    summary = f"人工熔断：停止交易，平掉 {len(held) - len(left)} 个仓位，还剩 {len(left)} 个"
+    if left:
+        summary += f"（{'、'.join(left)}），下一次运行接着平"
+    summary += "。" + account.profile.after_kill
+    notifier.send(summary)
+    return [*lines, summary]
 
 
 def _trade(
@@ -161,7 +201,7 @@ def _shadow(
     order is alerted and recorded as when trading. The hour is then decided, so a rerun
     records nothing new."""
     ledger = account.ledger
-    if result.problems:
+    if ledger.get("halted") or result.problems:
         _shadow_none(ledger, now_ms, hour, result)
         return
     planned = account.plan(signals, result.equity, quotes)
@@ -197,8 +237,8 @@ def _would_send(order: Planned) -> str:
 def _settled(
     account: DemoAccount, alerts: list[str], now_fn: Callable[[], datetime], sleep: Callable[[float], None],
 ) -> Sync:
-    """The sync after positions were closed at market for want of a stop: as after a
-    kill, the close orders fill in a moment, and this books them."""
+    """The sync after positions were closed at market, for want of a stop or by the
+    kill switch: the close orders fill in a moment, and this books them."""
     sleep(KILL_SETTLE_SECONDS)
     result = account.sync(_ms(now_fn()))
     alerts += result.alerts

@@ -147,6 +147,16 @@ def test_live_check_reads_the_production_account_and_places_nothing(live, caplog
     live.assert_nothing_secret(caplog.text)
 
 
+def test_live_check_says_so_when_the_sub_account_holds_no_usdt(live):
+    # OKX answers an account that never held the currency with an empty list of details.
+    answers = okx_answers()
+    answers[1] = (("GET", "/api/v5/account/balance?ccy=USDT"), [{"details": [], "totalEq": "0"}])
+    result = live.run("check", answers=answers)
+    assert result.exit_code == 0, result.output
+    assert result.output.splitlines()[3] == "USDT 没有余额：子账户里还没有 USDT，先从主账户划转"
+    assert live.session.answers == []  # the rest of the check went on
+
+
 def test_a_read_only_key_cannot_trade_whatever_the_probe_answers(live):
     # The gateway's code for a read-only key is not known yet; the key's own permissions tell
     # too, and what the probe did get is said, for it to become known.
