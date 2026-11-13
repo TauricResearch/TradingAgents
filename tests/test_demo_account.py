@@ -11,7 +11,17 @@ from dataclasses import replace
 import pytest
 import requests
 
-from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX
+from tests.test_trader_paper import (
+    BAD_RATES,
+    BTC,
+    DAY0,
+    DEFERRED,
+    NO_CLOSE,
+    T0,
+    FakeOKX,
+    SpotClose,
+    deferred_events,
+)
 from trader.demo import account as account_module
 from trader.demo.account import DemoAccount
 from trader.demo.settings import MISMATCH_GRACE_MS, ORDER_POLL_SECONDS, ORDER_POLLS
@@ -809,3 +819,44 @@ def test_stops_are_rounded_to_the_tick_size(account, okx, exchange, monkeypatch)
     result = account.sync(T0 + HOUR_MS)
     account.manage_stops(T0 + HOUR_MS, quotes(account, last=80_000.3), result.stops)
     assert exchange.stops[0].trigger == 79_000.5
+
+
+# -- reference closes and funding rates that cannot be used ------------------------
+
+
+@pytest.mark.parametrize(("close", "problem"), NO_CLOSE)
+def test_without_a_usable_reference_close_the_validation_period_waits_for_an_hour_with_one(
+    ledger, exchange, close, problem,
+):
+    okx = SpotClose(close)
+    account = DemoAccount(ledger, okx, exchange, watchlist=(BTC,), sleep=lambda seconds: None)
+    alerts, _ = go_long(account, exchange)
+    text = DEFERRED.format(problem)
+    assert alerts == [text]
+    assert exchange.book[BTC.swap] == [10.0, 80_000.0]  # bought as ever
+    assert ledger.get("validation_start") is None and ledger.get("baseline_ref") is None
+    assert deferred_events(ledger) == [text]
+    okx.close = 80_000.0  # served the next hour
+    exchange.now = T0 + HOUR_MS
+    result = account.sync(T0 + HOUR_MS)
+    alerts, _ = account.execute(
+        HOUR + HOUR_MS, {BTC.research: "Long"}, T0 + HOUR_MS, result.equity, quotes(account)
+    )
+    assert alerts == []
+    assert ledger.get("validation_start") == DAY0
+    assert ledger.get("baseline_ref") == {BTC.research: 80_000.0}
+
+
+@pytest.mark.parametrize("rate", BAD_RATES)
+def test_funding_whose_public_rate_is_not_a_finite_number_is_booked_at_a_rate_of_0(
+    ledger, exchange, rate,
+):
+    okx = FakeOKX(funding=[FundingEvent(T0 + HOUR_MS, rate)])
+    account = DemoAccount(ledger, okx, exchange, watchlist=(BTC,), sleep=lambda seconds: None)
+    go_long(account, exchange)
+    exchange.now = T0 + HOUR_MS
+    exchange.settle_funding(BTC.swap, -0.8)
+    account.sync(T0 + HOUR_MS + 1)
+    rows = ledger.db.execute("SELECT ts, inst, rate, amount FROM funding").fetchall()
+    assert rows == [(T0 + HOUR_MS, BTC.swap, 0.0, -0.8)]  # the amount is the bill's
+    assert ledger.get("cash") == pytest.approx(9_996.0 - 0.8)

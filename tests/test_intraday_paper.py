@@ -11,9 +11,13 @@ from tests.test_trader_paper import (
     BAD_QUOTES,
     BTC,
     DAY0,
+    DEFERRED,
     ETH,
+    NO_CLOSE,
     T0,
     FakeOKX,
+    SpotClose,
+    deferred_events,
     hold,
     hold_eth,
     quoted,
@@ -242,3 +246,21 @@ def test_an_atr_below_zero_is_refused_too(ledger, monkeypatch):
     assert unusable_events(ledger) == alerts
     assert ledger.positions() == {ETH.swap: Position(1.0, 2_000.0, 1_800.0)}
     assert ledger.fills() == [] and ledger.get("cash") == 10_000.0
+
+
+@pytest.mark.parametrize(("close", "problem"), NO_CLOSE)
+def test_without_a_usable_reference_close_the_validation_period_waits_for_an_hour_with_one(
+    ledger, close, problem,
+):
+    okx = SpotClose(close)
+    paper = IntradayPaper(ledger, okx, (BTC,))
+    text = DEFERRED.format(problem)
+    assert paper.execute({BTC.research: "Long"}, T0) == [text]
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.1)  # bought as ever
+    assert ledger.get("validation_start") is None and ledger.get("baseline_ref") is None
+    assert ledger.equity_series() == [] and deferred_events(ledger) == [text]
+    okx.close = 80_000.0  # served the next hour
+    assert paper.execute({BTC.research: "Long"}, T0 + HOUR_MS) == []
+    assert ledger.get("validation_start") == DAY0
+    assert ledger.get("baseline_ref") == {BTC.research: 80_000.0}
+    assert [ts for ts, _ in ledger.equity_series()] == [DAY0]

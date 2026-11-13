@@ -16,7 +16,7 @@ from trader import rules
 from trader.intraday.settings import ATR_BAR, DEFAULT_PARAMS, Params
 from trader.ledger import Ledger
 from trader.okx import DAY_MS, OKX
-from trader.paper import Paper, _move, _stop_alert
+from trader.paper import Paper, _baseline_ref, _move, _stop_alert
 from trader.settings import WATCHLIST, Coin
 
 HOUR_MS = 3_600_000
@@ -44,7 +44,9 @@ class IntradayPaper(Paper):
         stop tightens to ``params.stop_mult`` ATRs from the last price. A Flat signal
         closes a position however small; any other change below
         ``params.rebalance_threshold`` units is skipped. The first execution starts the validation period at this UTC
-        day's midnight and fixes the baseline at the spot closes of the day before.
+        day's midnight and fixes the baseline at the spot closes of the day before;
+        without a usable one for every coin (``_baseline_ref``) it alerts and leaves
+        that to a later hour.
         A position in a contract no longer on the watchlist is not traded; its stop
         is managed until it closes the position. A contract whose quote is not usable
         (``usable``) sits the hour out: it is alerted, not traded, its stop is not
@@ -123,20 +125,21 @@ class IntradayPaper(Paper):
             )
 
         meta, snapshots = {}, []
+        events = [(now_ms, "quote_unusable", text) for text in unusable]
         if self.ledger.get("validation_start") is None:
             # The validation period starts with this UTC day: the baseline buys at
             # the spot closes of the day before, and equity is marked as it stood.
             day_start = now_ms - now_ms % DAY_MS
-            meta["validation_start"] = day_start
-            meta["baseline_ref"] = {
-                coin.research:
-                    self.okx.bars(coin.spot, "1Dutc", day_start - DAY_MS, day_start)[-1].close
-                for coin in self.watchlist
-            }
-            snapshots.append((day_start, equity))
+            ref, deferred = _baseline_ref(self.okx, self.watchlist, day_start)
+            if deferred:
+                alerts.append(deferred)
+                events.append((now_ms, "validation_deferred", deferred))
+            else:
+                meta.update(validation_start=day_start, baseline_ref=ref)
+                snapshots.append((day_start, equity))
         self.ledger.commit(
             positions=positions, cash=cash, fills=fills, snapshots=snapshots, meta=meta,
-            events=[(now_ms, "quote_unusable", text) for text in unusable],
+            events=events,
         )
         return alerts
 

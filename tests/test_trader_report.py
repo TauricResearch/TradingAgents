@@ -161,3 +161,39 @@ def test_daily_report_marks_a_contract_whose_last_price_cannot_be_used_at_its_ma
     assert "净值 10,100.00 USDT" in text  # at the 81,000 mark
     assert "验证期累计 +1.00%，扣 LLM 费用后 +1.00%；三币等权现货 +2.50%\n" in text  # spot usable
     assert text.splitlines()[-1] == "⚠ 行情暂不可用（OKX）：净值按最近一次标记价计。"
+
+
+@pytest.mark.parametrize("ref", [price for price, _ in BAD_PRICES])
+def test_daily_report_leaves_a_coin_whose_reference_close_cannot_be_used_out_of_the_baseline(
+    tmp_path, ref,
+):
+    # A ledger from before the reference closes were checked (trader.paper._baseline_ref).
+    eth = Coin("ETH-USD", "ETH-USDT-SWAP", "ETH-USDT")
+    ledger = Ledger(tmp_path / "ledger.sqlite")
+    ledger.initialize(10_000.0, DAY0)
+    ledger.commit(
+        positions={}, cash=10_000.0, snapshots=[(DAY0, 10_000.0)],
+        meta={
+            "validation_start": DAY0, "baseline_ref": {BTC.research: 80_000.0, eth.research: ref},
+        },
+    )
+    paper = Paper(ledger, FakeOKX(last=82_000.0), (BTC, eth))
+    states = {c.research: ("done", "Hold") for c in (BTC, eth)}
+    text = report.daily(paper, "2026-01-09", states, DAY0 + DAY_MS, DAY0, None)
+    assert "；三币等权现货 +2.50%\n" in text  # BTC alone: 82,000 / 80,000
+    assert "行情暂不可用" not in text
+
+
+@pytest.mark.parametrize("close", [price for price, _ in BAD_PRICES])
+@pytest.mark.parametrize(("day", "priced"), [(DAY0 - DAY_MS, []), (DAY0, [10_000.0, 10_200.0])])
+def test_the_baselines_leave_out_each_midnight_a_close_that_cannot_be_used_would_price(
+    tmp_path, close, day, priced,
+):
+    okx = FakeOKX()
+    okx.daily = [
+        Bar(ts, 0, 0, 0, close if ts == day else c)
+        for ts, c in zip((DAY0 - DAY_MS, DAY0, DAY0 + DAY_MS), (80_000, 80_800, 81_600), strict=True)
+    ]
+    paper = Paper(Ledger(tmp_path / "ledger.sqlite"), okx, (BTC,))
+    equal, btc = report.baselines(paper, [DAY0, DAY0 + DAY_MS, DAY0 + 2 * DAY_MS], 10_000.0)
+    assert equal == btc == pytest.approx(priced)  # BTC alone

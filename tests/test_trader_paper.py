@@ -590,3 +590,94 @@ def test_a_last_price_that_cannot_be_used_is_reported_at_the_last_mark(ledger, a
     ledger.set("marks", {BTC.swap: 81_000.0})
     equity, unavailable = account(ledger, FakeOKX(last=price), (BTC,)).equity_now()
     assert (equity, unavailable) == (pytest.approx(10_040.0), True)
+
+
+# -- reference closes and funding rates that cannot be used ------------------------
+
+BAD_RATES = [math.nan, math.inf, -math.inf]  # a rate of 0 or below 0 is one OKX settles
+DEFERRED = (
+    "验证期推迟开始：对照组合按 2026-01-09 的现货日线收盘价买入，BTC-USDT {}；"
+    "这次照常交易，下次执行再试"
+)
+# The spot close of the day before DAY0 the baseline cannot buy at, and how the alert says so.
+NO_CLOSE = [
+    *((price, f"的收盘价 {shown} 不能用（要是大于 0 的有限数）") for price, shown in BAD_PRICES),
+    (None, "还没有这根日线"),
+]
+
+
+class SpotClose(FakeOKX):
+    """FakeOKX whose BTC spot candle of the day before DAY0 closes at ``close``, or is
+    missing when ``close`` is None."""
+
+    def __init__(self, close, **kwargs):
+        super().__init__(**kwargs)
+        self.close = close
+
+    def bars(self, inst, bar, start_ms, end_ms):
+        out = super().bars(inst, bar, start_ms, end_ms)
+        if (inst, bar) != (BTC.spot, "1Dutc"):
+            return out
+        return [
+            dataclasses.replace(b, close=self.close) if b.ts == DAY0 - DAY_MS else b
+            for b in out if b.ts != DAY0 - DAY_MS or self.close is not None
+        ]
+
+
+def deferred_events(ledger):
+    return [text for _, _, text in ledger.events(kinds=("validation_deferred",))]
+
+
+def funding_events(ledger):
+    return [text for _, _, text in ledger.events(kinds=("funding_unusable",))]
+
+
+@pytest.mark.parametrize(("close", "problem"), NO_CLOSE)
+def test_without_a_usable_reference_close_the_validation_period_waits_and_trading_goes_on(
+    ledger, close, problem,
+):
+    okx = SpotClose(close)
+    paper = Paper(ledger, okx, (BTC,))
+    text = DEFERRED.format(problem)
+    assert paper.execute("2026-01-09", {BTC.research: "Buy"}, T0) == [text]
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.04)  # bought as ever
+    assert ledger.get("validation_start") is None and ledger.get("baseline_ref") is None
+    assert ledger.equity_series() == [] and deferred_events(ledger) == [text]
+    # The next trade date has the close of the day before it.
+    okx.daily.append(Bar(DAY0, 82_000, 83_000, 81_000, 82_000))
+    assert paper.execute("2026-01-10", {BTC.research: "Buy"}, T0 + DAY_MS) == []
+    assert ledger.get("validation_start") == DAY0 + DAY_MS
+    assert ledger.get("baseline_ref") == {BTC.research: 82_000}
+    assert [ts for ts, _ in ledger.equity_series()] == [DAY0 + DAY_MS]
+    assert deferred_events(ledger) == [text]
+
+
+@pytest.mark.parametrize("account", [Paper, IntradayPaper])
+@pytest.mark.parametrize("rate", BAD_RATES)
+def test_a_settlement_whose_rate_is_not_a_finite_number_is_alerted_and_not_booked(
+    ledger, account, rate,
+):
+    hold(ledger, 0.04, 80_000, 70_000)
+    okx = FakeOKX(
+        minute=minutes(T0 - MINUTE_MS, [80_000, 80_100, 80_200, 80_300]),
+        funding=[FundingEvent(T0 + MINUTE_MS, rate), FundingEvent(T0 + 2 * MINUTE_MS, 0.0001)],
+    )
+    text = f"资金费率不能用：BTC-USDT-SWAP 01-10 00:31 UTC 结算的费率是 {rate}，要是有限数；这次资金费不记"
+    assert account(ledger, okx, (BTC,)).replay(T0 + 3 * MINUTE_MS) == [text]
+    assert funding_events(ledger) == [text]
+    # The usable settlement after it is booked as ever, at the close of minute T0+1.
+    amount = -0.04 * 80_200 * 0.0001
+    assert ledger.funding() == [(T0 + 2 * MINUTE_MS, BTC.swap, 0.0001, pytest.approx(amount))]
+    assert ledger.get("cash") == pytest.approx(10_000 + amount)
+    assert ledger.get("processed_to") == T0 + 3 * MINUTE_MS
+
+
+def test_a_settlement_after_the_position_closed_is_not_alerted_whatever_its_rate(ledger):
+    hold(ledger, 0.04, 80_000, 79_500)
+    okx = FakeOKX(
+        minute=minutes(T0 - MINUTE_MS, [80_000, (80_000, 80_000, 79_000, 79_200), 79_200, 79_200]),
+        funding=[FundingEvent(T0 + 2 * MINUTE_MS, math.nan)],
+    )
+    alerts = Paper(ledger, okx, (BTC,)).replay(T0 + 3 * MINUTE_MS)
+    assert ledger.positions() == {} and len(alerts) == 1  # the stop's, at T0
+    assert funding_events(ledger) == [] and ledger.funding() == []

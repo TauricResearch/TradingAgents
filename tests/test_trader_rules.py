@@ -27,6 +27,7 @@ from trader.rules import (
     unit_notional,
     usable_prices,
     usable_quote,
+    usable_rate,
 )
 
 EQUITY = 10_000.0  # coin cap 10,000 and gross cap 20,000 in the apply_caps tests
@@ -109,6 +110,19 @@ def test_prices_are_usable_only_when_every_one_is_a_positive_finite_number(bad):
         prices = [80_000.0] * 4
         prices[i] = bad
         assert usable_prices(*prices) is False
+
+
+# ------------------------------------------------------------------ usable_rate
+
+
+@pytest.mark.parametrize("rate", [0.0001, 0.0, -0.0075])
+def test_a_funding_rate_of_either_sign_or_0_is_usable(rate):
+    assert usable_rate(rate) is True
+
+
+@pytest.mark.parametrize("rate", [math.nan, math.inf, -math.inf])
+def test_a_funding_rate_that_is_not_a_finite_number_is_not(rate):
+    assert usable_rate(rate) is False
 
 
 # ------------------------------------------------------------------ usable_quote

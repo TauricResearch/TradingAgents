@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import sqlite3
 from datetime import UTC, datetime
@@ -7,7 +8,7 @@ import pytest
 import requests
 from fastapi.testclient import TestClient
 
-from tests.test_trader_paper import BTC, DAY0, T0, FakeOKX, minutes
+from tests.test_trader_paper import BAD_PRICES, BTC, DAY0, T0, FakeOKX, minutes
 from trader import rules
 from trader.intraday.types import SignalResult
 from trader.ledger import BUDGET_ERROR, Fill, Ledger, Position
@@ -1070,3 +1071,58 @@ def test_intraday_daily_takes_the_llm_spend_from_the_signals(tmp_path):
         ("2026-01-12", 0.0, 0), ("2026-01-11", 0.0, 0), ("2026-01-10", 0.5, 0),
     ]
     assert body["days"][0]["close"] == pytest.approx(10_030.0)  # long 0.03 from 78,000 at 79,000
+
+
+# -- prices that cannot be used ----------------------------------------------------
+
+
+@pytest.mark.parametrize("price", [price for price, _ in BAD_PRICES])
+def test_a_last_price_that_cannot_be_used_is_no_quote(tmp_path, price):
+    okx = CountingOKX()
+    okx.last = price
+    client = build(tmp_path, okx)
+    response = client.get("/api/accounts/paper/overview")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["equity"] is None and body["positions"][0]["price"] is None
+    assert body["market"] == {
+        "ok": False, "since": "2026-01-10T00:30:00Z",
+        "error": f"OKXError: OKX quotes {BTC.swap} at {price}, not a positive finite number",
+    }
+    equity = client.get("/api/accounts/paper/equity")
+    assert equity.status_code == 200 and equity.json()["live"]["equity"] is None
+
+
+def test_a_last_price_that_cannot_be_used_serves_the_last_usable_one(tmp_path, monkeypatch):
+    clock = [1_000.0]
+    monkeypatch.setattr(data.time, "monotonic", lambda: clock[0])
+    okx = CountingOKX()
+    client = build(tmp_path, okx)
+    assert client.get("/api/accounts/paper/overview").json()["equity"] == pytest.approx(10_020.0)
+    okx.last = math.nan
+    clock[0] += data.PRICE_TTL + 1  # the price expired, and the one OKX serves now is NaN
+    stale = client.get("/api/accounts/paper/overview").json()
+    assert stale["equity"] == pytest.approx(10_020.0)  # marked at the last usable price
+    assert stale["positions"][0]["price"] == 79_000.0 and stale["market"]["ok"] is False
+
+
+@pytest.mark.parametrize("close", [price for price, _ in BAD_PRICES])
+def test_the_baselines_leave_a_midnight_whose_close_cannot_be_used_unpriced(tmp_path, close):
+    okx = CountingOKX()
+    okx.daily = [Bar(DAY0 - DAY_MS, 0, 0, 0, 80_000), Bar(DAY0, 0, 0, 0, close)]
+    response = build(tmp_path, okx).get("/api/accounts/paper/equity")
+    assert response.status_code == 200
+    points = response.json()["points"]
+    assert [p["equal_weight"] for p in points] == [10_000.0, None, None]
+    assert [p["btc"] for p in points] == [10_000.0, None, None]
+
+
+@pytest.mark.parametrize("close", [price for price, _ in BAD_PRICES])
+def test_without_a_usable_close_to_buy_at_the_overview_has_no_baselines(tmp_path, close):
+    okx = CountingOKX()
+    okx.daily = [Bar(DAY0 - DAY_MS, 0, 0, 0, close), Bar(DAY0, 0, 0, 0, 80_800)]
+    response = build(tmp_path, okx).get("/api/accounts/paper/overview")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["performance"]["equal_weight"] is None and body["performance"]["btc"] is None
+    assert body["equity"] == pytest.approx(10_020.0) and body["market"]["ok"] is True

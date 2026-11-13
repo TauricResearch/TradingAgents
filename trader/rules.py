@@ -54,6 +54,14 @@ def usable_quote(price: float, atr_value: float) -> bool:
     return usable_prices(price, atr_value)
 
 
+def usable_rate(rate: float) -> bool:
+    """Whether a funding rate from OKX can be settled: a finite number, 0 and below 0
+    as well (``usable_prices`` is for prices). A NaN rate makes a NaN payment, which the
+    funding table refuses (its amount is NOT NULL), so the replay booking it would fail
+    every time; an infinite one makes the cash infinite."""
+    return math.isfinite(rate)
+
+
 def unit_notional(
     equity: float, atr_value: float, price: float, *,
     risk: float = RISK_PER_UNIT, stop_mult: float = STOP_ATR_MULT,
