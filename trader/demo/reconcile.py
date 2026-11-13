@@ -110,7 +110,7 @@ def plan(account: DemoAccount, now_ms: int) -> Repair:
             unmatched[k] -= 1
             continue
         # OKX reports a paid fee as negative; the ledger keeps fees as costs.
-        fills.append(Fill(f.ts, f.inst, k[2], f.price, -f.fee, account._reason(f), utc_date(f.ts)))
+        fills.append(Fill(f.ts, f.inst, k[2], f.price, -f.fee, account._reason(f)[0], utc_date(f.ts)))
         bills[f.bill_id] = f.ts
 
     booked_funding = {(ts, inst) for ts, inst, _, _ in ledger.funding(begin)}

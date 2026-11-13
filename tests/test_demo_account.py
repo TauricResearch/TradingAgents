@@ -81,7 +81,7 @@ class FakeExchange:
         self.leverages = {}
         self.leverage, self.margin_mode = leverage, margin_mode
         self.book = {}      # inst -> [contracts, avg price]
-        self.orders = {}    # (inst, client id or order id) -> Order
+        self.orders = {}    # (inst, order id) and, of an order with one, (inst, client id) -> Order
         self.fill_rows = []
         self.stops = []
         self.funding = []     # FundingBill
@@ -245,7 +245,7 @@ class FakeExchange:
             if self.fire_passed and self._passed(inst, side, trigger) and self.book.get(inst, (0.0, 0.0))[0]:
                 # Taken, and triggered on the spot: gone from the pending stops, the position with it.
                 self.stops.pop()
-                self._fill(inst, abs(contracts) if side == "buy" else -abs(contracts), "", algo_client_id=client_id)
+                self._fire(inst, abs(contracts) if side == "buy" else -abs(contracts), client_id)
         if error:
             raise error
         return algo_id
@@ -303,12 +303,12 @@ class FakeExchange:
     # -- what the market does -------------------------------------------------
 
     def trigger_stop(self, inst, price):
-        """The pending stop of ``inst`` fires: a market order the algo placed fills at
-        ``price``; the fill carries no client id, the order the algo's."""
+        """The pending stop of ``inst`` fires: the market order the algo places
+        (``_fire``) fills at ``price``."""
         (stop,) = [s for s in self.stops if s.inst == inst]
         self.stops.remove(stop)
         contracts = stop.contracts if stop.side == "buy" else -stop.contracts
-        self._fill(inst, contracts, "", price=price, algo_client_id=stop.client_id)
+        self._fire(inst, contracts, stop.client_id, price)
 
     def settle_funding(self, inst, amount):
         self.cash += amount
@@ -320,8 +320,9 @@ class FakeExchange:
         sub_type = "11" if amount > 0 else "12"
         self.other_bills.append(Bill(str(self._next()), TRANSFER_BILL, sub_type, "", amount, self.now))
 
-    def manual_fill(self, inst, contracts):
-        self._fill(inst, contracts, "")
+    def manual_fill(self, inst, contracts, client_id=""):
+        """An order that is not the program's fills, under no client id or ``client_id``."""
+        self._fill(inst, contracts, client_id)
 
     def bare(self):
         """The contracts held without a pending reduce-only stop for their whole size
@@ -358,6 +359,12 @@ class FakeExchange:
         contracts, avg = self.book.get(inst, (0.0, 0.0))
         return contracts * CT_VAL * (self.mark.get(inst, self.price) - avg)
 
+    def _fire(self, inst, contracts, stop_client_id, price=None):
+        """The market order a stop places when it fires. OKX gives it a client id of its
+        own making, "O" and digits, as seen on simulated trading (#50): its fills carry
+        that one, and only the order says which stop it came from, as its algo's client id."""
+        return self._fill(inst, contracts, f"O{self._next()}", price=price, algo_client_id=stop_client_id)
+
     def _order(self, inst, contracts, client_id, price, state, algo_client_id=""):
         order_id = str(self._next())
         fee = -abs(contracts) * CT_VAL * price * FEE if price else 0.0
@@ -384,7 +391,9 @@ class FakeExchange:
         self.cash += realized - fee
         self.book[inst] = [new, avg]
         order = self._order(inst, contracts, client_id, price, "filled", algo_client_id)
-        self.orders[(inst, client_id or order.order_id)] = order
+        self.orders[(inst, order.order_id)] = order
+        if client_id:
+            self.orders[(inst, client_id)] = order
         self.fill_rows.append(ExchangeFill(
             str(self._next()), f"t{order.order_id}", order.order_id, client_id, inst,
             order.side, abs(contracts), price, -fee, self.now,
@@ -616,8 +625,10 @@ def test_a_stop_that_fired_on_the_exchange_is_booked_as_a_stop_with_the_exchange
     go_long(account, exchange)
     exchange.now = T0 + 30 * 60_000
     exchange.trigger_stop(BTC.swap, 78_950.0)
+    assert exchange.fill_rows[-1].client_id.startswith("O")  # the exchange's name for it, not the stop's (#50)
     result = account.sync(T0 + HOUR_MS)
-    assert result.problems == [] and ledger.positions() == {}
+    assert result.problems == [] and result.paused == [] and not account.paused
+    assert ledger.positions() == {}
     stop_fill = ledger.fills()[-1]
     assert (stop_fill.qty, stop_fill.price, stop_fill.reason) == (-0.1, 78_950.0, "stop")
     assert stop_fill.fee == pytest.approx(0.1 * 78_950 * FEE)
@@ -626,6 +637,66 @@ def test_a_stop_that_fired_on_the_exchange_is_booked_as_a_stop_with_the_exchange
     ]
     # Cash is the wallet: 10,000 less both fees less the 105 lost.
     assert ledger.get("cash") == pytest.approx(10_000 - 4.0 - 0.1 * 78_950 * FEE - 105.0)
+
+
+@pytest.mark.parametrize("error", [
+    requests.ConnectionError("connection reset"),
+    OKXPrivateError("/api/v5/trade/order", "50001", "Service temporarily unavailable"),
+])
+def test_a_fill_whose_order_cannot_be_read_is_booked_by_the_sync_that_reads_it(account, ledger, exchange, error):
+    go_long(account, exchange)
+    exchange.now = T0 + 30 * 60_000
+    exchange.trigger_stop(BTC.swap, 78_950.0)
+    exchange.fail("order", error, times=1)
+    with pytest.raises(type(error)):
+        account.sync(T0 + HOUR_MS)
+    # Nothing of that sync is kept: an answer lost does not make the stop's fill another's.
+    assert [f.reason for f in ledger.fills()] == ["trade"] and not account.paused
+    assert ledger.positions()[BTC.swap].qty == pytest.approx(0.1)
+    result = account.sync(T0 + HOUR_MS + 60_000)
+    assert [f.reason for f in ledger.fills()] == ["trade", "stop"] and not account.paused
+    assert ledger.positions() == {}
+    assert result.alerts == [
+        "止损成交：BTC-USDT-SWAP 卖出 10 张 @ 78,950.00，盈亏 -108.95 USDT（开仓均价 80,000.00，含手续费 3.95）"
+    ]
+
+
+def test_a_fill_under_the_programs_client_id_is_told_without_reading_its_order(account, ledger, exchange):
+    result = account.sync(T0)
+    account.execute(HOUR, {BTC.research: "Long"}, T0, result.equity, quotes(account))
+    exchange.fail("order", requests.ConnectionError("connection reset"))
+    account.sync(T0)
+    assert [f.reason for f in ledger.fills()] == ["trade"]
+
+
+def test_a_fill_without_a_client_id_is_told_by_its_orders(account, ledger, exchange):
+    result = account.sync(T0)
+    account.execute(HOUR, {BTC.research: "Long"}, T0, result.equity, quotes(account))
+    exchange.fill_rows[-1] = replace(exchange.fill_rows[-1], client_id="")
+    account.sync(T0)
+    assert [f.reason for f in ledger.fills()] == ["trade"] and not account.paused
+
+
+@pytest.mark.parametrize("client_id", ["", "mine1", "O77"])
+def test_a_fill_of_an_order_that_is_not_the_programs_is_manual_whatever_its_client_id(
+    account, ledger, exchange, client_id
+):
+    go_long(account, exchange)
+    exchange.now = T0 + HOUR_MS
+    exchange.manual_fill(BTC.swap, 5, client_id)
+    result = account.sync(T0 + HOUR_MS)
+    assert [f.reason for f in ledger.fills()] == ["trade", "manual"] and account.paused
+    assert result.paused == ["交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00"]
+
+
+def test_a_fill_of_an_order_the_exchange_does_not_know_is_manual(account, ledger, exchange):
+    go_long(account, exchange)
+    exchange.now = T0 + HOUR_MS
+    exchange.manual_fill(BTC.swap, 5, "O77")
+    exchange.fail("order", OKXPrivateError("/api/v5/trade/order", "51603", "Order does not exist"))
+    result = account.sync(T0 + HOUR_MS)
+    assert [f.reason for f in ledger.fills()] == ["trade", "manual"] and account.paused
+    assert result.paused == ["交易所里有不是程序下的成交：BTC-USDT-SWAP buy 5 张 @ 80,000.00"]
 
 
 def test_a_fired_stop_is_told_from_all_its_fills_and_from_the_entry_of_the_position_it_closed():
