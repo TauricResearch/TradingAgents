@@ -4,7 +4,9 @@ A replay or an execution writes everything it changed in one transaction, so a
 run that fails part way leaves the account as it was and the next run redoes it.
 
 The ``signals`` table holds the intraday account's hourly decisions (ADR 0006);
-the daily account's ledger has it too, empty.
+the daily account's ledger has it too, empty. The ``transfers`` table holds the money
+a person moved into an account on the exchange or out of it (#40); a paper account's
+is empty.
 """
 
 from __future__ import annotations
@@ -26,7 +28,8 @@ CREATE TABLE IF NOT EXISTS fills (
 CREATE TABLE IF NOT EXISTS funding (
     ts INTEGER NOT NULL, inst TEXT NOT NULL, rate REAL NOT NULL, amount REAL NOT NULL,
     PRIMARY KEY (ts, inst));
-CREATE TABLE IF NOT EXISTS equity (ts INTEGER PRIMARY KEY, equity REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS equity (
+    ts INTEGER PRIMARY KEY, equity REAL NOT NULL, units REAL, contributed REAL);
 CREATE TABLE IF NOT EXISTS attempts (
     id INTEGER PRIMARY KEY, trade_date TEXT NOT NULL, coin TEXT NOT NULL, ts INTEGER NOT NULL,
     rating TEXT, error TEXT, tokens_in INTEGER, tokens_out INTEGER, cost_usd REAL);
@@ -37,6 +40,8 @@ CREATE TABLE IF NOT EXISTS signals (
     id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, coin TEXT NOT NULL, signal TEXT,
     conviction INTEGER, reason TEXT, error TEXT, tokens_in INTEGER, tokens_out INTEGER,
     cost_usd REAL);
+CREATE TABLE IF NOT EXISTS transfers (
+    bill_id TEXT PRIMARY KEY, ts INTEGER NOT NULL, amount REAL NOT NULL);
 CREATE INDEX IF NOT EXISTS fills_ts ON fills (ts);
 CREATE INDEX IF NOT EXISTS attempts_ts ON attempts (ts);
 CREATE INDEX IF NOT EXISTS attempts_trade_date_coin ON attempts (trade_date, coin);
@@ -45,6 +50,9 @@ CREATE INDEX IF NOT EXISTS signals_coin_id ON signals (coin, id);
 """
 
 BUDGET_ERROR = "budget: monthly LLM cap reached"
+
+# (table, column) a ledger written before them lacks: a writer adds them when it opens it.
+ADDED_COLUMNS = (("equity", "units REAL"), ("equity", "contributed REAL"))
 
 
 @dataclass
@@ -63,6 +71,20 @@ class Fill:
     fee: float
     reason: str          # "trade", "stop" or "kill"; on the exchange also "manual" and "adjust"
     trade_date: str | None = None
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    """The equity at a UTC midnight, with the account's units and the capital put into it
+    by then. A transfer buys units at the equity per unit of the moment, or sells them
+    (``Ledger.commit``), so the equity per unit moves with the trading alone: it is the
+    account's time-weighted value, which no transfer adds to or takes from. Until the
+    first transfer, and in a paper account always, both are the capital."""
+
+    ts: int
+    equity: float
+    units: float
+    contributed: float   # the capital and the transfers since, net: USDT put in less taken out
 
 
 class SignalLike(Protocol):
@@ -90,6 +112,11 @@ class Ledger:
                 f"file:{path}?mode=ro", uri=True, timeout=30, isolation_level=None,
                 check_same_thread=False,
             )
+            # It may be a ledger no writer has opened since the transfers were added,
+            # with none booked.
+            self._flows = not self._lacking() and self.db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'transfers'"
+            ).fetchone() is not None
             return
         path.parent.mkdir(parents=True, exist_ok=True)
         # The research phase writes attempts while an hourly replay may hold a
@@ -99,6 +126,18 @@ class Ledger:
         # wait on a writer's commit, and a writer not on theirs.
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
+        if self._lacking():
+            with self.transaction():  # one writer adds them, the next finds them there
+                for table, column in self._lacking():
+                    self.db.execute(f"ALTER TABLE {table} ADD COLUMN {column}")
+        self._flows = True
+
+    def _lacking(self) -> list[tuple[str, str]]:
+        """The ADDED_COLUMNS this ledger does not have yet."""
+        return [
+            (table, column) for table, column in ADDED_COLUMNS
+            if column.split()[0] not in {row[1] for row in self.db.execute(f"PRAGMA table_info({table})")}
+        ]
 
     # -- meta ---------------------------------------------------------------
 
@@ -153,9 +192,16 @@ class Ledger:
         meta: dict | None = None,
         executed: tuple[str, int] | None = None,
         events: list[tuple[int, str, str]] = (),
+        transfers: list[tuple[str, int, float]] = (),
     ) -> None:
         """Replace the positions and write everything a replay or execution changed,
-        ``events`` (ts, kind, text) among it."""
+        ``events`` (ts, kind, text) and ``transfers`` (bill id, ts, amount) among it.
+
+        A snapshot is written with the units and the contributed capital in meta
+        (``units``, ``contributed``) once ``meta`` has set them: those of the equity it
+        measured, which includes what this commit booked. A sync that books transfers
+        sets both (``Snapshot``); until one has, they are null, which reads as the
+        capital."""
         with self.transaction():
             self.db.execute("DELETE FROM positions")
             self.db.executemany(
@@ -170,13 +216,18 @@ class Ledger:
             self.db.executemany(
                 "INSERT INTO funding (ts, inst, rate, amount) VALUES (?, ?, ?, ?)", funding
             )
-            # A midnight a replay already marked keeps its value.
             self.db.executemany(
-                "INSERT OR IGNORE INTO equity (ts, equity) VALUES (?, ?)", snapshots
+                "INSERT INTO transfers (bill_id, ts, amount) VALUES (?, ?, ?)", transfers
             )
             self._set("cash", cash)
             for key, value in (meta or {}).items():
                 self._set(key, value)
+            # A midnight a replay already marked keeps its value.
+            units, contributed = self.get("units"), self.get("contributed")
+            self.db.executemany(
+                "INSERT OR IGNORE INTO equity (ts, equity, units, contributed) VALUES (?, ?, ?, ?)",
+                [(ts, equity, units, contributed) for ts, equity in snapshots],
+            )
             if executed:
                 self.db.execute(
                     "INSERT INTO executions (trade_date, ts) VALUES (?, ?)", executed
@@ -217,6 +268,43 @@ class Ledger:
     def equity_series(self, since_ms: int = 0) -> list[tuple[int, float]]:
         return self.db.execute(
             "SELECT ts, equity FROM equity WHERE ts >= ? ORDER BY ts", (since_ms,)
+        ).fetchall()
+
+    def snapshots(self, since_ms: int = 0) -> list[Snapshot]:
+        """The midnight snapshots since ``since_ms`` in time order."""
+        capital = self.get("capital")
+        if not self._flows:
+            return [Snapshot(ts, equity, capital, capital) for ts, equity in self.equity_series(since_ms)]
+        rows = self.db.execute(
+            "SELECT ts, equity, COALESCE(units, ?), COALESCE(contributed, ?) FROM equity"
+            " WHERE ts >= ? ORDER BY ts", (capital, capital, since_ms),
+        )
+        return [Snapshot(*row) for row in rows]
+
+    def adjusted_series(self, since_ms: int = 0) -> list[tuple[int, float]]:
+        """The midnight equity per unit, times the capital: what the capital would have
+        grown to without the transfers, the equity itself until the first. Its returns
+        are time-weighted (``Snapshot``)."""
+        capital = self.get("capital")
+        # Divided by the ratio, so that an equity measured with the capital's units stays
+        # the same float.
+        return [(s.ts, s.equity / (s.units / capital)) for s in self.snapshots(since_ms)]
+
+    def units(self) -> float:
+        """The account's units now (``Snapshot``)."""
+        return self.get("units", self.get("capital"))
+
+    def contributed(self) -> float:
+        """The capital put into the account now: the capital and the transfers, net."""
+        return self.get("contributed", self.get("capital"))
+
+    def transfers(self, since_ms: int = 0) -> list[tuple[int, float]]:
+        """(ts, amount) of the transfers booked since ``since_ms`` in time order; the
+        amount is the USDT moved in, negative when moved out."""
+        if not self._flows:
+            return []
+        return self.db.execute(
+            "SELECT ts, amount FROM transfers WHERE ts >= ? ORDER BY ts, bill_id", (since_ms,)
         ).fetchall()
 
     def add_event(self, ts: int, kind: str, text: str) -> None:

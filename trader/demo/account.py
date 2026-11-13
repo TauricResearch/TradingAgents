@@ -359,7 +359,8 @@ class DemoAccount:
 
         Fills, funding bills and the other bills since the last sync (less
         SYNC_OVERLAP_MS, up to CLOCK_SKEW_MS past now, deduplicated by bill id in meta
-        ``booked_bills``) are booked, a fill the program did not cause as MANUAL. A stop
+        ``booked_bills``) are booked, a fill the program did not cause as MANUAL, and a
+        transfer into the trading account or out of it (``_transfer``) as a transfer. A stop
         that fired on the exchange is alerted with what it traded and made
         (``_fired_text``): its fills, unlike those of a close the program sent for want of
         a stop, which that close's own alert announced, carry no client id. The positions
@@ -370,13 +371,22 @@ class DemoAccount:
         snapshot. A balance that cannot be read raises (``NoBalance``) before anything
         is booked.
 
+        A transfer is no PnL (#40): it buys units at the equity per unit of the moment,
+        or sells them (``Snapshot``), and the units and the peak grow by what it adds to
+        the equity, so the value per unit and the drawdown stay as they were. The moment
+        is this sync's: the PnL since the transfer counts at the new capital. Each
+        transfer is kept among the events and announced once, when booked. Transfers
+        that leave the equity at or below zero, or found it there, measure nothing and
+        are booked as bills nothing explains.
+
         What the sync cannot explain pauses the account (``pause``, ADR 0010), before
         anything is judged on the equity: a MANUAL fill (a liquidation's among them), a
         bill other than a trade's or a funding fee's that changed the balance, a
         position the booked fills still do not explain at a sync MISMATCH_GRACE_MS after
         the one that first found it (until then a problem: the next hourly sync books
         a fill the exchange reports late), and equity above the profile's
-        ``max_equity``. Each reason is alerted once, when it enters.
+        ``max_equity`` (a transfer that takes it there among them). Each reason is
+        alerted once, when it enters.
 
         The peak follows equity, and a drawdown of KILL_DRAWDOWN with positions open
         trips the kill switch (``halt``). A paused account trips nothing: the drawdown is
@@ -392,7 +402,7 @@ class DemoAccount:
         since = ledger.get("synced_to", ledger.get("processed_to"))
         begin = since - SYNC_OVERLAP_MS
         booked: dict[str, int] = ledger.get("booked_bills") or {}
-        fills, funding, manual, unexplained, problems, alerts = [], [], [], [], [], []
+        fills, funding, manual, unexplained, transfers, problems, alerts = [], [], [], [], [], [], []
         fired: dict[str, list[tuple[float, Fill]]] = {}  # inst -> (contracts, fill) of its stop's fills
         end = now_ms + CLOCK_SKEW_MS
         for f in self.private.fills(begin, end):
@@ -417,9 +427,13 @@ class DemoAccount:
             # A trade's bill and a funding fee's are what the fills and the funding book.
             if b.bill_id in booked or b.type in (TRADE_BILL, FUNDING_BILL) or not b.amount:
                 continue
-            unexplained.append(b)
+            (transfers if _transfer(b) else unexplained).append(b)
             booked[b.bill_id] = b.ts
         booked = {bill: ts for bill, ts in booked.items() if ts >= begin}
+        cash, equity = balance.cash, balance.equity
+        moved = sum(b.amount for b in transfers)
+        if transfers and min(equity, equity - moved) <= 0:
+            unexplained, transfers, moved = unexplained + transfers, [], 0.0
 
         old = ledger.positions()
         alerts += [_fired_text(inst, legs, old.get(inst)) for inst, legs in fired.items()]
@@ -464,7 +478,6 @@ class DemoAccount:
                 else:
                     problems.append(text)
 
-        cash, equity = balance.cash, balance.equity
         cap = self.profile.max_equity
         if cap is not None and equity > cap:
             text = f"净值 {equity:,.2f} USDT 超过上限 {cap:,.0f} USDT"
@@ -474,7 +487,17 @@ class DemoAccount:
         alerts += [self.profile.pause_alert(text) for text in paused]
         # While a bill nothing explains pauses the account, its equity measures nothing.
         unmeasured = any(r["key"].startswith("bill:") for r in self.pause_reasons)
-        peak = ledger.get("peak") if unmeasured else max(ledger.get("peak"), equity)
+        grown = equity / (equity - moved) if moved else 1.0
+        peak = ledger.get("peak") * grown
+        peak = peak if unmeasured else max(peak, equity)
+        flows: dict = {}
+        if transfers:
+            flows = {"units": ledger.units() * grown, "contributed": ledger.contributed() + moved}
+            alerts.append(
+                "出入金已记账：" + "；".join(_bill_text(b) for b in transfers)
+                + f"。投入本金合计 {flows['contributed']:,.2f} USDT，峰值按比例调为 {peak:,.2f}，"
+                "收益率和回撤不算这笔钱"
+            )
         halted = ledger.get("halted")
         tripped = killed = False
         if (
@@ -511,7 +534,10 @@ class DemoAccount:
         snapshots = [(m, equity) for m in _midnights(ledger.get("snapshot_to", since), now_ms)]
         ledger.commit(
             positions=positions, cash=cash, fills=fills, funding=funding, snapshots=snapshots,
+            transfers=[(b.bill_id, b.ts, b.amount) for b in transfers],
+            events=[(b.ts, "transfer", _bill_text(b)) for b in transfers],
             meta={
+                **flows,
                 "peak": peak, "halted": halted, "synced_to": now_ms, "snapshot_to": now_ms,
                 "booked_bills": booked, "mismatched": mismatched, "equity": equity, "synced_at": now_ms,
                 "problems": problems,
@@ -1019,8 +1045,14 @@ def _error(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"[:200]
 
 
+def _transfer(bill: Bill) -> bool:
+    """Whether ``bill`` is money moved into the trading account (OKX's transfer in,
+    subtype 11) or out of it (transfer out, 12), its amount signed to match."""
+    return bill.type == TRANSFER_BILL and (bill.sub_type, bill.amount > 0) in (("11", True), ("12", False))
+
+
 def _bill_text(bill: Bill) -> str:
-    """A bill nothing explains, as the pause it causes names it."""
+    """A bill as the pause it causes or the transfer it books names it."""
     what = {"11": "转入", "12": "转出"}.get(bill.sub_type) if bill.type == TRANSFER_BILL else None
     what = what or f"账单类型 {bill.type}（子类型 {bill.sub_type}）"
     return f"{bill.inst} {what}".strip() + f" {bill.amount:+,.2f} USDT"

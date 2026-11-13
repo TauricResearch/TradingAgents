@@ -1,8 +1,9 @@
 """What pauses an account and what lifts the pause (ADR 0010, #34).
 
 The demo and live accounts pause on what their sync cannot explain: a fill the program
-did not make, a change of the balance that no trade, fee or funding explains, a
-position the booked fills still do not explain at the next hourly sync. The live account
+did not make, a change of the balance that no trade, fee, funding or transfer explains
+(transfers: tests/test_transfers.py), a position the booked fills still do not explain
+at the next hourly sync. The live account
 also pauses when what its orders follow changes (the code of ``trader/`` or the Signal)
 and while its equity is over MAX_EQUITY, and refuses an order that would leave a position
 of more than MAX_POSITION notional.
@@ -96,25 +97,21 @@ def test_a_position_closed_by_hand_is_not_opened_again_the_next_hour(env):
     assert env.exchange.calls[calls:] == []
 
 
-def test_money_moved_out_pauses_the_account_without_tripping_its_kill_switch(env):
+def test_money_moved_out_and_back_is_booked_and_the_account_trades_on(env):
     run(env, 0)
-    peak = env.ledger.get("peak")
-    env.exchange.transfer(-3_000.0)  # 30% of the equity: past the kill line
+    env.exchange.transfer(-3_000.0)  # 30% of the equity: past the kill line, were it a loss
     run(env, 1)
-    out = "余额有成交和资金费以外的变动：转出 -3,000.00 USDT"
-    assert env.account.paused and pause_alerts(env) == [f"【demo】{DEMO.pause_alert(out)}"]
+    assert not env.account.paused and pause_alerts(env) == []
     assert env.ledger.get("halted") is False and "kill" not in env.events()
-    assert env.exchange.book[BTC.swap][0] == 10 and env.ledger.get("peak") == peak
-    assert not [text for text in env.inbox.sent if "熔断" in text]
-    with pytest.raises(job.Refused, match=f"已到熔断线 {KILL_DRAWDOWN:.0%}.*#40"):
-        resume(env, RUN0 + HOUR_MS + 60_000)
-    assert env.account.paused
+    assert [text for text in env.inbox.sent if "出入金" in text] == [
+        f"【demo】出入金已记账：转出 -3,000.00 USDT。投入本金合计 7,000.00 USDT，"
+        f"峰值按比例调为 {env.ledger.get('peak'):,.2f}，收益率和回撤不算这笔钱"
+    ]
+    assert orders(env)[-1][2] < 0  # the unit sized on what is left
     env.exchange.transfer(3_000.0)
-    with pytest.raises(job.Refused, match="对账发现了新的暂停原因"):
-        resume(env, RUN0 + HOUR_MS + 120_000)
-    reasons, _ = resume(env, RUN0 + HOUR_MS + 180_000)
-    assert [r["text"] for r in reasons] == [out, "余额有成交和资金费以外的变动：转入 +3,000.00 USDT"]
-    assert not env.account.paused
+    run(env, 2)
+    assert not env.account.paused and orders(env)[-1][2] > 0
+    assert events(env, "transfer") == ["转出 -3,000.00 USDT", "转入 +3,000.00 USDT"]
 
 
 def test_a_paused_account_down_to_the_kill_line_alerts_and_a_halt_still_closes_it_out(env):
@@ -127,6 +124,12 @@ def test_a_paused_account_down_to_the_kill_line_alerts_and_a_halt_still_closes_i
     assert env.account.paused and env.ledger.get("halted") is False and "kill" not in env.events()
     assert env.exchange.book[BTC.swap][0] == 15
     assert f"【demo】对账：回撤已到熔断线 {KILL_DRAWDOWN:.0%}：账户暂停中，程序不平仓，请人工处理" in env.inbox.sent
+    with pytest.raises(job.Refused, match=(
+        f"已到熔断线 {KILL_DRAWDOWN:.0%}（.*）：解除之后一有持仓就会熔断；要平仓并重置峰值，"
+        "先运行 python -m trader demo halt，再运行 python -m trader demo resume --kill。$"
+    )):
+        resume(env, RUN0 + 2 * HOUR_MS + 30_000)
+    assert env.account.paused
     env.exchange.now = RUN0 + 2 * HOUR_MS + 60_000
     job.halt(env.settings, env.account, env.inbox, now_fn=Clock(env.exchange.now).now, sleep=lambda s: None)
     assert env.ledger.get("halted") is True and env.exchange.book[BTC.swap][0] == 0
@@ -254,6 +257,15 @@ def test_live_equity_over_its_cap_pauses_the_account_and_holds_the_resume(tradin
     assert str(refused.value) == f"这些情况还在，解除了也会再暂停：\n  {text}"
     run(trading, 1)
     assert len(pause_alerts(trading)) == 1
+
+
+def test_a_transfer_that_takes_live_equity_over_its_cap_is_booked_and_pauses_on_the_cap(trading):
+    trading.exchange.transfer(2_000.0)  # beside the 500 it holds
+    run(trading, 0)
+    text = "净值 2,500.00 USDT 超过上限 2,000 USDT"
+    assert [r["key"] for r in trading.account.pause_reasons] == ["equity"]
+    assert pause_alerts(trading) == [f"【live】{LIVE.pause_alert(text)}"] and orders(trading) == []
+    assert trading.ledger.transfers() == [(HOUR, 2_000.0)] and trading.ledger.contributed() == 2_500.0
 
 
 def test_a_live_order_leaving_a_position_over_its_cap_is_refused_and_alerted(trading):
