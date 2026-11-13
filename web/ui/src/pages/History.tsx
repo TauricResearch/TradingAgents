@@ -42,6 +42,7 @@ const REASON: Record<FillReason, { label: string; cls: string }> = {
   stop: { label: '止损', cls: 'border-down/50 bg-down/15 text-down' },
   kill: { label: '熔断', cls: 'border-accent/60 bg-accent/15 text-accent' },
   manual: { label: '非程序', cls: 'border-down/50 bg-down/15 text-down' },
+  adjust: { label: '调整', cls: 'border-accent/60 text-accent' },
 }
 
 function ReasonChip({ reason }: { reason: FillReason }) {
