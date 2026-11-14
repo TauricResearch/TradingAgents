@@ -24,6 +24,10 @@ def replace_file(path, write: Callable[[str], None]) -> None:
     temp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
     try:
         write(str(temp))
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
+    try:
         os.replace(temp, path)
     except PermissionError as exc:
         temp.unlink(missing_ok=True)
