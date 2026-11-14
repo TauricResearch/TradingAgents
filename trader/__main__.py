@@ -286,6 +286,14 @@ def demo_halt(yes: bool = typer.Option(False, "--yes", "-y", help="不再确认�
     _halt(settings, account, notifier, yes)
 
 
+@demo_app.command("pause")
+def demo_pause(note: str = typer.Option("", "--note", help="为什么暂停，写进暂停原因")) -> None:
+    """Pause the demo account by hand: no new orders, its positions and their stops on the
+    exchange left as they are, until ``demo resume``. Asks the exchange nothing."""
+    settings, account, notifier, _ = _open_demo()
+    _pause(settings, account, notifier, note)
+
+
 @demo_app.command("resume")
 def demo_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断；不加时解除暂停")) -> None:
     """Lift the demo account's pause once a sync just now finds nothing that pauses it,
@@ -478,6 +486,15 @@ def live_halt(yes: bool = typer.Option(False, "--yes", "-y", help="不再确认�
     _halt(settings, account, notifier, yes)
 
 
+@live_app.command("pause")
+def live_pause(note: str = typer.Option("", "--note", help="为什么暂停，写进暂停原因")) -> None:
+    """Pause the live account by hand: no new orders, its positions and their stops on the
+    exchange left as they are, until ``live resume``; unlike a halt, the experiment goes
+    on. Asks the exchange nothing."""
+    settings, account, notifier, _ = _open_live()
+    _pause(settings, account, notifier, note)
+
+
 @live_app.command("resume")
 def live_resume(kill: bool = typer.Option(False, "--kill", help="解除熔断：live 不接受，见 ADR 0010")) -> None:
     """Unpause the live account: the first time, ADR 0010's unlock, after which its next
@@ -611,6 +628,32 @@ def _halt(settings: Settings, account: DemoAccount, notifier: Notifier, yes: boo
         _fail(f"{name} 没能熔断：{jobs.error_text(exc)}")
     for line in lines:
         typer.echo(line)
+
+
+MANUAL_PAUSE = "manual_pause"  # the key of the reason demo pause and live pause enter
+
+
+def _pause(settings: Settings, account: DemoAccount, notifier: Notifier, note: str) -> None:
+    """``demo pause`` and ``live pause``: a reason a person gives, entered under the
+    account's lock, so an hourly run under way finishes first. A halted account is
+    refused; a second manual pause only says the first stands."""
+    profile = account.profile
+    if account.ledger.get("halted"):
+        _fail(f"{profile.name} 账户处于熔断，不用再暂停")
+    reason = f"人工暂停：{note.strip()}" if note.strip() else "人工暂停"
+    with locked(profile.lock_path(settings)):
+        entered = account.pause(_now_ms(), reason, key=MANUAL_PAUSE)
+    if not entered:
+        standing = next(r for r in account.pause_reasons if r["key"] == MANUAL_PAUSE)
+        when = datetime.fromtimestamp(standing["since"] / 1000, UTC).strftime("%m-%d %H:%M")
+        typer.echo(f"{profile.name} 已经在人工暂停中（{when} UTC 起）：{standing['text']}")
+        return
+    text = (
+        f"{reason}。不再下新单，仓位和止损单原样保留，暂停期间不改止损、回撤到线只告警；"
+        f"运行 {profile.resume_command} 解除。"
+    )
+    notifier.send(text)
+    typer.echo(text)
 
 
 def _resume(settings: Settings, account: DemoAccount, intraday: Ledger) -> None:

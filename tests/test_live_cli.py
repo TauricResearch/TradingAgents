@@ -364,3 +364,59 @@ def test_an_open_unlock_unpauses_the_account_and_its_next_hour_sets_it_up_and_tr
     assert result.output.splitlines()[-1] == "live 的暂停已解除：下一次每小时运行起恢复自动下单。"
     assert live.inbox.sent[-1] == "【live】暂停已解除：下一次每小时运行起恢复自动下单。"
     assert not account.paused
+
+
+def test_live_pause_holds_the_orders_of_an_unlocked_account_until_resume_and_asks_the_exchange_nothing(unlocked):
+    live = unlocked
+    account = DemoAccount(
+        ledger(live), FakeOKX(), live.exchange, watchlist=(BTC,), sleep=lambda s: None, profile=live_account.LIVE,
+    )
+
+    def run(now_ms, signal):
+        hour = now_ms - now_ms % HOUR_MS
+        live.intraday.record_signal(hour + 3 * 60_000, BTC.research, SignalResult(signal, 1, "", None, 1, 1))
+        live.intraday.set("decided_hour", hour)
+        live.exchange.now = now_ms
+        clock = Clock(now_ms)
+        job.run(live.settings, account, live.inbox, live.intraday, now_fn=clock.now, sleep=clock.sleep)
+
+    run(RUN0, "Long")
+    assert invoke("resume").exit_code == 0
+    run(RUN0 + HOUR_MS, "Long")
+    held = live.exchange.book[BTC.swap][0]
+    assert held > 0
+    calls, sent = len(live.exchange.calls), len(live.inbox.sent)
+    live.now[0] = RUN0 + HOUR_MS + 30 * 60_000
+    result = invoke("pause", "--note", "先看看研判")
+    assert result.exit_code == 0, result.output
+    text = (
+        "人工暂停：先看看研判。不再下新单，仓位和止损单原样保留，暂停期间不改止损、回撤到线只告警；"
+        "运行 python -m trader live resume 解除。"
+    )
+    assert result.output.splitlines() == [text]
+    assert live.inbox.sent[sent:] == [f"【live】{text}"]
+    assert account.paused
+    assert [(r["key"], r["text"]) for r in account.pause_reasons] == [("manual_pause", "人工暂停：先看看研判")]
+    when = datetime.fromtimestamp(live.now[0] / 1000, UTC).strftime("%m-%d %H:%M")
+    again = invoke("pause")
+    assert again.exit_code == 0
+    assert again.output.strip() == f"live 已经在人工暂停中（{when} UTC 起）：人工暂停：先看看研判"
+    assert len(account.pause_reasons) == 1 and len(live.inbox.sent) == sent + 1
+    run(RUN0 + 2 * HOUR_MS, "Short")
+    assert len(live.exchange.calls) == calls and live.exchange.book[BTC.swap][0] == held
+    live.now[0] = RUN0 + 2 * HOUR_MS + 30 * 60_000
+    result = invoke("resume")
+    assert result.exit_code == 0, result.output
+    assert f"解除暂停：人工暂停：先看看研判（{when} UTC 起）" in result.output.splitlines()
+    assert not account.paused
+    run(RUN0 + 3 * HOUR_MS, "Short")
+    assert live.exchange.book[BTC.swap][0] < 0
+
+
+def test_live_pause_is_refused_once_the_kill_switch_is_tripped(live):
+    assert invoke("init").exit_code == 0
+    assert invoke("halt", "--yes").exit_code == 0
+    result = invoke("pause", "--note", "晚了")
+    assert result.exit_code == 1 and "live 账户处于熔断，不用再暂停" in result.output
+    assert "manual_pause" not in [r["key"] for r in ledger(live).get("pause_reasons")]
+    assert len(live.inbox.sent) == 1
