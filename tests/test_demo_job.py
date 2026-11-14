@@ -505,6 +505,27 @@ def test_demo_resume_lifts_a_pause_and_leaves_a_kill_to_its_flag(demo_cli):
     assert ledger.get("paused") is False and ledger.get("halted") is True
 
 
+def test_demo_pause_enters_the_reason_given_and_resume_lifts_it(demo_cli, monkeypatch):
+    runner, exchange, settings = demo_cli
+    inbox = Inbox()
+    monkeypatch.setattr(cli, "Notifier", lambda settings: inbox)
+    assert runner.invoke(cli.app, ["demo", "init"]).exit_code == 0
+    result = runner.invoke(cli.app, ["demo", "pause", "--note", "换模型之前"])
+    assert result.exit_code == 0, result.output
+    text = (
+        "人工暂停：换模型之前。不再下新单，仓位和止损单原样保留，暂停期间不改止损、回撤到线只告警；"
+        "运行 python -m trader demo resume 解除。"
+    )
+    assert result.output.splitlines() == [text] and inbox.sent[-1] == f"【demo】{text}"
+    ledger = Ledger(settings.demo_ledger_path, readonly=True)
+    assert ledger.get("paused") is True
+    assert [(r["key"], r["text"]) for r in ledger.get("pause_reasons")] == [("manual_pause", "人工暂停：换模型之前")]
+    result = runner.invoke(cli.app, ["demo", "resume"])
+    assert result.exit_code == 0, result.output
+    assert any(line.startswith("解除暂停：人工暂停：换模型之前（") for line in result.output.splitlines())
+    assert Ledger(settings.demo_ledger_path, readonly=True).get("paused") is False
+
+
 def test_demo_resume_kill_on_an_account_still_paused_says_it_will_not_trade(demo_cli, monkeypatch):
     runner, exchange, settings = demo_cli
     inbox = Inbox()
