@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR_LIBRARIES = {"yfinance"}
+VENDOR_LIBRARIES = {"yfinance", "akshare"}
 
 
 def _imports(path: Path) -> set[str]:

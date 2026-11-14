@@ -41,9 +41,19 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+# A-share (China) market data via AKShare, cached under .akshare_data/.
+# pip install "tradingagents[ashare]"
+# Capped below 1.20.41: from 1.20.41 to 1.20.48 AKShare renamed nine of the
+# functions the data layer calls (and may have changed their columns); moving
+# to the new names needs a check that the cached data's schema still matches.
+ashare = [
+    "akshare>=1.20.35,<1.20.41",
+    "pyarrow>=26.0.1",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-ashare = "tradingagents.dataflows.vendors.akshare.cli:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}

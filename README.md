@@ -227,6 +227,25 @@ TradingAgents works with any market Yahoo Finance covers, using the exchange-suf
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
 - Crypto: `BTC-USD`, `ETH-USD`
 
+#### A-share market data (AKShare)
+
+A local store of China A-share data, kept under `.akshare_data/` in the repository root (git-ignored), for A-share analysis. It is filled incrementally from AKShare: index and bond series, Shenwan (申万) industry valuations and constituents, margin trading, macro releases, financial reports, the full-market quote, and daily bars for every stock.
+
+```bash
+pip install -e ".[ashare]"
+tradingagents-ashare sync                  # download what is missing (the first full stock history takes a while and resumes if interrupted)
+tradingagents-ashare sync --only market,spot
+tradingagents-ashare status                # what is stored and how fresh, offline
+```
+
+```python
+from tradingagents.dataflows.vendors.akshare import load_stock, load_cross_section
+load_stock("SH600519")                     # every daily bar for one stock
+load_cross_section("2026-11-13")           # the whole market on one day
+```
+
+Set `TRADINGAGENTS_AKSHARE_DATA_DIR` (or pass `--data-dir`) to keep the data elsewhere. The modules are in [tradingagents/dataflows/vendors/akshare/](tradingagents/dataflows/vendors/akshare/).
+
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
