@@ -15,6 +15,7 @@ from tradingagents.dataflows.date_window import get_current_date, is_historical
 from tradingagents.dataflows.symbols import safe_ticker_component
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_tier_client, tier_provider
+from tradingagents.llm_clients.usage_tracker import BudgetExceeded, UsageTracker
 from tradingagents.memory import TradingMemoryLog, settlement
 from tradingagents.memory.reflection import Reflector
 from tradingagents.reporting import write_report_tree
@@ -75,7 +76,15 @@ class TradingAgentsGraph:
         os.makedirs(self.config["data_cache_dir"], exist_ok=True)
         os.makedirs(self.config["results_dir"], exist_ok=True)
 
-        extra = {"callbacks": self.callbacks} if self.callbacks else {}
+        # R5: one usage meter per run, shared by both model tiers. The caller's
+        # callbacks are kept but de-duplicated so a handler supplied twice is
+        # not run (and counted) twice.
+        self.usage_tracker = UsageTracker(budget_usd=self.config.get("max_run_budget_usd"))
+        llm_callbacks = []
+        for handler in [*self.callbacks, self.usage_tracker]:
+            if handler not in llm_callbacks:
+                llm_callbacks.append(handler)
+        extra = {"callbacks": llm_callbacks}
         self.deep_thinking_llm = create_tier_client(self.config, "deep", **extra).get_llm()
         self.quick_thinking_llm = create_tier_client(self.config, "quick", **extra).get_llm()
 
@@ -323,6 +332,8 @@ class TradingAgentsGraph:
             if done.failed:
                 note = (f"{len(done.failed)} past decision(s) could not be settled this run "
                         "and stay pending.")
+        except BudgetExceeded:
+            raise   # a budget stop must abort the run, not be swallowed here
         except Exception as exc:
             logger.warning("Settling past decisions failed: %s", exc)
             note = f"Past decisions could not be settled this run ({type(exc).__name__}); they stay pending."
@@ -373,6 +384,12 @@ class TradingAgentsGraph:
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
                    checkpoint_thread_id: str | None = None, portfolio=None):
         """Execute the graph and write the resulting state to disk and memory log."""
+        # A reused graph starts each run with a fresh meter (no carry-over spend
+        # or stop state from a previous run). A lightweight test double may not
+        # carry a meter at all; the run then simply records no cost.
+        tracker = getattr(self, "usage_tracker", None)
+        if tracker is not None:
+            tracker.reset()
         init_agent_state = self.create_run_state(company_name, trade_date, asset_type, portfolio)
         args = self.propagator.get_graph_args()
 
@@ -383,26 +400,61 @@ class TradingAgentsGraph:
 
         # None resumes an existing checkpoint; init_agent_state starts fresh (#1249).
         graph_input = self.checkpoint_input(init_agent_state)
-        if self.debug:
-            # A state repeats the messages before it, so each prints once (#1027).
-            final_state, printed = {}, set()
-            for messages, state in self.stream_run(graph_input, **args):
-                for msg in messages:
-                    key = getattr(msg, "id", None) or (type(msg).__name__, getattr(msg, "content", None))
-                    if key not in printed:
-                        printed.add(key)
-                        msg.pretty_print()
-                if state is not None:
-                    final_state.update(state)
-        else:
-            final_state = self.graph.invoke(graph_input, **args)
+        final_state: dict = {}
+        try:
+            if self.debug:
+                # A state repeats the messages before it, so each prints once (#1027).
+                printed = set()
+                for messages, state in self.stream_run(graph_input, **args):
+                    for msg in messages:
+                        key = getattr(msg, "id", None) or (type(msg).__name__, getattr(msg, "content", None))
+                        if key not in printed:
+                            printed.add(key)
+                            msg.pretty_print()
+                    if state is not None:
+                        final_state.update(state)
+            else:
+                final_state = self.graph.invoke(graph_input, **args)
+        finally:
+            # R5: persist the run's cost whether it succeeded, raised, or was
+            # stopped by the budget; never let cost writing mask the real error.
+            if tracker is not None:
+                self.write_costs(company_name, trade_date, final_state)
 
+        if tracker is not None:
+            final_state["llm_cost"] = tracker.to_dict()
         self.record_decision(company_name, trade_date, final_state)
 
         # Clear checkpoint on successful completion to avoid stale state.
         self.clear_checkpoint_on_success(company_name, trade_date, asset_type, portfolio)
 
         return final_state, run_rating(final_state)
+
+    def write_costs(self, company_name, trade_date, final_state: dict | None = None) -> Path:
+        """Write this run's usage/cost summary to ``results_dir/costs/<ticker>_<date>.json``.
+
+        Called in a ``finally`` so a successful, failed or budget-stopped run all
+        leave a cost record, independent of whether a report is saved. A write
+        failure is logged, never raised, so it cannot hide the run's own outcome.
+        """
+        summary = self.usage_tracker.to_dict() if self.usage_tracker is not None else {}
+        try:
+            directory = Path(self.config["results_dir"]) / "costs"
+            directory.mkdir(parents=True, exist_ok=True)
+            safe_ticker = safe_ticker_component(str(company_name))
+            path = directory / f"{safe_ticker}_{trade_date}.json"
+            payload = {
+                "ticker": str(company_name),
+                "trade_date": str(trade_date),
+                "run_settings": self.run_settings(),
+                **summary,
+            }
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=4, ensure_ascii=False)
+            return path
+        except Exception as exc:   # never let cost persistence break a run
+            logger.warning("Could not write the run's cost summary: %s", exc)
+            return Path(self.config["results_dir"]) / "costs" / f"{company_name}_{trade_date}.json"
 
     def stream_run(self, graph_input, **args):
         """Stream a run as ``(messages, state)`` pairs.
@@ -462,6 +514,7 @@ class TradingAgentsGraph:
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
             "final_rating": run_rating(final_state),
+            "debate_context_stats": final_state.get("debate_context_stats"),
             "run_settings": self.run_settings(),
         }
 

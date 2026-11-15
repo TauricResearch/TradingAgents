@@ -57,13 +57,33 @@ def test_a_report_that_was_never_produced_says_so(module, factory):
     sections invites the model to invent the contents."""
     from langchain_core.messages import AIMessage
 
+    from tradingagents.agents.schemas import DebateClaim, DebateTurn
+
     mod = importlib.import_module(module)
     seen = []
 
     class _LLM:
         def invoke(self, prompt, *a, **k):
-            seen.append(prompt if isinstance(prompt, str) else str(prompt))
-            return AIMessage("argument")
+            text = prompt if isinstance(prompt, str) else str(prompt)
+            seen.append(text)
+
+            if "Return only a JSON object matching this schema." in text:
+                turn = DebateTurn(
+                    key_claims=[
+                        DebateClaim(
+                            evidence="RSI 61, price 178.",
+                            reasoning="A test thesis based on the market report.",
+                            response="Opening thesis.",
+                        )
+                    ],
+                    evidence_refs=["market report"],
+                    refuted_points=[],
+                    stance_score=0.5,
+                    reverse_check="Other reports are unavailable.",
+                )
+                return AIMessage(content=turn.model_dump_json())
+
+            return AIMessage(content="argument")
 
         def with_structured_output(self, *a, **k):
             raise NotImplementedError

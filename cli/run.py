@@ -31,6 +31,7 @@ from tradingagents.graph.analyst_execution import (
     build_analyst_execution_plan,
 )
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.llm_clients.usage_tracker import BudgetExceeded
 
 
 def _run_directory(config: dict, ticker: str, trade_date: str) -> Path:
@@ -237,6 +238,8 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
         # interrupted run instead of re-appending the initial state (#1249); the
         # try/finally tears the checkpointer down even if the stream raises.
         trace = []
+        final_state = {}
+        budget_stopped = False
         try:
             for messages, chunk in graph.stream_run(graph.checkpoint_input(init_agent_state), **args):
                 for message in messages:
@@ -343,7 +346,6 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
 
             # Streamed chunks are per-node deltas, not full state. Merge them
             # so every report field populated across the run is present.
-            final_state = {}
             for chunk in trace:
                 final_state.update(chunk)
 
@@ -354,26 +356,79 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
             graph.clear_checkpoint_on_success(
                 selections["ticker"], selections["analysis_date"], selections["asset_type"], portfolio
             )
+        except BudgetExceeded:
+            # The meter refused the next request; the run is over. The cost is
+            # written (and the checkpoint released) in the finally below, then
+            # reported clearly instead of as a success.
+            budget_stopped = True
         finally:
+            # R5: persist the run's cost on success, failure or a budget stop.
+            # The summary is kept on the state too, so a saved report shows it.
+            write_costs = getattr(graph, "write_costs", None)
+            tracker = getattr(graph, "usage_tracker", None)
+            if write_costs is not None:
+                write_costs(selections["ticker"], selections["analysis_date"], final_state)
+            if tracker is not None:
+                final_state["llm_cost"] = tracker.to_dict()
             # Always restore the plain uncheckpointed graph, even on failure.
             graph.end_checkpoint()
 
-        for agent in message_buffer.agent_status:
-            message_buffer.update_agent_status(agent, "completed")
+        if budget_stopped:
+            # The run ended early: leave each agent at its true state (unfinished
+            # agents stay in_progress/pending), and record why the run stopped
+            # instead of the normal success summary.
+            message_buffer.add_message(
+                "System",
+                f"BUDGET_STOPPED: the run's LLM budget was reached after {selections['analysis_date']}; "
+                "the analysis is incomplete and no further requests were made.",
+            )
+        else:
+            for agent in message_buffer.agent_status:
+                message_buffer.update_agent_status(agent, "completed")
 
-        message_buffer.add_message(
-            "System", f"Completed analysis for {selections['analysis_date']}"
-        )
-        message_buffer.add_message("System", analyst_wall_time_tracker.format_summary())
+            message_buffer.add_message(
+                "System", f"Completed analysis for {selections['analysis_date']}"
+            )
+            message_buffer.add_message("System", analyst_wall_time_tracker.format_summary())
 
-        for section in message_buffer.report_sections:
-            if section in final_state:
-                message_buffer.update_report_section(section, final_state[section])
+            for section in message_buffer.report_sections:
+                if section in final_state:
+                    message_buffer.update_report_section(section, final_state[section])
 
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
+    cost = final_state.get("llm_cost")
+    results_dir = getattr(graph, "config", {}).get("results_dir") or DEFAULT_CONFIG["results_dir"]
+    cost_file = (Path(results_dir) / "costs"
+                 / f"{safe_ticker_component(selections['ticker'])}_{selections['analysis_date']}.json")
+
+    if budget_stopped:
+        # A budget stop ends the run early: do not present it as a success.
+        spent = (cost or {}).get("total_usd", 0.0)
+        console.print(
+            "\n[yellow]BUDGET_STOPPED[/yellow] — the run's LLM budget was reached, so no "
+            f"further requests were made (spent ~${spent:.4f}).\n"
+            f"  Cost summary: {cost_file}\n"
+            "[dim]The analysis is incomplete; raise TRADINGAGENTS_RUN_BUDGET_USD or set it "
+            "unset to finish.[/dim]"
+        )
+        return
+
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
+
+    if isinstance(cost, dict) and cost:
+        line = (
+            f"[dim]LLM usage: {cost.get('tokens_in', 0)} tokens in, "
+            f"{cost.get('tokens_out', 0)} tokens out, ~${cost.get('total_usd', 0.0):.4f} "
+            f"over {cost.get('calls', 0)} calls"
+        )
+        if cost.get("unknown_models"):
+            line += " (some models have unknown price)"
+        if cost.get("usage_complete") is False:
+            line += (f" (incomplete: {cost.get('missing_usage_calls', 0)} call(s) reported "
+                     "no usage; totals are a lower bound)")
+        console.print(line + "[/dim]")
 
     # A decision nobody can read is not a position. Say so here rather than
     # leaving the run to look like a normal result.

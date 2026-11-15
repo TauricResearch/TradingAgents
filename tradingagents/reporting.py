@@ -43,6 +43,27 @@ def _header(ticker: str, final_state: dict, settings: dict | None) -> str:
             lines.append("- Data vendors: " + ", ".join(f"{k} {v}" for k, v in vendors.items()))
     if final_state.get("memory_note"):
         lines.append(f"- Memory log: {final_state['memory_note']}")
+    cost = final_state.get("llm_cost")
+    if isinstance(cost, dict) and cost:
+        line = (f"- Cost: {cost.get('tokens_in', 0)} tokens in, "
+                f"{cost.get('tokens_out', 0)} tokens out, ~${cost.get('total_usd', 0.0):.4f} "
+                f"over {cost.get('calls', 0)} calls")
+        if cost.get("unknown_models"):
+            line += " (some models have unknown price)"
+        if cost.get("usage_complete") is False:
+            line += (f" (incomplete: {cost.get('missing_usage_calls', 0)} call(s) "
+                     "reported no usage; tokens and cost are a lower bound)")
+        if cost.get("stopped"):
+            line += f" — stopped: {cost.get('stop_reason', 'BUDGET_STOPPED')}"
+        lines.append(line)
+    stats = final_state.get("debate_context_stats")
+    if isinstance(stats, dict) and stats:
+        lines.append(
+            f"- Debate context ({stats.get('mode', '?')}): "
+            f"~{stats.get('token_estimate', 0)} tokens injected, "
+            f"{stats.get('saved_chars', 0)} chars saved "
+            f"({stats.get('saved_ratio', 0) * 100:.1f}% of {stats.get('original_chars', 0)})"
+        )
     return "\n".join(lines) + "\n\n"
 
 

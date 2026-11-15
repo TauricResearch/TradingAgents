@@ -377,3 +377,55 @@ def render_sentiment_report(report: SentimentReport) -> str:
         "",
         report.narrative,
     ])
+
+class DebateClaim(BaseModel):
+    """One argument with evidence, reasoning, and a direct response."""
+
+    evidence: str = Field(
+        min_length=1,
+        description="Evidence from the supplied reports. State any evidence gap.",
+    )
+    reasoning: str = Field(
+        min_length=1,
+        description="Explain how the evidence supports the claim.",
+    )
+    response: str = Field(
+        min_length=1,
+        description=(
+            "Respond directly to the opponent's claim. "
+            "If the opponent has not spoken, state your opening thesis."
+        ),
+    )
+
+
+class DebateTurn(BaseModel):
+    """Structured output for one bull or bear debate turn."""
+
+    key_claims: list[DebateClaim] = Field(
+        min_length=1,
+        description="The main arguments, each with evidence, reasoning, and a response.",
+    )
+    evidence_refs: list[str] = Field(
+        description=(
+            "Report sources and specific supporting figures. "
+            "If no figures are available, state the limitation."
+        ),
+    )
+    refuted_points: list[str] = Field(
+        description=(
+            "Your own earlier claims that you withdraw, with reasons. "
+            "Use an empty list when there is nothing to withdraw."
+        ),
+    )
+    stance_score: float = Field(
+        ge=-1.0,
+        le=1.0,
+        allow_inf_nan=False,
+        description="-1 is strongly bearish, 0 is neutral, and +1 is strongly bullish.",
+    )
+    reverse_check: str = Field(
+        description=(
+            "The strongest challenge to your own argument. "
+            "Provide it on your final turn. Earlier turns may use an empty string."
+        ),
+    )

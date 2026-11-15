@@ -9,6 +9,7 @@ from tradingagents.agents.structured import (
     bind_structured,
     invoke_structured_or_freetext,
 )
+from tradingagents.dataflows.config import get_config
 
 
 def create_research_manager(llm):
@@ -17,6 +18,13 @@ def create_research_manager(llm):
     def research_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
         history = state["investment_debate_state"].get("history", "")
+        # R1: the manager reads a bounded view of the debate rather than the
+        # full unbounded history (see context_budget.py; imported here to avoid
+        # the graph-package import cycle triggered by agents/__init__).
+        from tradingagents.graph.context_budget import compact_from_config
+
+        bounded = compact_from_config(history, get_config())
+        injected_history = bounded.text
 
         investment_debate_state = state["investment_debate_state"]
 
@@ -38,7 +46,7 @@ The debate always contains conflicting arguments; deciding which side is stronge
 ---
 
 **Debate History:**
-{history}
+{injected_history}
 
 ## Output
 
@@ -69,6 +77,7 @@ Write these sections, in this order, starting with the recommendation on its own
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": investment_plan,
+            "debate_context_stats": bounded.metrics(),
         }
 
     return research_manager_node

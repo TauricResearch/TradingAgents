@@ -28,8 +28,30 @@ _REPORTS = {
 
 def _capturing_llm(captured: dict):
     llm = MagicMock()
-    llm.invoke.side_effect = lambda prompt: (
-        captured.__setitem__("prompt", prompt) or MagicMock(content="argument")
+
+    def plain_invoke(prompt):
+        captured["prompt"] = prompt
+        return MagicMock(content="argument")
+
+    def structured_invoke(prompt):
+        captured["prompt"] = prompt
+        return {
+            "key_claims": [
+                {
+                    "evidence": "Evidence supplied in the test report.",
+                    "reasoning": "A test argument.",
+                    "response": "Address the opponent or present an opening thesis.",
+                }
+            ],
+            "evidence_refs": ["market report"],
+            "refuted_points": [],
+            "stance_score": 0.5,
+            "reverse_check": "The evidence may be incomplete.",
+        }
+
+    llm.invoke.side_effect = plain_invoke
+    llm.with_structured_output.return_value.invoke.side_effect = (
+        structured_invoke
     )
     return llm
 

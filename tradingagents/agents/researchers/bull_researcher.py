@@ -4,13 +4,30 @@ from tradingagents.agents.context import (
     opponent_argument_or_opening,
     report_or_absent,
 )
+from tradingagents.agents.schemas import DebateTurn
+from tradingagents.agents.structured import bind_structured
+from tradingagents.agents.utils.debate_skel import (
+    build_debate_instructions,
+    invoke_debate_turn,
+    render_debate_turn,
+)
+from tradingagents.dataflows.config import get_config
 
 
 def create_bull_researcher(llm):
+    structured_llm = bind_structured(llm, DebateTurn, "Bull Analyst")
     def bull_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
         bull_history = investment_debate_state.get("bull_history", "")
+        # R1: inject a bounded view of the debate history instead of the full
+        # growing text; the stored ``history`` above is still appended in full
+        # below, so the report and downstream state are unchanged. Imported here
+        # to avoid the graph-package import cycle triggered by agents/__init__.
+        from tradingagents.graph.context_budget import compact_from_config
+
+        bounded = compact_from_config(history, get_config())
+        injected_history = bounded.text
 
         current_response = opponent_argument_or_opening(
             investment_debate_state.get("current_response", ""), "bear analyst"
@@ -28,6 +45,15 @@ def create_bull_researcher(llm):
             else "Asset fundamentals report (may be unavailable for crypto)"
         )
 
+        config = get_config()
+        current_round = investment_debate_state["count"] // 2 + 1
+        is_final_turn = current_round >= config["max_debate_rounds"]
+
+        debate_instructions = build_debate_instructions(
+            "bull",
+            is_final_turn=is_final_turn,
+        )
+
         prompt = f"""You are a Bull Analyst advocating for investing in the {target_label}. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
 Key points to focus on:
@@ -43,14 +69,18 @@ Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
 {fundamentals_label}: {fundamentals_report}
-Conversation history of the debate: {history}
+Conversation history of the debate: {injected_history}
 Last bear argument: {current_response}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
+{debate_instructions}
 """ + get_language_instruction()
 
-        response = llm.invoke(prompt)
+        turn = invoke_debate_turn(llm, structured_llm, prompt)
+        rendered = render_debate_turn(
+            turn,
+            is_final_turn=is_final_turn,
+        )
 
-        argument = f"Bull Analyst: {response.content}"
+        argument = f"Bull Analyst: {rendered}"
 
         new_investment_debate_state = {
             "history": history + "\n" + argument,
@@ -60,6 +90,9 @@ Use this information to deliver a compelling bull argument, refute the bear's co
             "count": investment_debate_state["count"] + 1,
         }
 
-        return {"investment_debate_state": new_investment_debate_state}
+        return {
+            "investment_debate_state": new_investment_debate_state,
+            "debate_context_stats": bounded.metrics(),
+        }
 
     return bull_node

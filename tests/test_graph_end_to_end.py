@@ -41,6 +41,19 @@ STRUCTURED = {
         investment_thesis="Street consensus rating: Buy (28 of 35 analysts)."),
     schemas.SentimentReport: schemas.SentimentReport(
         overall_band=schemas.SentimentBand.NEUTRAL, overall_score=5.0, confidence="low", narrative="n"),
+        schemas.DebateTurn: schemas.DebateTurn(
+        key_claims=[
+            schemas.DebateClaim(
+                evidence="Test market report.",
+                reasoning="The report supports the test thesis.",
+                response="Address the opponent or present an opening thesis.",
+            )
+        ],
+        evidence_refs=["market report"],
+        refuted_points=[],
+        stance_score=0.5,
+        reverse_check="The test evidence may be incomplete.",
+    ),
 }
 
 ARGS = {"symbol": "NVDA", "ticker": "NVDA", "curr_date": TRADE_DATE, "start_date": "2026-01-02",
@@ -87,7 +100,12 @@ class ScriptedModel(BaseChatModel):
                      for i, t in enumerate(self.tools)]
             message = AIMessage(content="", tool_calls=calls)
         else:
-            message = AIMessage(content=TEXT)
+            prompt_text = str(messages[-1].content)
+            if "Return only a JSON object matching this schema." in prompt_text:
+                content = STRUCTURED[schemas.DebateTurn].model_dump_json()
+            else:
+                content = TEXT
+            message = AIMessage(content=content)
         return ChatResult(generations=[ChatGeneration(message=message)])
 
 

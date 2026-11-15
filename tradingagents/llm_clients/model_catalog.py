@@ -244,6 +244,51 @@ LEGACY_MODELS: dict[str, list[str]] = {
 }
 
 
+# Public list price per model, in USD per 1,000,000 tokens:
+# ``(input_usd_per_million, output_usd_per_million)``.
+#
+# Only models whose price is confirmed against the provider's own pricing page
+# are listed here. A ``(provider, model)`` absent from this table is treated as
+# *unknown* by the cost meter (``usage_tracker``), not as free — prices are
+# never fabricated. Add a row only with an official source; keep the direct
+# source URL, the date it was checked, and the estimate's scope next to it.
+#
+# Estimate scope for every row: the provider's **Standard** (on-demand, non-batch,
+# non-Fast) list price for **short context** (<=272K input tokens). Long context,
+# Batch, Flex, Fast/cached, regional/FedRAMP uplifts and promotional rates are not
+# modelled; the meter bills the Standard short-context list price as an estimate.
+#
+# Source (gpt-6-sol): https://platform.openai.com/docs/pricing
+#   Standard, short context, per 1M tokens: input $2.00, output $10.00
+#   (long context $4.00 / $15.00; Batch $1.00 / $5.00; Fast $4.00 / $20.00).
+#   Verified 2026-11-14.
+MODEL_PRICING: dict[tuple[str, str], tuple[float, float]] = {
+    ("openai", "gpt-6-sol"): (2.00, 10.00),
+}
+
+_PRICING_SOURCES: dict[tuple[str, str], str] = {
+    ("openai", "gpt-6-sol"):
+        "https://platform.openai.com/docs/pricing "
+        "(Standard, short context <=272K; checked 2026-11-14)",
+}
+
+
+def get_price(provider: str | None, model: str | None) -> tuple[float, float] | None:
+    """The ``(input, output)`` USD-per-million price of a model, or ``None``.
+
+    ``None`` matches an unknown provider/model; the cost meter reports it as
+    unknown rather than inventing a price.
+    """
+    if not provider or not model:
+        return None
+    return MODEL_PRICING.get((provider.lower(), model))
+
+
+def get_price_source(provider: str, model: str) -> str | None:
+    """Where a model's price was checked, for traceability."""
+    return _PRICING_SOURCES.get((provider.lower(), model))
+
+
 def get_known_models() -> dict[str, list[str]]:
     """Build known model names from the shared CLI catalog plus legacy IDs."""
     return {

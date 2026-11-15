@@ -10,7 +10,7 @@ class Reflector:
         """Initialize the reflector with an LLM."""
         self.quick_thinking_llm = quick_thinking_llm
 
-    def _system_prompt(self, holding_days: int) -> str:
+    def _system_prompt(self, holding_days: int, cost_adjusted: bool = False) -> str:
         """Concise prompt for reflect_on_final_decision (settled memory log entries).
 
         Produces 2-4 sentences of plain prose, compact enough to be re-injected
@@ -19,7 +19,7 @@ class Reflector:
         written for months is not disproved by a week, and a lesson that ignores
         the difference is read by later runs as an established failure.
         """
-        return (
+        prompt = (
             "You are a trading analyst reviewing your own past decision now that the outcome is known.\n"
             f"The outcome covers {holding_days} trading days from the first close after the analysis date, "
             "which may be shorter than the horizon the decision was written for.\n"
@@ -32,6 +32,14 @@ class Reflector:
             "Be specific and terse. Your output will be stored verbatim in a memory log "
             "and re-read by future analysts, so every word must earn its place."
         )
+        if cost_adjusted:
+            prompt += (
+                "\nThe net figures include round-trip trading costs; gross figures show the price "
+                "move before costs. Use net alpha to judge the cost-adjusted outcome. "
+                "If costs change the conclusion, say so explicitly. Do not infer a filled "
+                "order or position size from these figures."
+            )
+        return prompt
 
     def reflect_on_final_decision(
         self,
@@ -40,6 +48,8 @@ class Reflector:
         alpha_return: float,
         benchmark_name: str = "SPY",
         holding_days: int = 5,
+        gross_raw_return: float | None = None,
+        gross_alpha_return: float | None = None,
     ) -> str:
         """Single reflection call on the final trade decision with outcome context.
 
@@ -49,15 +59,23 @@ class Reflector:
         for US tickers, ``"^N225"`` for ``.T`` listings); defaults to SPY for
         callers that haven't been updated to thread the benchmark through.
         """
+        if (gross_raw_return is None) != (gross_alpha_return is None):
+            raise ValueError("pass both gross returns or neither")
+        cost_adjusted = gross_raw_return is not None
+        if cost_adjusted:
+            outcome = (
+                f"Gross return over {holding_days} trading days: {gross_raw_return:+.1%}\n"
+                f"Net return after round-trip trading costs: {raw_return:+.1%}\n"
+                f"Gross alpha vs {benchmark_name}: {gross_alpha_return:+.1%}\n"
+                f"Net alpha vs {benchmark_name}: {alpha_return:+.1%}\n\n"
+            )
+        else:
+            outcome = (
+                f"Raw return over {holding_days} trading days: {raw_return:+.1%}\n"
+                f"Alpha vs {benchmark_name}: {alpha_return:+.1%}\n\n"
+            )
         messages = [
-            ("system", self._system_prompt(holding_days)),
-            (
-                "human",
-                (
-                    f"Raw return over {holding_days} trading days: {raw_return:+.1%}\n"
-                    f"Alpha vs {benchmark_name}: {alpha_return:+.1%}\n\n"
-                    f"Final Decision:\n{final_decision}"
-                ),
-            ),
+            ("system", self._system_prompt(holding_days, cost_adjusted=cost_adjusted)),
+            ("human", f"{outcome}Final Decision:\n{final_decision}"),
         ]
         return self.quick_thinking_llm.invoke(messages).content
