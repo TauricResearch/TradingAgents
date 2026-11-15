@@ -2,6 +2,7 @@
 it against its benchmark and record a reflection on it in the memory log."""
 
 import logging
+import math
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -126,6 +127,34 @@ def fetch_returns(
     return raw, alpha, holding_days, resolution_date
 
 
+def apply_trading_costs(
+    gross_raw: float,
+    gross_alpha: float,
+    cost_bps: float,
+    min_commission: float = 0.0,
+    trade_notional: float | None = None,
+) -> tuple[float, float]:
+    """Apply a simplified round-trip cost, with a minimum fee per side."""
+    if not all(math.isfinite(value) for value in (gross_raw, gross_alpha, cost_bps, min_commission)):
+        raise ValueError("returns and costs must be finite")
+    if gross_raw < -1 or cost_bps < 0 or min_commission < 0:
+        raise ValueError("invalid gross return or trading cost")
+
+    per_side = cost_bps / 10_000
+    if min_commission > 0:
+        if trade_notional is None or not math.isfinite(trade_notional) or trade_notional <= 0:
+            raise ValueError("positive trade_notional required for min_commission")
+        per_side = max(per_side, min_commission / trade_notional)
+    if not math.isfinite(per_side) or per_side >= 1:
+        raise ValueError("per-side cost rate must be below 100%")
+    if per_side == 0:
+        return gross_raw, gross_alpha
+
+    net_raw = (1 + gross_raw) * (1 - per_side) ** 2 - 1
+    net_alpha = gross_alpha - (gross_raw - net_raw)
+    return net_raw, net_alpha
+
+
 @dataclass
 class Settlement:
     """What a settlement pass did: the decisions it settled and those it could not."""
@@ -154,23 +183,47 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
         benchmark = resolve_benchmark(ticker, config)
         for entry in pending:
             try:
-                raw, alpha, days, resolution_date = fetch_returns(
+                gross_raw, gross_alpha, days, resolution_date = fetch_returns(
                     ticker, entry["date"], config.get("holding_period_days", 5), benchmark=benchmark,
                 )
             except Exception as exc:
                 logger.warning("Prices for settling %s on %s were unavailable: %s", ticker, entry["date"], exc)
                 result.failed.append((ticker, entry["date"], f"prices unavailable: {exc}"))
                 continue
-            if raw is None:
+            if gross_raw is None:
                 continue  # the holding window has not traded yet: try again next run
+            use_costs = config.get("use_cost_adjusted_returns", False)
+            if not isinstance(use_costs, bool):
+                result.failed.append((ticker, entry["date"], "invalid cost config: switch must be boolean"))
+                continue
+            net_raw, net_alpha = gross_raw, gross_alpha
+            if use_costs:
+                try:
+                    net_raw, net_alpha = apply_trading_costs(
+                        gross_raw,
+                        gross_alpha,
+                        cost_bps=float(config.get("trading_cost_bps", 0.0)),
+                        min_commission=float(config.get("min_commission", 0.0)),
+                        trade_notional=float(config.get("assumed_trade_notional", 0.0)),
+                    )
+                except (TypeError, ValueError, OverflowError) as exc:
+                    logger.warning("Invalid cost config for %s on %s: %s", ticker, entry["date"], exc)
+                    result.failed.append((ticker, entry["date"], f"invalid cost config: {exc}"))
+                    continue
             try:
-                reflection = reflector.reflect_on_final_decision(
-                    final_decision=entry.get("decision", ""),
-                    raw_return=raw,
-                    alpha_return=alpha,
-                    benchmark_name=benchmark,
-                    holding_days=days,
-                )
+                reflection_args = {
+                    "final_decision": entry.get("decision", ""),
+                    "raw_return": net_raw,
+                    "alpha_return": net_alpha,
+                    "benchmark_name": benchmark,
+                    "holding_days": days,
+                }
+                if use_costs:
+                    reflection_args.update(
+                        gross_raw_return=gross_raw,
+                        gross_alpha_return=gross_alpha,
+                    )
+                reflection = reflector.reflect_on_final_decision(**reflection_args)
             except BudgetExceeded:
                 # A budget stop must abort the run, not be treated as a transient
                 # reflection failure and retried next pass.
@@ -181,7 +234,7 @@ def settle_pending(ticker: str, memory_log, reflector, config: dict, wait: bool 
                 logger.warning("Reflection failed for %s on %s: %s", ticker, entry["date"], exc)
                 result.failed.append((ticker, entry["date"], f"reflection failed: {exc}"))
                 continue
-            if memory_log.update_with_outcome(ticker, entry["date"], raw, alpha, days, reflection,
+            if memory_log.update_with_outcome(ticker, entry["date"], net_raw, net_alpha, days, reflection,
                                               resolution_date=resolution_date):
                 result.settled.append((ticker, entry["date"]))
     return result

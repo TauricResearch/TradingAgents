@@ -22,6 +22,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_MAX_TOOL_ROUNDS":      "max_tool_rounds",
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
+    "TRADINGAGENTS_HOLDING_DAYS":         "holding_period_days",
+    "TRADINGAGENTS_USE_COST_ADJUSTED_RETURNS": "use_cost_adjusted_returns",
+    "TRADINGAGENTS_TRADING_COST_BPS":     "trading_cost_bps",
+    "TRADINGAGENTS_MIN_COMMISSION":       "min_commission",
+    "TRADINGAGENTS_ASSUMED_TRADE_NOTIONAL": "assumed_trade_notional",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
@@ -95,6 +100,8 @@ def _apply_env_overrides(config: dict) -> dict:
                 config[key] = _coerce(raw, config.get(key))
         except ValueError as exc:
             raise ValueError(f"Invalid value for {env_var}: {exc}") from exc
+    if config["holding_period_days"] <= 0:
+        raise ValueError("TRADINGAGENTS_HOLDING_DAYS must be positive")
     return config
 
 
@@ -215,6 +222,12 @@ def build_default_config() -> dict:
         # Trading days from the first close after the analysis date over which a
         # decision's outcome is measured, for reflection and for the backtest figures.
         "holding_period_days": 5,
+        # Costs are per side. The minimum commission and assumed notional share
+        # a currency; no actual order size is available in the memory log.
+        "use_cost_adjusted_returns": True,
+        "trading_cost_bps": 10.0,
+        "min_commission": 0.0,
+        "assumed_trade_notional": 10_000.0,
         "benchmark_ticker": None,
         "benchmark_map": {
             ".NS":  "^NSEI",       # NSE India (Nifty 50)

@@ -1,0 +1,42 @@
+version: 1
+scope: R4 contribution only; the team will add R1, R2, R3, and R5
+requirements:
+  - id: R4
+    title: Cost-aware returns and configurable holding period
+    type: quality
+    priority: Should
+    problem: Historical decisions are scored on price changes without trading costs, so reflections may treat gross returns as realizable returns.
+    statement: Settlement must use a configurable holding period in trading sessions. When costs are enabled, it must record net return and net alpha and provide both gross and net figures to reflection.
+    assumptions:
+      - Costs apply on both entry and exit, with a default of 10 bps per side.
+      - Minimum commission and assumed trade notional use the same currency; this feature does not simulate orders or currency conversion.
+      - Legacy settled log entries have no cost-policy marker and must not be mixed with new net-return entries as one measurement basis.
+    acceptance:
+      - id: R4-A1
+        criterion: The default holding period is five trading sessions; an environment variable can override it, and zero or negative values raise an error.
+        evidence:
+          - tests/test_cost_adjusted_returns.py::test_r4_default_cost_policy
+          - tests/test_cost_adjusted_returns.py::test_cost_and_holding_env_overrides
+          - tests/test_cost_adjusted_returns.py::test_invalid_env_override_fails
+      - id: R4-A2
+        criterion: With a 5% gross return and 10 bps per side, the round-trip net return is 4.790105%, and net alpha decreases by the same cost difference.
+        evidence:
+          - tests/test_cost_adjusted_returns.py::test_round_trip_cost_example
+      - id: R4-A3
+        criterion: With the cost switch off, settled return and alpha equal the unadjusted gross figures.
+        evidence:
+          - tests/test_cost_adjusted_returns.py::test_switch_off_preserves_gross_settlement
+      - id: R4-A4
+        criterion: With a minimum commission of 5 per side and an assumed notional of 2000, the effective per-side fee is 0.25%.
+        evidence:
+          - tests/test_cost_adjusted_returns.py::test_minimum_commission_uses_assumed_notional_per_side
+      - id: R4-A5
+        criterion: An incomplete holding window remains pending; a complete window settles once and passes gross and net returns and alpha to reflection.
+        evidence:
+          - tests/test_cost_adjusted_returns.py::test_incomplete_window_stays_pending_without_reflection
+          - tests/test_cost_adjusted_returns.py::test_cost_adjusted_settlement_passes_both_values_and_writes_net
+          - tests/test_cost_adjusted_returns.py::test_reflection_shows_gross_and_net_with_regional_benchmark
+    implementation:
+      - tradingagents/default_config.py
+      - tradingagents/memory/settlement.py
+      - tradingagents/memory/reflection.py
