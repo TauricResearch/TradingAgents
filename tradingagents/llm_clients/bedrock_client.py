@@ -66,7 +66,7 @@ class BedrockClient(BaseLLMClient):
         bearer_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
         if bearer_token:
             llm_kwargs["api_key"] = bearer_token
-        for key in ("temperature", "max_tokens", "max_retries", "callbacks"):
+        for key in ("temperature", "max_tokens", "max_retries", "callbacks", "metadata"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
         return chat_cls(**llm_kwargs)

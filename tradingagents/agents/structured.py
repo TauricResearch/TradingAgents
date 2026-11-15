@@ -24,6 +24,8 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
+from tradingagents.llm_clients.usage_tracker import BudgetExceeded
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
@@ -73,6 +75,10 @@ def invoke_structured(structured_llm: Any | None, prompt: Any, agent_name: str) 
             # as a structured miss and fall back, with a clear reason.
             raise ValueError("structured output returned no parsed result")
         return result
+    except BudgetExceeded:
+        # A budget stop must abort the run; retrying as free text would spend
+        # more on the very request we just refused.
+        raise
     except Exception as exc:
         logger.warning(
             "%s: structured-output invocation failed (%s); retrying once as free text",

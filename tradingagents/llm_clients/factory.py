@@ -152,5 +152,12 @@ def create_tier_client(config: dict, tier: str, **extra) -> BaseLLMClient:
     else:
         base_url = config.get(f"{tier}_think_backend_url")
     kwargs = build_llm_kwargs({**config, "llm_provider": provider})
-    return create_llm_client(provider=provider, model=config[f"{tier}_think_llm"], base_url=base_url,
-                             **kwargs, **extra)
+    model_name = config[f"{tier}_think_llm"]
+    # Tag the model so the cost meter knows which provider/model each call used
+    # (the callback sees this via on_*_start's metadata). Caller-supplied
+    # metadata is merged in, not replaced.
+    metadata = dict(extra.pop("metadata", None) or {})
+    metadata.setdefault("ta_provider", provider)
+    metadata.setdefault("ta_model", model_name)
+    return create_llm_client(provider=provider, model=model_name, base_url=base_url,
+                             metadata=metadata, **kwargs, **extra)

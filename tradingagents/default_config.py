@@ -25,6 +25,7 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_RUN_BUDGET_USD":       "max_run_budget_usd",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -61,6 +62,26 @@ def _coerce(value: str, reference):
     return value
 
 
+def _coerce_budget(raw: str) -> float:
+    """Parse a budget env value to a finite non-negative float, else raise.
+
+    The default is ``None`` (no cap), which carries no type for ``_coerce`` to
+    follow, so budget strings are parsed explicitly here: a numeric string
+    becomes a float; NaN, ±inf, negatives and non-numbers are rejected.
+    """
+    import math
+
+    try:
+        number = float(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"expected a number, got {raw!r}") from exc
+    if math.isnan(number) or math.isinf(number):
+        raise ValueError(f"expected a finite number, got {raw!r}")
+    if number < 0:
+        raise ValueError(f"expected a non-negative number, got {number}")
+    return number
+
+
 def _apply_env_overrides(config: dict) -> dict:
     """Apply TRADINGAGENTS_* env vars to the config dict in-place."""
     for env_var, key in _ENV_OVERRIDES.items():
@@ -68,7 +89,10 @@ def _apply_env_overrides(config: dict) -> dict:
         if raw is None or raw == "":
             continue
         try:
-            config[key] = _coerce(raw, config.get(key))
+            if key == "max_run_budget_usd":
+                config[key] = _coerce_budget(raw)
+            else:
+                config[key] = _coerce(raw, config.get(key))
         except ValueError as exc:
             raise ValueError(f"Invalid value for {env_var}: {exc}") from exc
     return config
@@ -118,6 +142,10 @@ def build_default_config() -> dict:
         # provider/SDK at its own default (usually 2). Raise it to ride out bursty
         # 429 throttling on rate-limited deployments instead of aborting a run (#1091).
         "llm_max_retries": None,
+        # R5: per-run LLM budget in USD. None means no cap. When set, the usage
+        # meter stops the run (BUDGET_STOPPED) before the next request that would
+        # push spending past this amount. See llm_clients/usage_tracker.py.
+        "max_run_budget_usd": None,
         # Cap on output tokens forwarded to every provider chat client. None leaves
         # each provider at its own default. Set it to bound a model that emits
         # unbounded reasoning/output and hangs or trips a gateway idle timeout
