@@ -11,6 +11,7 @@ free-text generation and the rating is read from that text.
 from __future__ import annotations
 
 from tradingagents.agents.context import (
+    bound_agent_prompt,
     get_instrument_context_from_state,
     get_language_instruction,
     get_portfolio_context_from_state,
@@ -26,6 +27,9 @@ def create_portfolio_manager(llm):
     def portfolio_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
         portfolio_context = get_portfolio_context_from_state(state)
+        has_portfolio = bool((state.get("portfolio_context") or "").strip())
+        hold_meaning = ("maintain the supplied current position" if has_portfolio else
+                        "the evidence supports no new directional action; do not interpret Hold as maintaining an assumed position")
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -50,7 +54,7 @@ def create_portfolio_manager(llm):
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction to enter or add to position
 - **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
+- **Hold**: {hold_meaning}
 - **Underweight**: Reduce exposure, take partial profits
 - **Sell**: Exit position or avoid entry
 
@@ -77,6 +81,7 @@ Write these sections, in this order, starting with the rating on its own line:
 
         # The typed rating is the decision; the rendered text only carries it.
         # Read back from text, a rating the thesis quotes could replace it.
+        prompt = bound_agent_prompt(prompt)
         decision = invoke_structured(structured_llm, prompt, "Portfolio Manager")
         if decision is not None:
             final_trade_decision = render_pm_decision(decision)

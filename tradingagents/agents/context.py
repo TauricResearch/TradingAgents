@@ -3,6 +3,7 @@
 import functools
 import logging
 from collections.abc import Mapping
+from math import ceil
 from typing import Any
 
 from tradingagents.dataflows.date_window import is_historical
@@ -212,7 +213,107 @@ def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
     if isinstance(context, str) and context.strip():
         return context
     return (
+        "Holdings and cash were not provided; no account ownership is assumed.\n"
         "Portfolio context: not provided. You do not know the caller's current "
         "holdings or cash, so do not assume a flat book; give direction and "
         "sizing guidance in terms the caller can apply to their own position."
     )
+
+# Application-level context guard. Estimates are deliberately provider-neutral;
+# they bound assembled characters/4 and are not billing or aggregate run budgets.
+class ContextBudgetError(RuntimeError):
+    """Protected context cannot fit within the application estimate cap."""
+
+
+def estimate_context_tokens(text: str) -> int:
+    return ceil(len(text) / 4)
+
+
+def _message_role(message) -> str:
+    if isinstance(message, Mapping):
+        return str(message.get("role", "user")).casefold()
+    return str(getattr(message, "type", "user")).casefold()
+
+
+def _message_content(message):
+    if isinstance(message, Mapping):
+        return message.get("content")
+    return getattr(message, "content", None)
+
+
+def _with_message_content(message, content):
+    if isinstance(message, Mapping):
+        return {**message, "content": content}
+    if hasattr(message, "model_copy"):
+        return message.model_copy(update={"content": content})
+    return message.copy(update={"content": content}) if hasattr(message, "copy") else message
+
+
+def _trim_narrative(text: str, budget: int) -> str:
+    if len(text) <= budget:
+        return text
+    marker = "\n[… older context compacted …]\n"
+    if budget <= len(marker):
+        return text[-budget:] if budget > 0 else ""
+    return marker + text[-(budget - len(marker)):]
+
+
+def bound_agent_prompt(prompt, context_cap_tokens: int = 24000,
+                       compaction_threshold_tokens: int = 19200):
+    """Keep instructions/system layers intact and compact only narrative middles.
+
+    For chat messages, all system/developer messages are protected. Other text
+    keeps its opening and most recent tail as protected task/context edges; only
+    the middle is eligible for deterministic compaction.
+    """
+    cap = int(context_cap_tokens) * 4
+    target = min(int(compaction_threshold_tokens) * 4, cap)
+    if isinstance(prompt, str):
+        if len(prompt) <= target:
+            return prompt
+        edge = min(4096, len(prompt) // 3)
+        prefix, suffix = prompt[:edge], prompt[-edge:]
+        protected = len(prefix) + len(suffix)
+        if protected > cap:
+            raise ContextBudgetError("Protected task context exceeds the configured context cap.")
+        middle_budget = target - protected
+        middle = _trim_narrative(prompt[edge:-edge], middle_budget)
+        compacted = prefix + middle + suffix
+        if len(compacted) > cap:
+            raise ContextBudgetError("Prompt cannot fit after deterministic compaction.")
+        return compacted
+    if not isinstance(prompt, (list, tuple)):
+        return prompt
+    messages = list(prompt)
+    total = sum(len(content) for content in (_message_content(m) for m in messages)
+                if isinstance(content, str))
+    if total <= target:
+        return prompt
+    protected_total = 0
+    mutable = []
+    for index, message in enumerate(messages):
+        content = _message_content(message)
+        if not isinstance(content, str):
+            continue
+        role = _message_role(message)
+        if role in {"system", "developer"}:
+            protected_total += len(content)
+            continue
+        edge = min(2048, len(content) // 3)
+        protected_total += min(len(content), edge * 2)
+        mutable.append((index, content, edge))
+    if protected_total > cap:
+        raise ContextBudgetError("Protected task context exceeds the configured context cap.")
+    budget = max(0, target - protected_total)
+    original_narrative = sum(max(0, len(content) - 2 * edge)
+                             for _, content, edge in mutable)
+    for index, content, edge in mutable:
+        middle = content[edge:-edge] if edge else content
+        share = (budget * len(middle) // original_narrative) if original_narrative else len(middle)
+        replacement = content[:edge] + _trim_narrative(middle, share) + (content[-edge:] if edge else "")
+        messages[index] = _with_message_content(messages[index], replacement)
+    compacted_total = sum(len(content) for content in (_message_content(m) for m in messages)
+                          if isinstance(content, str))
+    if compacted_total > cap:
+        raise ContextBudgetError("Prompt cannot fit after deterministic compaction.")
+    return type(prompt)(messages) if isinstance(prompt, tuple) else messages

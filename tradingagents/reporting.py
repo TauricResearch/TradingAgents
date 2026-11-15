@@ -89,6 +89,22 @@ def _report_parts(final_state: dict) -> list[tuple[str, str, list[tuple[str, str
     return parts
 
 
+
+def render_body(final_state: dict, context, redactor):
+    """Render report sections without a header, then add frozen trusted notices."""
+    from tradingagents.runapi.checks import DISCLAIMER, NO_PORTFOLIO_NOTICE
+    parts = _report_parts(final_state)
+    sections = []
+    for heading, _folder, written in parts:
+        content = "\n\n".join(f"### {agent}\n{text}" for agent, _name, text in written)
+        sections.append(f"## {heading}\n\n{content}")
+    chunks = []
+    if context.mode.value == "NO_PORTFOLIO":
+        chunks.append(f"> {NO_PORTFOLIO_NOTICE}")
+    chunks.extend(sections or ["## Analysis\n\nNo report sections were returned by the analysis workflow."])
+    chunks.append(f"## Disclaimer\n\n{DISCLAIMER}")
+    return redactor.scrub("\n\n".join(chunks)), parts
+
 def write_report_tree(final_state: dict, ticker: str, save_path, settings: dict | None = None,
                       html: bool = True) -> Path:
     """Save a completed run's reports to ``save_path``; return the complete-report path.

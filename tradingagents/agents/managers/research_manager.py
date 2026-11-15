@@ -16,6 +16,9 @@ def create_research_manager(llm):
 
     def research_manager_node(state) -> dict:
         instrument_context = get_instrument_context_from_state(state)
+        has_portfolio = bool((state.get("portfolio_context") or "").strip())
+        hold_meaning = ("maintain the supplied current position" if has_portfolio else
+                        "the evidence supports no new directional action; do not interpret Hold as maintaining an assumed position")
         history = state["investment_debate_state"].get("history", "")
 
         investment_debate_state = state["investment_debate_state"]
@@ -29,7 +32,7 @@ def create_research_manager(llm):
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
 - **Overweight**: Constructive view; recommend gradually increasing exposure
-- **Hold**: Balanced view; recommend maintaining the current position
+- **Hold**: Balanced view; {hold_meaning}
 - **Underweight**: Cautious view; recommend trimming exposure
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 

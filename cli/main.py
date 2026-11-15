@@ -13,6 +13,8 @@ from tradingagents.backtest import iter_grid, run_backtest, summarize
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients.openai_client import SIGNED_IN_PROVIDERS
 from tradingagents.portfolio import load_portfolio
+from tradingagents.runapi.input_service import PortfolioInputService
+from tradingagents.runapi.result import InputError
 
 # prompt_toolkit's win32 output module is importable only on Windows (it asserts
 # the platform at import time), so gate on the platform rather than catching the
@@ -48,10 +50,13 @@ def analyze(
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
     portfolio: str = typer.Option(
-        None,
-        "--portfolio",
-        help="JSON file with current holdings and cash, so the trader, risk and "
-        "portfolio agents size against your actual position.",
+        None, "--portfolio", help="Explicit JSON portfolio file; prompts are suppressed."
+    ),
+    without_portfolio: bool = typer.Option(
+        False, "--without-portfolio", help="Explicitly run without portfolio information."
+    ),
+    portfolio_as_of: str = typer.Option(
+        None, "--portfolio-as-of", help="Date the selected portfolio snapshot represents (must match --date in unattended runs)."
     ),
     ticker: str = typer.Option(None, "--ticker", help="Ticker to analyze, e.g. NVDA or 0700.HK; skips the prompt"),
     date: str = typer.Option(None, "--date", help="Analysis date, YYYY-MM-DD; skips the prompt"),
@@ -80,16 +85,32 @@ def analyze(
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
+    if portfolio and without_portfolio:
+        console.print("[red]Use either --portfolio or --without-portfolio, not both.[/red]")
+        raise typer.Exit(code=1)
+    if portfolio_as_of and not portfolio:
+        console.print("[red]--portfolio-as-of requires --portfolio.[/red]")
+        raise typer.Exit(code=1)
+    loaded_portfolio = None
     portfolio_context = None
     if portfolio:
         try:
-            portfolio_context = load_portfolio(portfolio)
-        except ValueError as exc:
-            console.print(f"[red]{exc}[/red]")
+            loaded_portfolio = PortfolioInputService.read_file(portfolio)
+            portfolio_context = loaded_portfolio.context
+        except InputError as exc:
+            console.print(f"[red]{exc.detail}[/red]")
             raise typer.Exit(code=1) from None
 
     try:
-        flags = {"ticker": ticker, "date": date, "analysts": analysts, "save": save, "show": show, "html": html}
+        flags = {
+            "ticker": ticker, "date": date, "analysts": analysts,
+            "save": save, "show": show, "html": html,
+        }
+        if portfolio:
+            flags.update({"portfolio_path": portfolio, "portfolio_as_of": portfolio_as_of,
+                          "loaded_portfolio": loaded_portfolio})
+        if without_portfolio:
+            flags["without_portfolio"] = True
         run_analysis(checkpoint=checkpoint, portfolio=portfolio_context, flags=flags)
     except _NO_CONSOLE_ERRORS:
         # A terminal with no console buffer cannot host the interactive prompts.

@@ -1,4 +1,5 @@
 from tradingagents.agents.context import (
+    bound_agent_prompt,
     get_instrument_context_from_state,
     get_language_instruction,
     opponent_argument_or_opening,
@@ -50,7 +51,7 @@ Last bull argument: {current_response}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the {target_label}.
 """ + get_language_instruction()
 
-        response = llm.invoke(prompt)
+        response = llm.invoke(bound_agent_prompt(prompt))
 
         argument = f"Bear Analyst: {response.content}"
 
