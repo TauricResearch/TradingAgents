@@ -585,8 +585,9 @@ def _latest(account: Account, ledger: Ledger, trade_date: str) -> dict:
 
 
 def _attempt_totals(ledger: Ledger) -> dict[tuple[str, str], dict]:
-    """Per (trade_date, coin): the rating of the attempt that gave one, the tokens of
-    every attempt, and their cost, None once an attempt's cost is unknown."""
+    """Per (trade_date, coin): the rating of the last attempt that gave one (a rerun's
+    supersedes the first, #53), the tokens of every attempt, and their cost, None once
+    an attempt's cost is unknown."""
     rows = ledger.db.execute(
         "SELECT trade_date, coin, rating, tokens_in, tokens_out, cost_usd FROM attempts ORDER BY id"
     )
@@ -595,7 +596,7 @@ def _attempt_totals(ledger: Ledger) -> dict[tuple[str, str], dict]:
         total = totals.setdefault(
             (trade_date, coin), {"rating": None, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0}
         )
-        total["rating"] = total["rating"] or rating
+        total["rating"] = rating or total["rating"]
         total["tokens_in"] += tokens_in or 0
         total["tokens_out"] += tokens_out or 0
         known = cost is not None and total["cost_usd"] is not None
@@ -934,8 +935,14 @@ _RATINGS: dict[Path, tuple[tuple[int, int], str | None]] = {}
 
 def research_index(account: Account, ledger: Ledger) -> list[dict]:
     """Every research record, newest trade date first and in watchlist order within a
-    date. The rating is the record's, else the attempts'; cost and tokens are the attempts'."""
+    date. The rating is the record's, else the attempts'; cost and tokens are the attempts'.
+    ``update`` is the rating a rerun on the trade date's daily candle replaced, the one it
+    gave and when (#53); None when the record is the day's first run."""
     totals = _attempt_totals(ledger)
+    updates = {
+        (trade_date, coin): {"from": old, "to": new, "at": _iso(ts)}
+        for trade_date, coin, ts, old, new in ledger.updates()
+    }
     rank = {coin.research: i for i, coin in enumerate(account.watchlist)}
     rows = []
     seen = set()
@@ -953,6 +960,7 @@ def research_index(account: Account, ledger: Ledger) -> list[dict]:
             "cost_usd": total.get("cost_usd"),
             "tokens_in": total.get("tokens_in"),
             "tokens_out": total.get("tokens_out"),
+            "update": updates.get((trade_date, coin)),
         })
     for gone in [p for p in _RATINGS if p not in seen and p.is_relative_to(account.results_dir)]:
         del _RATINGS[gone]

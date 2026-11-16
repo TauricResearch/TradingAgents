@@ -4,6 +4,7 @@ import { coinLabel, fmtInt, fmtUsd } from '../format'
 import { researchHref, researchKey } from '../routes'
 import { RatingChip } from './RatingChip'
 import { Empty } from './Status'
+import { UpdateNote } from './UpdateNote'
 
 interface Props {
   items: ResearchSummary[]
@@ -49,6 +50,7 @@ export function ResearchList({ items, activeKey, compact = false }: Props) {
                       {coinLabel(r.coin)}
                     </span>
                     <RatingChip rating={r.rating} />
+                    {r.update && <UpdateNote update={r.update} compact={compact} />}
                     {!compact && (
                       <span className="num ml-auto flex gap-4 text-[11px] text-muted">
                         <span className="hidden sm:inline" title="tokens 进 / 出">

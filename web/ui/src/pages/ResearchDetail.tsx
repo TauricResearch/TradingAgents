@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import type { ResearchDetail as Detail, ResearchSummary, RunSettings } from '../api'
+import type { ResearchDetail as Detail, ResearchSummary, ResearchUpdate, RunSettings } from '../api'
 import { researchPath } from '../api'
 import { Debate } from '../components/Debate'
 import { Help } from '../components/Help'
@@ -10,6 +10,7 @@ import { RatingChip } from '../components/RatingChip'
 import { ResearchList } from '../components/ResearchList'
 import { Section } from '../components/Section'
 import { ErrorBox, Loading } from '../components/Status'
+import { UpdateNote } from '../components/UpdateNote'
 import type { HelpKey } from '../content/help'
 import { useFetch } from '../hooks'
 import { researchKey } from '../routes'
@@ -121,7 +122,17 @@ function SettingsTags({ s }: { s: RunSettings }) {
   )
 }
 
-function Body({ detail, coin, date }: { detail: Detail; coin: string; date: string }) {
+function Body({
+  detail,
+  coin,
+  date,
+  update,
+}: {
+  detail: Detail
+  coin: string
+  date: string
+  update: ResearchUpdate | null
+}) {
   const [open, setOpen] = useState<Record<string, boolean>>(DEFAULT_OPEN)
   const steps = useMemo(() => STEPS.filter((s) => !(s.hideIfEmpty && s.text(detail).trim() === '')), [detail])
   const setAll = (value: boolean) => setOpen(Object.fromEntries(steps.map((s) => [s.id, value])))
@@ -136,6 +147,7 @@ function Body({ detail, coin, date }: { detail: Detail; coin: string; date: stri
             <RatingChip rating={detail.final_rating} size="lg" />
             <Help k="rating" />
           </span>
+          {update && <UpdateNote update={update} />}
           <span className="num text-[11px] text-muted">{detail.company_of_interest}</span>
           <div className="ml-auto flex gap-1 text-[11px]">
             <button type="button" onClick={() => setAll(true)} className="rounded-sm border border-border px-2 py-px text-muted hover:text-fg">
@@ -174,6 +186,7 @@ export function ResearchDetail() {
   const { coin = '', date = '' } = useParams()
   const detail = useFetch<Detail>(coin && date ? researchPath(coin, date) : null)
   const list = useFetch<ResearchSummary[]>('/api/research')
+  const update = list.data?.find((r) => r.coin === coin && r.trade_date === date)?.update ?? null
 
   return (
     <div className="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)]">
@@ -202,7 +215,7 @@ export function ResearchDetail() {
         ) : !detail.data ? (
           <Loading />
         ) : (
-          <Body key={researchKey(coin, date)} detail={detail.data} coin={coin} date={date} />
+          <Body key={researchKey(coin, date)} detail={detail.data} coin={coin} date={date} update={update} />
         )}
       </div>
     </div>

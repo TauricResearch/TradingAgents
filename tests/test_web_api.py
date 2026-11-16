@@ -427,12 +427,35 @@ def test_research_index_merges_the_records_with_the_attempts(tmp_path):
     assert rows == [
         # The record's rating over the attempts'; cost and tokens over every attempt of the day.
         {"coin": "BTC-USD", "trade_date": "2026-01-09", "rating": "Underweight", "cost_usd": 1.5,
-         "tokens_in": 110, "tokens_out": 55},
+         "tokens_in": 110, "tokens_out": 55, "update": None},
         {"coin": "SOL-USD", "trade_date": "2026-01-09", "rating": "Hold", "cost_usd": None,
-         "tokens_in": None, "tokens_out": None},
+         "tokens_in": None, "tokens_out": None, "update": None},
         {"coin": "BTC-USD", "trade_date": "2026-01-08", "rating": "Hold", "cost_usd": 2.0,
-         "tokens_in": 80, "tokens_out": 40},
+         "tokens_in": 80, "tokens_out": 40, "update": None},
     ]
+
+
+def test_research_index_says_what_a_rerun_on_the_daily_candle_updated(tmp_path):
+    client = build(tmp_path)
+    ledger = Ledger(Settings(home=tmp_path).ledger_path)
+    ledger.record_update("2026-01-09", BTC.research, T0 + 7 * HOUR, "Sell", "Underweight")
+    # The 2026-01-08 record has no rating of its own: the attempts' last one counts.
+    ledger.record_attempt("2026-01-08", BTC.research, T0, rating="Buy", error=None)
+    rows = {(r["coin"], r["trade_date"]): r for r in client.get("/api/research").json()}
+    assert rows["BTC-USD", "2026-01-09"]["update"] == {
+        "from": "Sell", "to": "Underweight", "at": "2026-01-10T07:30:00Z",
+    }
+    assert rows["SOL-USD", "2026-01-09"]["update"] is None
+    assert rows["BTC-USD", "2026-01-08"]["rating"] == "Buy"
+
+
+def test_research_index_reads_a_ledger_from_before_the_research_updates(tmp_path):
+    client = build(tmp_path)
+    old = sqlite3.connect(Settings(home=tmp_path).ledger_path)
+    old.execute("DROP TABLE updates")
+    old.commit()
+    old.close()
+    assert [r["update"] for r in client.get("/api/research").json()] == [None, None, None]
 
 
 def test_research_index_reads_a_record_file_once_until_it_changes(tmp_path, monkeypatch):

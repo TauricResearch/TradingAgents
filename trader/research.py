@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import shutil
 import threading
 from dataclasses import dataclass
 from typing import Any
@@ -115,6 +116,7 @@ class ResearchResult:
     tokens_in: int
     tokens_out: int
     cost_usd: float | None  # None when a model used has no price or a call had no usage
+    decision: str | None = None  # the final trade decision's text, when the run gave one
 
 
 class Researcher:
@@ -123,11 +125,20 @@ class Researcher:
     The graph is ``graph_factory(selected_analysts=ANALYSTS, config=build_config(settings),
     callbacks=[recorder])``. Prices come from settings.price_deep for the config's
     deep_think_llm and settings.price_quick for its quick_think_llm.
+
+    With ``fresh_data``, the runs download their data anew, into an emptied cache of
+    their own: the library serves a past trade date from the day's first download all
+    day, so a rerun the same day would otherwise read the candles the first run read
+    (#53). The checkpoints live in that cache too, so a rerun starts from the beginning.
     """
 
-    def __init__(self, settings: Settings, graph_factory=TradingAgentsGraph):
+    def __init__(self, settings: Settings, graph_factory=TradingAgentsGraph, fresh_data: bool = False):
         self.recorder = UsageRecorder()
         config = build_config(settings)
+        if fresh_data:
+            cache = settings.home / "cache" / "rerun"
+            shutil.rmtree(cache, ignore_errors=True)
+            config["data_cache_dir"] = str(cache)
         # Deep last, so its price wins when both tiers name the same model.
         self._prices = {
             config["quick_think_llm"]: settings.price_quick,
@@ -144,12 +155,15 @@ class Researcher:
         the tokens the failed run spent are still counted and priced.
         """
         self.recorder.reset()
-        rating = error = None
+        rating = error = decision = None
         try:
-            _, rating = self.graph.propagate(ticker, trade_date, asset_type="crypto")
+            state, rating = self.graph.propagate(ticker, trade_date, asset_type="crypto")
         except Exception as exc:
             logger.exception("research of %s for %s failed", ticker, trade_date)
             error = f"{type(exc).__name__}: {exc}"[:500]
+        else:
+            if isinstance(state, dict):
+                decision = state.get("final_trade_decision") or None
         with self.recorder._lock:
             tokens, missing = dict(self.recorder.tokens), self.recorder.missing
         return ResearchResult(
@@ -158,6 +172,7 @@ class Researcher:
             tokens_in=sum(i for i, _ in tokens.values()),
             tokens_out=sum(o for _, o in tokens.values()),
             cost_usd=None if missing else self._cost(tokens),
+            decision=decision,
         )
 
     def _cost(self, tokens: dict[str, tuple[int, int]]) -> float | None:

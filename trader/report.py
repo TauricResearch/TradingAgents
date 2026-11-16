@@ -125,7 +125,9 @@ def daily(
     """The report sent after each daily run. ``states`` maps research tickers to
     ``jobs.coin_state`` results. The report goes out even when OKX is down or serves a
     price ``rules.usable_prices`` refuses: equity is then marked at the last marks
-    (``Paper.equity_now``), the spot baseline is left out, and a last line says which."""
+    (``Paper.equity_now``), the spot baseline is left out, and a last line says which.
+    A coin whose rating a rerun on the trade date's daily candle replaced says so, with
+    the time of the update (#53)."""
     ledger = paper.ledger
     positions = ledger.positions()
     equity, marked = paper.equity_now()
@@ -134,9 +136,13 @@ def daily(
     if ledger.get("halted"):
         lines.append("⚠ 熔断中：只研判，不交易。确认后运行 python -m trader resume 恢复。")
     fills = [f for f in ledger.fills(now_ms - DAY_MS) if f.trade_date == trade_date]
+    updates = {coin: (old, new, ts) for _, coin, ts, old, new in ledger.updates(trade_date)}
     for coin in paper.watchlist:
         state, detail = states[coin.research]
-        if state == "done":
+        if state == "done" and coin.research in updates:
+            old, new, ts = updates[coin.research]
+            head = f"{detail}（研判已更新：{old} → {new}，{_time(ts)}）"
+        elif state == "done":
             head = detail
         elif detail == BUDGET_ERROR:
             head = "未研判（本月 LLM 预算已用完）"
@@ -206,3 +212,7 @@ def _num(value: float | None) -> str:
 
 def _date(ms: int) -> str:
     return datetime.fromtimestamp(ms / 1000, UTC).date().isoformat()
+
+
+def _time(ms: int) -> str:
+    return datetime.fromtimestamp(ms / 1000, UTC).strftime("%m-%d %H:%M UTC")
