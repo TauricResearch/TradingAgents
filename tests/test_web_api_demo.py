@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from tests.test_trader_paper import BTC, DAY0, T0
-from tests.test_web_api import HOUR, MINUTE, SIGNALS, build, build_intraday
+from tests.test_web_api import HOUR, MINUTE, NOW, SHARED_LATEST, SIGNALS, build, build_intraday
 from trader.intraday.types import SignalResult
 from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS
@@ -57,9 +57,10 @@ def build_demo(tmp_path, okx=None, with_intraday=True):
     return client
 
 
-def test_demo_overview_has_no_llm_spend_and_marks_the_exchange_position(tmp_path):
+def test_demo_overview_has_no_llm_spend_and_marks_the_exchange_position(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "_now", lambda: NOW)  # on build()'s trade date
     body = build_demo(tmp_path).get("/api/accounts/demo/overview").json()
-    assert body["llm"] is None and body["latest"] is None
+    assert body["llm"] is None and body["latest"] == SHARED_LATEST
     assert body["equity"] == pytest.approx(9_999.2 + 0.02 * (79_000.0 - 78_039.0))  # marked at the quote
     assert body["days"] == 2
     assert body["performance"]["strategy"]["cumulative"] == pytest.approx(0.004)

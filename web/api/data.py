@@ -57,6 +57,9 @@ class Account:
     exchange: bool = False
     live: bool = False  # trades real money (ADR 0010)
     born_paused: bool = False  # paused while its ledger says nothing (Profile.born_paused)
+    # The ledger of the daily research, for an account that researches nothing itself;
+    # None when it is this account's own.
+    research_ledger: Path | None = None
 
     def coin_of(self, inst: str) -> str | None:
         """The research ticker traded through swap ``inst``; None for an unknown contract."""
@@ -66,8 +69,9 @@ class Account:
 def accounts(settings: Settings) -> dict[str, Account]:
     """The accounts the API serves, by id, the daily paper account first: the dashboard
     opens the first one. The intraday account (ADR 0006) and the exchange accounts, demo
-    (ADR 0008) and live (ADR 0010), read the daily research records and keep no memory
-    log, so their paths name files that never exist."""
+    (ADR 0008) and live (ADR 0010), research nothing themselves: their signals read the
+    daily research, so they show its records, its ratings in the daily ledger and the
+    memory log that settles them."""
     return {
         "paper": Account(
             "paper", "paper", settings.ledger_path, settings.home / "logs",
@@ -75,17 +79,19 @@ def accounts(settings: Settings) -> dict[str, Account]:
         ),
         "intraday": Account(
             "intraday", "paper", settings.intraday_ledger_path, settings.home / "logs",
-            settings.home / "intraday" / "none.md", WATCHLIST, intraday=True,
+            settings.memory_log_path, WATCHLIST, intraday=True,
+            research_ledger=settings.ledger_path,
         ),
         "demo": Account(
             "demo", "demo", settings.demo_ledger_path, settings.home / "logs",
-            settings.home / "demo" / "none.md", WATCHLIST, exchange=True,
+            settings.memory_log_path, WATCHLIST, exchange=True,
+            research_ledger=settings.ledger_path,
         ),
         "live": Account(
             "live", "live", settings.live_ledger_path, settings.home / "logs",
-            settings.home / "live" / "none.md", WATCHLIST, exchange=True, live=True,
+            settings.memory_log_path, WATCHLIST, exchange=True, live=True,
             # LIVE.born_paused: the dashboard does not import trader.live (ADR 0010).
-            born_paused=True,
+            born_paused=True, research_ledger=settings.ledger_path,
         ),
     }
 
@@ -364,7 +370,9 @@ def summary(account: Account) -> dict:
 def overview(account: Account, ledger: Ledger, market: Market) -> dict:
     """GET /api/accounts/{id}/overview. What needs a quote OKX cannot give right now is
     null (``equity``, ``drawdown``, a position's price fields, the baselines); ``market``
-    says whether OKX answered (``Market.status``). The ledger's own figures always show."""
+    says whether OKX answered (``Market.status``). The ledger's own figures always show.
+    ``latest`` is the trade date's research; an account that researches nothing itself
+    shows the daily account's (``_shared_latest``)."""
     now = _now()
     trade_date = jobs.trade_date_for(now)
     paper = Paper(ledger, market, account.watchlist)
@@ -381,9 +389,9 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
     except MarketUnavailable:
         equal, btc = [], []
     if account.exchange:  # follows the intraday signals: no LLM calls of its own (ADR 0008)
-        llm = latest = None
+        llm = None
     elif account.intraday:  # spend in the signals table, no budget and no ratings (ADR 0006)
-        llm, latest = _intraday_llm(ledger, now), None
+        llm = _intraday_llm(ledger, now)
     else:
         today, unknown_today = ledger.cost_of(trade_date)
         month, unknown_month = ledger.cost_since(jobs.month_start_ms(now))
@@ -397,7 +405,10 @@ def overview(account: Account, ledger: Ledger, market: Market) -> dict:
             "learning_days": BUDGET_LEARNING_DAYS,
             "unknown": unknown_today or unknown_month,
         }
+    if account.research_ledger is None:
         latest = _latest(account, ledger, trade_date)
+    else:
+        latest = _shared_latest(account, account.research_ledger, trade_date)
     return {
         "equity": equity,
         "cash": cash,
@@ -582,6 +593,21 @@ def _latest(account: Account, ledger: Ledger, trade_date: str) -> dict:
             "fills": [{"qty": q, "price": p} for inst, q, p in fills if inst == coin.swap],
         })
     return {"trade_date": trade_date, "executed": ledger.executed(trade_date), "coins": coins}
+
+
+def _shared_latest(account: Account, path: Path, trade_date: str) -> dict | None:
+    """The trade date's research as the daily ledger at ``path`` has it, for an account
+    that researches nothing itself: the ratings without the daily account's fills and
+    execution (``executed`` null), which are not this account's. None without that ledger."""
+    if not path.is_file():
+        return None
+    research = Ledger(path, readonly=True)
+    try:
+        latest = _latest(account, research, trade_date)
+    finally:
+        research.db.close()
+    coins = [{**coin, "fills": []} for coin in latest["coins"]]
+    return {**latest, "executed": None, "coins": coins}
 
 
 def _attempt_totals(ledger: Ledger) -> dict[tuple[str, str], dict]:

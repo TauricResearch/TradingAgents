@@ -913,6 +913,20 @@ SIGNALS = [
 ]
 
 
+# The daily research of 2026-01-09 as build() leaves it, as every account that researches
+# nothing itself shows it: the ratings, without the daily account's fills and execution.
+SHARED_LATEST = {
+    "trade_date": "2026-01-09", "executed": None, "coins": [
+        {"coin": "BTC-USD", "state": "done", "rating": "Sell", "error": None, "cost_usd": 1.5,
+         "fills": []},
+        {"coin": "ETH-USD", "state": "failed", "rating": None, "error": BUDGET_ERROR,
+         "cost_usd": None, "fills": []},
+        {"coin": "SOL-USD", "state": "pending", "rating": None, "error": None, "cost_usd": None,
+         "fills": []},
+    ],
+}
+
+
 def build_intraday(tmp_path, okx=None, validated=True, signals=SIGNALS):
     """build() with the intraday account beside the paper one: a long BTC, the paper
     account's three midnights and ``signals``; validated=False: a ledger only initialized."""
@@ -1027,7 +1041,7 @@ def test_intraday_overview_takes_the_llm_spend_from_the_signals(tmp_path):
         "trade_date": "2026-01-10", "today": 0.5, "month": 2.5, "cap": None,
         "learned_days": 0, "learning_days": 0, "unknown": True,
     }
-    assert body["latest"] is None
+    assert body["latest"] == SHARED_LATEST
     strategy = body["performance"]["strategy"]
     assert strategy["cumulative"] == pytest.approx(0.00495)
     assert strategy["annualized"] == pytest.approx(1.00495 ** (365 / 2) - 1)
@@ -1068,7 +1082,40 @@ def test_intraday_overview_before_the_validation_period(tmp_path):
         "trade_date": "2026-01-10", "today": 0, "month": 0, "cap": None,
         "learned_days": 0, "learning_days": 0, "unknown": False,
     }
-    assert body["latest"] is None
+    assert body["latest"] == SHARED_LATEST
+
+
+def test_an_account_that_researches_nothing_shows_the_daily_research_read_only(tmp_path):
+    client = build_intraday(tmp_path)
+    daily = Settings(home=tmp_path).ledger_path
+    before = daily.read_bytes()
+    assert client.get("/api/accounts/intraday/overview").json()["latest"] == SHARED_LATEST
+    assert daily.read_bytes() == before
+
+    alone = tmp_path / "alone"
+    ledger = Ledger(Settings(home=alone).intraday_ledger_path)
+    ledger.initialize(10_000.0, T0)
+    ledger.db.close()
+    client = TestClient(create_app(Settings(home=alone), CountingOKX()))
+    assert client.get("/api/accounts/intraday/overview").json()["latest"] is None
+    assert not Settings(home=alone).ledger_path.exists()  # looked for, not created
+
+
+def test_every_account_scores_the_shared_research(tmp_path):
+    client = build_intraday(tmp_path)
+    settings = Settings(home=tmp_path)
+    for path in (settings.demo_ledger_path, settings.live_ledger_path):
+        ledger = Ledger(path)
+        ledger.initialize(1_000.0, T0)
+        ledger.db.close()
+    log = TradingMemoryLog({"memory_log_path": str(settings.memory_log_path)})
+    log.store_decision("BTC-USD", "2026-01-08", "Rating: Underweight\n\nx")
+    log.update_with_outcome("BTC-USD", "2026-01-08", -0.05, -0.03, 5, "note", "2026-01-15")
+    paper = client.get("/api/accounts/paper/accuracy").json()
+    # A bearish rating is right when the coin falls behind the benchmark.
+    assert paper["by_rating"] == {"Underweight": {"count": 1, "hit_rate": 1.0, "mean_alpha": -0.03}}
+    for account in ("intraday", "demo", "live"):
+        assert client.get(f"/api/accounts/{account}/accuracy").json() == paper
 
 
 def test_intraday_equity_nets_the_signals_spend(tmp_path):
