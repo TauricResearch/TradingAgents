@@ -41,6 +41,11 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+# Portfolio simulation of backtest ratings (tradingagents.simulate).
+# vectorbt is Apache 2.0 + Commons Clause: it may not be sold as a service.
+sim = [
+    "vectorbt>=1.2.1",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
