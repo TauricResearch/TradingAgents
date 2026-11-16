@@ -8,9 +8,16 @@ simulate a portfolio, so there is no execution, no fees and no equity curve.
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
-from tradingagents.backtest import iter_grid, run_backtest, summarize
+from tradingagents.backtest import (
+    iter_grid,
+    rating_shuffle_test,
+    run_backtest,
+    summarize,
+)
 from tradingagents.memory import TradingMemoryLog
 from tradingagents.memory.settlement import Settlement
 
@@ -364,3 +371,121 @@ def test_a_ticker_or_date_given_twice_runs_and_settles_once(tmp_path):
     graph = _FakeGraph.instances[-1]
     assert graph.calls == [("NVDA", "2026-01-05")]
     assert graph.settled == ["NVDA"]
+
+
+# --- the rating-shuffle test -------------------------------------------------
+# A grid is a handful of cells, so a 60% hit rate or a +1% mean alpha is often
+# inside the noise. These pin the check that says whether the ratings did better
+# than the same ratings handed out at random on the same dates.
+
+def _no_skill_grid(seed: int, *, dates: int = 6, tickers: int = 4):
+    """Ratings and outcomes drawn independently: whatever the ratings claim is luck."""
+    ratings = ("Buy", "Overweight", "Hold", "Underweight", "Sell")
+    rng = random.Random(seed)
+    return [(f"2026-01-{day:02d}", rng.choice(ratings), rng.gauss(0, 0.02))
+            for day in range(1, dates + 1) for _ in range(tickers)]
+
+
+def _planted_edge(dates: int = 8):
+    """Every date's Buy is the day's best cell and its Sell the worst."""
+    outcomes = (0.03, 0.02, 0.01, 0.0, -0.01, -0.03)
+    claimed = ("Buy", "Overweight", "Hold", "Hold", "Underweight", "Sell")
+    return [(f"2026-01-{day:02d}", rating, alpha)
+            for day in range(1, dates + 1)
+            for rating, alpha in zip(claimed, outcomes, strict=True)]
+
+
+@pytest.mark.unit
+def test_a_grid_with_no_skill_clears_the_bar_only_about_as_often_as_chance():
+    """Calibration: a 60% hit rate on luck has to read as luck, not as an edge."""
+    flagged = sum(rating_shuffle_test(_no_skill_grid(seed), n=200).p_value < 0.05
+                  for seed in range(40))
+
+    assert flagged <= 3
+
+
+@pytest.mark.unit
+def test_ratings_that_called_the_outcomes_read_as_significant():
+    result = rating_shuffle_test(_planted_edge(), n=2000)
+
+    assert result.observed == pytest.approx(0.0225)
+    assert result.observed > result.null_p95
+    assert result.p_value < 0.01
+
+
+@pytest.mark.unit
+def test_one_date_where_every_cell_rose_cannot_read_as_skill():
+    """Within-date shuffling holds the day's market move fixed, so a single
+    uniform day leaves nothing for the ratings to take credit for."""
+    cells = [("2026-01-05", rating, 0.05)
+             for rating in ("Buy", "Buy", "Buy", "Sell", "Overweight", "Underweight")]
+
+    result = rating_shuffle_test(cells, n=300)
+
+    assert result is not None
+    assert result.observed == pytest.approx(2 * 0.05 / 6)
+    # Every shuffle only reorders the same products, so the tie has to be exact:
+    # a left-to-right float sum leaves it one ulp off, which read as p = 0.42 on
+    # Python 3.11 (where sum() has no compensated summation) before math.fsum.
+    assert result.null_median == result.null_p95 == result.observed
+    assert result.p_value == 1.0
+
+
+@pytest.mark.unit
+def test_dates_with_one_cell_each_fall_back_and_say_so():
+    cells = [(f"2026-01-{day:02d}", "Buy" if day % 2 else "Sell", 0.02 if day % 2 else -0.02)
+             for day in range(1, 9)]
+
+    result = rating_shuffle_test(cells, n=300)
+
+    assert result.scope.startswith("across all cells")
+    assert "across all cells" in result.render()
+
+
+@pytest.mark.unit
+def test_nothing_directional_reports_nothing():
+    assert rating_shuffle_test([("2026-01-05", "Hold", 0.01)] * 5) is None
+
+
+@pytest.mark.unit
+def test_a_rating_the_table_does_not_know_is_not_scored():
+    result = rating_shuffle_test([("2026-01-05", "Buy", 0.02), ("2026-01-05", "Rating: Nonsense", 0.02)])
+
+    assert result.cells == 1
+
+
+@pytest.mark.unit
+def test_the_p_value_never_reaches_zero():
+    """Nothing over a finite number of shuffles is infinitely unlikely."""
+    result = rating_shuffle_test(_planted_edge(), n=100)
+
+    assert result.p_value >= 1 / (1 + 100)
+
+
+@pytest.mark.unit
+def test_the_same_cells_give_the_same_answer():
+    assert rating_shuffle_test(_no_skill_grid(3), n=200) == rating_shuffle_test(_no_skill_grid(3), n=200)
+
+
+@pytest.mark.unit
+def test_the_summary_reports_the_shuffle_test_over_the_settled_cells(tmp_path):
+    log = _log_with(tmp_path, [
+        ("NVDA", "2026-01-05", "Rating: Buy\n\nx", (0.03, 3.0)),
+        ("AAPL", "2026-01-05", "Rating: Sell\n\nx", (-0.03, -3.0)),
+        ("NVDA", "2026-01-12", "Rating: Buy\n\nx", (0.02, 2.0)),
+        ("AAPL", "2026-01-12", "Rating: Sell\n\nx", (-0.02, -2.0)),
+        ("NVDA", "2026-01-19", "Rating: Buy\n\nx", None),
+    ])
+
+    summary = summarize(log)
+
+    assert summary.shuffle is not None and summary.shuffle.cells == 4
+    assert "Rating-shuffle test: 4 directional cells" in summary.render()
+
+
+@pytest.mark.unit
+def test_a_summary_whose_cells_claimed_no_direction_omits_the_line(tmp_path):
+    log = _log_with(tmp_path, [("NVDA", "2026-01-05", "Rating: Hold\n\nx", (0.03, 3.0))])
+
+    assert summarize(log).shuffle is None
+    assert "Rating-shuffle" not in summarize(log).render()
