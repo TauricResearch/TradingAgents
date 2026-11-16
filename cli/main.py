@@ -160,6 +160,37 @@ def backtest(
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
 
 
+@app.command()
+def simulate(
+    run_id: str = typer.Argument(..., help="The backtest run to simulate, as printed by `backtest`"),
+    cash: float = typer.Option(10_000.0, "--cash", help="Starting cash per ticker"),
+    fees: float = typer.Option(0.001, "--fees", help="Fee per trade as a fraction, e.g. 0.001 = 0.1%"),
+):
+    """Trade a backtest's ratings as a portfolio with vectorbt, against buy-and-hold."""
+    from pathlib import Path
+
+    from tradingagents.dataflows.symbols import safe_ticker_component
+    from tradingagents.simulate import simulate as run_simulation
+
+    try:
+        log = (Path(DEFAULT_CONFIG["results_dir"]) / "backtest"
+               / safe_ticker_component(run_id) / "trading_memory.md")
+        pf = run_simulation(log, init_cash=cash, fees=fees)
+    except (ImportError, ValueError, FileNotFoundError) as exc:
+        console.print(f"[red]{escape(str(exc))}[/red]")
+        raise typer.Exit(code=1) from None
+
+    import vectorbt as vbt
+
+    held = vbt.Portfolio.from_holding(pf.close, init_cash=cash, fees=fees, freq="1D")
+    for ticker in pf.wrapper.columns:
+        console.print(f"[bold]{ticker}[/bold]: strategy {pf.total_return()[ticker]:+.2%}"
+                      f" · buy-and-hold {held.total_return()[ticker]:+.2%}"
+                      f" · max drawdown {pf.max_drawdown()[ticker]:.2%}")
+        console.print(pf.stats(column=ticker).to_string(), markup=False)
+    console.print("[dim]Fills at the first close after each analysis date; Hold keeps the position.[/dim]")
+
+
 # The plans `login` and `logout` take: the providers signed in to, not keyed.
 Plan = StrEnum("Plan", {name: name for name in SIGNED_IN_PROVIDERS})
 
