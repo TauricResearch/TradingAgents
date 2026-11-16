@@ -3,6 +3,7 @@ import { coinLabel, fmtDay, fmtNum, fmtPct, fmtQty, fmtSigned, fmtTime } from '.
 import { ACCOUNT_LABEL } from '../llmSettings'
 import { DataTable, type Column } from './DataTable'
 import { Num, Side } from './Num'
+import { Time } from './Time'
 
 /** The intraday account trades on paper, the other two on OKX. */
 const sideLabel = (id: string) => (id === 'intraday' ? '日内模拟' : (ACCOUNT_LABEL[id] ?? id))
@@ -47,7 +48,7 @@ function fillText(f: MirrorTrade['own'] | null) {
 
 function tradeColumns(own: string, other: string): Column<MirrorTrade>[] {
   return [
-    { key: 'hour', header: '小时（UTC）', render: (t) => <span className="num">{fmtTime(t.hour)}</span> },
+    { key: 'hour', header: '小时', render: (t) => <Time ts={t.hour} /> },
     { key: 'coin', header: '币', render: (t) => coinLabel(t.coin ?? t.inst) },
     { key: 'other', header: joined(other, '成交'), render: (t) => fillText(t.other) },
     { key: 'own', header: joined(own, '成交'), render: (t) => fillText(t.own) },

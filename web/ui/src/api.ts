@@ -110,7 +110,9 @@ export interface LatestCoin {
 
 export interface Latest {
   trade_date: string
-  executed: boolean
+  /** Null on an account that researches nothing itself: the daily research it shows, its
+   * coins without fills. */
+  executed: boolean | null
   coins: LatestCoin[]
 }
 

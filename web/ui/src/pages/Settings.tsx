@@ -16,6 +16,7 @@ import { DataTable, type Column } from '../components/DataTable'
 import { CONTROL, ModelPicker } from '../components/ModelPicker'
 import { Panel } from '../components/Panel'
 import { ErrorBox, Loading } from '../components/Status'
+import { Time } from '../components/Time'
 import { fmtTime, fmtTimeFull } from '../format'
 import { useFetch } from '../hooks'
 import {
@@ -240,7 +241,7 @@ function SwitchForm({ data, onSaved }: { data: ModelsResponse; onSaved: (next: M
           role="status"
           className="flex items-center gap-3 rounded-sm border border-border border-l-2 border-l-accent bg-panel-2 px-3 py-2"
         >
-          <span className="min-w-0 flex-1">已保存，日频下次 00:05 UTC、日内下个整点生效</span>
+          <span className="min-w-0 flex-1">已保存，日频下次北京 08:05（00:05 UTC）、日内下个整点生效</span>
           <button
             type="button"
             onClick={() => setSaved(false)}
@@ -313,12 +314,8 @@ function SwitchForm({ data, onSaved }: { data: ModelsResponse; onSaved: (next: M
 const historyColumns: Column<ModelChange>[] = [
   {
     key: 'at',
-    header: '时间（UTC）',
-    render: (h) => (
-      <span className="num" title={fmtTimeFull(h.at)}>
-        {fmtTime(h.at)}
-      </span>
-    ),
+    header: '时间',
+    render: (h) => <Time ts={h.at} />,
   },
   { key: 'deep', header: '深度', render: (h) => <span className="num">{h.deep}</span> },
   { key: 'quick', header: '快速', render: (h) => <span className="num">{h.quick}</span> },

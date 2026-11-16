@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAccount } from '../account'
-import { fmtDrawdown, fmtTime, fmtUsdt } from '../format'
+import { fmtDrawdown, fmtTime, fmtTimeFull, fmtUsdt } from '../format'
 import { ACCOUNT_LABEL } from '../llmSettings'
 import { Help } from './Help'
 import { StaleNote } from './Status'
@@ -125,7 +125,7 @@ export function TopBar() {
               {fmtDrawdown(ov?.drawdown)}
             </span>
           </span>
-          <span className="num text-muted" title={ov?.processed_to ?? undefined}>
+          <span className="num text-muted" title={ov?.processed_to ? fmtTimeFull(ov.processed_to) : undefined}>
             数据截至
             <Help k="processed_to" align="end" className="mx-1" />
             {fmtTime(ov?.processed_to)}

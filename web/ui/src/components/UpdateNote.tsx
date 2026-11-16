@@ -1,8 +1,8 @@
 import type { ResearchUpdate } from '../api'
 import { DASH, fmtTime, fmtTimeFull } from '../format'
 
-/** "研判已更新：Hold → Buy · 11-14 07:12 UTC"; `compact` writes "已更新" alone, the hover
- * has the rest. */
+/** "研判已更新：Hold → Buy · 11-14 15:12 北京 · 07:12 UTC"; `compact` writes "已更新" alone,
+ * the hover has the rest. */
 export function UpdateNote({ update, compact = false }: { update: ResearchUpdate; compact?: boolean }) {
   const change = `研判已更新：${update.from ?? DASH} → ${update.to}`
   return (

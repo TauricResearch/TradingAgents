@@ -164,7 +164,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'validation',
   },
   latest_research: {
-    text: `每个币最新一次研判的评级、当日成交摘要和 AI 费用；点击可进入完整的研判流程详情。`,
+    text: `每个币最新一次研判的评级、当日成交摘要和 AI 费用；点击可进入完整的研判流程详情。日内、demo、live 不自己研判，小时信号读的就是这份日频研判，所以显示的是同一份（各账户共用），只有评级和 AI 费用，不带日频账户的调仓。`,
     section: 'research',
   },
   rating: {
@@ -184,7 +184,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'overview-page',
   },
   accuracy: {
-    text: `已结算评级的命中率和平均 alpha，衡量评级预测方向准不准；不等于策略整体赚钱。`,
+    text: `已结算评级的命中率和平均 alpha，衡量评级预测方向准不准；不等于策略整体赚钱。各账户共用同一份日频研判，这里的数字在每个账户都一样；小时信号准不准是另一回事，不在这里。`,
     section: 'validation',
   },
   settled: {
@@ -192,11 +192,11 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'validation',
   },
   hit_rate: {
-    text: `这档评级结算后 alpha 为正的比例；越高说明这档评级的方向判断越准确。`,
+    text: `这档评级结算后方向判断对的比例：看多的档（Buy、Overweight）alpha 为正算对，看空的档（Underweight、Sell）alpha 为负算对；Hold 不判断方向，显示「—」。越高说明这档评级的方向判断越准。`,
     section: 'validation',
   },
   mean_alpha: {
-    text: `这档评级结算后相对 {{benchmark}}（持有现金）的平均超额收益；正值说明评级有预测价值。`,
+    text: `这档评级结算后相对 {{benchmark}}（持有现金）的平均超额收益；看多的档为正、看空的档为负，说明评级有预测价值。`,
     section: 'validation',
   },
   side: {

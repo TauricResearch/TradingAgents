@@ -188,9 +188,9 @@ export function History() {
   // A tab in the URL that is not among this account's tabs falls back to the fills.
   const active: TabKey = tabs.find((t) => t.key === raw)?.key ?? 'fills'
   const current = { daily, fills, funding, transfers, attempts, events, mirror, mirror_demo: demoMirror }[active]
-  // An intraday or exchange account's fill is dated by the UTC day of its hour, not a research day.
+  // An intraday or exchange account trades by the hour, not by research day: its fill's time says it all.
   const fillCols = account.intraday || account.exchange
-    ? fillColumns.map((c) => (c.key === 'trade_date' ? { ...c, header: 'UTC 日' } : c))
+    ? fillColumns.filter((c) => c.key !== 'trade_date')
     : fillColumns
   const dailyCols = account.exchange ? dailyColumns : dailyColumns.filter((c) => c.key !== 'transfers')
 
