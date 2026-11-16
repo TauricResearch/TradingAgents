@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import itertools
 import logging
+import math
+import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -99,12 +101,97 @@ class RatingScore:
 
 
 @dataclass
+class ShuffleTest:
+    """Whether the ratings beat the same ratings handed out at random.
+
+    A grid is a handful of cells, so a hit rate of 60% or a mean alpha of +1% is
+    often inside the noise. This replays each analysis date's ratings against
+    that date's outcomes, so a market-wide move on one date cannot pass for skill.
+    """
+
+    cells: int          # directional cells the statistic was taken over
+    observed: float     # mean of direction x alpha
+    null_median: float  # the shuffled median: what luck scores
+    null_p95: float     # the edge a record has to clear to beat 95% of shuffles
+    p_value: float
+    n: int
+    scope: str          # what was held fixed while shuffling
+
+    def render(self) -> str:
+        return (f"Rating-shuffle test: {self.cells} directional cells, "
+                f"observed {self.observed:+.2%} per cell; shuffled ratings median "
+                f"{self.null_median:+.2%}, 95th pct {self.null_p95:+.2%}; "
+                f"p = {self.p_value:.3f} ({self.n} shuffles, {self.scope})")
+
+
+def _shuffle_statistic(cells) -> float:
+    """Mean of direction x alpha over the cells that claimed a direction.
+
+    Summed with ``math.fsum``: a shuffle that only reorders the same products
+    must come out exactly equal, and left-to-right float addition makes that
+    order-dependent (Python 3.11 leaves the tie one ulp above or below).
+    """
+    scored = [_DIRECTION[rating] * alpha for rating, alpha in cells if _DIRECTION.get(rating)]
+    return math.fsum(scored) / len(scored) if scored else 0.0
+
+
+def rating_shuffle_test(cells, n: int = 2000, seed: int = 0) -> ShuffleTest | None:
+    """Shuffle the ratings to say whether the record beats chance.
+
+    ``cells`` is an iterable of ``(date, rating, alpha)``. Ratings are shuffled
+    within each analysis date, which keeps that date's actual mix of Buys and
+    Sells, so a day on which everything rose cannot read as skill. When fewer
+    than two dates hold two cells there is no date to hold fixed: the fallback
+    shuffles every cell instead and the result says so.
+
+    ``seed`` is fixed, so the same cells give the same p-value each time a report
+    is rendered. Returns None when no cell claimed a direction: there is nothing
+    to test.
+    """
+    by_date: dict[str, list[tuple[str, float]]] = {}
+    for date, rating, alpha in cells:
+        if _DIRECTION.get(rating) is not None and alpha is not None:
+            by_date.setdefault(date, []).append((rating, alpha))
+    pairs = [pair for day in by_date.values() for pair in day]
+    directional = sum(1 for rating, _ in pairs if _DIRECTION[rating])
+    if not directional:
+        return None
+
+    observed = _shuffle_statistic(pairs)
+    shuffleable = sum(1 for day in by_date.values() if len(day) >= 2)
+    if shuffleable >= 2:
+        groups = list(by_date.values())
+        scope = "within date"
+    else:
+        groups = [pairs]
+        scope = "across all cells — too few dates hold two cells"
+
+    rng = random.Random(seed)
+    nulls = []
+    for _ in range(n):
+        shuffled = []
+        for group in groups:
+            ratings = [rating for rating, _ in group]
+            rng.shuffle(ratings)
+            shuffled.extend(zip(ratings, (alpha for _, alpha in group), strict=True))
+        nulls.append(_shuffle_statistic(shuffled))
+    nulls.sort()
+    # A tie counts against the record: the shuffled rating did as well.
+    beaten = sum(1 for value in nulls if value >= observed)
+    return ShuffleTest(cells=directional, observed=observed,
+                       null_median=nulls[n // 2],
+                       null_p95=nulls[min(n - 1, int(0.95 * n))],
+                       p_value=(1 + beaten) / (1 + n), n=n, scope=scope)
+
+
+@dataclass
 class BacktestSummary:
     resolved: int
     pending: int
     by_rating: dict[str, RatingScore]
     unscored: int = 0
     holding: str = ""
+    shuffle: ShuffleTest | None = None
 
     def render(self) -> str:
         lines = [f"Resolved cells: {self.resolved} · pending: {self.pending}"
@@ -116,6 +203,9 @@ class BacktestSummary:
                 f"- {rating}: n={score.count}, {called}, "
                 f"mean alpha {score.mean_alpha:+.2%} vs the benchmark"
             )
+        if self.shuffle is not None:
+            lines.append("")
+            lines.append(self.shuffle.render())
         lines.append("")
         if self.pending:
             lines.append("Pending cells are not scored above; re-run to settle them.")
@@ -233,4 +323,6 @@ def summarize(source: BacktestResult | str | Path) -> BacktestSummary:
     return BacktestSummary(resolved=len(resolved),
                            pending=len(entries) - len(resolved) - unscored,
                            by_rating=by_rating, unscored=unscored,
-                           holding=", ".join(sorted(windows)) or "the configured window")
+                           holding=", ".join(sorted(windows)) or "the configured window",
+                           shuffle=rating_shuffle_test(
+                               (e["date"], e["rating"], alpha) for e, alpha in resolved))
