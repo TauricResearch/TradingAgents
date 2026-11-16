@@ -53,6 +53,9 @@ KILL_DRAWDOWN = 0.20  # drawdown from peak equity that flattens everything and h
 
 MAX_ATTEMPTS = 3                # research tries per coin per trade date
 RETRY_WAIT_SECONDS = 30 * 60
+# The UTC hour from which the daily run stops waiting for Yahoo's candle of the trade
+# date and trades on the ratings it has; deploy/...daily.plist runs it until this hour.
+BAR_CUTOFF_HOUR = 12
 BUDGET_LEARNING_DAYS = 7        # full UTC days of costs observed before the monthly cap is set
 BUDGET_HEADROOM = 1.5           # monthly cap = mean daily cost * 30 * BUDGET_HEADROOM
 

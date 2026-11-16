@@ -70,7 +70,10 @@ def daily() -> None:
     """Research the watchlist for the previous UTC day, trade, and send the report."""
     settings, paper, notifier = _open(require_utc=True)
     try:
-        jobs.daily(settings, paper, notifier, lambda: Researcher(settings))
+        jobs.daily(
+            settings, paper, notifier, lambda: Researcher(settings),
+            rerun_factory=lambda: Researcher(settings, fresh_data=True),
+        )
     except Exception as exc:
         notifier.send(f"daily 运行失败：{jobs.error_text(exc)}")
         raise

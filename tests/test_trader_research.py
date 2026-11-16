@@ -196,3 +196,24 @@ def test_the_real_graph_builds_offline_and_makes_the_trader_dirs(tmp_path):
     # cache dirs, and its TradingMemoryLog the memory log's parent.
     Researcher(_settings(tmp_path))
     assert all((tmp_path / name).is_dir() for name in ("logs", "cache", "memory"))
+
+
+def test_the_result_carries_the_final_trade_decision(tmp_path):
+    graph = FakeGraph()
+    graph.propagate = lambda *args, **kwargs: ({"final_trade_decision": "Rating: Buy"}, "Buy")
+    result = Researcher(_settings(tmp_path), graph_factory=graph).run("BTC-USD", "2026-01-04")
+    assert (result.rating, result.decision) == ("Buy", "Rating: Buy")
+
+
+def test_a_rerun_downloads_its_data_anew_into_an_emptied_cache_of_its_own(tmp_path):
+    first = tmp_path / "cache" / "BTC-USD-data.csv"
+    stale = tmp_path / "cache" / "rerun" / "BTC-USD-data.csv"
+    for path in (first, stale):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("the candles up to the day before")
+    graph = FakeGraph()
+    Researcher(_settings(tmp_path), graph_factory=graph, fresh_data=True)
+    assert graph.built_with["config"] == {
+        **build_config(_settings(tmp_path)), "data_cache_dir": str(tmp_path / "cache" / "rerun"),
+    }
+    assert first.exists() and not stale.exists()

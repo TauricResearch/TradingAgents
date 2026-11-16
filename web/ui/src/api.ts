@@ -284,6 +284,14 @@ export interface Accuracy {
   by_rating: Record<string, RatingStats>
 }
 
+/** A rerun on the trade date's daily candle, which Yahoo publishes hours after midnight,
+ * replaced the day's first rating `from` with `to` at `at` (#53). */
+export interface ResearchUpdate {
+  from: string | null
+  to: string
+  at: string
+}
+
 export interface ResearchSummary {
   coin: string
   trade_date: string
@@ -291,6 +299,7 @@ export interface ResearchSummary {
   cost_usd: number | null
   tokens_in: number
   tokens_out: number
+  update: ResearchUpdate | null
 }
 
 export interface InvestmentDebateState {

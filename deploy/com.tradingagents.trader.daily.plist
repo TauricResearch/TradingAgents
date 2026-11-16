@@ -5,9 +5,11 @@
   @REPO_DIR@ and @HOME@ are filled in at install time (see docs/roadmap.md).
 
   launchd fires calendar intervals in the Mac's local time, so the agent ticks every
-  hour at :05 and runs the job only while the UTC hour is 00 to 06: the first tick after
-  UTC midnight is the run, the later ones catch up a run that crashed. On a finished
-  trade date a run does nothing. A tick missed while the Mac slept fires once on wake.
+  hour at :05 and runs the job only while the UTC hour is 00 to 12: the first tick after
+  UTC midnight is the run; the later ones research again a coin researched before Yahoo
+  published the trade date's daily candle, once it is out (#53), and catch up a run that
+  crashed. On a finished trade date a run does nothing. A tick missed while the Mac
+  slept fires once on wake.
   launchd has no run-time limit, so a hung run blocks the later ticks of that day: a
   daily report that never arrives is the sign.
 -->
@@ -19,7 +21,7 @@
   <array>
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>case "$(date -u +%H)" in 0[0-6]) exec "@REPO_DIR@/.venv/bin/python" -m trader daily ;; esac</string>
+    <string>case "$(date -u +%H)" in 0[0-9]|1[0-2]) exec "@REPO_DIR@/.venv/bin/python" -m trader daily ;; esac</string>
   </array>
   <key>WorkingDirectory</key>
   <string>@REPO_DIR@</string>

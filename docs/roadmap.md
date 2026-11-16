@@ -19,7 +19,7 @@
   done
   ```
 
-  Mac 要保持开机并登录；睡眠时错过的触发会在唤醒后补跑一次。卸载用 `launchctl bootout gui/$(id -u)/com.tradingagents.trader.<job>`。
+  Mac 要保持开机并登录；睡眠时错过的触发会在唤醒后补跑一次。卸载用 `launchctl bootout gui/$(id -u)/com.tradingagents.trader.<job>`。plist 改了要先 bootout 那个代理，再按上面生成并 bootstrap。daily 每小时 :05 运行到 12:05 UTC：00:05 那次研判，之后各小时给研判时 Yahoo 还没给出研判日日线的币重跑，并补跑失败的运行；模拟盘等重跑完才执行、发日报（#53，ADR 0002）。
 - [x] 把分支备份到私有仓库 `kissman911/tradingagents-crypto-trader`（远程名 `backup`；`origin` 仍指向上游，用来拉更新）
 
 完成标准：连续 3 天收到日报，账本里有成交和每日净值快照。

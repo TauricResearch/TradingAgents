@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS signals (
     cost_usd REAL);
 CREATE TABLE IF NOT EXISTS transfers (
     bill_id TEXT PRIMARY KEY, ts INTEGER NOT NULL, amount REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS updates (
+    id INTEGER PRIMARY KEY, trade_date TEXT NOT NULL, coin TEXT NOT NULL, ts INTEGER NOT NULL,
+    old_rating TEXT, new_rating TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS fills_ts ON fills (ts);
 CREATE INDEX IF NOT EXISTS attempts_ts ON attempts (ts);
 CREATE INDEX IF NOT EXISTS attempts_trade_date_coin ON attempts (trade_date, coin);
@@ -112,11 +115,10 @@ class Ledger:
                 f"file:{path}?mode=ro", uri=True, timeout=30, isolation_level=None,
                 check_same_thread=False,
             )
-            # It may be a ledger no writer has opened since the transfers were added,
-            # with none booked.
-            self._flows = not self._lacking() and self.db.execute(
-                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'transfers'"
-            ).fetchone() is not None
+            # It may be a ledger no writer has opened since the transfers or the
+            # research updates were added, with none booked.
+            self._flows = not self._lacking() and self._has_table("transfers")
+            self._updates = self._has_table("updates")
             return
         path.parent.mkdir(parents=True, exist_ok=True)
         # The research phase writes attempts while an hourly replay may hold a
@@ -130,7 +132,12 @@ class Ledger:
             with self.transaction():  # one writer adds them, the next finds them there
                 for table, column in self._lacking():
                     self.db.execute(f"ALTER TABLE {table} ADD COLUMN {column}")
-        self._flows = True
+        self._flows = self._updates = True
+
+    def _has_table(self, name: str) -> bool:
+        return self.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+        ).fetchone() is not None
 
     def _lacking(self) -> list[tuple[str, str]]:
         """The ADDED_COLUMNS this ledger does not have yet."""
@@ -368,6 +375,25 @@ class Ledger:
             " FROM attempts WHERE trade_date < ? AND error IS NOT ? GROUP BY trade_date"
             " ORDER BY trade_date", (before_trade_date, BUDGET_ERROR),
         ).fetchall()
+
+    def record_update(
+        self, trade_date: str, coin: str, ts: int, old_rating: str | None, new_rating: str
+    ) -> None:
+        """A rerun on the trade date's full daily candles replaced its rating (#53)."""
+        self.db.execute(
+            "INSERT INTO updates (trade_date, coin, ts, old_rating, new_rating) VALUES (?, ?, ?, ?, ?)",
+            (trade_date, coin, ts, old_rating, new_rating),
+        )
+
+    def updates(self, trade_date: str | None = None) -> list[tuple[str, str, int, str | None, str]]:
+        """(trade_date, coin, ts, old_rating, new_rating) of each research update, oldest
+        first; of ``trade_date`` only, when given."""
+        if not self._updates:
+            return []
+        sql, params = "SELECT trade_date, coin, ts, old_rating, new_rating FROM updates", ()
+        if trade_date is not None:
+            sql, params = sql + " WHERE trade_date = ?", (trade_date,)
+        return self.db.execute(sql + " ORDER BY id", params).fetchall()
 
     # -- intraday signals ---------------------------------------------------
 

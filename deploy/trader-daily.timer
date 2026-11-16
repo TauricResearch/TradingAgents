@@ -2,13 +2,12 @@
 Description=Run the paper trader's daily job after each UTC midnight
 
 [Timer]
-# 00:05 is the run. 03:05 catches up a first run that crashed. 06:05 covers a
-# first run still going at 03:05 (systemd ignores a timer tick while its oneshot
-# service is running) that then failed or hit the service's 4h timeout. On a
-# finished trade date a run does nothing.
-OnCalendar=*-*-* 00:05:00 UTC
-OnCalendar=*-*-* 03:05:00 UTC
-OnCalendar=*-*-* 06:05:00 UTC
+# 00:05 is the run. The later hours, to 12:05, research again a coin researched
+# before Yahoo published the trade date's daily candle, once it is out (#53), and
+# catch up a first run that crashed or hit the service's 4h timeout (systemd ignores
+# a timer tick while its oneshot service is running). On a finished trade date a run
+# does nothing.
+OnCalendar=*-*-* 00..12:05:00 UTC
 Persistent=true
 
 [Install]

@@ -26,7 +26,10 @@ def test_daily_then_mark_on_live_market_data(tmp_path):
     paper, inbox = Paper(ledger, OKX()), Inbox()
     researcher = FakeResearcher({"BTC-USD": ["Buy"], "ETH-USD": ["Sell"], "SOL-USD": ["Hold"]})
 
-    jobs.daily(settings, paper, inbox, lambda: researcher, now_fn=lambda: now)
+    jobs.daily(
+        settings, paper, inbox, lambda: researcher, now_fn=lambda: now,
+        published=lambda coin, trade_date: True,  # what Yahoo serves is not under test here
+    )
     positions = ledger.positions()
     assert positions["BTC-USDT-SWAP"].qty > 0
     assert positions["ETH-USDT-SWAP"].qty < 0
