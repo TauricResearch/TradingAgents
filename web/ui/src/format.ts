@@ -76,36 +76,45 @@ export function fmtAbsQty(x: number): string {
 
 const pad2 = (n: number): string => String(n).padStart(2, '0')
 
-/** ISO time -> "11-07 00:15 UTC". */
-export function fmtTime(iso: string | null | undefined): string {
-  if (!iso) return DASH
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return `${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())} UTC`
-}
-
 const BEIJING_OFFSET_MS = 8 * 3_600_000
 
+/** The same instant with Beijing's wall clock in its UTC fields, for the getUTC* getters. */
+const inBeijing = (d: Date): Date => new Date(d.getTime() + BEIJING_OFFSET_MS)
+
+const clock = (d: Date): string => `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`
+
 const stamp = (d: Date): string =>
-  `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`
+  `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${clock(d)}:${pad2(d.getUTCSeconds())}`
 
-/** ISO time -> "2026-11-07 00:15:30 UTC · 北京 2026-11-07 08:15:30", for tooltips. */
-export function fmtTimeFull(iso: string | null | undefined): string {
-  if (!iso) return DASH
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return `${stamp(d)} UTC · 北京 ${stamp(new Date(d.getTime() + BEIJING_OFFSET_MS))}`
-}
-
-/** ISO time -> "北京 08:15", or "北京 11-08 00:15" when Beijing is already on another day
- * than UTC; the companion of fmtTime for readers on the Beijing clock. */
+/** ISO time -> "11-07 08:15 北京", dated always: when a record happened on the reader's clock. */
 export function fmtBeijing(iso: string | null | undefined): string {
   if (!iso) return DASH
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  const b = new Date(d.getTime() + BEIJING_OFFSET_MS)
-  const day = b.getUTCDate() === d.getUTCDate() ? '' : `${pad2(b.getUTCMonth() + 1)}-${pad2(b.getUTCDate())} `
-  return `北京 ${day}${pad2(b.getUTCHours())}:${pad2(b.getUTCMinutes())}`
+  const b = inBeijing(d)
+  return `${pad2(b.getUTCMonth() + 1)}-${pad2(b.getUTCDate())} ${clock(b)} 北京`
+}
+
+/** ISO time -> "00:15 UTC", the ledger's clock that follows fmtBeijing; '' when unreadable. */
+export function fmtUtcClock(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : `${clock(d)} UTC`
+}
+
+/** ISO time -> "11-07 08:15 北京 · 00:15 UTC" in running text; <Time> shows it with the
+ * UTC clock muted. */
+export function fmtTime(iso: string | null | undefined): string {
+  const utc = fmtUtcClock(iso)
+  return utc ? `${fmtBeijing(iso)} · ${utc}` : fmtBeijing(iso)
+}
+
+/** ISO time -> "北京 2026-11-07 08:15:30 · UTC 2026-11-07 00:15:30", for tooltips. */
+export function fmtTimeFull(iso: string | null | undefined): string {
+  if (!iso) return DASH
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return `北京 ${stamp(inBeijing(d))} · UTC ${stamp(d)}`
 }
 
 /** ISO time -> "2026-11-07" (UTC date). */

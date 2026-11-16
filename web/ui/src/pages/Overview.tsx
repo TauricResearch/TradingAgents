@@ -24,14 +24,17 @@ import { useFetch } from '../hooks'
 
 const REFRESH_MS = 60_000
 
+/** On the panels of the daily research shown on the intraday and exchange accounts. */
+const SHARED_NOTE = '日频研判 · 各账户共用'
+
 /**
- * Where the day is measured from: today's UTC midnight, or the last snapshot written
- * when today's is not yet. Short, the cell is narrow; the hover has the Beijing clock.
+ * Where the day is measured from: today's UTC midnight, Beijing 08:00, or the last snapshot
+ * written when today's is not yet. Short, the cell is narrow; the hover has both clocks.
  */
 function todayNote(today: Today) {
   if (!today.since) return '尚无零点快照'
   const utcToday = new Date().toISOString().slice(0, 10)
-  const from = today.since.slice(0, 10) === utcToday ? '自 UTC 00:00' : `自 ${fmtDay(today.since)} 零点`
+  const from = today.since.slice(0, 10) === utcToday ? '自北京 08:00' : `自 ${fmtDay(today.since)} 北京 08:00`
   const text = today.pnl === null ? `无报价 · ${from}` : `${fmtPct(today.pct)} · ${from}`
   return <span title={`起点 ${fmtTimeFull(today.since)}`}>{text}</span>
 }
@@ -40,11 +43,10 @@ export function Overview() {
   const { account, overview, execution } = useAccount()
   const equity = useFetch<Equity>(accountPath(account.id, 'equity'), REFRESH_MS)
   const daily = useFetch<Daily>(accountPath(account.id, `daily?limit=${CHART_DAYS}`), REFRESH_MS)
-  // The intraday and exchange accounts settle no ratings, so there is no accuracy to fetch.
-  const accuracy = useFetch<Accuracy>(
-    account.intraday || account.exchange ? null : accountPath(account.id, 'accuracy'),
-    REFRESH_MS * 5,
-  )
+  // The intraday and exchange accounts research nothing themselves; their signals read the
+  // daily research, so they show it and its accuracy too, as shared.
+  const shared = account.intraday || account.exchange
+  const accuracy = useFetch<Accuracy>(accountPath(account.id, 'accuracy'), REFRESH_MS * 5)
 
   if (overview.error && !overview.data) return <ErrorBox error={overview.error} onRetry={overview.refresh} />
   if (!overview.data) return <Loading />
@@ -53,6 +55,19 @@ export function Overview() {
   const t = ov.totals
   // Money moved in or out since the account opened (#40): the capital shown is what was put in.
   const moved = ov.transfers > 0
+  // Whether the daily account rebalanced on it says nothing of a shared account's trades.
+  const latestPanel = ov.latest && (
+    <Panel
+      title={`最近研判 · 研判日 ${ov.latest.trade_date}`}
+      help="latest_research"
+      aside={
+        shared ? SHARED_NOTE : ov.latest.executed ? '已执行调仓' : <span className="text-accent">尚未执行</span>
+      }
+      flush
+    >
+      <LatestCards latest={ov.latest} shared={shared} />
+    </Panel>
+  )
 
   return (
     <div className="flex flex-col gap-3">
@@ -182,20 +197,7 @@ export function Overview() {
         </Panel>
 
         <div className="flex flex-col gap-3">
-          {account.intraday || account.exchange ? (
-            <LatestSignals />
-          ) : (
-            ov.latest && (
-              <Panel
-                title={`最近研判 · 研判日 ${ov.latest.trade_date}`}
-                help="latest_research"
-                aside={ov.latest.executed ? '已执行调仓' : <span className="text-accent">尚未执行</span>}
-                flush
-              >
-                <LatestCards latest={ov.latest} />
-              </Panel>
-            )
-          )}
+          {shared ? <LatestSignals /> : latestPanel}
           {account.exchange && (
             <Panel title="执行对账" help="execution" className="flex-1" aside={<StaleNote error={execution.error} />}>
               {execution.error && !execution.data ? (
@@ -213,17 +215,26 @@ export function Overview() {
               <LlmCard llm={ov.llm} intraday={account.intraday} />
             </Panel>
           )}
-          {!account.intraday && !account.exchange && (
-            <Panel title="评级准确度" help="accuracy" className="flex-1" aside={<StaleNote error={accuracy.error} />}>
-              {accuracy.error && !accuracy.data ? (
-                <ErrorBox error={accuracy.error} onRetry={accuracy.refresh} />
-              ) : !accuracy.data ? (
-                <Loading />
-              ) : (
-                <AccuracyCard accuracy={accuracy.data} />
-              )}
-            </Panel>
-          )}
+          {shared && latestPanel}
+          <Panel
+            title="评级准确度"
+            help="accuracy"
+            className="flex-1"
+            aside={
+              <span className="flex items-center gap-2">
+                {shared && SHARED_NOTE}
+                <StaleNote error={accuracy.error} />
+              </span>
+            }
+          >
+            {accuracy.error && !accuracy.data ? (
+              <ErrorBox error={accuracy.error} onRetry={accuracy.refresh} />
+            ) : !accuracy.data ? (
+              <Loading />
+            ) : (
+              <AccuracyCard accuracy={accuracy.data} />
+            )}
+          </Panel>
         </div>
       </div>
     </div>

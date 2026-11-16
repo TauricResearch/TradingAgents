@@ -6,7 +6,7 @@ intraday account or with the demo one; and only 404s until live init opens its l
 import pytest
 
 from tests.test_trader_paper import BTC, DAY0, T0
-from tests.test_web_api import HOUR, MINUTE
+from tests.test_web_api import HOUR, MINUTE, NOW, SHARED_LATEST
 from tests.test_web_api_demo import build_demo
 from trader.intraday.types import SignalResult
 from trader.ledger import Fill, Ledger, Position
@@ -125,9 +125,10 @@ def test_a_halted_live_account_says_so_on_every_route_that_tells(tmp_path):
     assert client.get("/api/accounts").json()[-1]["halted"] is True
 
 
-def test_live_overview_has_no_llm_spend_and_marks_the_exchange_position(tmp_path):
+def test_live_overview_has_no_llm_spend_and_marks_the_exchange_position(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "_now", lambda: NOW)  # on build()'s trade date
     body = build_live(tmp_path).get("/api/accounts/live/overview").json()
-    assert body["llm"] is None and body["latest"] is None
+    assert body["llm"] is None and body["latest"] == SHARED_LATEST
     assert body["equity"] == pytest.approx(999.61 + 0.01 * (79_000.0 - 78_117.0))  # marked at the quote
     assert body["performance"]["strategy"]["cumulative"] == pytest.approx(0.002)
     (position,) = body["positions"]

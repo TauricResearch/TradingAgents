@@ -33,7 +33,7 @@ function Row({ signal, follows }: { signal: Signal; follows: boolean }) {
         )}
       </div>
       <div className="pl-12 text-[12px] text-muted">
-        <Time ts={signal.ts} beijing />
+        <Time ts={signal.ts} />
       </div>
     </li>
   )

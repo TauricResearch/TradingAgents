@@ -11,7 +11,7 @@ function fillsText(coin: LatestCoin): string {
     .join('；')
 }
 
-function CardBody({ coin }: { coin: LatestCoin }) {
+function CardBody({ coin, shared }: { coin: LatestCoin; shared: boolean }) {
   return (
     <>
       <div className="flex min-w-0 items-center gap-2">
@@ -23,15 +23,19 @@ function CardBody({ coin }: { coin: LatestCoin }) {
           {fmtUsd(coin.cost_usd)}
         </span>
       </div>
-      <div className={`num pl-12 text-[12px] ${coin.fills.length ? 'text-fg' : 'text-muted'}`}>
-        {fillsText(coin)}
-      </div>
+      {!shared && (
+        <div className={`num pl-12 text-[12px] ${coin.fills.length ? 'text-fg' : 'text-muted'}`}>
+          {fillsText(coin)}
+        </div>
+      )}
     </>
   )
 }
 
-/** The latest trade date's research per coin; finished ones open the record. */
-export function LatestCards({ latest }: { latest: Latest }) {
+/** The latest trade date's research per coin; finished ones open the record. `shared`: the
+ * daily research on an account that trades by the hourly signals, without the daily
+ * account's rebalancing. */
+export function LatestCards({ latest, shared = false }: { latest: Latest; shared?: boolean }) {
   if (latest.coins.length === 0) return <div className="px-3 py-6 text-center text-muted">暂无研判</div>
   return (
     <ul className="flex flex-col">
@@ -41,11 +45,11 @@ export function LatestCards({ latest }: { latest: Latest }) {
           <li key={c.coin} className="border-b border-border/60 last:border-b-0">
             {c.state === 'done' ? (
               <Link to={researchHref(c.coin, latest.trade_date)} className={`${cls} hover:bg-panel-2/60`}>
-                <CardBody coin={c} />
+                <CardBody coin={c} shared={shared} />
               </Link>
             ) : (
               <div className={cls}>
-                <CardBody coin={c} />
+                <CardBody coin={c} shared={shared} />
               </div>
             )}
           </li>
