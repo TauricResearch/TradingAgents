@@ -309,10 +309,13 @@ def test_fills_newest_first_with_since_and_limit(tmp_path):
         "ts": "2026-01-10T00:30:00Z", "inst": "BTC-USDT-SWAP", "coin": "BTC-USD", "qty": -0.02,
         "price": 80_000.0, "fee": 0.8, "reason": "trade", "trade_date": "2026-01-09",
         "realized": pytest.approx(20.0), "realized_net": pytest.approx(19.2),
+        # 19.2 on the 0.02 sold, worth 1,580 at the entry of 79,000.
+        "realized_pct": pytest.approx(19.2 / 1_580), "entry": pytest.approx(79_000.0),
         "position_after": pytest.approx(0.02),
     }
     assert fills[1]["realized"] == 0.0
     assert fills[1]["realized_net"] == pytest.approx(-1.58)
+    assert (fills[1]["realized_pct"], fills[1]["entry"]) == (None, None)  # it opened: no return
     assert fills[1]["position_after"] == pytest.approx(0.04)
     since = client.get("/api/accounts/paper/fills", params={"since": "2026-01-10T00:00:00Z"})
     assert [f["trade_date"] for f in since.json()] == ["2026-01-09"]
@@ -345,12 +348,42 @@ def test_fill_pnl_follows_the_account_rule_through_a_flip_and_a_close(tmp_path):
     assert [r["realized_net"] for r in rows] == [
         pytest.approx(-1.58), pytest.approx(37.6), pytest.approx(39.22),
     ]
+    # The return is on what each fill closed, at its entry: the 0.04 long bought at
+    # 79,000 (not the 0.06 the flip traded), then the 0.02 short sold at 80,000.
+    assert [r["entry"] for r in rows] == [None, pytest.approx(79_000.0), pytest.approx(80_000.0)]
+    assert [r["realized_pct"] for r in rows] == [
+        None, pytest.approx(37.6 / (0.04 * 79_000)), pytest.approx(39.22 / (0.02 * 80_000)),
+    ]
     # The same fills through the account's own booking give the same numbers.
     positions, booked = {}, []
     for f in fills:
         old = positions[f.inst].qty if f.inst in positions else 0.0
         booked.append(_move(positions, f.inst, old + f.qty, f.price, 0.0, f.ts, f.reason, []))
     assert [r["realized"] - rules.fee(r["qty"] * r["price"]) for r in rows] == pytest.approx(booked)
+
+
+def test_fill_return_is_on_the_part_closed_at_the_average_entry(tmp_path):
+    settings = Settings(home=tmp_path)
+    ledger = Ledger(settings.ledger_path)
+    ledger.initialize(10_000.0, T0)
+    fills = [
+        Fill(T0, BTC.swap, -0.1, 80_000.0, 4.0, "trade", None),             # open short
+        Fill(T0 + HOUR, BTC.swap, -0.1, 78_000.0, 3.9, "trade", None),      # add: entry 79,000
+        Fill(T0 + 2 * HOUR, BTC.swap, 0.05, 80_580.0, 2.0, "stop", None),   # buy back a quarter
+    ]
+    ledger.commit(positions={}, cash=10_000.0, fills=fills)
+    ledger.db.close()
+    client = TestClient(create_app(settings, CountingOKX()))
+
+    opened, added, reduced = client.get("/api/accounts/paper/fills").json()[::-1]
+    # Selling more of a short closes nothing: no return, only the fee.
+    assert (opened["realized_pct"], opened["entry"]) == (None, None)
+    assert (added["realized_pct"], added["entry"]) == (None, None)
+    # Buying 0.05 back at 80,580 loses 0.05 * 1,580 and the fee, on 0.05 * 79,000 at entry.
+    assert reduced["entry"] == pytest.approx(79_000.0)
+    assert reduced["realized_net"] == pytest.approx(-79.0 - 2.0)
+    assert reduced["realized_pct"] == pytest.approx(-81.0 / 3_950.0)
+    assert reduced["position_after"] == pytest.approx(-0.15)
 
 
 def test_fill_pnl_and_funding_add_up_to_the_cash_the_account_made(tmp_path):

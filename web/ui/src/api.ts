@@ -223,6 +223,10 @@ export interface Fill {
   realized: number
   /** `realized` less `fee`: what the fill added to the cash. */
   realized_net: number
+  /** `realized_net` over the value at `entry` of the part of the position the fill closed; null when it closed nothing. */
+  realized_pct: number | null
+  /** The average entry of the position the fill closed some of; null when it closed nothing. */
+  entry: number | null
   /** The signed position the fill left; 0 when it closed. */
   position_after: number
 }

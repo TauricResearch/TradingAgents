@@ -794,21 +794,24 @@ def _months(spans: list[_Span]) -> list[dict]:
     return out
 
 
-def _replayed(ledger: Ledger) -> list[tuple[Fill, float, float]]:
-    """Every fill with the PnL it realized and the signed position it left, in time
+def _replayed(ledger: Ledger) -> list[tuple[Fill, float, float, float | None]]:
+    """Every fill with the PnL it realized, the signed position it left and the average
+    entry of the position it closed some of (None when it closed nothing), in time
     order. The ledger only stores the fills, so they are booked again from the first
     one with the account's own rule (``paper._move``: weighted average entry, a
     reduce realizes on the part closed, a flip on all of the old side)."""
     positions: dict[str, Position] = {}
-    out: list[tuple[Fill, float, float]] = []
+    out: list[tuple[Fill, float, float, float | None]] = []
     for f in ledger.fills():
-        old = positions[f.inst].qty if f.inst in positions else 0.0
+        held = positions.get(f.inst)
+        old = held.qty if held else 0.0
         new = old + f.qty
         if abs(new) < 1e-9:  # a closing fill is the position rounded, not its negation to the bit
             new = 0.0
+        entry = held.entry if held and old * f.qty < 0 else None
         # _move returns realized less the fee it computes on the same notional; add it back.
         net = _move(positions, f.inst, new, f.price, 0.0, f.ts, f.reason, [])
-        out.append((f, net + rules.fee((new - old) * f.price), new))
+        out.append((f, net + rules.fee((new - old) * f.price), new, entry))
     return out
 
 
@@ -818,10 +821,23 @@ def fills(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[d
         {
             "ts": _iso(f.ts), "inst": f.inst, "coin": account.coin_of(f.inst), "qty": f.qty,
             "price": f.price, "fee": f.fee, "reason": f.reason, "trade_date": f.trade_date,
-            "realized": realized, "realized_net": realized - f.fee, "position_after": after,
+            "realized": realized, "realized_net": realized - f.fee,
+            "realized_pct": _closed_return(f, realized - f.fee, after, entry),
+            "entry": entry, "position_after": after,
         }
-        for f, realized, after in reversed(rows)
+        for f, realized, after, entry in reversed(rows)
     ]
+
+
+def _closed_return(fill: Fill, net: float, after: float, entry: float | None) -> float | None:
+    """``net``, what a fill realized less its fee, over the value at ``entry`` of the part
+    of the position it closed: the whole fill on a reduce or a close, the old side on a
+    flip. None for a fill that closed nothing. The fee of the fill that opened the
+    position is on that fill's own row and the funding apart, as in ``realized_net``."""
+    if entry is None:
+        return None
+    closed = min(abs(after - fill.qty), abs(fill.qty))
+    return net / (closed * entry) if closed * entry else None
 
 
 def transfers(ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
