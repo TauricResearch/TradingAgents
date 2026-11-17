@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAccount } from '../account'
-import type { Attempt, Daily, DailyRow, Fill, FillReason, Funding, LedgerEvent, Mirror, Transfer } from '../api'
+import type { Attempt, Daily, DailyRow, Fill, FillReason, Funding, LedgerEvent, Mirror, Order, Transfer } from '../api'
 import { accountPath } from '../api'
 import type { Column } from '../components/DataTable'
 import { MirrorView } from '../components/MirrorView'
@@ -57,7 +58,53 @@ function ReasonChip({ reason }: { reason: FillReason }) {
   return <span className={`inline-block rounded-sm border px-1.5 text-[11px] leading-4 ${r.cls}`}>{r.label}</span>
 }
 
-const fillColumns: Column<Fill>[] = [
+/** A row of the fills table: an order, or one of the fills under an order that is open. */
+interface FillRow extends Fill {
+  id: string
+  /** How many fills the order came back in, when several; 0 on a row that is one fill. */
+  pieces: number
+  /** One of the fills under an order. */
+  piece: boolean
+  open: boolean
+}
+
+/** The rows to list: each order, with its fills under it when it is among the `open` ones. */
+function fillRows(account: string, orders: Order[], open: ReadonlySet<string>): FillRow[] {
+  return orders.flatMap((o) => {
+    // No two orders share all of these: fills that do are one order's.
+    const id = `${account}|${o.ts}|${o.inst}|${o.qty > 0}|${o.reason}`
+    const shown = open.has(id)
+    const row: FillRow = { ...o, id, pieces: o.fills.length, piece: false, open: shown }
+    if (!shown) return [row]
+    return [row, ...o.fills.map((f, i) => ({ ...f, id: `${id}#${i}`, pieces: 0, piece: true, open: false }))]
+  })
+}
+
+/** The column that opens an order of several fills; only listed when some order has several. */
+function piecesColumn(toggle: (id: string) => void): Column<FillRow> {
+  return {
+    key: 'pieces',
+    header: '分笔',
+    help: 'fill_pieces',
+    render: (f) =>
+      f.pieces > 0 && (
+        <button
+          type="button"
+          aria-expanded={f.open}
+          onClick={() => toggle(f.id)}
+          title={f.open ? '收起这张单的各笔成交' : '展开这张单的各笔成交'}
+          className="num -mx-1 flex items-center gap-1 rounded-sm px-1 hover:bg-panel-2"
+        >
+          <span aria-hidden className={`w-3 text-[11px] ${f.open ? 'text-accent' : 'text-muted'}`}>
+            {f.open ? '▾' : '▸'}
+          </span>
+          {f.pieces} 笔
+        </button>
+      ),
+  }
+}
+
+const fillColumns: Column<FillRow>[] = [
   { key: 'ts', header: '时间', render: (f) => <Time ts={f.ts} /> },
   { key: 'inst', header: '合约', render: (f) => <span className="num">{f.inst}</span> },
   {
@@ -67,7 +114,20 @@ const fillColumns: Column<Fill>[] = [
       f.qty >= 0 ? <span className="text-up">买入</span> : <span className="text-down">卖出</span>,
   },
   { key: 'qty', header: '数量', align: 'right', render: (f) => <Num value={f.qty} fmt={fmtQty} /> },
-  { key: 'price', header: '价格', align: 'right', render: (f) => fmtUsdt(f.price) },
+  {
+    key: 'price',
+    header: '价格',
+    align: 'right',
+    render: (f) =>
+      f.pieces > 0 ? (
+        <span title={`${f.pieces} 笔成交的均价`}>
+          <span className="mr-1 text-[11px] text-muted">均</span>
+          {fmtUsdt(f.price)}
+        </span>
+      ) : (
+        fmtUsdt(f.price)
+      ),
+  },
   { key: 'fee', header: '手续费', align: 'right', render: (f) => fmtUsdt(f.fee, 4) },
   {
     key: 'realized_net',
@@ -167,7 +227,19 @@ export function History() {
   const dailyRaw = useFetch<Daily>(accountPath(account.id, 'daily?limit=500'))
   // The tab shows the day rows; the months stay on the overview.
   const daily = { ...dailyRaw, data: dailyRaw.data?.days ?? null }
-  const fills = useFetch<Fill[]>(accountPath(account.id, 'fills?limit=500'))
+  const orders = useFetch<Order[]>(accountPath(account.id, 'fills?limit=500'))
+  // The orders of several fills that are open; all are closed at first.
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
+  const fills = { ...orders, data: orders.data && fillRows(account.id, orders.data, open) }
+  const split = fills.data?.filter((f) => f.pieces > 0) ?? []
+  const allOpen = split.length > 0 && split.every((f) => f.open)
+  const toggle = (id: string) =>
+    setOpen((ids) => {
+      const next = new Set(ids)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
+  const fillCount = orders.data?.reduce((n, o) => n + Math.max(1, o.fills.length), 0)
   const funding = useFetch<Funding[]>(accountPath(account.id, 'funding?limit=500'))
   // Only an account on the exchange has money moved in or out (#40).
   const transfers = useFetch<Transfer[]>(account.exchange ? accountPath(account.id, 'transfers?limit=500') : null)
@@ -183,7 +255,7 @@ export function History() {
 
   const tabs = [
     { key: 'daily' as const, label: '每日收益', count: daily.data?.length },
-    { key: 'fills' as const, label: '成交', count: fills.data?.length },
+    { key: 'fills' as const, label: '成交', count: fillCount },
     { key: 'funding' as const, label: '资金费', count: funding.data?.length },
     { key: 'transfers' as const, label: '出入金', count: transfers.data?.length },
     { key: 'attempts' as const, label: '研判记录', count: attempts.data?.length },
@@ -203,9 +275,10 @@ export function History() {
   const active: TabKey = tabs.find((t) => t.key === raw)?.key ?? 'fills'
   const current = { daily, fills, funding, transfers, attempts, events, mirror, mirror_demo: demoMirror }[active]
   // An intraday or exchange account trades by the hour, not by research day: its fill's time says it all.
-  const fillCols = account.intraday || account.exchange
-    ? fillColumns.filter((c) => c.key !== 'trade_date')
-    : fillColumns
+  const fillCols = [
+    ...(split.length > 0 ? [piecesColumn(toggle)] : []),
+    ...(account.intraday || account.exchange ? fillColumns.filter((c) => c.key !== 'trade_date') : fillColumns),
+  ]
   const dailyCols = account.exchange ? dailyColumns : dailyColumns.filter((c) => c.key !== 'transfers')
 
   return (
@@ -220,10 +293,19 @@ export function History() {
             {active === 'daily' && (
               <span>UTC 日 · 北京 08:00 起 · {account.exchange ? '盈亏不含出入金' : '盈亏不含 AI 费用'}</span>
             )}
-            {active === 'fills' && fills.data && fills.data.length > 0 && (
+            {active === 'fills' && split.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOpen(allOpen ? new Set() : new Set(split.map((f) => f.id)))}
+                className="text-accent hover:underline"
+              >
+                {allOpen ? '全部收起' : '全部展开'}
+              </button>
+            )}
+            {active === 'fills' && orders.data && orders.data.length > 0 && (
               <span>
-                所列 {fills.data.length} 笔平仓收益（扣费）合计{' '}
-                <Num value={fills.data.reduce((sum, f) => sum + f.realized_net, 0)} fmt={fmtSigned} />
+                所列 {fillCount} 笔{fillCount !== orders.data.length && `（${orders.data.length} 张单）`}平仓收益（扣费）合计{' '}
+                <Num value={orders.data.reduce((sum, o) => sum + o.realized_net, 0)} fmt={fmtSigned} />
               </span>
             )}
           </span>
@@ -232,7 +314,14 @@ export function History() {
         help={active}
       >
         {active === 'daily' && <Table state={daily} columns={dailyCols} rowKey={(d) => d.date} />}
-        {active === 'fills' && <Table state={fills} columns={fillCols} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />}
+        {active === 'fills' && (
+          <Table
+            state={fills}
+            columns={fillCols}
+            rowKey={(f) => f.id}
+            rowClassName={(f) => (f.piece ? 'bg-panel-2/50 text-muted' : '')}
+          />
+        )}
         {active === 'funding' && (
           <Table state={funding} columns={fundingColumns} rowKey={(f, i) => `${f.ts}-${f.inst}-${i}`} />
         )}

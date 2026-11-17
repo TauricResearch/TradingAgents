@@ -24,10 +24,12 @@ interface Props<T> {
   stickyHeader?: boolean
   /** A totals row under the body: cells by column key, the other columns blank. */
   footer?: Partial<Record<string, ReactNode>>
+  /** Extra classes for a row, e.g. to set the rows under another apart. */
+  rowClassName?: (row: T) => string
 }
 
 /** Dense table; scrolls horizontally on narrow screens. */
-export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', stickyHeader = false, footer }: Props<T>) {
+export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', stickyHeader = false, footer, rowClassName }: Props<T>) {
   if (rows.length === 0) return <Empty label={empty} />
   return (
     <div className="w-full overflow-x-auto">
@@ -52,7 +54,10 @@ export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', st
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={rowKey(row, i)} className="border-b border-border/60 last:border-b-0 hover:bg-panel-2/60">
+            <tr
+              key={rowKey(row, i)}
+              className={`border-b border-border/60 last:border-b-0 hover:bg-panel-2/60 ${rowClassName?.(row) ?? ''}`}
+            >
               {columns.map((c) => (
                 <td
                   key={c.key}

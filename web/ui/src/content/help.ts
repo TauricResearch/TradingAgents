@@ -65,6 +65,7 @@ export type HelpKey =
   | 'daily'
   | 'fills'
   | 'fill_reason'
+  | 'fill_pieces'
   | 'fill_pnl'
   | 'fill_return'
   | 'position_after'
@@ -286,7 +287,11 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'history-page',
   },
   fills: {
-    text: `所有成交记录：时间、合约、方向、数量、成交价、手续费、这笔实现的盈亏和成交后的持仓，按时间倒序排列。右上角是所列成交的已实现合计（扣费）。`,
+    text: `所有成交记录：时间、合约、方向、数量、成交价、手续费、这笔实现的盈亏和成交后的持仓，按时间倒序排列。一张单在交易所拆成多笔成交时，先列这张单的汇总行，点「分笔」一列展开看每一笔。右上角是所列成交的已实现合计（扣费）。`,
+    section: 'history-page',
+  },
+  fill_pieces: {
+    text: `一张单在交易所常被拆成多笔成交。这样的单先列一行汇总：数量、手续费、平仓收益是各笔的合计，价格是均价，收益率按整张单算，成交后持仓是最后一笔之后的，时间是第一笔的。点「N 笔」展开看每一笔，再点收起；右上角可以全部展开或收起。账本里没有订单号：同一合约、同方向、同原因、前后相隔不到 1 秒的成交算一张单。`,
     section: 'history-page',
   },
   fill_pnl: {
