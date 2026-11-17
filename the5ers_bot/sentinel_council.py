@@ -20,11 +20,15 @@ Risk model - The5ers Bootcamp ($5,000 demo, scaling to $20,000)
 * Fixed risk per trade  : **1R = $10**
 * Reward:risk floor     : **RRR >= 1 : 1.5** (i.e. TP >= $15)
 * Max trades per day    : **3**
-* Circuit breaker       : lockout once daily P&L reaches **-$20 (2R)** and a hard
-                          kill at **-$30 (3R)**; also locks once the +daily profit
-                          target is banked.
+* Circuit breaker       : lockout once the day's **net** P&L reaches **-$20 (2R)**
+                          and a hard kill at **-$30 (3R)**; also locks once the
+                          **+$50** daily profit target is banked.
 * Session filter        : only London open (07:00-16:00 UTC) and the London/New
                           York overlap (12:00-16:00 UTC) are tradable.
+
+Every guardrail is measured against the day's **net P&L change** (realized + floating
+trading P&L), never against the account balance - funding/deposit deals are filtered
+out at the data layer so a fresh $5,000 demo can never look like a profit-target hit.
 
 Resilience
 ----------
@@ -67,7 +71,7 @@ MIN_TP_USD = RISK_PER_TRADE_USD * MIN_RRR     # $15 minimum take-profit
 MAX_TRADES_PER_DAY = 3
 DAILY_LOSS_LOCK_USD = -20.0                   # 2R -> soft lockout
 DAILY_LOSS_KILL_USD = -30.0                   # 3R -> hard kill-switch
-DAILY_PROFIT_TARGET_USD = 20.0                # bank the day and stop
+DAILY_PROFIT_TARGET_USD = 50.0                # +5R: bank the day and stop (range +$50..+$100)
 CIRCUIT_WATCH_USD = -10.0                     # 1R -> amber warning
 
 VALID_DIRECTIONS = {"long", "short", "neutral"}
@@ -448,9 +452,11 @@ _AUDITOR_SYSTEM = (
     "You are the Risk Auditor for a The5ers Bootcamp evaluation account: a $5,000 "
     "demo scaling to $20,000. "
     "Hard rules: risk per trade is 1R = $10, the take-profit must be at least 1.5x the "
-    "stop (RRR >= 1:1.5, i.e. >= $15), at most 3 trades per day, the daily profit target "
-    "is +$20, the circuit breaker locks out at -$20 (2R) and the hard kill-switch is -$30 "
-    "(3R). Signals are only valid during the London open or the London/New York overlap. "
+    "stop (RRR >= 1:1.5, i.e. >= $15), at most 3 trades per day, the daily profit "
+    "target is +$50, the circuit breaker locks out at -$20 (2R) and the hard kill-switch "
+    "is -$30 (3R). Signals are only valid during the London open or the London/New York "
+    "overlap. All limits apply to the day's NET P&L change (realized + floating), never "
+    "to the account balance. "
     "Validate the setup against these rules using the reported numbers. Be conservative. "
     'Reply with ONLY JSON: {"verdict":"long"|"short"|"neutral","confidence":0.0-1.0,'
     '"compliant":true|false,"summary":"one short sentence of auditor notes"}.'

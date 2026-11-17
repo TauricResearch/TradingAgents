@@ -76,6 +76,9 @@ EMA_SLOW = 200
 RSI_PERIOD = 14
 DEFAULT_STOP_ATR = 1.5
 DEFAULT_TARGET_RRR = 2.0
+DEFAULT_PROFIT_TARGET = DAILY_PROFIT_TARGET_USD   # +$50 (tunable in the +$50..+$100 band)
+PROFIT_TARGET_MIN = 20.0
+PROFIT_TARGET_MAX = 200.0
 REFRESH_SECONDS = 10
 
 CIRCUIT_STYLE = {
@@ -102,6 +105,7 @@ def build_setup(
     now: Optional[datetime] = None,
     stop_atr_mult: float = DEFAULT_STOP_ATR,
     target_rrr: float = DEFAULT_TARGET_RRR,
+    profit_target: float = DEFAULT_PROFIT_TARGET,
     ema_fast: int = EMA_FAST,
     ema_slow: int = EMA_SLOW,
     rsi_period: int = RSI_PERIOD,
@@ -148,6 +152,7 @@ def build_setup(
         "lot_step": spec.lot_step,
         "daily_pnl": round(float(daily_pnl), 2),
         "trades_today": int(trades_today),
+        "profit_target": round(float(profit_target), 2),
         "now": now,
     }
 
@@ -268,9 +273,15 @@ def render_sidebar(client: MT5Client) -> Dict[str, Any]:
         st.divider()
 
         st.markdown("### 🧮 Daily Guardrail Tracker")
+        st.caption("Guardrails track the day's **net P&L change**, not the account balance.")
+        profit_target = st.number_input(
+            "Daily profit target ($)", min_value=PROFIT_TARGET_MIN, max_value=PROFIT_TARGET_MAX,
+            value=DEFAULT_PROFIT_TARGET, step=10.0, key="cp_profit_target",
+            help="Lock in the day once this net profit is reached (recommended +$50 to +$100).",
+        )
         auto_default = not client.connected
         manual = st.checkbox("Manual P&L / trade override", value=auto_default)
-        st.number_input("Daily P&L (USD)", key="cp_daily_pnl", step=float(RISK_PER_TRADE_USD), format="%.2f")
+        st.number_input("Daily net P&L (USD)", key="cp_daily_pnl", step=float(RISK_PER_TRADE_USD), format="%.2f")
         st.number_input("Trades taken today", key="cp_trades_today", step=1, min_value=0, max_value=MAX_TRADES_PER_DAY)
         b1, b2, b3 = st.columns(3)
         if b1.button(f"+1R", use_container_width=True, help=f"+${RISK_PER_TRADE_USD:.0f}"):
@@ -287,7 +298,7 @@ def render_sidebar(client: MT5Client) -> Dict[str, Any]:
             st.rerun()
         st.caption(
             f"Lock ≤ {DAILY_LOSS_LOCK_USD:+.0f} (2R) · Kill ≤ {DAILY_LOSS_KILL_USD:+.0f} (3R) · "
-            f"Bank ≥ {DAILY_PROFIT_TARGET_USD:+.0f} · Max {MAX_TRADES_PER_DAY} trades."
+            f"Bank ≥ {profit_target:+.0f} · Max {MAX_TRADES_PER_DAY} trades."
         )
 
         st.divider()
@@ -307,6 +318,7 @@ def render_sidebar(client: MT5Client) -> Dict[str, Any]:
         "target_rrr": float(target_rrr),
         "daily_pnl": daily_pnl,
         "trades_today": trades_today,
+        "profit_target": float(profit_target),
         "groq_key": groq_key.strip(),
         "gemini_key": gemini_key.strip(),
         "auto_refresh": bool(auto_refresh),
@@ -364,7 +376,8 @@ def render_account(client: MT5Client, daily_pnl: float, trades_today: int, manua
     cols[0].metric("Balance", f"${acct.get('balance', 0.0):,.2f}", help=f"Demo base ${ACCOUNT_SIZE_USD:,.0f} → funded ${ACCOUNT_SIZE_MAX_USD:,.0f}")
     cols[1].metric("Equity", f"${acct.get('equity', 0.0):,.2f}")
     cols[2].metric("Floating P/L", f"${acct.get('profit', 0.0):+,.2f}")
-    cols[3].metric("Daily P/L", f"${daily_pnl:+,.2f}", help="Manual override" if manual else "From MT5 history + floating")
+    cols[3].metric("Daily P/L", f"${daily_pnl:+,.2f}",
+                   help="Manual override" if manual else "Day's net P&L (realized + floating), not the balance")
     cols[4].metric("Trades today", f"{trades_today}/{MAX_TRADES_PER_DAY}")
     if acct.get("offline"):
         st.caption(
@@ -542,6 +555,7 @@ def render_page(params: Dict[str, Any], client: MT5Client) -> None:
         df, spec, tick, symbol=symbol, daily_pnl=params["daily_pnl"],
         trades_today=params["trades_today"], now=now,
         stop_atr_mult=params["stop_atr"], target_rrr=params["target_rrr"],
+        profit_target=params["profit_target"],
     )
     assessment = RISK_ENGINE.assess(setup or {"direction": "neutral"})
 

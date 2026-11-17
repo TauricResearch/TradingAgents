@@ -56,6 +56,15 @@ TIMEFRAMES: Dict[str, str] = {
 # Minutes per timeframe (offline simulator).
 _TF_MINUTES: Dict[str, int] = {"1m": 1, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "4h": 240, "1d": 1440}
 
+# MT5 deal types that represent *trade* activity:
+#   0 = DEAL_TYPE_BUY, 1 = DEAL_TYPE_SELL
+# Everything else (balance/deposit, credit, charge, correction, bonus, commission,
+# ...) is account plumbing, NOT trade P&L. Feeding those to the daily guardrail is
+# what made a $5,000 funding deal look like a +$5,000 profit target hit.
+_DEAL_TYPE_BUY = 0
+_DEAL_TYPE_SELL = 1
+_TRADE_DEAL_TYPES = (_DEAL_TYPE_BUY, _DEAL_TYPE_SELL)
+
 
 def load_mt5() -> Any:
     """Import the ``MetaTrader5`` package, or ``None`` when it is unavailable.
@@ -321,14 +330,28 @@ class MT5Client:
         now = now or datetime.now(timezone.utc)
         return datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
 
+    @staticmethod
+    def _trade_deals(deals: Sequence[Any]) -> List[Any]:
+        """Keep only genuine trade deals, dropping deposits/withdrawals and fees.
+
+        ``history_deals_get`` also returns balance operations (funding, credit,
+        bonus, corrections) whose ``profit`` equals the deposited amount - those
+        must never be mistaken for the day's trading P&L.
+        """
+        return [d for d in deals if int(getattr(d, "type", -1)) in _TRADE_DEAL_TYPES]
+
     def daily_pnl(self, now: Optional[datetime] = None) -> float:
-        """Realized + floating P&L for the current UTC day (0.0 when offline)."""
+        """Net **trade** P&L for the current UTC day: realized + floating (0.0 offline).
+
+        This is a daily *net change*, not the account balance: funding/withdrawal
+        deals are filtered out so the guardrail only ever sees trading profit/loss.
+        """
         if not self.connected:
             return 0.0
         try:
             start = self._day_start(now)
             end = start + timedelta(days=1)
-            deals = self._mt5.history_deals_get(start, end) or []
+            deals = self._trade_deals(self._mt5.history_deals_get(start, end) or [])
             realized = sum(
                 float(getattr(d, "profit", 0.0)) + float(getattr(d, "swap", 0.0))
                 + float(getattr(d, "commission", 0.0))
@@ -342,13 +365,17 @@ class MT5Client:
             return 0.0
 
     def trades_today(self, now: Optional[datetime] = None) -> int:
-        """Number of positions opened today (entry-in deals), 0 when offline."""
+        """Number of *trade* positions opened today (0 when offline).
+
+        Only BUY/SELL entry deals count - balance operations are excluded so a
+        funding deal is never counted as a trade against the 3-per-day cap.
+        """
         if not self.connected:
             return 0
         try:
             start = self._day_start(now)
             end = start + timedelta(days=1)
-            deals = self._mt5.history_deals_get(start, end) or []
+            deals = self._trade_deals(self._mt5.history_deals_get(start, end) or [])
             entry_in = getattr(self._mt5, "DEAL_ENTRY_IN", 0)
             return sum(1 for d in deals if int(getattr(d, "entry", -1)) == int(entry_in))
         except Exception as exc:  # noqa: BLE001
