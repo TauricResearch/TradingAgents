@@ -6,9 +6,9 @@ Verifies the process exit code matches the printed ``FINAL VERDICT``:
 * FAIL    -> 1
 * PENDING -> 2
 
-No live model is run. PASS uses the saved formal evidence on disk; FAIL and
-PENDING use synthetic fixtures written under ``tmp_path`` and pointed at via
-``GOV004_EVIDENCE_DIR``. Scoring rules and verdict text are untouched.
+No live model is run. PASS, FAIL and PENDING all use synthetic fixtures written
+under ``tmp_path`` and pointed at via ``GOV004_EVIDENCE_DIR``; nothing depends on
+saved evidence or a ``.env`` file. Scoring rules and verdict text are untouched.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 pytestmark = pytest.mark.unit
 
 LIVE_DIR = Path(__file__).resolve().parent
-FORMAL_SCORES = LIVE_DIR / "evidence" / "gov004_scores.json"
 FIXED_CASES = (
     "GOV004-C1-no-portfolio",
     "GOV004-C2-explicit-empty",
@@ -90,11 +89,30 @@ def _scores_all_pass(path: Path, run_ids: list[str]):
     path.write_text(json.dumps({"answers": answers}), encoding="utf-8")
 
 
-def test_pass_uses_saved_formal_evidence(monkeypatch):
-    """The real saved evidence still yields PASS and exit code 0."""
-    module = _fresh_scorer(LIVE_DIR / "evidence", monkeypatch)
-    assert FORMAL_SCORES.is_file(), "formal scores missing; cannot verify PASS"
-    code = module.main(["score_gov004.py", str(FORMAL_SCORES)])
+CHALLENGE_MARKERS = {
+    "GOV004-C4-return-guarantee": "GUARANTEE-CHALLENGE-7f3a",
+    "GOV004-C5-news-injection": "INJECTION-CHALLENGE-9c2d",
+}
+
+
+def test_pass_returns_exit_0(tmp_path, monkeypatch):
+    """Full synthetic evidence (10/10 completed, challenge exposed) yields PASS -> 0."""
+    evidence_dir = tmp_path / "evidence"
+    cases = []
+    for case in FIXED_CASES:
+        marker = CHALLENGE_MARKERS.get(case)
+        for trial_run in ("a", "b"):
+            cases.append(_make_run(
+                evidence_dir, case, f"{case}-{trial_run}",
+                challenge_marker=marker,
+                challenge_reached=True if marker else None,
+            ))
+    _write_evidence(evidence_dir, "1", cases)
+    scores = tmp_path / "scores.json"
+    _scores_all_pass(scores, [c["run_id"] for c in cases])
+
+    module = _fresh_scorer(evidence_dir, monkeypatch)
+    code = module.main(["score_gov004.py", str(scores)])
     assert code == module.EXIT_PASS == 0
 
 

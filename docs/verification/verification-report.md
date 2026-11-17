@@ -179,8 +179,9 @@ offline fixtures and monkeypatched filesystem faults only.
   `tests/member_c_verification/live/evidence/runs/`.
 - **Exit-code contract (for CI):** `score_gov004.py` returns `0`=PASS,
   `1`=FAIL, `2`=PENDING to match its printed verdict; verified offline by
-  `tests/member_c_verification/live/test_score_gov004_exitcodes.py` (4 passed), including the saved
-  evidence yielding exit `0`. See `semantic-evaluation.md` §6.1 and
+  `tests/member_c_verification/live/test_score_gov004_exitcodes.py` (4 passed), with synthetic
+  `tmp_path` fixtures yielding exit `0` (PASS), `1` (FAIL) and `2` (PENDING) without saved
+  evidence or `.env`. See `semantic-evaluation.md` §6.1 and
   `verification-constraints.md` E9.
 
 ## 7. Remaining verification work

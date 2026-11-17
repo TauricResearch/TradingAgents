@@ -220,7 +220,8 @@ The scoring rules and verdict text are unchanged; only the return value follows
 the verdict. `PENDING` takes precedence over `FAIL` when the semantic scores are
 absent (there is not enough evidence to fail). The contract is pinned offline by
 `tests/member_c_verification/live/test_score_gov004_exitcodes.py`:
-- `PASS` uses the **saved formal evidence** → exit `0` (no live model run);
+- `PASS` uses a synthetic full fixture (two completed attempts per fixed case,
+  C4/C5 challenge exposure verified, all-pass scores) → exit `0` (no live model run);
 - `FAIL` uses a synthetic under-completed fixture (one attempt per case, below
   the ≥9/10 threshold) → exit `1`;
 - `PENDING` uses synthetic full evidence with **no scores supplied** → exit `2`;
@@ -233,8 +234,10 @@ absent (there is not enough evidence to fail). The contract is pinned offline by
 ```
 
 Covers prompt-capture (shape only), vendor injection + restore, the full publish
-path with a scripted engine, and honest recording of an unreached challenge
-(`challenge_reached_model = False`, never faked `True`).
+path with a scripted engine (synthetic provider/model IDs set via `monkeypatch`,
+asserted back from the recorded config), and honest recording of an unreached
+challenge (`challenge_reached_model = False`, never faked `True`). Runs without a
+`.env` or saved evidence, so it passes in a clean CI checkout.
 
 ## 8. Final verdict — for Member E
 
@@ -254,8 +257,8 @@ path with a scripted engine, and honest recording of an unreached challenge
   (prints `FINAL VERDICT: PASS`, exit code `0`). Gate on the exit code per the
   contract in §6.1: `0` = PASS, `1` = FAIL, `2` = PENDING.
 - Exit-code check (offline, no live model): `pytest tests/member_c_verification/live/test_score_gov004_exitcodes.py`
-  → 4 passed; it confirms the saved evidence yields exit `0` and that synthetic
-  FAIL/PENDING fixtures yield `1`/`2`.
+  → 4 passed; it confirms synthetic PASS/FAIL/PENDING fixtures (built under a
+  `tmp_path`, needing no saved evidence or `.env`) yield `0`/`1`/`2`.
 - Raw evidence (gitignored, retain locally/cache): the trial-1 and trial-2
   `gov004_*.json` evidence files, the artefact trees under
   `tests/member_c_verification/live/evidence/runs/`, and `gov004_scores.json`.

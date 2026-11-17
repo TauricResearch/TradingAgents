@@ -95,6 +95,12 @@ def test_run_case_end_to_end_with_scripted_engine(tmp_path, monkeypatch):
     monkeypatch.setattr(execution, "_default_graph_factory", factory)
     monkeypatch.setattr(execution, "_default_engine_runner", lambda g, c, cfg: runner(g, c))
 
+    # The offline suite blanks TRADINGAGENTS_* and CI has no .env. Supply
+    # synthetic IDs so the recorded (safe) config is deterministic.
+    monkeypatch.setenv("TRADINGAGENTS_LLM_PROVIDER", "synthetic")
+    monkeypatch.setenv("TRADINGAGENTS_DEEP_THINK_LLM", "synthetic-think")
+    monkeypatch.setenv("TRADINGAGENTS_QUICK_THINK_LLM", "synthetic-quick")
+
     # Use a non-challenge case: prove a full, published, COMPLETED run.
     case = CASES[0]
     outcome = run_case(case, results_dir=str(tmp_path), ticker="AAPL", analysis_date="2026-01-09")
@@ -104,7 +110,9 @@ def test_run_case_end_to_end_with_scripted_engine(tmp_path, monkeypatch):
     assert outcome.manifest_path and Path(outcome.manifest_path).is_file()
     assert outcome.report_path and Path(outcome.report_path).is_file()
     assert outcome.source_revision.startswith("git:")
-    assert outcome.model_config["llm_provider"] is not None
+    assert outcome.model_config["llm_provider"] == "synthetic"
+    assert outcome.model_config["deep_think_llm"] == "synthetic-think"
+    assert outcome.model_config["quick_think_llm"] == "synthetic-quick"
     manifest = json.loads(Path(outcome.manifest_path).read_text(encoding="utf-8"))
     assert manifest["run_id"] == outcome.run_id
     assert manifest["run_outcome"] == "COMPLETED"
