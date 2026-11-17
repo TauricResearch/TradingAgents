@@ -2,10 +2,14 @@
 # Install with: pip install -r requirements.txt
 #
 # Linux / Streamlit Community Cloud friendly: every package ships manylinux wheels
-# and none are OS-specific.
+# except MetaTrader5, which is Windows-only and is installed only there.
 
 # --- Broker connectivity ---------------------------------------------------- #
-metaapi-cloud-sdk>=29.0.0          # MetaApi Cloud SDK (async MetaTrader 4/5 bridge)
+metaapi-cloud-sdk>=29.0.0          # MetaApi Cloud SDK - used by the $5k bot (app.py)
+MetaTrader5>=5.0.45 ; sys_platform == "win32"
+# Native, 100% free local MT5 terminal connector - used by the AI Co-Pilot
+# (copilot_app.py + data_fetcher.py). No token, no cloud, no API key.
+# Windows-only; on Linux/macOS the co-pilot falls back to its offline simulator.
 
 # --- Dashboard / orchestration ---------------------------------------------- #
 streamlit>=1.37.0                  # Dashboard + native @st.fragment(run_every=...)
@@ -24,5 +28,5 @@ groq>=0.11.0                       # Scout counselor (llama-3.3-70b-versatile)
 google-genai>=1.0.0                # Risk Auditor counselor (gemini-2.5-flash)
 
 # NOTE: streamlit-autorefresh is intentionally NOT included. The dashboard uses
-# Streamlit's native @st.fragment(run_every=5) so live refresh never contends with
+# Streamlit's native @st.fragment(run_every=...) so live refresh never contends with
 # the ASGI websocket (which caused "Expected ASGI message 'http.response.start'").

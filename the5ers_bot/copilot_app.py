@@ -1,24 +1,28 @@
 """
 copilot_app.py
 ==============
-**AI Co-Pilot Dashboard** - a signal generator + risk auditor for *manual*
-forex/crypto day & swing trading on a The5ers $2,500 High Stakes account.
+**AI Co-Pilot & Sentinel Council Dashboard** - a live co-pilot for *manual*
+day/swing trading on a The5ers *Bootcamp* evaluation account, fed by the native,
+100% free **MetaTrader 5** Python library.
 
-This app **never executes a trade**. It is a co-pilot: it reads the market, proposes
-a fully-specified setup on the "AI Signal Card" and has the Sentinel Council audit it
-against the account's hard risk rules. *You* review the card and place the order by
-hand in MetaTrader 5.
+The app **never executes a trade**. It reads the local MT5 terminal, proposes a
+fully-specified setup on the "Sentinel Signal Card" and has the Sentinel Council
+audit it against the account's hard risk rules. *You* review the card and place the
+order by hand in MetaTrader 5.
 
 Design
 ------
-* **Data** - read-only feed via MetaApi (investor password), so prices match the MT5
-  terminal exactly. :mod:`metaapi_client` owns the async SDK behind a sync facade.
-* **Advisory** - :class:`sentinel_council.SentinelCouncil` blends a Groq *Scout*
-  (trend/momentum) with a Gemini *Risk Auditor*. It is advisory only, hard-timeboxed
-  and fails **open** - it can never block or crash this dashboard.
-* **Risk model ($2,500 High Stakes)** - 1R = $10, TP = $30 (RRR 1:3), daily profit
-  ceiling +$40 (lock-profit alert), daily kill-switch -$50 (a hard stop *before* the
-  prop-firm's -$125 limit). Lot size is kept inside 0.01-0.02 micro lots.
+* **Data** - :mod:`data_fetcher` attaches to the **local** MT5 terminal via
+  ``mt5.initialize()``. No token, no cloud, no API key. Live ticks + historical
+  OHLCV for EURUSD / GBPUSD / USDJPY / XAUUSD. If the package is unavailable
+  (non-Windows) or the terminal is closed, it flips to a clearly-labelled offline
+  simulator so the dashboard never crashes.
+* **Sentinel Council** - :class:`sentinel_council.RiskEngine` is the deterministic,
+  authoritative gate; the optional Groq *Scout* + Gemini *Risk Auditor* LLMs add a
+  plain-English opinion and fail **open**.
+* **Risk model (The5ers Bootcamp, $20,000 base)** - 1R = $10, RRR floor 1:1.5, max
+  3 trades/day, circuit breaker at -$20 (2R) with a hard kill-switch at -$30 (3R),
+  a +$20 daily profit target, and a London / London-NY liquidity-session filter.
 
 Run it:
     streamlit run the5ers_bot/copilot_app.py     # dashboard
@@ -34,746 +38,610 @@ import argparse
 import logging
 import os
 import sys
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from metaapi_client import TIMEFRAMES, MetaApiFeed, symbol_spec  # noqa: E402
-from sentinel_council import MIN_RRR, CouncilVerdict, SentinelCouncil  # noqa: E402
+import streamlit as st  # noqa: E402
+
+from data_fetcher import TIMEFRAMES, MT5Client, SymbolSpec  # noqa: E402
+from sentinel_council import (  # noqa: E402
+    ACCOUNT_SIZE_USD,
+    DAILY_LOSS_KILL_USD,
+    DAILY_LOSS_LOCK_USD,
+    DAILY_PROFIT_TARGET_USD,
+    MAX_TRADES_PER_DAY,
+    MIN_RRR,
+    RISK_PER_TRADE_USD,
+    RiskAssessment,
+    RiskEngine,
+    SentinelCouncil,
+)
 
 LOGGER = logging.getLogger("copilot.app")
 
 # --------------------------------------------------------------------------- #
-# Risk parameters - The5ers "$2,500 High Stakes" account
+# Dashboard defaults
 # --------------------------------------------------------------------------- #
-ACCOUNT_SIZE_USD = 2_500.0
-RISK_PER_TRADE_USD = 10.0            # 1R
-TAKE_PROFIT_USD = 30.0               # 3R (minimum)
-DAILY_PROFIT_CEILING_USD = 40.0      # lock-profit alert
-DAILY_LOSS_KILL_USD = -50.0          # daily kill-switch (prop-firm limit is -$125)
-MIN_LOT = 0.01
-MAX_LOT = 0.02
-LOT_STEP = 0.01
-TARGET_RRR = TAKE_PROFIT_USD / RISK_PER_TRADE_USD  # 3.0
-
-# Strategy / signal-engine parameters.
+PAIRS: List[str] = ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD"]
+DEFAULT_SYMBOL = "EURUSD"
+DEFAULT_TIMEFRAME = "15m"
+CANDLES = 300
 EMA_FAST = 50
 EMA_SLOW = 200
 RSI_PERIOD = 14
-RSI_LONG_MIN = 50.0
-RSI_SHORT_MAX = 50.0
-ATR_STOP_MULT = 1.5                  # volatility reference for lot sizing
-CANDLES = 240
-DEFAULT_SYMBOL = "EURUSD"
-DEFAULT_TIMEFRAME = "15m"
+DEFAULT_STOP_ATR = 1.5
+DEFAULT_TARGET_RRR = 2.0
 REFRESH_SECONDS = 10
 
-PAIRS = ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD", "USDCAD", "USDCHF",
-         "USDJPY", "XAUUSD", "XAGUSD", "BTCUSD", "ETHUSD"]
-
+CIRCUIT_STYLE = {
+    "SAFE": {"color": "#26a69a", "icon": "🟢", "label": "SAFE", "blurb": "All guardrails clear - you may take a qualified setup."},
+    "WATCH": {"color": "#ffa726", "icon": "🟡", "label": "WATCH", "blurb": "You are down ~1R today. Slow down and let the A+ setup come to you."},
+    "LOCKED": {"color": "#ef5350", "icon": "🔴", "label": "LOCKED", "blurb": "Kill switch / circuit breaker active - NO new signals today."},
+}
 VERDICT_COLORS = {"long": "#26a69a", "short": "#ef5350", "neutral": "#787b86"}
 
+RISK_ENGINE = RiskEngine()
+
 
 # --------------------------------------------------------------------------- #
-# Pure helpers (importable without streamlit)
+# Pure helpers (importable without a live terminal)
 # --------------------------------------------------------------------------- #
-def mask(secret: str, keep: int = 4) -> str:
-    """Mask a secret for display, keeping only the last few characters."""
-    if not secret:
-        return ""
-    if len(secret) <= keep:
-        return "*" * len(secret)
-    return "*" * (len(secret) - keep) + secret[-keep:]
-
-
-def clamp_lot(lot: float) -> float:
-    """Snap ``lot`` to the broker step and clamp it into [MIN_LOT, MAX_LOT]."""
-    try:
-        value = float(lot)
-    except (TypeError, ValueError):
-        value = MAX_LOT
-    value = max(MIN_LOT, min(MAX_LOT, value))
-    return round(round(value / LOT_STEP) * LOT_STEP, 2)
-
-
-def guardrail_state(daily_pnl: float) -> str:
-    """``"KILL"`` / ``"LOCK"`` / ``"ACTIVE"`` for the daily guardrail."""
-    if daily_pnl <= DAILY_LOSS_KILL_USD:
-        return "KILL"
-    if daily_pnl >= DAILY_PROFIT_CEILING_USD:
-        return "LOCK"
-    return "ACTIVE"
-
-
-def day_progress(daily_pnl: float) -> Dict[str, float]:
-    """Fractions (0-1) of the distance travelled toward each guardrail boundary."""
-    to_ceiling = max(0.0, min(1.0, daily_pnl / DAILY_PROFIT_CEILING_USD)) if daily_pnl > 0 else 0.0
-    to_kill = max(0.0, min(1.0, -daily_pnl / abs(DAILY_LOSS_KILL_USD))) if daily_pnl < 0 else 0.0
-    return {"to_ceiling": to_ceiling, "to_kill": to_kill}
-
-
-@dataclass
-class SignalSetup:
-    """A complete, manually executable setup with exact money-based SL/TP."""
-
-    symbol: str
-    timeframe: str
-    verdict: str                     # LONG / SHORT / NEUTRAL / STOP
-    entry: float
-    stop_loss: float
-    take_profit: float
-    lot: float
-    risk_usd: float
-    reward_usd: float
-    rrr: float
-    digits: int
-    ema_fast: float = 0.0
-    ema_slow: float = 0.0
-    rsi: float = 50.0
-    atr: float = 0.0
-    armed: bool = False
-    notes: List[str] = field(default_factory=list)
-
-    def signature(self) -> str:
-        return f"{self.symbol}|{self.timeframe}|{self.verdict}|{self.entry:.{self.digits}f}|{self.lot:.2f}"
-
-    def to_council_payload(self, daily_pnl: float) -> Dict[str, Any]:
-        return {
-            "pair": self.symbol,
-            "timeframe": self.timeframe,
-            "proposed_direction": self.verdict,
-            "entry": round(self.entry, self.digits),
-            "stop_loss": round(self.stop_loss, self.digits),
-            "take_profit": round(self.take_profit, self.digits),
-            "risk_usd": self.risk_usd,
-            "reward_usd": self.reward_usd,
-            "rrr": self.rrr,
-            "lot": self.lot,
-            "ema50": round(self.ema_fast, self.digits),
-            "ema200": round(self.ema_slow, self.digits),
-            "rsi14": round(self.rsi, 2),
-            "atr14": round(self.atr, self.digits),
-            "daily_pnl_usd": daily_pnl,
-            "daily_ceiling_usd": DAILY_PROFIT_CEILING_USD,
-            "daily_kill_switch_usd": DAILY_LOSS_KILL_USD,
-        }
-
-
-def compute_signal(
-    frame: Any,
+def build_setup(
+    df: pd.DataFrame,
+    spec: SymbolSpec,
+    tick: Dict[str, Any],
+    *,
     symbol: str,
-    timeframe: str,
-    spec: Any = None,
-    lot_preference: Optional[float] = None,
-) -> Optional[SignalSetup]:
-    """Turn an indicator frame into a :class:`SignalSetup`.
-
-    Direction comes from the EMA50/EMA200 trend stack confirmed by RSI(14). The
-    stop and target distances are derived from the *money* budget so the card always
-    shows exactly 1R = $10 and 3R = $30 at the recommended lot (RRR = 1:3), while the
-    lot itself is scaled to volatility (ATR) and clamped to 0.01-0.02.
-    """
-    if frame is None or frame.empty:
+    daily_pnl: float,
+    trades_today: int,
+    now: Optional[datetime] = None,
+    stop_atr_mult: float = DEFAULT_STOP_ATR,
+    target_rrr: float = DEFAULT_TARGET_RRR,
+    ema_fast: int = EMA_FAST,
+    ema_slow: int = EMA_SLOW,
+    rsi_period: int = RSI_PERIOD,
+) -> Optional[Dict[str, Any]]:
+    """Turn the latest candle + tick into a fully-specified, ATF-sized setup dict."""
+    if df is None or df.empty:
         return None
-    required = {"close", f"ema{EMA_FAST}", f"ema{EMA_SLOW}", f"rsi{RSI_PERIOD}", "atr14"}
-    if not required.issubset(frame.columns):
-        LOGGER.warning("compute_signal: missing columns %s", required - set(frame.columns))
-        return None
+    last = df.iloc[-1]
+    close = float(last["close"])
+    ema_f = float(last.get(f"ema{ema_fast}", close))
+    ema_s = float(last.get(f"ema{ema_slow}", close))
+    rsi = float(last.get(f"rsi{rsi_period}", 50.0))
+    atr = float(last.get("atr14", 0.0))
+    bid = float(tick.get("bid") or close)
+    ask = float(tick.get("ask") or close)
 
-    last = frame.iloc[-1]
-    entry = float(last["close"])
-    ema_fast = float(last[f"ema{EMA_FAST}"])
-    ema_slow = float(last[f"ema{EMA_SLOW}"])
-    rsi = float(last[f"rsi{RSI_PERIOD}"])
-    atr = float(last["atr14"])
-
-    spec = spec or symbol_spec(symbol)
-    digits = int(getattr(spec, "digits", 5))
-    value_per_unit = float(getattr(spec, "value_per_price_unit_per_lot", 100_000.0) or 0.0)
-    notes: List[str] = []
-
-    if ema_fast > ema_slow and rsi >= RSI_LONG_MIN:
-        verdict = "LONG"
-        notes.append("EMA50 above EMA200 with RSI above 50 - bullish trend + momentum.")
-    elif ema_fast < ema_slow and rsi <= RSI_SHORT_MAX:
-        verdict = "SHORT"
-        notes.append("EMA50 below EMA200 with RSI below 50 - bearish trend + momentum.")
+    if ema_f > ema_s and rsi >= 50.0:
+        direction = "long"
+    elif ema_f < ema_s and rsi <= 50.0:
+        direction = "short"
     else:
-        verdict = "NEUTRAL"
-        notes.append("EMA stack and RSI disagree - no edge, stand down.")
+        direction = "neutral"
 
-    # Volatility-aware lot: keep the 1.5xATR stop near the $10 risk budget.
-    stop_dist_atr = ATR_STOP_MULT * atr
-    if lot_preference:
-        lot = clamp_lot(lot_preference)
-    elif stop_dist_atr > 0 and value_per_unit > 0:
-        lot = clamp_lot(RISK_PER_TRADE_USD / (stop_dist_atr * value_per_unit))
+    stop_distance = max(atr * float(stop_atr_mult), spec.point * 10)
+    rrr = max(MIN_RRR, float(target_rrr))
+    tp_distance = stop_distance * rrr
+
+    if direction == "long":
+        entry, stop, tp = ask, ask - stop_distance, ask + tp_distance
+    elif direction == "short":
+        entry, stop, tp = bid, bid + stop_distance, bid - tp_distance
     else:
-        lot = MAX_LOT
-
-    # Money-based distances guarantee exactly 1R = $10 and 3R = $30 at this lot.
-    if value_per_unit > 0 and lot > 0:
-        stop_distance = RISK_PER_TRADE_USD / (value_per_unit * lot)
-        tp_distance = TAKE_PROFIT_USD / (value_per_unit * lot)
-    else:  # unknown contract - fall back to the ATR stop
-        stop_distance = stop_dist_atr
-        tp_distance = stop_dist_atr * TARGET_RRR
-
-    if verdict == "SHORT":
-        stop_loss = entry + stop_distance
-        take_profit = entry - tp_distance
-    else:
-        stop_loss = entry - stop_distance
-        take_profit = entry + tp_distance
-
-    if atr > 0:
-        notes.append(
-            f"ATR({digits}d) stop 1.5xATR = {stop_dist_atr:.{digits}f} vs money-stop "
-            f"{stop_distance:.{digits}f} ({'wider' if stop_distance >= stop_dist_atr else 'tighter'})."
-        )
-        if verdict != "NEUTRAL" and stop_distance < stop_dist_atr:
-            notes.append("Money-stop sits inside 1.5xATR - expect noise; consider 0.01 lot to widen it.")
-    if lot <= MIN_LOT:
-        notes.append("Lot pinned at the 0.01 micro-lot floor (safe-margin default).")
-
-    return SignalSetup(
-        symbol=symbol,
-        timeframe=timeframe,
-        verdict=verdict,
-        entry=round(entry, digits),
-        stop_loss=round(stop_loss, digits),
-        take_profit=round(take_profit, digits),
-        lot=lot,
-        risk_usd=RISK_PER_TRADE_USD,
-        reward_usd=TAKE_PROFIT_USD,
-        rrr=TARGET_RRR,
-        digits=digits,
-        ema_fast=ema_fast,
-        ema_slow=ema_slow,
-        rsi=rsi,
-        atr=atr,
-        armed=verdict in {"LONG", "SHORT"},
-        notes=notes,
-    )
-
-
-def bid_ask_wall(book: Dict[str, Any]) -> Dict[str, Any]:
-    """Return the largest resting level on each side of the book ("the wall")."""
-    def _biggest(levels: List[Any]) -> Optional[Dict[str, float]]:
-        best: Optional[Dict[str, float]] = None
-        for price, size in levels or []:
-            if best is None or size > best["size"]:
-                best = {"price": float(price), "size": float(size)}
-        return best
+        entry, stop, tp = close, close - stop_distance, close + tp_distance
 
     return {
-        "bid_wall": _biggest(book.get("bids") or []),
-        "ask_wall": _biggest(book.get("asks") or []),
+        "symbol": symbol,
+        "direction": direction,
+        "entry": round(entry, spec.digits),
+        "stop": round(stop, spec.digits),
+        "take_profit": round(tp, spec.digits),
+        "value_per_unit": spec.value_per_price_unit_per_lot,
+        "min_lot": spec.min_lot,
+        "max_lot": spec.max_lot,
+        "lot_step": spec.lot_step,
+        "daily_pnl": round(float(daily_pnl), 2),
+        "trades_today": int(trades_today),
+        "now": now,
+    }
+
+
+def indicator_snapshot(df: pd.DataFrame) -> Dict[str, float]:
+    """Latest EMA / RSI / ATR values for the market-intelligence panel."""
+    if df is None or df.empty:
+        return {}
+    last = df.iloc[-1]
+    return {
+        "close": float(last["close"]),
+        f"ema{EMA_FAST}": float(last.get(f"ema{EMA_FAST}", last["close"])),
+        f"ema{EMA_SLOW}": float(last.get(f"ema{EMA_SLOW}", last["close"])),
+        f"rsi{RSI_PERIOD}": float(last.get(f"rsi{RSI_PERIOD}", 50.0)),
+        "atr14": float(last.get("atr14", 0.0)),
     }
 
 
 # --------------------------------------------------------------------------- #
-# Streamlit helpers (imported lazily so `--once` works without streamlit)
+# Session state
 # --------------------------------------------------------------------------- #
-def _secret(key: str) -> str:
-    """Read ``st.secrets[key]`` on the UI thread; ``""`` when absent/not in Streamlit."""
-    try:
-        import streamlit as st
-    except Exception:
-        return ""
-    try:
-        value = st.secrets.get(key, "")
-    except Exception:
-        return ""
-    return str(value).strip() if value not in (None, "") else ""
+def _init_state() -> None:
+    ss = st.session_state
+    ss.setdefault("cp_client", None)
+    ss.setdefault("cp_council", None)
+    ss.setdefault("cp_connect_error", "")
+    ss.setdefault("cp_daily_pnl", 0.0)
+    ss.setdefault("cp_trades_today", 0)
+    ss.setdefault("cp_verdict", None)
+    ss.setdefault("cp_activity", [])
 
 
-def _cred_source(session_value: str, *keys: str) -> str:
-    """Label where a credential came from: dashboard input, ``st.secrets``/env, or missing."""
-    if session_value:
-        return "dashboard input"
-    for key in keys:
-        if _secret(key) or os.getenv(key, "").strip():
-            return "secrets/env"
-    return "missing"
+def _apply_pending() -> None:
+    """Fold queued button deltas into the keyed P&L widgets *before* they render."""
+    ss = st.session_state
+    if "cp_pnl_pending" in ss:
+        ss.cp_daily_pnl = round(float(ss.cp_daily_pnl) + float(ss.cp_pnl_pending), 2)
+        del ss.cp_pnl_pending
+    if "cp_trades_pending" in ss:
+        ss.cp_trades_today = max(0, int(ss.cp_trades_today) + int(ss.cp_trades_pending))
+        del ss.cp_trades_pending
 
 
-def resolve_credentials() -> Dict[str, str]:
-    """Sidebar inputs -> ``st.secrets`` -> environment. UI thread only."""
-    token = st_session("cp_token", "") or _secret("METAAPI_TOKEN") or os.getenv("METAAPI_TOKEN", "")
-    account_id = st_session("cp_account_id", "") or _secret("METAAPI_ACCOUNT_ID") or os.getenv("METAAPI_ACCOUNT_ID", "")
-    gemini = st_session("cp_gemini_key", "") or _secret("GEMINI_API_KEY") or _secret("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY", "")
-    groq = st_session("cp_groq_key", "") or _secret("GROQ_API_KEY") or os.getenv("GROQ_API_KEY", "")
-    return {
-        "token": token.strip(),
-        "account_id": account_id.strip(),
-        "gemini_api_key": gemini.strip(),
-        "groq_api_key": groq.strip(),
-    }
+def _log(message: str) -> None:
+    stamp = datetime.now(timezone.utc).strftime("%H:%M:%S")
+    entry = f"{stamp} UTC · {message}"
+    log: List[str] = st.session_state.cp_activity
+    if not log or log[0] != entry:
+        log.insert(0, entry)
+    del log[40:]
 
 
-def st_session(key: str, default: Any = None) -> Any:
-    """``st.session_state.get`` that is a no-op outside a Streamlit runtime."""
-    try:
-        import streamlit as st
-    except Exception:
-        return default
-    return st.session_state.get(key, default)
+def _client() -> MT5Client:
+    ss = st.session_state
+    if ss.cp_client is None:
+        ss.cp_client = MT5Client(symbols=PAIRS)
+    return ss.cp_client
 
 
-def _fragment(run_every: int):
-    """Return a ``@st.fragment(run_every=...)`` decorator, or a no-op fallback."""
-    try:
-        import streamlit as st
-    except Exception:
-        return lambda fn: fn
-    factory = getattr(st, "fragment", None) or getattr(st, "experimental_fragment", None)
-    if factory is None:
-        return lambda fn: fn
-    try:
-        return factory(run_every=run_every)
-    except TypeError:
-        return lambda fn: fn
-
-
-def get_feed() -> MetaApiFeed:
-    import streamlit as st
-
-    if "cp_feed" not in st.session_state:
-        st.session_state["cp_feed"] = MetaApiFeed()
-    return st.session_state["cp_feed"]
-
-
-def get_council(creds: Dict[str, str]) -> SentinelCouncil:
-    import streamlit as st
-
-    council: Optional[SentinelCouncil] = st.session_state.get("cp_council")
-    if council is None:
-        council = SentinelCouncil(
-            timeout=8.0,
-            groq_api_key=creds.get("groq_api_key", ""),
-            gemini_api_key=creds.get("gemini_api_key", ""),
+def _council(groq_key: str, gemini_key: str) -> SentinelCouncil:
+    ss = st.session_state
+    if ss.cp_council is None:
+        ss.cp_council = SentinelCouncil(
+            groq_api_key=groq_key or None, gemini_api_key=gemini_key or None, risk_engine=RISK_ENGINE
         )
-        st.session_state["cp_council"] = council
     else:
-        council.configure(
-            groq_api_key=creds.get("groq_api_key", ""),
-            gemini_api_key=creds.get("gemini_api_key", ""),
+        ss.cp_council.configure(groq_api_key=groq_key or None, gemini_api_key=gemini_key or None)
+    return ss.cp_council
+
+
+# --------------------------------------------------------------------------- #
+# UI - sidebar
+# --------------------------------------------------------------------------- #
+def render_sidebar(client: MT5Client) -> Dict[str, Any]:
+    ss = st.session_state
+    with st.sidebar:
+        st.markdown("## ⚙️ Control Panel")
+
+        st.markdown("### 🔌 MetaTrader 5")
+        if client.connected:
+            st.success("Terminal connected", icon="✅")
+        elif client.available:
+            st.warning("Terminal not connected", icon="⚠️")
+        else:
+            st.info("`MetaTrader5` not installed (Windows-only) - offline simulator active.", icon="🧪")
+
+        with st.expander("Connection options (optional)", expanded=not client.connected):
+            path = st.text_input("Terminal path (mt5.exe)", value="", help="Leave blank to use the running terminal.")
+            login = st.text_input("Login (optional)", value="")
+            password = st.text_input("Password (optional)", value="", type="password")
+            server = st.text_input("Server (optional)", value="")
+            col_c, col_d = st.columns(2)
+            if col_c.button("Connect", use_container_width=True, type="primary"):
+                ok = client.initialize(
+                    path=path.strip(),
+                    login=int(login) if login.strip().isdigit() else 0,
+                    password=password,
+                    server=server.strip(),
+                )
+                ss.cp_connect_error = "" if ok else client.last_error
+                _log("MT5 connect " + ("succeeded." if ok else f"failed: {client.last_error}"))
+                st.rerun()
+            if col_d.button("Disconnect", use_container_width=True):
+                client.shutdown()
+                _log("MT5 disconnected.")
+                st.rerun()
+        if ss.cp_connect_error and not client.connected:
+            st.caption(f"Last error: {ss.cp_connect_error}")
+
+        st.divider()
+
+        st.markdown("### 📈 Instrument")
+        symbol = st.selectbox("Symbol", PAIRS, index=PAIRS.index(DEFAULT_SYMBOL))
+        timeframe = st.selectbox("Timeframe", list(TIMEFRAMES.keys()), index=list(TIMEFRAMES.keys()).index(DEFAULT_TIMEFRAME))
+        stop_atr = st.slider("Stop = ATR ×", 0.5, 3.0, DEFAULT_STOP_ATR, 0.25)
+        target_rrr = st.slider("Target RRR", float(MIN_RRR), 4.0, DEFAULT_TARGET_RRR, 0.5, help=f"Hard floor is 1:{MIN_RRR:g}.")
+
+        st.divider()
+
+        st.markdown("### 🧮 Daily Guardrail Tracker")
+        auto_default = not client.connected
+        manual = st.checkbox("Manual P&L / trade override", value=auto_default)
+        st.number_input("Daily P&L (USD)", key="cp_daily_pnl", step=float(RISK_PER_TRADE_USD), format="%.2f")
+        st.number_input("Trades taken today", key="cp_trades_today", step=1, min_value=0, max_value=MAX_TRADES_PER_DAY)
+        b1, b2, b3 = st.columns(3)
+        if b1.button(f"+1R", use_container_width=True, help=f"+${RISK_PER_TRADE_USD:.0f}"):
+            ss.cp_pnl_pending = RISK_PER_TRADE_USD
+            ss.cp_trades_pending = 1
+            st.rerun()
+        if b2.button(f"-1R", use_container_width=True, help=f"-${RISK_PER_TRADE_USD:.0f}"):
+            ss.cp_pnl_pending = -RISK_PER_TRADE_USD
+            ss.cp_trades_pending = 1
+            st.rerun()
+        if b3.button("Reset", use_container_width=True):
+            ss.cp_pnl_pending = -float(ss.cp_daily_pnl)
+            ss.cp_trades_pending = -int(ss.cp_trades_today)
+            st.rerun()
+        st.caption(
+            f"Lock ≤ {DAILY_LOSS_LOCK_USD:+.0f} (2R) · Kill ≤ {DAILY_LOSS_KILL_USD:+.0f} (3R) · "
+            f"Bank ≥ {DAILY_PROFIT_TARGET_USD:+.0f} · Max {MAX_TRADES_PER_DAY} trades."
         )
-    return council
 
+        st.divider()
 
-def log_event(message: str) -> None:
-    import streamlit as st
+        st.markdown("### 🧠 Sentinel Council (optional LLMs)")
+        groq_key = st.text_input("Groq API key (Scout)", value=os.getenv("GROQ_API_KEY", ""), type="password")
+        gemini_key = st.text_input("Gemini API key (Auditor)", value=os.getenv("GEMINI_API_KEY", ""), type="password")
+        auto_refresh = st.toggle("Auto-refresh", value=False, help=f"Re-read the terminal every {REFRESH_SECONDS}s.")
 
-    entries = st.session_state.setdefault("cp_log", [])
-    entries.append(f"{datetime.now(timezone.utc).strftime('%H:%M:%S')}Z  {message}")
-    del entries[:-200]
+    daily_pnl = float(ss.cp_daily_pnl) if manual or not client.connected else float(client.daily_pnl())
+    trades_today = int(ss.cp_trades_today) if manual or not client.connected else int(client.trades_today())
 
-
-# --------------------------------------------------------------------------- #
-# Rendering
-# --------------------------------------------------------------------------- #
-def _render_sidebar() -> Dict[str, Any]:
-    import streamlit as st
-
-    st.sidebar.header("Control Panel")
-
-    env_account = os.getenv("METAAPI_ACCOUNT_ID", "").strip()
-    st.session_state.setdefault("cp_token", "")
-    st.session_state.setdefault("cp_account_id", "")
-    st.session_state.setdefault("cp_gemini_key", "")
-    st.session_state.setdefault("cp_groq_key", "")
-
-    with st.sidebar.expander("🔐 MetaApi Feed (read-only)", expanded=not st.session_state["cp_account_id"]):
-        st.caption("Use your **investor / read-only** password. The co-pilot never trades.")
-        st.text_input("MetaApi Token", key="cp_token", type="password", placeholder="paste token")
-        st.text_input("Account ID", key="cp_account_id", placeholder="MetaApi account id")
-        st.caption(f"Token: {_cred_source(st.session_state['cp_token'], 'METAAPI_TOKEN')} · "
-                   f"Account: {_cred_source(st.session_state['cp_account_id'], 'METAAPI_ACCOUNT_ID')}")
-        if env_account:
-            st.caption(f"env fallback · {mask(env_account)}")
-
-    with st.sidebar.expander("🧠 Sentinel Council AI keys", expanded=not st.session_state["cp_gemini_key"]):
-        st.text_input("Gemini API key (Risk Auditor)", key="cp_gemini_key", type="password",
-                      placeholder="leave empty to use secrets/.env")
-        st.text_input("Groq API key (Scout)", key="cp_groq_key", type="password",
-                      placeholder="leave empty to use secrets/.env")
-        st.caption(f"Gemini: {_cred_source(st.session_state['cp_gemini_key'], 'GEMINI_API_KEY', 'GOOGLE_API_KEY')}"
-                   f" · Groq: {_cred_source(st.session_state['cp_groq_key'], 'GROQ_API_KEY')}")
-
-    symbol = st.sidebar.selectbox("Pair", PAIRS, index=PAIRS.index(DEFAULT_SYMBOL))
-    timeframe = st.sidebar.selectbox("Timeframe", list(TIMEFRAMES.keys()),
-                                     index=list(TIMEFRAMES.keys()).index(DEFAULT_TIMEFRAME))
-    lot_choice = st.sidebar.selectbox("Lot sizing", ["Auto (ATR-scaled)", "0.01 (micro)", "0.02 (max)"])
-    lot_preference = {"Auto (ATR-scaled)": None, "0.01 (micro)": 0.01, "0.02 (max)": 0.02}[lot_choice]
-    auto_refresh = st.sidebar.toggle(f"Auto-refresh ({REFRESH_SECONDS}s)", value=True)
-    offline_toggle = st.sidebar.toggle("Offline demo data", value=False)
-
-    st.sidebar.divider()
-    st.sidebar.caption(
-        f"Account ${ACCOUNT_SIZE_USD:,.0f} · 1R ${RISK_PER_TRADE_USD:.0f} · "
-        f"TP ${TAKE_PROFIT_USD:.0f} (1:{TARGET_RRR:.0f})"
-    )
     return {
         "symbol": symbol,
         "timeframe": timeframe,
-        "lot_preference": lot_preference,
-        "auto_refresh": auto_refresh,
-        "offline": offline_toggle,
+        "stop_atr": float(stop_atr),
+        "target_rrr": float(target_rrr),
+        "daily_pnl": daily_pnl,
+        "trades_today": trades_today,
+        "groq_key": groq_key.strip(),
+        "gemini_key": gemini_key.strip(),
+        "auto_refresh": bool(auto_refresh),
+        "manual": bool(manual),
     }
 
 
-def _render_guardrail(daily_pnl: float, state: str) -> None:
-    import streamlit as st
-
-    st.subheader("🛡️ Daily PnL Tracker & Guardrails")
-    cols = st.columns([1, 2])
-    with cols[0]:
-        st.metric("Today's realized P&L", f"${daily_pnl:+.2f}",
-                  delta=f"{(daily_pnl / ACCOUNT_SIZE_USD) * 100:+.2f}% of account")
-        badge = {
-            "ACTIVE": "🟢 ACTIVE - within guardrails",
-            "LOCK": "🔒 LOCK-PROFIT - daily ceiling reached",
-            "KILL": "🛑 KILL-SWITCH - daily loss limit hit",
-        }[state]
-        (st.success if state == "LOCK" else st.error if state == "KILL" else st.info)(badge)
-    with cols[1]:
-        prog = day_progress(daily_pnl)
-        st.caption(f"Distance to +${DAILY_PROFIT_CEILING_USD:.0f} ceiling")
-        st.progress(prog["to_ceiling"])
-        st.caption(f"Distance to -${abs(DAILY_LOSS_KILL_USD):.0f} kill-switch "
-                   f"(prop-firm limit -$125)")
-        st.progress(prog["to_kill"])
-
-    if state == "LOCK":
-        st.success(f"🔒 Lock-profit: +${DAILY_PROFIT_CEILING_USD:.0f} target reached. "
-                   "Bank the day - stop opening new positions.")
-    elif state == "KILL":
-        st.error(f"🛑 Kill-switch: -${abs(DAILY_LOSS_KILL_USD):.0f} reached. Flat now, "
-                 "no new trades until tomorrow.")
+# --------------------------------------------------------------------------- #
+# UI - panels
+# --------------------------------------------------------------------------- #
+def render_status(client: MT5Client) -> None:
+    if client.connected:
+        st.success(
+            f"🟢 **MT5 LIVE** - connected to the local terminal. Prices shown are the terminal's real quotes.",
+        )
+    elif client.available:
+        st.warning(
+            "🟡 **MT5 not connected** - the terminal appears closed or not logged in. "
+            "Open MetaTrader 5 (or click *Connect* in the sidebar). Showing **simulated** data.",
+        )
     else:
-        st.caption(
-            f"Risk budget left today: ${daily_pnl - DAILY_LOSS_KILL_USD:,.2f} above the kill-switch "
-            f"· ${DAILY_PROFIT_CEILING_USD - daily_pnl:,.2f} below the ceiling."
+        st.info(
+            "🔵 **Offline simulator** - the `MetaTrader5` package is Windows-only and is not installed here. "
+            "All figures below are clearly-labelled simulated data so you can test-drive the dashboard. "
+            "Run this on Windows with MT5 open for live data.",
         )
 
 
-def _render_market_intelligence(frame: Any, quote: Dict[str, Any], book: Dict[str, Any],
-                                offline: bool, digits: int = 5) -> None:
-    import streamlit as st
+def render_circuit(assessment: RiskAssessment) -> None:
+    style = CIRCUIT_STYLE.get(assessment.circuit, CIRCUIT_STYLE["SAFE"])
+    locked = assessment.circuit == "LOCKED"
+    st.markdown(
+        f"""
+        <div style="border:2px solid {style['color']};border-radius:12px;padding:14px 18px;
+                    background:{style['color']}1a;margin-bottom:8px;">
+          <div style="font-size:22px;font-weight:700;color:{style['color']};">
+            {style['icon']} KILL SWITCH / CIRCUIT BREAKER: {style['label']}
+          </div>
+          <div style="color:#c9cdd4;font-size:14px;margin-top:4px;">{style['blurb']}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if locked:
+        for reason in assessment.lock_reasons:
+            st.error(reason, icon="🚫")
+    elif assessment.circuit == "WATCH":
+        for reason in assessment.lock_reasons:
+            st.warning(reason, icon="⚠️")
 
-    st.subheader("📊 Market Intelligence")
-    if frame is None or frame.empty:
-        st.warning("No market data yet.")
+
+def render_account(client: MT5Client, daily_pnl: float, trades_today: int, manual: bool) -> None:
+    acct = client.account_info()
+    cols = st.columns(5)
+    cols[0].metric("Balance", f"${acct.get('balance', 0.0):,.2f}")
+    cols[1].metric("Equity", f"${acct.get('equity', 0.0):,.2f}")
+    cols[2].metric("Floating P/L", f"${acct.get('profit', 0.0):+,.2f}")
+    cols[3].metric("Daily P/L", f"${daily_pnl:+,.2f}", help="Manual override" if manual else "From MT5 history + floating")
+    cols[4].metric("Trades today", f"{trades_today}/{MAX_TRADES_PER_DAY}")
+    if acct.get("offline"):
+        st.caption(f"Account base: ${ACCOUNT_SIZE_USD:,.0f} · risk/trade ${RISK_PER_TRADE_USD:.0f} (1R) · source: offline simulator")
+
+
+def render_prices(client: MT5Client) -> None:
+    st.markdown("#### 💱 Live Market Prices")
+    rows = []
+    for symbol in PAIRS:
+        tick = client.tick(symbol)
+        rows.append(
+            {
+                "Symbol": symbol,
+                "Bid": f"{tick.get('bid', 0.0):.{client.spec(symbol).digits}f}",
+                "Ask": f"{tick.get('ask', 0.0):.{client.spec(symbol).digits}f}",
+                "Spread": f"{tick.get('spread', 0.0):.{client.spec(symbol).digits}f}",
+                "Source": "SIM" if tick.get("offline") else "MT5",
+            }
+        )
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
+def render_market_intelligence(df: pd.DataFrame, symbol: str, digits: int) -> None:
+    st.markdown(f"#### 📊 Market Intelligence - {symbol}")
+    snapshot = indicator_snapshot(df)
+    if not snapshot:
+        st.warning("No candle data available for this symbol yet.")
         return
+    m = st.columns(5)
+    m[0].metric("Close", f"{snapshot['close']:.{digits}f}")
+    m[1].metric(f"EMA{EMA_FAST}", f"{snapshot[f'ema{EMA_FAST}']:.{digits}f}")
+    m[2].metric(f"EMA{EMA_SLOW}", f"{snapshot[f'ema{EMA_SLOW}']:.{digits}f}")
+    m[3].metric(f"RSI{RSI_PERIOD}", f"{snapshot[f'rsi{RSI_PERIOD}']:.1f}")
+    m[4].metric("ATR14", f"{snapshot['atr14']:.{digits}f}")
 
-    last = frame.iloc[-1]
-    tag = "offline demo" if offline else "MetaApi live"
-    st.caption(f"{tag} · {len(frame)} candles · last {pd_timestamp(last.get('time'))}")
+    trend = "UPTREND" if snapshot[f"ema{EMA_FAST}"] > snapshot[f"ema{EMA_SLOW}"] else "DOWNTREND"
+    st.caption(f"Bias: **{trend}** (EMA{EMA_FAST} vs EMA{EMA_SLOW}) · RSI{RSI_PERIOD} {snapshot[f'rsi{RSI_PERIOD}']:.1f}")
 
-    ohlc = st.columns(5)
-    ohlc[0].metric("Open", f"{float(last['open']):.{digits}f}")
-    ohlc[1].metric("High", f"{float(last['high']):.{digits}f}")
-    ohlc[2].metric("Low", f"{float(last['low']):.{digits}f}")
-    ohlc[3].metric("Close", f"{float(last['close']):.{digits}f}")
-    ohlc[4].metric("Volume", f"{float(last.get('volume', 0.0)):,.0f}")
-
-    ind = st.columns(4)
-    ind[0].metric(f"EMA{EMA_FAST}", f"{float(last[f'ema{EMA_FAST}']):.{digits}f}")
-    ind[1].metric(f"EMA{EMA_SLOW}", f"{float(last[f'ema{EMA_SLOW}']):.{digits}f}")
-    trend = "bullish stack" if float(last[f"ema{EMA_FAST}"]) >= float(last[f"ema{EMA_SLOW}"]) else "bearish stack"
-    ind[2].metric(f"RSI({RSI_PERIOD})", f"{float(last[f'rsi{RSI_PERIOD}']):.1f}", trend)
-    ind[3].metric("ATR(14)", f"{float(last['atr14']):.{digits}f}")
-    st.caption(f"Bid {quote.get('bid')} · Ask {quote.get('ask')} · Spread {quote.get('spread')}")
-
-    walls = bid_ask_wall(book)
-    wall_cols = st.columns(2)
-    with wall_cols[0]:
-        bw = walls["bid_wall"]
-        st.metric("🧱 Bid wall (largest size)", f"{bw['price']:.{digits}f}" if bw else "-",
-                  f"size {bw['size']:,.2f}" if bw else None)
-    with wall_cols[1]:
-        aw = walls["ask_wall"]
-        st.metric("🧱 Ask wall (largest size)", f"{aw['price']:.{digits}f}" if aw else "-",
-                  f"size {aw['size']:,.2f}" if aw else None)
-
-
-def pd_timestamp(value: Any) -> str:
     try:
-        import pandas as pd
-
-        ts = pd.to_datetime(value, utc=True, errors="coerce")
-        return "-" if ts is pd.NaT or ts is None else ts.strftime("%Y-%m-%d %H:%M")
-    except Exception:
-        return "-"
-
-
-def _render_chart(frame: Any, symbol: str, setup: Optional[SignalSetup]) -> None:
-    import streamlit as st
-
-    if frame is None or frame.empty:
-        return
-    try:
-        import pandas as pd
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
-    except Exception:
-        st.line_chart(frame.set_index("time")["close"])
+
+        view = df.tail(CANDLES).reset_index(drop=True)
+        fig = make_subplots(
+            rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28], vertical_spacing=0.04,
+            subplot_titles=("", "RSI"),
+        )
+        fig.add_trace(
+            go.Candlestick(
+                x=view["time"], open=view["open"], high=view["high"], low=view["low"], close=view["close"],
+                name=symbol, increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
+            ),
+            row=1, col=1,
+        )
+        fig.add_trace(go.Scatter(x=view["time"], y=view[f"ema{EMA_FAST}"], name=f"EMA{EMA_FAST}",
+                                 line=dict(color="#42a5f5", width=1.4)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=view["time"], y=view[f"ema{EMA_SLOW}"], name=f"EMA{EMA_SLOW}",
+                                 line=dict(color="#ffa726", width=1.4)), row=1, col=1)
+        fig.add_trace(go.Scatter(x=view["time"], y=view[f"rsi{RSI_PERIOD}"], name=f"RSI{RSI_PERIOD}",
+                                 line=dict(color="#ab47bc", width=1.4)), row=2, col=1)
+        fig.add_hline(y=70, line_dash="dot", line_color="#787b86", row=2, col=1)
+        fig.add_hline(y=30, line_dash="dot", line_color="#787b86", row=2, col=1)
+        fig.update_layout(
+            height=460, margin=dict(l=10, r=10, t=30, b=10), xaxis_rangeslider_visible=False,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as exc:  # noqa: BLE001 - charting must never kill the page
+        st.caption(f"Chart unavailable: {exc}")
+        st.dataframe(df.tail(60), use_container_width=True)
+
+
+def render_signal_card(assessment: RiskAssessment, council_status: Dict[str, Any]) -> None:
+    st.markdown("#### 🎯 Sentinel Signal Card")
+    if assessment.direction == "neutral":
+        st.info("No qualified directional setup right now (EMA50/EMA200 and RSI disagree). Wait for alignment.", icon="⏳")
         return
 
-    df = frame.copy()
-    x = pd.to_datetime(df["time"], utc=True, errors="coerce")
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28],
-                        vertical_spacing=0.04)
-    fig.add_trace(go.Candlestick(x=x, open=df["open"], high=df["high"], low=df["low"],
-                                 close=df["close"], name=symbol,
-                                 increasing_line_color="#26a69a",
-                                 decreasing_line_color="#ef5350"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=x, y=df[f"ema{EMA_FAST}"], name=f"EMA{EMA_FAST}",
-                             line=dict(color="#42a5f5", width=1.4)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=x, y=df[f"ema{EMA_SLOW}"], name=f"EMA{EMA_SLOW}",
-                             line=dict(color="#ffb300", width=1.4)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=x, y=df[f"rsi{RSI_PERIOD}"], name=f"RSI{RSI_PERIOD}",
-                             line=dict(color="#ab47bc", width=1.4)), row=2, col=1)
-    fig.add_hline(y=70, line=dict(color="#787b86", width=1, dash="dot"), row=2, col=1)
-    fig.add_hline(y=30, line=dict(color="#787b86", width=1, dash="dot"), row=2, col=1)
+    color = VERDICT_COLORS.get(assessment.direction, "#787b86")
+    status = "APPROVED" if assessment.allowed else "BLOCKED"
+    status_color = "#26a69a" if assessment.allowed else "#ef5350"
+    st.markdown(
+        f"""
+        <div style="border:2px solid {color};border-radius:12px;padding:14px 18px;background:{color}14;">
+          <div style="font-size:20px;font-weight:700;color:{color};">
+            {assessment.direction.upper()} {assessment.symbol}
+          </div>
+          <div style="color:{status_color};font-weight:700;margin-top:2px;">COUNCIL: {status}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    if setup is not None and setup.armed:
-        for level, label, color in ((setup.entry, "Entry", "#ffffff"),
-                                    (setup.stop_loss, "SL", "#ef5350"),
-                                    (setup.take_profit, "TP", "#26a69a")):
-            fig.add_hline(y=level, line=dict(color=color, width=1, dash="dash"),
-                          annotation_text=f"{label} {level:.{setup.digits}f}",
-                          annotation_position="right", row=1, col=1)
+    c = st.columns(4)
+    c[0].metric("Entry", f"{assessment.entry:g}")
+    c[1].metric("Stop loss", f"{assessment.stop:g}")
+    c[2].metric("Take profit", f"{assessment.take_profit:g}")
+    c[3].metric("Lot size", f"{assessment.lot:.2f}")
 
-    fig.update_yaxes(range=[0, 100], row=2, col=1)
-    fig.update_layout(template="plotly_dark", height=520, margin=dict(l=10, r=10, t=30, b=10),
-                      uirevision="copilot", legend=dict(orientation="h", y=1.02, x=0),
-                      xaxis_rangeslider_visible=False, hovermode="x unified", dragmode="pan",
-                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.06)")
-    st.plotly_chart(fig, use_container_width=True)
+    r = st.columns(4)
+    r[0].metric("RRR", f"1:{assessment.rrr:.2f}", delta="ok" if assessment.rrr_ok else f"min 1:{MIN_RRR:g}",
+                delta_color="normal" if assessment.rrr_ok else "inverse")
+    r[1].metric("Risk", f"${assessment.risk_usd:+,.2f}")
+    r[2].metric("Reward", f"${assessment.reward_usd:+,.2f}")
+    r[3].metric("Trades left", f"{assessment.trades_remaining}")
+
+    sessions = ", ".join(assessment.sessions) if assessment.sessions else "None (off-session)"
+    st.caption(f"Session: **{sessions}** · {'session open ✅' if assessment.session_ok else 'session closed ⛔'}")
+    if council_status:
+        st.caption(
+            f"Scout: {'🟢 ' + str(council_status.get('scout_models', [''])[0]) if council_status.get('scout') else '⚪ offline'} · "
+            f"Auditor: {'🟢 ' + str(council_status.get('auditor_models', [''])[0]) if council_status.get('auditor') else '⚪ offline'}"
+        )
+
+    for message in assessment.messages:
+        st.caption(f"• {message}")
+
+    if not assessment.allowed:
+        st.error("This setup does NOT pass the risk gate - do not place it.", icon="🚫")
+    else:
+        st.success("Passes the deterministic risk gate. Review, then place by hand in MT5.", icon="✅")
 
 
-def _render_signal_card(
-    setup: Optional[SignalSetup],
-    daily_pnl: float,
-    guard_state: str,
-    council_verdict: Optional[CouncilVerdict],
-    stale: bool,
-) -> None:
-    import streamlit as st
-
-    st.subheader("🎯 AI Signal Card")
-    if setup is None:
-        st.info("Waiting for market data to build a setup.")
+def render_council_verdict(verdict: Any) -> None:
+    if verdict is None:
         return
-
-    with st.container(border=True):
-        if guard_state == "KILL":
-            st.error("🛑 KILL-SWITCH ACTIVE - signal suppressed. Flat and safe until tomorrow.")
-            return
-        if guard_state == "LOCK":
-            st.success("🔒 LOCK-PROFIT reached - no new entries. This is a review-only card.")
-
-        if not setup.armed:
-            st.warning("NEUTRAL - no trend/momentum alignment. Stand down; no order to place.")
-
-        color = VERDICT_COLORS.get(setup.verdict.lower(), VERDICT_COLORS["neutral"])
-        head = st.columns([2, 2, 2, 2])
-        head[0].metric("Pair", f"{setup.symbol} · {setup.timeframe}")
-        head[1].markdown(
-            f"<div style='padding-top:6px'><span style='background:{color};color:#fff;"
-            f"padding:6px 14px;border-radius:8px;font-weight:700;font-size:1.05rem'>"
-            f"{setup.verdict}</span></div>",
-            unsafe_allow_html=True,
-        )
-        head[2].metric("Recommended lot", f"{setup.lot:.2f}")
-        head[3].metric("RRR score", f"1 : {setup.rrr:.1f}")
-
-        body = st.columns(4)
-        body[0].metric("Entry", f"{setup.entry:.{setup.digits}f}")
-        body[1].metric("Stop loss", f"{setup.stop_loss:.{setup.digits}f}", f"-${setup.risk_usd:.0f} (1R)")
-        body[2].metric("Take profit", f"{setup.take_profit:.{setup.digits}f}", f"+${setup.reward_usd:.0f} (3R)")
-        body[3].metric("Risk / Reward", f"${setup.risk_usd:.0f} / ${setup.reward_usd:.0f}")
-
-        st.markdown("**Deterministic checks**")
-        st.markdown(
-            f"- RRR floor ≥ 1:{MIN_RRR:.0f}: **{'PASS' if setup.rrr >= MIN_RRR else 'FAIL'}**\n"
-            f"- Lot within 0.01-0.02: **{'PASS' if MIN_LOT <= setup.lot <= MAX_LOT else 'FAIL'}**\n"
-            f"- Daily kill-switch headroom: **${daily_pnl - DAILY_LOSS_KILL_USD:,.2f}**"
-        )
-        for note in setup.notes:
-            st.caption(f"• {note}")
-
-        st.divider()
-        st.markdown("**🧠 Sentinel Council - Risk Auditor notes**")
-        if council_verdict is None:
-            st.caption("Not consulted yet. Press **Consult Sentinel Council** below.")
-        else:
-            approved = council_verdict.approved
-            (st.success if approved else st.error)(
-                f"{'✅ APPROVED' if approved else '⛔ REJECTED'} · "
-                f"{council_verdict.summary or 'no summary'}"
-            )
-            st.caption(
-                f"verdict={council_verdict.verdict} · confidence={council_verdict.confidence:.2f} · "
-                f"scout={council_verdict.scout_model_used or 'offline'} · "
-                f"auditor={council_verdict.auditor_model_used or 'offline'}"
-                + (" · ⚠ FALLBACK" if council_verdict.fallback_used else "")
-                + (" · degraded" if council_verdict.degraded else "")
-            )
-            if council_verdict.notes:
-                st.markdown(f"> {council_verdict.notes}")
-            for message in council_verdict.messages:
-                st.caption(f"– {message}")
-            if stale:
-                st.warning("⚠ Setup changed since this consultation - re-run the council.")
+    st.markdown("##### 🧠 Council Deliberation")
+    if verdict.degraded:
+        st.caption("Council ran in degraded mode (one or both LLMs unavailable) - the deterministic Risk Auditor is authoritative.")
+    cols = st.columns(2)
+    for col, label, opinion in ((cols[0], "Scout (Groq)", verdict.scout), (cols[1], "Risk Auditor (Gemini)", verdict.auditor)):
+        with col:
+            if opinion is None:
+                st.markdown(f"**{label}** · ⚪ not consulted")
+            elif opinion.ok:
+                st.markdown(f"**{label}** · `{opinion.model}` · {opinion.verdict.upper()} ({opinion.confidence:.0%})")
+                if opinion.summary:
+                    st.caption(opinion.summary)
+                if opinion.fallback:
+                    st.caption(f"↳ fallback (tried: {', '.join(opinion.attempted)})")
+            else:
+                st.markdown(f"**{label}** · 🔴 unavailable")
+                st.caption(opinion.error or "no response")
+    st.caption(f"Verdict: **{verdict.verdict.upper()}** · approved={verdict.approved} · {verdict.elapsed_ms} ms · {verdict.summary}")
+    for message in verdict.messages:
+        st.caption(f"• {message}")
 
 
-def _render_dashboard() -> None:
-    import streamlit as st
-
-    st.set_page_config(page_title="The5ers AI Co-Pilot", page_icon="🧭", layout="wide")
-    st.title("🧭 The5ers AI Co-Pilot · $2,500 High Stakes")
-    st.caption("Manual-execution signal generator & risk auditor · MetaApi read-only feed · "
-               "Sentinel Council (Groq Scout + Gemini Risk Auditor). **No auto-trading.**")
-
-    opts = _render_sidebar()
-    creds = resolve_credentials()
-
-    feed = get_feed()
-    offline = bool(opts["offline"])
-    feed.configure(token=creds["token"], account_id=creds["account_id"], offline=offline)
-    council = get_council(creds)
-
-    st.session_state.setdefault("cp_daily_pnl", 0.0)
-
-    # ---- sidebar: daily PnL tracker (manual co-pilot bookkeeping) -------- #
-    # The log buttons cannot touch the number_input's key directly (Streamlit
-    # forbids mutating a widget key after it is instantiated), so they queue a
-    # delta that is applied here, *before* the widget is (re)created.
-    pending = float(st.session_state.pop("cp_pnl_pending", 0.0) or 0.0)
-    if pending:
-        st.session_state["cp_daily_pnl"] = round(
-            float(st.session_state.get("cp_daily_pnl", 0.0)) + pending, 2
-        )
-    with st.sidebar.expander("📓 Daily P&L tracker", expanded=True):
-        st.number_input("Today's realized P&L (USD)", step=1.0, format="%.2f", key="cp_daily_pnl")
-        bcols = st.columns(2)
-        if bcols[0].button("＋ TP hit (+$30)", use_container_width=True):
-            st.session_state["cp_pnl_pending"] = TAKE_PROFIT_USD
-            log_event(f"logged TP hit (+${TAKE_PROFIT_USD:.0f})")
-            st.rerun()
-        if bcols[1].button("－ SL hit (-$10)", use_container_width=True):
-            st.session_state["cp_pnl_pending"] = -RISK_PER_TRADE_USD
-            log_event(f"logged SL hit (-${RISK_PER_TRADE_USD:.0f})")
-            st.rerun()
-        if st.button("↺ Reset day", use_container_width=True):
-            st.session_state["cp_pnl_pending"] = -float(st.session_state.get("cp_daily_pnl", 0.0))
-            log_event("daily P&L reset")
-            st.rerun()
-
-    daily_pnl = float(st.session_state["cp_daily_pnl"])
-    guard_state = guardrail_state(daily_pnl)
-
-    snapshot = feed.account_snapshot()
-    if snapshot.get("balance"):
-        st.caption(
-            f"Account · balance ${snapshot['balance']:,.2f} · equity ${snapshot['equity']:,.2f} "
-            f"{snapshot.get('currency', 'USD')}"
-            + (" · offline demo" if snapshot.get("offline") else "")
-        )
-
-    _render_guardrail(daily_pnl, guard_state)
-    if feed.last_error:
-        st.warning(f"Feed warning: {feed.last_error}")
-
-    # ---- live market block (native fragment refresh, Community-Cloud friendly) -- #
-    @_fragment(REFRESH_SECONDS if opts["auto_refresh"] else None)
-    def _live() -> None:
-        frame = feed.fetch_frame(opts["symbol"], opts["timeframe"], CANDLES)
-        quote = feed.quote(opts["symbol"])
-        book = feed.orderbook(opts["symbol"])
-        spec = feed.spec(opts["symbol"])
-        setup = compute_signal(frame, opts["symbol"], opts["timeframe"], spec,
-                               lot_preference=opts["lot_preference"])
-
-        _render_market_intelligence(frame, quote, book, bool(frame.attrs.get("offline", offline)),
-                                    digits=int(getattr(spec, "digits", 5)))
-        _render_chart(frame, opts["symbol"], setup)
-
-        # ---- council consultation (quota-friendly: button-driven) --------- #
-        stored = st.session_state.get("cp_council_verdict")
-        stale = bool(stored and setup is not None and stored.get("sig") != setup.signature())
-        verdict_obj = stored.get("verdict") if stored else None
-
-        if st.button("🧠 Consult Sentinel Council", type="primary",
-                     disabled=setup is None or guard_state == "KILL"):
-            if setup is not None:
-                with st.spinner("Scout (Groq) and Risk Auditor (Gemini) deliberating..."):
-                    result = council.evaluate(setup.to_council_payload(daily_pnl))
-                st.session_state["cp_council_verdict"] = {"sig": setup.signature(), "verdict": result}
-                verdict_obj, stale = result, False
-                log_event(
-                    f"council consult -> {'APPROVED' if result.approved else 'REJECTED'} "
-                    f"(scout={result.scout_model_used or '-'}, auditor={result.auditor_model_used or '-'}"
-                    + (", FALLBACK" if result.fallback_used else "") + ")"
-                )
-
-        _render_signal_card(setup, daily_pnl, guard_state, verdict_obj, stale)
-
-        council_status = council.status()
-        st.caption(
-            f"Council · Scout {'on' if council_status['scout'] else 'off'} "
-            f"({council_status['scout_models'][0]}) · Risk Auditor "
-            f"{'on' if council_status['auditor'] else 'off'} ({council_status['auditor_models'][0]}) "
-            f"· timeout {council_status['timeout']:.0f}s"
-        )
-
-    _live()
-
-    with st.expander("📜 Activity log", expanded=False):
-        entries = st.session_state.get("cp_log") or []
-        st.code("\n".join(entries[-60:]) if entries else "No activity yet.", language="text")
+def render_activity() -> None:
+    st.markdown("#### 🗒️ Activity Log")
+    log = st.session_state.cp_activity
+    if not log:
+        st.caption("No events yet.")
+        return
+    for entry in log[:15]:
+        st.caption(entry)
 
 
-def run_once() -> int:
-    """Headless smoke pass: offline feed -> signal -> summary. Exit 0 on success."""
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(),
-                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    feed = MetaApiFeed()
-    feed.configure(offline=True)
-    frame = feed.fetch_frame(DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, CANDLES)
-    spec = feed.spec(DEFAULT_SYMBOL)
-    setup = compute_signal(frame, DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, spec)
-    if setup is None:
-        print("FAILED: no signal produced")
-        return 1
-    print(f"rows={len(frame)} offline={feed.offline}")
-    print(f"{setup.symbol} {setup.timeframe} {setup.verdict} entry={setup.entry} "
-          f"sl={setup.stop_loss} tp={setup.take_profit} lot={setup.lot} rrr=1:{setup.rrr:.1f}")
-    print(f"guardrail(daily_pnl=0)={guardrail_state(0.0)} "
-          f"guardrail(+40)={guardrail_state(40.0)} guardrail(-50)={guardrail_state(-50.0)}")
-    feed.close()
-    print("OK")
-    return 0
+# --------------------------------------------------------------------------- #
+# Page
+# --------------------------------------------------------------------------- #
+def render_page(params: Dict[str, Any], client: MT5Client) -> None:
+    symbol = params["symbol"]
+    timeframe = params["timeframe"]
+    df = client.fetch_frame(symbol, timeframe, CANDLES)
+    spec = client.spec(symbol)
+    tick = client.tick(symbol)
+
+    now = datetime.now(timezone.utc)
+    setup = build_setup(
+        df, spec, tick, symbol=symbol, daily_pnl=params["daily_pnl"],
+        trades_today=params["trades_today"], now=now,
+        stop_atr_mult=params["stop_atr"], target_rrr=params["target_rrr"],
+    )
+    assessment = RISK_ENGINE.assess(setup or {"direction": "neutral"})
+
+    top = st.columns([2, 1])
+    with top[0]:
+        render_status(client)
+    with top[1]:
+        st.metric("UTC clock", now.strftime("%H:%M:%S"), help="Sessions are evaluated in UTC.")
+
+    render_circuit(assessment)
+    render_account(client, params["daily_pnl"], params["trades_today"], params["manual"])
+
+    st.divider()
+    left, right = st.columns([1.35, 1])
+    with left:
+        render_market_intelligence(df, symbol, spec.digits)
+    with right:
+        render_prices(client)
+
+    st.divider()
+    render_signal_card(assessment, (st.session_state.cp_council.status() if st.session_state.cp_council else {}))
+
+    consult_cols = st.columns([1, 2])
+    if consult_cols[0].button("🧠 Consult Sentinel Council", use_container_width=True, type="primary", disabled=setup is None):
+        council = _council(params["groq_key"], params["gemini_key"])
+        with st.spinner("Scout and Risk Auditor are deliberating…"):
+            verdict = council.evaluate(setup or {})
+        st.session_state.cp_verdict = verdict
+        _log(f"Council consulted -> {verdict.verdict} (approved={verdict.approved}).")
+    if consult_cols[1].button("🧹 Clear verdict"):
+        st.session_state.cp_verdict = None
+        st.rerun()
+
+    render_council_verdict(st.session_state.cp_verdict)
+    st.divider()
+    render_activity()
 
 
 def main() -> None:
-    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper(),
-                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    _render_dashboard()
+    st.set_page_config(page_title="AI Co-Pilot · Sentinel Council", page_icon="🛰️", layout="wide")
+    _init_state()
+    _apply_pending()
+
+    client = _client()
+    params = render_sidebar(client)
+
+    st.title("🛰️ AI Co-Pilot · Sentinel Council")
+    st.caption(
+        f"The5ers Bootcamp evaluation · ${ACCOUNT_SIZE_USD:,.0f} base · 1R=${RISK_PER_TRADE_USD:.0f} · "
+        f"RRR ≥ 1:{MIN_RRR:g} · max {MAX_TRADES_PER_DAY} trades/day · circuit breaker {DAILY_LOSS_LOCK_USD:+.0f}/{DAILY_LOSS_KILL_USD:+.0f} · "
+        "advisory only - you place every order by hand."
+    )
+
+    if params["auto_refresh"]:
+        st.fragment(run_every=REFRESH_SECONDS)(render_page)(params, client)
+    else:
+        render_page(params, client)
+
+
+# --------------------------------------------------------------------------- #
+# Headless smoke test
+# --------------------------------------------------------------------------- #
+def run_once() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    client = MT5Client(symbols=PAIRS)
+    connected = client.initialize()
+    print(f"MT5 package available: {client.available} | connected: {connected} | offline: {client.offline}")
+    if not connected:
+        print(f"Reason: {client.last_error or 'terminal unavailable'}")
+    acct = client.account_info()
+    print(f"Account: balance={acct['balance']:.2f} equity={acct['equity']:.2f} source={'offline' if acct.get('offline') else 'MT5'}")
+
+    now = datetime.now(timezone.utc)
+    for symbol in PAIRS:
+        df = client.fetch_frame(symbol, DEFAULT_TIMEFRAME, CANDLES)
+        spec = client.spec(symbol)
+        tick = client.tick(symbol)
+        setup = build_setup(df, spec, tick, symbol=symbol, daily_pnl=0.0, trades_today=0, now=now)
+        assessment = RISK_ENGINE.assess(setup)
+        print(
+            f"{symbol:7s} rows={len(df):4d} bid={tick['bid']:.{spec.digits}f} ask={tick['ask']:.{spec.digits}f} "
+            f"| {assessment.direction:7s} lot={assessment.lot:.2f} rrr=1:{assessment.rrr:.2f} "
+            f"circuit={assessment.circuit} allowed={assessment.allowed} sessions={assessment.sessions}"
+        )
+
+    council = SentinelCouncil(risk_engine=RISK_ENGINE)
+    verdict = council.evaluate(
+        build_setup(
+            client.fetch_frame(DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, CANDLES),
+            client.spec(DEFAULT_SYMBOL), client.tick(DEFAULT_SYMBOL),
+            symbol=DEFAULT_SYMBOL, daily_pnl=0.0, trades_today=0, now=now,
+        )
+    )
+    print(f"Council: verdict={verdict.verdict} approved={verdict.approved} degraded={verdict.degraded}")
+    council.close()
+    client.shutdown()
+    print("run_once complete.")
+    return 0
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="The5ers AI Co-Pilot dashboard (manual execution).")
-    parser.add_argument("--once", action="store_true", help="run a single headless pass and exit")
-    args, _unknown = parser.parse_known_args()
+    parser = argparse.ArgumentParser(description="AI Co-Pilot & Sentinel Council dashboard (native MT5).")
+    parser.add_argument("--once", action="store_true", help="Run a single headless pass and exit (smoke test).")
+    args = parser.parse_args()
     if args.once:
         raise SystemExit(run_once())
     main()

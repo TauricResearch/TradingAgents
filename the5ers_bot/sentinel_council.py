@@ -1,18 +1,31 @@
 """
 sentinel_council.py
 ===================
-Two-model "Sentinel Council" that reviews a manual trade setup before the trader
-places it in MT5. The council is **advisory only** - it never sends orders.
+The **Sentinel Council** - the risk brain of the AI Co-Pilot for a The5ers
+*Bootcamp* evaluation account. It has two layers:
 
-* **Scout** (Groq) - reads trend / momentum / chart structure (EMA50 vs EMA200,
-  RSI posture, ATR context) and proposes LONG / SHORT / NEUTRAL.
-* **Risk Auditor** (Gemini) - validates the setup against the The5ers $2,500 High
-  Stakes budget: 1R = $10, target +$30 (RRR >= 1:3), +$40 daily ceiling and a
-  -$50 daily kill-switch, and confirms the recommended lot stays 0.01-0.02.
+1. **Risk Auditor (deterministic, always on)** - :class:`RiskEngine` hard-codes the
+   prop-firm guardrails and returns a :class:`RiskAssessment`. It needs no API key
+   and is the *authoritative* gate: lot sizing, the RRR floor, the daily trade cap,
+   the circuit breaker / kill-switch and the liquidity-session filter all live here.
+2. **LLM Council (advisory, optional)** - a Groq *Scout* (trend/momentum) and a
+   Gemini *Risk Auditor* read the same setup and add a plain-English opinion. It is
+   advisory only, hard-timeboxed and fails **open** so it can never block the trader.
+
+Risk model - The5ers Bootcamp, $20,000 account base
+---------------------------------------------------
+* Fixed risk per trade  : **1R = $10**
+* Reward:risk floor     : **RRR >= 1 : 1.5** (i.e. TP >= $15)
+* Max trades per day    : **3**
+* Circuit breaker       : lockout once daily P&L reaches **-$20 (2R)** and a hard
+                          kill at **-$30 (3R)**; also locks once the +daily profit
+                          target is banked.
+* Session filter        : only London open (07:00-16:00 UTC) and the London/New
+                          York overlap (12:00-16:00 UTC) are tradable.
 
 Resilience
 ----------
-Both counselors walk a prioritised model cascade and fall through to the next
+Both LLM counselors walk a prioritised model cascade and fall through to the next
 model on any API error, rate-limit or timeout:
 
 * Scout (Groq)         : ``openai/gpt-oss-120b`` -> ``qwen/qwen3.8-27b`` -> ``openai/gpt-oss-20b``
@@ -20,7 +33,7 @@ model on any API error, rate-limit or timeout:
 
 The whole cascade shares one hard deadline (``DEFAULT_TIMEOUT`` = 8s). If a provider
 dies outright the survivor carries the verdict; if both fail (or keys are absent)
-the council fails **open** (``approved=True``) so it can never block the trader.
+the council fails open and the deterministic :class:`RiskEngine` alone decides.
 """
 
 from __future__ import annotations
@@ -28,7 +41,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import math
 import os
 import re
 import threading
@@ -41,64 +53,75 @@ LOGGER = logging.getLogger("copilot.council")
 
 DEFAULT_TIMEOUT = 8.0
 
-# Hard rule: every approved setup must clear a 1:3 reward-to-risk floor.
-MIN_RRR = 3.0
+# --------------------------------------------------------------------------- #
+# Risk rules - The5ers Bootcamp, $20,000 account base
+# --------------------------------------------------------------------------- #
+ACCOUNT_SIZE_USD = 20_000.0
+RISK_PER_TRADE_USD = 10.0                     # 1R
+MIN_RRR = 1.5                                 # 1 : 1.5
+MIN_TP_USD = RISK_PER_TRADE_USD * MIN_RRR     # $15 minimum take-profit
+MAX_TRADES_PER_DAY = 3
+DAILY_LOSS_LOCK_USD = -20.0                   # 2R -> soft lockout
+DAILY_LOSS_KILL_USD = -30.0                   # 3R -> hard kill-switch
+DAILY_PROFIT_TARGET_USD = 20.0                # bank the day and stop
+CIRCUIT_WATCH_USD = -10.0                     # 1R -> amber warning
 
-SCOUT_MODELS: List[str] = [
-    "openai/gpt-oss-120b",
-    "qwen/qwen3.8-27b",
-    "openai/gpt-oss-20b",
-]
-AUDITOR_MODELS: List[str] = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-3.8-flash",
-]
+VALID_DIRECTIONS = {"long", "short", "neutral"}
 
-VALID_VERDICTS = {"long", "short", "neutral"}
+# --------------------------------------------------------------------------- #
+# Liquidity sessions (UTC)
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class Session:
+    """A tradable liquidity window, expressed in fractional UTC hours."""
 
-_SCOUT_SYSTEM = (
-    "You are Scout, a technical analyst on a manual day/swing trading desk. Judge the "
-    "momentum and structure of the setup using the provided EMA50/EMA200 relationship, "
-    "RSI(14) and ATR context. Answer LONG, SHORT or NEUTRAL and be decisive. "
-    'Reply with ONLY JSON: {"verdict":"long"|"short"|"neutral","confidence":0.0-1.0,'
-    '"summary":"one short sentence"}.'
-)
+    name: str
+    start_hour: float
+    end_hour: float
+    anchor: str = ""  # the swing high/low the stop should sit behind
 
-_AUDITOR_SYSTEM = (
-    "You are the Risk Auditor for a The5ers $2,500 High Stakes evaluation account. "
-    "Hard rules: risk per trade is 1R = $10, the take-profit must be at least 3x the "
-    "stop (RRR >= 1:3, i.e. >= $30), the daily profit ceiling is +$40 and the daily "
-    "kill-switch is -$50. Recommended lot size must stay within 0.01-0.02. Validate the "
-    "setup against these rules using the reported numbers. Be conservative. "
-    'Reply with ONLY JSON: {"verdict":"long"|"short"|"neutral","confidence":0.0-1.0,'
-    '"compliant":true|false,"summary":"one short sentence of auditor notes"}.'
-)
+    def active(self, hour: float) -> bool:
+        return self.start_hour <= hour < self.end_hour
+
+
+LONDON_OPEN = Session("London open", 7.0, 16.0, anchor="session low/high")
+LONDON_NY_OVERLAP = Session("London/New York overlap", 12.0, 16.0, anchor="session low/high")
+PRIMARY_SESSIONS: tuple[Session, ...] = (LONDON_OPEN, LONDON_NY_OVERLAP)
+
+
+def utc_hour(now: Optional[datetime] = None) -> float:
+    """Fractional UTC hour (e.g. 12:30 -> 12.5)."""
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    now = now.astimezone(timezone.utc)
+    return now.hour + now.minute / 60.0
+
+
+def active_sessions(now: Optional[datetime] = None) -> List[str]:
+    """Names of the primary sessions open at ``now`` (may be empty)."""
+    hour = utc_hour(now)
+    return [s.name for s in PRIMARY_SESSIONS if s.active(hour)]
+
+
+def session_ok(now: Optional[datetime] = None) -> bool:
+    """True when at least one primary liquidity session is open."""
+    return bool(active_sessions(now))
 
 
 # --------------------------------------------------------------------------- #
-# Parsing helpers
+# Parsing / math helpers
 # --------------------------------------------------------------------------- #
-def _extract_json(text: str) -> Optional[Dict[str, Any]]:
-    if not text:
-        return None
-    cleaned = text.strip()
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", cleaned, re.DOTALL)
-    if fence:
-        cleaned = fence.group(1)
-    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-    if not match:
-        return None
+def _f(value: Any, default: float = 0.0) -> float:
     try:
-        parsed = json.loads(match.group(0))
-    except (ValueError, TypeError):
-        return None
-    return parsed if isinstance(parsed, dict) else None
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
-def _normalize_verdict(value: Any) -> str:
+def _normalize_direction(value: Any) -> str:
     text = str(value or "").strip().lower()
-    if text in VALID_VERDICTS:
+    if text in VALID_DIRECTIONS:
         return text
     if text.startswith("l") or text in {"buy", "bullish", "up"}:
         return "long"
@@ -107,22 +130,250 @@ def _normalize_verdict(value: Any) -> str:
     return "neutral"
 
 
-def _clamp_confidence(value: Any) -> float:
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return 0.5
-    if number > 1.0:
-        number = number / 100.0
-    return max(0.0, min(1.0, number))
+def size_lot(
+    risk_usd: float,
+    stop_distance: float,
+    value_per_unit_per_lot: float,
+    min_lot: float = 0.01,
+    max_lot: float = 100.0,
+    lot_step: float = 0.01,
+) -> float:
+    """Micro-lot sizing: ``lot = risk / (stop_distance * value_per_price_unit)``.
 
-
-def _format_setup(setup: Dict[str, Any]) -> str:
-    return "Trade setup under review:\n" + "\n".join(f"- {k}: {v}" for k, v in setup.items() if v is not None)
+    The result is snapped to ``lot_step`` and clamped into ``[min_lot, max_lot]``.
+    When the ideal size is below ``min_lot`` the position is fractionally too big;
+    the caller flags that via :meth:`RiskEngine.assess`.
+    """
+    if stop_distance <= 0 or value_per_unit_per_lot <= 0:
+        return float(min_lot)
+    raw = risk_usd / (stop_distance * value_per_unit_per_lot)
+    step = lot_step if lot_step and lot_step > 0 else 0.01
+    snapped = round(raw / step) * step
+    clamped = max(min_lot, min(max_lot, snapped))
+    return round(clamped, 2)
 
 
 # --------------------------------------------------------------------------- #
-# Data objects
+# Risk assessment
+# --------------------------------------------------------------------------- #
+@dataclass
+class RiskAssessment:
+    """Deterministic outcome of the :class:`RiskEngine` gate."""
+
+    circuit: str = "SAFE"              # SAFE | WATCH | LOCKED
+    locked: bool = False
+    lock_reasons: List[str] = field(default_factory=list)
+
+    session_ok: bool = True
+    sessions: List[str] = field(default_factory=list)
+
+    trades_today: int = 0
+    trades_remaining: int = MAX_TRADES_PER_DAY
+    trades_ok: bool = True
+
+    daily_pnl: float = 0.0
+    drawdown_ok: bool = True
+    profit_target_hit: bool = False
+    profit_target: float = DAILY_PROFIT_TARGET_USD
+
+    direction: str = "neutral"
+    symbol: str = ""
+    entry: float = 0.0
+    stop: float = 0.0
+    take_profit: float = 0.0
+    stop_distance: float = 0.0
+    tp_distance: float = 0.0
+
+    lot: float = 0.0
+    rrr: float = 0.0
+    rrr_ok: bool = False
+    risk_usd: float = 0.0
+    reward_usd: float = 0.0
+    lot_capped: bool = False
+
+    allowed: bool = False
+    messages: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+class RiskEngine:
+    """Hard-codes the prop-firm guardrails. Deterministic, no I/O, no API keys."""
+
+    def __init__(
+        self,
+        account_size: float = ACCOUNT_SIZE_USD,
+        risk_per_trade: float = RISK_PER_TRADE_USD,
+        min_rrr: float = MIN_RRR,
+        max_trades: int = MAX_TRADES_PER_DAY,
+        loss_lock: float = DAILY_LOSS_LOCK_USD,
+        loss_kill: float = DAILY_LOSS_KILL_USD,
+        profit_target: float = DAILY_PROFIT_TARGET_USD,
+        watch_level: float = CIRCUIT_WATCH_USD,
+        enforce_session: bool = True,
+        lot_floor: float = 0.01,
+        lot_ceiling: float = 100.0,
+    ) -> None:
+        self.account_size = float(account_size)
+        self.risk_per_trade = float(risk_per_trade)
+        self.min_rrr = float(min_rrr)
+        self.max_trades = int(max_trades)
+        self.loss_lock = float(loss_lock)
+        self.loss_kill = float(loss_kill)
+        self.profit_target = float(profit_target)
+        self.watch_level = float(watch_level)
+        self.enforce_session = bool(enforce_session)
+        self.lot_floor = float(lot_floor)
+        self.lot_ceiling = float(lot_ceiling)
+
+    # ------------------------------------------------------------------ #
+    # Circuit breaker
+    # ------------------------------------------------------------------ #
+    def circuit(
+        self,
+        daily_pnl: float,
+        trades_today: int = 0,
+        profit_target: Optional[float] = None,
+    ) -> tuple[str, bool, List[str]]:
+        """Return ``(state, locked, reasons)`` for the kill-switch indicator."""
+        target = self.profit_target if profit_target is None else float(profit_target)
+        reasons: List[str] = []
+        locked = False
+
+        if daily_pnl <= self.loss_kill:
+            locked = True
+            reasons.append(f"Hard kill-switch: daily P&L {daily_pnl:+.2f} hit the {self.loss_kill:+.0f} (3R) limit.")
+        elif daily_pnl <= self.loss_lock:
+            locked = True
+            reasons.append(f"Circuit breaker: daily P&L {daily_pnl:+.2f} hit the {self.loss_lock:+.0f} (2R) limit.")
+
+        if daily_pnl >= target:
+            locked = True
+            reasons.append(f"Daily profit target {target:+.0f} reached ({daily_pnl:+.2f}) - bank it and stop.")
+
+        if trades_today >= self.max_trades:
+            locked = True
+            reasons.append(f"Max trades/day reached ({trades_today}/{self.max_trades}).")
+
+        if locked:
+            return "LOCKED", True, reasons
+        if daily_pnl <= self.watch_level:
+            return "WATCH", False, [f"Caution: {daily_pnl:+.2f} down ({abs(daily_pnl)/max(self.risk_per_trade,1e-9):.1f}R)."]
+        return "SAFE", False, []
+
+    # ------------------------------------------------------------------ #
+    # Full assessment
+    # ------------------------------------------------------------------ #
+    def assess(self, setup: Dict[str, Any]) -> RiskAssessment:
+        """Grade a single setup against every rule. Never raises."""
+        result = RiskAssessment()
+        try:
+            now = setup.get("now")
+            if isinstance(now, str):
+                now = None
+            daily_pnl = _f(setup.get("daily_pnl"), 0.0)
+            trades_today = int(_f(setup.get("trades_today"), 0.0))
+            target = _f(setup.get("profit_target"), self.profit_target) if setup.get("profit_target") is not None else self.profit_target
+
+            result.daily_pnl = daily_pnl
+            result.trades_today = trades_today
+            result.profit_target = target
+            result.trades_remaining = max(0, self.max_trades - trades_today)
+            result.trades_ok = trades_today < self.max_trades
+
+            state, locked, reasons = self.circuit(daily_pnl, trades_today, target)
+            result.circuit = state
+            result.locked = locked
+            result.lock_reasons = reasons
+            result.drawdown_ok = daily_pnl > self.loss_lock
+            result.profit_target_hit = daily_pnl >= target
+
+            sessions = active_sessions(now)
+            result.sessions = sessions
+            result.session_ok = session_ok(now) if self.enforce_session else True
+
+            direction = _normalize_direction(setup.get("direction"))
+            result.direction = direction
+            result.symbol = str(setup.get("symbol", ""))
+            entry = _f(setup.get("entry"))
+            stop = _f(setup.get("stop"))
+            take_profit = _f(setup.get("take_profit"))
+            result.entry, result.stop, result.take_profit = entry, stop, take_profit
+
+            if direction == "long":
+                stop_distance = entry - stop
+                tp_distance = take_profit - entry
+            elif direction == "short":
+                stop_distance = stop - entry
+                tp_distance = entry - take_profit
+            else:
+                stop_distance = tp_distance = 0.0
+
+            result.stop_distance = max(0.0, stop_distance)
+            result.tp_distance = max(0.0, tp_distance)
+
+            value_per_unit = _f(setup.get("value_per_unit"), 100_000.0)
+            min_lot = _f(setup.get("min_lot"), self.lot_floor) or self.lot_floor
+            max_lot = _f(setup.get("max_lot"), self.lot_ceiling) or self.lot_ceiling
+            lot_step = _f(setup.get("lot_step"), 0.01) or 0.01
+
+            supplied_lot = setup.get("lot")
+            if supplied_lot is not None:
+                lot = round(max(min_lot, min(max_lot, _f(supplied_lot))), 2)
+            else:
+                lot = size_lot(self.risk_per_trade, result.stop_distance, value_per_unit, min_lot, max_lot, lot_step)
+            result.lot = lot
+
+            result.rrr = round(result.tp_distance / result.stop_distance, 2) if result.stop_distance > 0 else 0.0
+            result.rrr_ok = result.rrr >= self.min_rrr
+
+            result.risk_usd = round(result.stop_distance * value_per_unit * lot, 2)
+            result.reward_usd = round(result.tp_distance * value_per_unit * lot, 2)
+            result.lot_capped = (
+                supplied_lot is None
+                and result.stop_distance > 0
+                and value_per_unit > 0
+                and round(self.risk_per_trade / (result.stop_distance * value_per_unit), 4) < min_lot
+            )
+
+            if direction == "neutral":
+                result.messages.append("No directional signal - nothing to size.")
+            elif result.stop_distance <= 0:
+                result.messages.append("Invalid stop: it must sit on the risk side of the entry.")
+            elif result.tp_distance <= 0:
+                result.messages.append("Invalid target: it must sit on the reward side of the entry.")
+
+            if result.lot_capped:
+                result.messages.append(
+                    f"Stop is wide: the {min_lot:.2f} min lot risks {result.risk_usd:+.2f} (> 1R = ${self.risk_per_trade:.0f})."
+                )
+            if not result.rrr_ok and result.stop_distance > 0 and result.tp_distance > 0:
+                result.messages.append(f"RRR {result.rrr:.2f} is below the {self.min_rrr:g}:1 floor.")
+            if self.enforce_session and not result.session_ok:
+                result.messages.append("Outside London / London-NY overlap - no new signals.")
+            if result.profit_target_hit:
+                result.messages.append(f"Daily profit target hit ({daily_pnl:+.2f}).")
+
+            result.allowed = (
+                not result.locked
+                and result.session_ok
+                and result.trades_ok
+                and result.rrr_ok
+                and direction != "neutral"
+                and result.stop_distance > 0
+                and result.tp_distance > 0
+            )
+            return result
+        except Exception as exc:  # noqa: BLE001 - the gate must never crash the UI
+            LOGGER.warning("risk assess failed: %s", exc)
+            result.messages.append(f"Risk engine error: {exc}")
+            result.allowed = False
+            return result
+
+
+# --------------------------------------------------------------------------- #
+# Data objects (LLM council)
 # --------------------------------------------------------------------------- #
 @dataclass
 class CounselorOpinion:
@@ -160,15 +411,49 @@ class CouncilVerdict:
     messages: List[str] = field(default_factory=list)
     scout: Optional[CounselorOpinion] = None
     auditor: Optional[CounselorOpinion] = None
+    risk: Optional[RiskAssessment] = None
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
-        data = asdict(self)
-        return data
+        return asdict(self)
 
 
 # --------------------------------------------------------------------------- #
-# Sync bridge (own event loop thread, mirrors metaapi_client._AsyncRunner)
+# LLM prompts
+# --------------------------------------------------------------------------- #
+SCOUT_MODELS: List[str] = [
+    "openai/gpt-oss-120b",
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b",
+]
+AUDITOR_MODELS: List[str] = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.8-flash",
+]
+
+_SCOUT_SYSTEM = (
+    "You are Scout, a technical analyst on a manual day/swing trading desk. Judge the "
+    "momentum and structure of the setup using the provided EMA50/EMA200 relationship, "
+    "RSI(14) and ATR context. Answer LONG, SHORT or NEUTRAL and be decisive. "
+    'Reply with ONLY JSON: {"verdict":"long"|"short"|"neutral","confidence":0.0-1.0,'
+    '"summary":"one short sentence"}.'
+)
+
+_AUDITOR_SYSTEM = (
+    "You are the Risk Auditor for a The5ers Bootcamp $20,000 evaluation account. "
+    "Hard rules: risk per trade is 1R = $10, the take-profit must be at least 1.5x the "
+    "stop (RRR >= 1:1.5, i.e. >= $15), at most 3 trades per day, the daily profit target "
+    "is +$20, the circuit breaker locks out at -$20 (2R) and the hard kill-switch is -$30 "
+    "(3R). Signals are only valid during the London open or the London/New York overlap. "
+    "Validate the setup against these rules using the reported numbers. Be conservative. "
+    'Reply with ONLY JSON: {"verdict":"long"|"short"|"neutral","confidence":0.0-1.0,'
+    '"compliant":true|false,"summary":"one short sentence of auditor notes"}.'
+)
+
+
+# --------------------------------------------------------------------------- #
+# Sync bridge (own event-loop thread)
 # --------------------------------------------------------------------------- #
 class _Runner:
     def __init__(self) -> None:
@@ -194,7 +479,7 @@ class _Runner:
 # Council
 # --------------------------------------------------------------------------- #
 class SentinelCouncil:
-    """Async multi-LLM council with model fallback. Fail-open, advisory only."""
+    """Risk Engine + optional LLM council. Advisory only, fail-open, never raises."""
 
     def __init__(
         self,
@@ -204,6 +489,7 @@ class SentinelCouncil:
         enabled: bool = True,
         scout_models: Optional[Sequence[str]] = None,
         auditor_models: Optional[Sequence[str]] = None,
+        risk_engine: Optional[RiskEngine] = None,
     ) -> None:
         self.timeout = float(timeout) if timeout and timeout > 0 else DEFAULT_TIMEOUT
         self._groq_key = (groq_api_key or os.getenv("GROQ_API_KEY", "")).strip()
@@ -213,6 +499,7 @@ class SentinelCouncil:
         self.enabled = bool(enabled)
         self.scout_models: List[str] = list(scout_models) if scout_models else list(SCOUT_MODELS)
         self.auditor_models: List[str] = list(auditor_models) if auditor_models else list(AUDITOR_MODELS)
+        self.risk_engine: RiskEngine = risk_engine or RiskEngine()
         self._groq_client: Any = None
         self._gemini_client: Any = None
         self._runner: Optional[_Runner] = None
@@ -256,8 +543,12 @@ class SentinelCouncil:
                 self._runner = None
 
     # ------------------------------------------------------------------ #
-    # Sync + async entry points
+    # Entry points
     # ------------------------------------------------------------------ #
+    def assess(self, setup: Dict[str, Any]) -> RiskAssessment:
+        """Deterministic risk gate only (no network)."""
+        return self.risk_engine.assess(setup)
+
     def evaluate(self, setup: Dict[str, Any]) -> CouncilVerdict:
         """Blocking wrapper for Streamlit. Always returns within ~timeout + margin."""
         try:
@@ -266,7 +557,10 @@ class SentinelCouncil:
         except Exception as exc:  # noqa: BLE001 - never let the UI crash
             LOGGER.warning("council evaluate failed open: %s", exc)
             verdict = CouncilVerdict()
-            verdict.rrr_ok = _rrr_ok(setup)
+            verdict.risk = self.risk_engine.assess(setup)
+            verdict.rrr_ok = verdict.risk.rrr_ok
+            verdict.approved = verdict.risk.allowed
+            verdict.verdict = verdict.risk.direction
             verdict.messages.append(f"Council error: {exc}")
             return verdict
 
@@ -277,11 +571,17 @@ class SentinelCouncil:
             return self._runner
 
     async def deliberate(self, setup: Dict[str, Any]) -> CouncilVerdict:
-        """Review ``setup`` with both counselors in parallel. Never raises."""
+        """Assess + review ``setup`` with both counselors in parallel. Never raises."""
         started = time.monotonic()
-        verdict = CouncilVerdict(rrr_ok=_rrr_ok(setup))
+        verdict = CouncilVerdict()
+        verdict.risk = self.risk_engine.assess(setup)
+        verdict.rrr_ok = verdict.risk.rrr_ok
+        verdict.verdict = verdict.risk.direction
+        verdict.summary = "Deterministic risk gate applied."
         if not self.enabled:
-            verdict.messages.append("Council disabled.")
+            verdict.messages.append("LLM council disabled - risk engine only.")
+            self._blend(verdict)
+            verdict.elapsed_ms = int((time.monotonic() - started) * 1000)
             return verdict
 
         coros: List[Any] = []
@@ -325,16 +625,21 @@ class SentinelCouncil:
         if verdict.auditor is not None and verdict.auditor.ok:
             verdict.auditor_model_used = verdict.auditor.model
 
+        risk = verdict.risk
+        hard_ok = risk.allowed if risk is not None else verdict.rrr_ok
+
         opinions = [o for o in (verdict.scout, verdict.auditor) if o is not None and o.ok]
         if not opinions:
-            # Fail-open: with no usable opinion the deterministic RRR gate alone
-            # decides, and we never block the trader.
+            # Fail-open: with no usable LLM opinion the deterministic gate alone decides.
             verdict.degraded = True
-            verdict.approved = True
-            verdict.verdict = "neutral"
-            verdict.confidence = 0.0
-            verdict.summary = "Council unavailable - deferring to the deterministic RRR check."
-            verdict.notes = "No LLM opinion available."
+            verdict.approved = hard_ok
+            if risk is not None:
+                verdict.verdict = risk.direction
+                verdict.confidence = 0.5 if hard_ok else 0.0
+            verdict.summary = (
+                "LLMs unavailable - deterministic Risk Auditor is authoritative."
+            )
+            verdict.notes = "; ".join(risk.messages) if risk is not None else "No LLM opinion available."
             return
 
         verdict.degraded = len(opinions) < 2
@@ -344,21 +649,27 @@ class SentinelCouncil:
                 verdict.messages.append(f"{opinion.role}: fallback model '{opinion.model}' answered.")
 
         primary = next((o for o in opinions if o.role == "Risk Auditor"), opinions[-1])
-        verdict.verdict = primary.verdict
         verdict.confidence = sum(o.confidence for o in opinions) / len(opinions)
         verdict.summary = primary.summary or opinions[0].summary
         verdict.notes = (verdict.auditor.summary if verdict.auditor and verdict.auditor.ok else "") or verdict.summary
 
+        # The deterministic Risk Auditor owns direction and approval; the LLM Scout
+        # may only supply a direction when the gate found no signal of its own.
+        if risk is not None and risk.direction != "neutral":
+            verdict.verdict = risk.direction
+        elif verdict.scout is not None and verdict.scout.ok:
+            verdict.verdict = verdict.scout.verdict
+
         auditor = verdict.auditor
-        auditor_ok = auditor is not None and auditor.ok
-        if auditor_ok and auditor.compliant is False:
+        if auditor is not None and auditor.ok and auditor.compliant is False:
             verdict.approved = False
             verdict.messages.append("Risk Auditor flagged a compliance breach.")
-        elif not verdict.rrr_ok:
+        elif risk is not None and not risk.allowed:
             verdict.approved = False
-            verdict.messages.append(f"Setup fails the hard RRR floor (>= 1:{MIN_RRR:g}).")
+            for reason in risk.lock_reasons or risk.messages[:2]:
+                verdict.messages.append(reason)
         else:
-            verdict.approved = True
+            verdict.approved = hard_ok
 
         votes = {o.verdict for o in opinions}
         verdict.consensus = len(votes) == 1
@@ -453,13 +764,40 @@ class SentinelCouncil:
         return _opinion_from_text("Risk Auditor", "gemini", model, getattr(response, "text", "") or "")
 
 
-def _rrr_ok(setup: Dict[str, Any]) -> bool:
-    """Deterministic 1:3 gate - always available even when the LLMs are offline."""
+# --------------------------------------------------------------------------- #
+# LLM response parsing
+# --------------------------------------------------------------------------- #
+def _extract_json(text: str) -> Optional[Dict[str, Any]]:
+    if not text:
+        return None
+    cleaned = text.strip()
+    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", cleaned, re.DOTALL)
+    if fence:
+        cleaned = fence.group(1)
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if not match:
+        return None
     try:
-        rrr = float(setup.get("rrr", 0.0) or 0.0)
+        parsed = json.loads(match.group(0))
+    except (ValueError, TypeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _clamp_confidence(value: Any) -> float:
+    try:
+        number = float(value)
     except (TypeError, ValueError):
-        return False
-    return rrr >= MIN_RRR
+        return 0.5
+    if number > 1.0:
+        number = number / 100.0
+    return max(0.0, min(1.0, number))
+
+
+def _format_setup(setup: Dict[str, Any]) -> str:
+    return "Trade setup under review:\n" + "\n".join(
+        f"- {k}: {v}" for k, v in setup.items() if v is not None and k not in {"now", "spec"}
+    )
 
 
 def _opinion_from_text(role: str, provider: str, model: str, text: str) -> CounselorOpinion:
@@ -474,7 +812,7 @@ def _opinion_from_text(role: str, provider: str, model: str, text: str) -> Couns
         compliant = bool(data.get("compliant"))
     return CounselorOpinion(
         role=role, provider=provider, model=model,
-        verdict=_normalize_verdict(data.get("verdict")),
+        verdict=_normalize_direction(data.get("verdict")),
         confidence=_clamp_confidence(data.get("confidence")),
         summary=str(data.get("summary", "")).strip()[:400],
         compliant=compliant, ok=True, raw=text or "",
@@ -485,8 +823,24 @@ __all__ = [
     "SentinelCouncil",
     "CouncilVerdict",
     "CounselorOpinion",
+    "RiskEngine",
+    "RiskAssessment",
+    "Session",
+    "LONDON_OPEN",
+    "LONDON_NY_OVERLAP",
+    "PRIMARY_SESSIONS",
+    "active_sessions",
+    "session_ok",
+    "size_lot",
     "SCOUT_MODELS",
     "AUDITOR_MODELS",
     "DEFAULT_TIMEOUT",
+    "ACCOUNT_SIZE_USD",
+    "RISK_PER_TRADE_USD",
     "MIN_RRR",
+    "MIN_TP_USD",
+    "MAX_TRADES_PER_DAY",
+    "DAILY_LOSS_LOCK_USD",
+    "DAILY_LOSS_KILL_USD",
+    "DAILY_PROFIT_TARGET_USD",
 ]
