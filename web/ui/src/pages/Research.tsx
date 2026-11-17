@@ -21,7 +21,7 @@ export function Research() {
         </span>
       }
       flush
-      className="mx-auto max-w-[900px]"
+      className="mx-auto max-w-[980px]"
     >
       <ResearchList items={list.data} />
     </Panel>

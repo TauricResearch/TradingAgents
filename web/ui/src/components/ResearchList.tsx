@@ -14,9 +14,10 @@ interface Props {
   compact?: boolean
 }
 
-/** Research records grouped by trade date, newest first as the API returns them, each with
- * when its rating was published; a narrow screen leaves that to the update note of a row
- * that has one. */
+/** Research records grouped by trade date, newest first as the API returns them, each on
+ * one line with when its rating was published. A row with an update note gives up, as the
+ * screen narrows, the tokens and the UTC clocks (below `lg`), then the publish time (below
+ * `md`), so that the note is not cut; on a phone the note takes a second line. */
 export function ResearchList({ items, activeKey, compact = false }: Props) {
   if (items.length === 0) return <Empty label="还没有研判记录" />
 
@@ -39,12 +40,13 @@ export function ResearchList({ items, activeKey, compact = false }: Props) {
             {g.rows.map((r) => {
               const key = researchKey(r.coin, r.trade_date)
               const on = key === activeKey
+              const wide = r.update ? 'hidden lg:inline' : 'hidden sm:inline'
               return (
                 <li key={key} className="border-b border-border/60 last:border-b-0">
                   <Link
                     to={researchHref(r.coin, r.trade_date)}
                     aria-current={on ? 'page' : undefined}
-                    className={`flex items-center gap-3 px-3 py-1.5 hover:bg-panel-2/60 ${
+                    className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-1.5 hover:bg-panel-2/60 sm:flex-nowrap ${
                       on ? 'bg-panel-2 shadow-[inset_2px_0_0_var(--color-accent)]' : ''
                     }`}
                   >
@@ -54,17 +56,23 @@ export function ResearchList({ items, activeKey, compact = false }: Props) {
                     <RatingChip rating={r.rating} />
                     {!compact && r.published_at && (
                       <span
-                        className={`num shrink-0 text-[11px] text-muted ${r.update ? 'hidden sm:inline' : ''}`}
+                        className={`num shrink-0 text-[11px] text-muted ${r.update ? 'hidden md:inline' : ''}`}
                         title={`发布时间：${fmtTimeFull(r.published_at)}`}
                       >
                         发布 {fmtBeijing(r.published_at)}
-                        <span className="hidden sm:inline"> · {fmtUtcClock(r.published_at)}</span>
+                        <span className={wide}> · {fmtUtcClock(r.published_at)}</span>
                       </span>
                     )}
-                    {r.update && <UpdateNote update={r.update} compact={compact} />}
+                    {r.update && (
+                      <UpdateNote
+                        update={r.update}
+                        compact={compact}
+                        className={compact ? '' : 'max-[540px]:order-last max-[540px]:basis-full'}
+                      />
+                    )}
                     {!compact && (
-                      <span className="num ml-auto flex gap-4 text-[11px] text-muted">
-                        <span className="hidden sm:inline" title="tokens 进 / 出">
+                      <span className="num ml-auto flex shrink-0 gap-4 whitespace-nowrap text-[11px] text-muted">
+                        <span className={wide} title="tokens 进 / 出">
                           {fmtInt(r.tokens_in)} / {fmtInt(r.tokens_out)}
                         </span>
                         <span className="w-14 text-right text-fg">{fmtUsd(r.cost_usd)}</span>
