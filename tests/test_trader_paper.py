@@ -155,7 +155,9 @@ def test_a_position_in_a_coin_dropped_from_the_watchlist_keeps_its_stop_managed(
         "2026-01-10", {eth.research: None}, T0 + DAY_MS
     )
     assert ledger.positions() == {} and ledger.fills()[0].reason == "stop"
-    assert len(alerts) == 1 and "BTC-USDT-SWAP" in alerts[0]
+    assert alerts == [
+        "止损平仓 · BTC\n卖出 0.04 @ 83,958.00（开仓均价 80,000.00）\n盈亏 +156.64 USDT（+4.90%）"
+    ]
 
 
 def test_failed_research_keeps_the_position(ledger):
@@ -531,7 +533,7 @@ def test_the_candles_after_a_refused_one_and_other_contracts_replay_as_usual(led
     assert alerts[0].startswith(
         "K 线不能用：BTC-USDT-SWAP 有 1 根 1 分钟 K 线按缺失处理，最早一根 01-10 00:30 UTC 开 0.00，"
     )
-    assert [a.split(" ")[0] for a in alerts[1:]] == ["止损：ETH-USDT-SWAP", "止损：BTC-USDT-SWAP"]
+    assert [a.splitlines()[0] for a in alerts[1:]] == ["止损平仓 · ETH", "止损平仓 · BTC"]
     assert [(f.inst, f.ts, f.reason) for f in ledger.fills()] == [
         (ETH.swap, T0, "stop"), (BTC.swap, T0 + MINUTE_MS, "stop"),
     ]

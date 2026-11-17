@@ -68,8 +68,9 @@ def _chunks(text: str) -> list[str]:
 
 class Labeled:
     """A notifier that heads each message with ``【label】``: the accounts that share the
-    chat, one of them with real money (ADR 0010), are told apart at a glance. A message
-    split into several goes out with the label on its first piece."""
+    chat, one of them with real money (ADR 0010), are told apart at a glance. Every
+    account's messages are labeled (``trader.message`` names the paper accounts'). A
+    message split into several goes out with the label on its first piece."""
 
     def __init__(self, notifier: Notifier, label: str):
         self.notifier = notifier

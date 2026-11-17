@@ -109,9 +109,9 @@ def test_what_no_fill_explains_is_adjusted_at_the_exchanges_price_and_the_syncs_
 
     def day_line():
         lines = report.daily(env.account, DAY, HOUR + DAY_MS + 10 * MINUTE).splitlines()
-        return next(line for line in lines if line.startswith("昨日成交"))
+        return next(line for line in lines if line.startswith("成交 "))
 
-    assert day_line().startswith("昨日成交 1 笔（调仓 1，止损 0，熔断 0，非程序 0），")
+    assert day_line() == "成交 1 笔：调仓 1 · 止损 0 · 熔断 0 · 非程序 0"
     text = reconcile.apply(env.account, repair, now)
     assert text == "修复账本（python -m trader demo reconcile）：BTC-USDT-SWAP 账本推算 +0.1，交易所 +0.3，记调整 +0.2 @ 80,500.00"
     assert env.ledger.fills()[-1] == adjustment
@@ -120,7 +120,7 @@ def test_what_no_fill_explains_is_adjusted_at_the_exchanges_price_and_the_syncs_
     after = synced(env, now + MINUTE)
     assert after.holding == [] and after.paused == []
     # The day's summary counts the adjustment apart from the trades.
-    assert day_line().startswith("昨日成交 2 笔（调仓 1，止损 0，熔断 0，非程序 0，调整 1），")
+    assert day_line() == "成交 2 笔：调仓 1 · 止损 0 · 熔断 0 · 非程序 0 · 调整 1"
 
 
 @pytest.mark.parametrize("book, left", [([0.0, 0.0], 0.0), ([5.0, 79_000.0], 0.05)])

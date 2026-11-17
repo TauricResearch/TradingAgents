@@ -120,8 +120,8 @@ def test_the_returns_and_the_reports_leave_the_transfers_out(env):
     )
     assert env.ledger.adjusted_series() == [(HOUR, 9_996.0), (HOUR + DAY_MS, pytest.approx(10_296.0))]
     daily = report.daily(env.account, "2026-01-10", HOUR + DAY_MS + MINUTE).splitlines()
-    assert "权益 20,592.00 USDT，较昨日零点 +3.00%，回撤 0.0%（峰值 20,592.00）" in daily
-    assert "昨日出入金 转入 1 笔 +10,196.00 USDT，投入本金合计 20,196.00，不算收益" in daily
+    assert daily[2:4] == ["权益 20,592.00 USDT", "较 01-10 零点 +3.00% · 回撤 0.0%（峰值 20,592.00）"]
+    assert "出入金 转入 1 笔 +10,196.00 USDT，投入本金合计 20,196.00，不算收益" in daily
     full = report.full(env.account).splitlines()
     assert full[1].startswith("demo（交易所权益）：累计 +3.00%")
     assert full[-1] == "出入金 转入 1 笔 +10,196.00 USDT，投入本金合计 20,196.00：收益按时间加权，不算出入金"
@@ -135,23 +135,23 @@ def test_the_reports_name_money_moved_each_way(env):
     moved(env, -100.0, HOUR + 4 * MINUTE)
     synced(env, HOUR + DAY_MS + MINUTE)
     daily = report.daily(env.account, "2026-01-10", HOUR + DAY_MS + MINUTE).splitlines()
-    assert "昨日出入金 转入 1 笔 +1,000.00，转出 2 笔 -500.00 USDT，投入本金合计 10,500.00，不算收益" in daily
-    assert "较昨日零点 +0.00%" in daily[1]
+    assert "出入金 转入 1 笔 +1,000.00，转出 2 笔 -500.00 USDT，投入本金合计 10,500.00，不算收益" in daily
+    assert daily[3].startswith("较 01-10 零点 +0.00% · ")
     assert report.daily(env.account, "2026-01-11", HOUR + 2 * DAY_MS).count("出入金") == 0
     moved(env, 300.0, HOUR + DAY_MS + 2 * MINUTE)  # past the day: the next day's
     synced(env, HOUR + DAY_MS + 3 * MINUTE)
     daily = report.daily(env.account, "2026-01-10", HOUR + DAY_MS + 3 * MINUTE).splitlines()
-    assert "昨日出入金 转入 1 笔 +1,000.00，转出 2 笔 -500.00 USDT，投入本金合计 10,800.00，不算收益" in daily
+    assert "出入金 转入 1 笔 +1,000.00，转出 2 笔 -500.00 USDT，投入本金合计 10,800.00，不算收益" in daily
     daily = report.daily(env.account, "2026-01-11", HOUR + 2 * DAY_MS).splitlines()
-    assert "昨日出入金 转入 1 笔 +300.00 USDT，投入本金合计 10,800.00，不算收益" in daily
+    assert "出入金 转入 1 笔 +300.00 USDT，投入本金合计 10,800.00，不算收益" in daily
 
 
 def test_the_report_of_the_day_the_account_opened_measures_from_the_capital_without_the_transfers(env):
     moved(env, 5_000.0, HOUR - 10 * MINUTE)  # 23:50, before any snapshot
     synced(env, HOUR + MINUTE)
     daily = report.daily(env.account, "2026-01-09", HOUR + MINUTE).splitlines()
-    assert "权益 15,000.00 USDT，较本金 +0.00%，回撤 0.0%（峰值 15,000.00）" in daily
-    assert "昨日出入金 转入 1 笔 +5,000.00 USDT，投入本金合计 15,000.00，不算收益" in daily
+    assert daily[2:4] == ["权益 15,000.00 USDT", "较本金 +0.00% · 回撤 0.0%（峰值 15,000.00）"]
+    assert "出入金 转入 1 笔 +5,000.00 USDT，投入本金合计 15,000.00，不算收益" in daily
 
 
 @pytest.mark.parametrize("bill, text", [

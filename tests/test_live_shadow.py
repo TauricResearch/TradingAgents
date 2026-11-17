@@ -95,11 +95,14 @@ def test_the_daily_summary_of_a_paused_account_counts_the_orders_it_would_have_s
     live.decide(HOUR + DAY_MS, "Long")
     live.run(RUN0 + DAY_MS)
     (daily,) = live.inbox.sent
-    assert daily.splitlines()[:4] == [
-        "【live】日报 · 2026-01-10",
-        "⏸ 暂停中（影子运行）：不下单，昨日本该下 1 笔，明细见 python -m trader live report",
-        "  暂停原因：账本里没有记下",  # born paused, as a ledger paused before #34
-        "  查明原因后运行 python -m trader live resume 解除",
+    assert daily.splitlines()[:7] == [
+        "【live】日报 · 01-10（UTC）",
+        "",
+        "⏸ 暂停中（影子运行）：不下单，当日本该下 1 笔",
+        "明细见 python -m trader live report",
+        "暂停原因：账本里没有记下",  # born paused, as a ledger paused before #34
+        "查明原因后运行 python -m trader live resume 解除",
+        "",
     ]
     assert len(shadow(live)) == 2 and live.exchange.calls == []
 

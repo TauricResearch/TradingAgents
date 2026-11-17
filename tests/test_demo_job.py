@@ -87,8 +87,8 @@ def test_the_hour_follows_the_intraday_signal_and_reports_the_trade(env):
     assert [s.trigger for s in env.exchange.stops] == [79_000.0]
     assert env.ledger.get("decided_hour") == HOUR
     (text,) = env.inbox.sent
-    assert text.startswith("【demo】01-10 00:00 UTC\nBTC：Long → ")
-    assert text.endswith("交易所权益 9,996.00 USDT")
+    assert text.startswith("【demo】成交 · 01-10 08:00 北京（00:00 UTC）\n\nBTC · 信号 Long\n买入 ")
+    assert text.endswith("\n\n权益 9,996.00 USDT")
     # The same hour again: nothing to do, nothing said.
     env.run(RUN0 + 60_000)
     assert len(env.exchange.fill_rows) == 1 and len(env.inbox.sent) == 1
@@ -120,7 +120,7 @@ def test_a_halted_intraday_account_makes_the_demo_flat(env):
     env.run(RUN0 + HOUR_MS)
     assert env.exchange.book[BTC.swap][0] == 0 and env.exchange.stops == []
     assert "follow_halt" in env.events()
-    assert env.inbox.sent[-1].startswith("【demo】01-10 01:00 UTC\nBTC：Flat → ")
+    assert env.inbox.sent[-1].startswith("【demo】成交 · 01-10 09:00 北京（01:00 UTC）\n\nBTC · 信号 Flat\n卖出 ")
 
 
 def test_a_reconciliation_problem_blocks_the_hour_and_alerts_once_per_interval(env):
@@ -172,7 +172,7 @@ def test_the_first_run_of_a_day_sends_yesterdays_summary(env):
     env.ledger.set("summarized_day", "2026-01-09")
     env.decide(HOUR, "Long")
     env.run(RUN0)
-    assert env.inbox.sent[-1].startswith("【demo】日报 · 2026-01-09\n权益 9,996.00 USDT，较本金 -0.04%")
+    assert env.inbox.sent[-1].startswith("【demo】日报 · 01-09（UTC）\n\n权益 9,996.00 USDT\n较本金 -0.04% · ")
     assert env.ledger.get("summarized_day") == "2026-01-10"
 
 
@@ -220,7 +220,7 @@ def test_a_position_whose_stop_will_not_hang_is_closed_and_booked_within_the_run
     assert env.ledger.positions() == {} and env.ledger.get("decided_hour") == HOUR
     alert, report = env.inbox.sent
     assert alert.startswith("【demo】止损平仓：BTC-USDT-SWAP +10 张试了 3 次都没挂上止损")
-    assert report.startswith("【demo】01-10 00:00 UTC\nBTC：Long → 买入 0.1 @ 80,000.00；无持仓\n")
+    assert report.startswith("【demo】成交 · 01-10 08:00 北京（00:00 UTC）\n\nBTC · 信号 Long\n买入 0.1 @ 80,000.00\n无持仓\n\n")
 
 
 def test_a_stop_the_price_has_crossed_is_closed_by_the_hourly_run_and_the_hour_goes_on_as_on_paper(env):
@@ -240,7 +240,9 @@ def test_a_stop_the_price_has_crossed_is_closed_by_the_hourly_run_and_the_hour_g
     assert [(s.contracts, s.trigger) for s in env.exchange.stops] == [(9.84, 77_500.0)]
     alert, report = env.inbox.sent[1:]
     assert alert.startswith("【demo】止损平仓：BTC-USDT-SWAP +10 张的止损价 79,000.00 已被现价 78,500.00 穿越")
-    assert report.startswith("【demo】01-10 01:00 UTC\nBTC：Long → 买入 0.0984 @ 78,500.00；持仓 +0.0984，止损 77,500.00")
+    assert report.startswith(
+        "【demo】成交 · 01-10 09:00 北京（01:00 UTC）\n\nBTC · 信号 Long\n买入 0.0984 @ 78,500.00\n持仓 +0.0984 · 止损 77,500.00\n\n"
+    )
     # The next hour does not trip over the old stop again.
     env.decide(HOUR + 2 * HOUR_MS, "Long")
     clock = env.run(RUN0 + 2 * HOUR_MS)

@@ -47,7 +47,7 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from trader import rules
+from trader import message, rules
 from trader.demo.settings import (
     CLOCK_SKEW_MS,
     KILL_PREFIX,
@@ -1070,18 +1070,16 @@ def _bill_text(bill: Bill) -> str:
 
 
 def _fired_text(inst: str, legs: list[tuple[float, Fill]], held: Position | None) -> str:
-    """The alert of the stop of ``inst`` that fired on the exchange, from its fills
+    """The message of the stop of ``inst`` that fired on the exchange, from its fills
     (contracts, the fill booked): what it traded at what average price and, from the
-    entry of the position the ledger held (``held``), what that made after the fees."""
-    contracts = sum(c for c, _ in legs)
-    qty = sum(f.qty for _, f in legs)
+    entry of the position the ledger held (``held``), what that made after the fees
+    (``message.stopped``)."""
+    qty = round(sum(f.qty for _, f in legs), 12)
     price = sum(f.qty * f.price for _, f in legs) / qty
-    fee = sum(f.fee for _, f in legs)
-    text = f"止损成交：{inst} {'卖出' if qty < 0 else '买入'} {contracts:g} 张 @ {price:,.2f}"
     if held is None or (held.qty > 0) == (qty > 0):
-        return text + "，账本里没有它平掉的仓位，算不出盈亏"
-    pnl = -qty * (price - held.entry) - fee
-    return text + f"，盈亏 {pnl:+,.2f} USDT（开仓均价 {held.entry:,.2f}，含手续费 {fee:,.2f}）"
+        return message.stopped(inst, qty, price, None, None, len(legs))
+    pnl = -qty * (price - held.entry) - sum(f.fee for _, f in legs)
+    return message.stopped(inst, qty, price, held.entry, pnl, len(legs))
 
 
 def _stop_after(old_qty: float, new_qty: float, old_stop: float | None, fill_price: float, atr_value: float):

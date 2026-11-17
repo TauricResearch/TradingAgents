@@ -82,9 +82,9 @@ def test_a_long_signal_is_recorded_traded_and_messaged(env):
     assert ledger.signals() == [(T0, "BTC-USD", "Long", 2, "because", None, 100, 20, 0.01)]
     assert ledger.signal_cost_since(0) == (pytest.approx(0.01), False)
     # Cash 10,000 - 4.002 of fee, the position marked 4 under its entry: 9,992.00.
-    assert [t for t in inbox.sent if t.startswith("日内 · ")] == [
-        "日内 · 01-10 00:00 UTC\n"
-        "BTC：Long → 买入 0.1 @ 80,040.00；持仓 +0.1，止损 79,040.00\n"
+    assert [t for t in inbox.sent if t.startswith("成交 · ")] == [
+        "成交 · 01-10 08:00 北京（00:00 UTC）\n\n"
+        "BTC · 信号 Long\n买入 0.1 @ 80,040.00\n持仓 +0.1 · 止损 79,040.00\n\n"
         "净值 9,992.00 USDT"
     ]
 
@@ -118,7 +118,7 @@ def test_a_signal_that_fails_is_recorded_and_keeps_the_position(env):
     ts, coin, signal, conviction, reason, error, *_ = env[1].signals()[0]
     assert (coin, signal, conviction, reason) == ("BTC-USD", None, None, "")
     assert error == "RuntimeError: boom"
-    assert not any(t.startswith("日内 · ") for t in inbox.sent)
+    assert not any(t.startswith("成交 · ") for t in inbox.sent)
 
 
 @pytest.mark.parametrize("error, again", [
@@ -193,10 +193,10 @@ def test_two_coins_are_decided_and_messaged_together(env):
     assert [call[0] for call in signaler.calls] == ["BTC-USD", "ETH-USD"]
     assert paper.ledger.positions()[BTC.swap].qty == pytest.approx(0.1)
     assert paper.ledger.positions()[ETH.swap].qty == pytest.approx(-0.1)
-    message = [t for t in inbox.sent if t.startswith("日内 · ")][0]
-    assert message.splitlines()[1:3] == [
-        "BTC：Long → 买入 0.1 @ 80,040.00；持仓 +0.1，止损 79,040.00",
-        "ETH：Short → 卖出 0.1 @ 79,960.00；持仓 -0.1，止损 80,960.00",
+    message = [t for t in inbox.sent if t.startswith("成交 · ")][0]
+    assert message.split("\n\n")[1:3] == [
+        "BTC · 信号 Long\n买入 0.1 @ 80,040.00\n持仓 +0.1 · 止损 79,040.00",
+        "ETH · 信号 Short\n卖出 0.1 @ 79,960.00\n持仓 -0.1 · 止损 80,960.00",
     ]
 
 
@@ -268,12 +268,12 @@ def test_check_fingerprint_records_and_resets(env):
 
 
 def summaries(inbox):
-    return [t for t in inbox.sent if t.startswith("日内盘日报")]
+    return [t for t in inbox.sent if t.startswith("日报 · ")]
 
 
 def test_the_daily_summary_goes_out_once_on_the_first_run_of_a_day(env):
     _, first = run(env, FakeSignaler({BTC.research: ["Long"]}))
-    assert [t.splitlines()[0] for t in summaries(first)] == ["日内盘日报 · 2026-01-09"]
+    assert [t.splitlines()[0] for t in summaries(first)] == ["日报 · 01-09（UTC）"]
     _, later = run(
         env, FakeSignaler({BTC.research: ["Long"]}), now=NOW + timedelta(hours=1),
         okx=flat_market(T0 - MINUTE_MS, 61),
@@ -285,14 +285,14 @@ def test_the_daily_summary_goes_out_once_on_the_first_run_of_a_day(env):
     )
     assert len(summaries(next_day)) == 1
     lines = summaries(next_day)[0].splitlines()
-    assert lines[0] == "日内盘日报 · 2026-01-10"
+    assert lines[0] == "日报 · 01-10（UTC）"
     # Flat closed the long at 79,960: cash 9,995.998 - 8 - 3.998 = 9,984.00, from 10,000 at the
     # 01-10 midnight snapshot; the peak is the 10,000 the replay marked.
-    assert lines[1] == "净值 9,984.00 USDT，较 2026-01-10 零点 -0.16%，回撤 0.2%（峰值 10,000.00）"
-    assert lines[2] == "昨日成交 1 笔（调仓 1，止损 0，熔断 0）"
-    assert lines[3] == "昨日信号 2 次：Long 2，Short 0，Flat 0，失败 0"
+    assert lines[1:5] == ["", "净值 9,984.00 USDT", "较 01-10 零点 -0.16% · 回撤 0.2%（峰值 10,000.00）", ""]
+    assert lines[5] == "成交 1 笔：调仓 1 · 止损 0 · 熔断 0"
+    assert lines[6] == "信号 2 次：Long 2 · Short 0 · Flat 0 · 失败 0"
     # Today's Flat signal counts toward the month, not toward yesterday.
-    assert lines[4] == "LLM 费用：昨日 $0.02，本月 $0.03（已从绩效扣除，没有预算上限）"
+    assert lines[7:] == ["AI 费用：当日 $0.02 · 本月 $0.03（已从绩效扣除，没有预算上限）"]
     _, again = run(
         env, FakeSignaler({BTC.research: ["Flat"]}), now=NOW + timedelta(days=1, hours=1)
     )
@@ -304,7 +304,7 @@ def test_no_summary_goes_out_on_a_day_already_summarized(env):
     _, inbox = run(env, FakeSignaler({BTC.research: ["Flat"]}))
     assert summaries(inbox) == []
     _, next_day = run(env, FakeSignaler({BTC.research: ["Flat"]}), now=NOW + timedelta(days=1))
-    assert [t.splitlines()[0] for t in summaries(next_day)] == ["日内盘日报 · 2026-01-10"]
+    assert [t.splitlines()[0] for t in summaries(next_day)] == ["日报 · 01-10（UTC）"]
 
 
 def test_init_opens_the_account_with_its_day_already_summarized(tmp_path, monkeypatch):
@@ -344,9 +344,9 @@ def test_the_daily_summary_notes_unknown_costs_and_counts_failures(env):
     ledger.record_signal(day + HOUR_MS, BTC.research, SignalResult("Short", 1, "", None, 1, 1))
     ledger.record_signal(day + 2 * HOUR_MS, BTC.research, SignalResult(None, None, "", "boom"))
     text = report.daily(IntradayPaper(ledger, FakeOKX(), (BTC,)), "2026-01-09", T0)
-    assert "净值 10,000.00 USDT，较本金 +0.00%" in text
-    assert "昨日信号 2 次：Long 0，Short 1，Flat 0，失败 1" in text
-    assert text.splitlines()[-1].endswith("；有调用费用未知，没算进去")
+    assert "净值 10,000.00 USDT\n较本金 +0.00% · " in text
+    assert "信号 2 次：Long 0 · Short 1 · Flat 0 · 失败 1" in text
+    assert text.splitlines()[-1] == "有调用费用未知，没算进去"
 
 
 def test_the_full_report_nets_the_signals_cost_and_sets_the_baselines(env):

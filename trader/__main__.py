@@ -14,7 +14,7 @@ from pathlib import Path
 import typer
 from dotenv import find_dotenv, load_dotenv
 
-from trader import backup as account_backup, jobs, report
+from trader import backup as account_backup, jobs, message, report
 from trader.demo import job as demo_job, reconcile, report as demo_report
 from trader.demo.account import DEMO, DemoAccount, Sync
 from trader.evaluation.cli import evaluate_app
@@ -22,7 +22,7 @@ from trader.intraday import job as intraday_job, report as intraday_report
 from trader.intraday.paper import IntradayPaper, utc_date
 from trader.ledger import Ledger, locked
 from trader.live import account as live_account, heartbeat, keys as live_keys
-from trader.notify import Notifier, labeled
+from trader.notify import Labeled, Notifier, labeled
 from trader.okx import OKX, REQUEST_ERRORS, OKXError
 from trader.okx_private import PROBE_ORDER_MISSING, Balance, NoBalance, OKXPrivate, OKXPrivateError
 from trader.paper import Paper
@@ -551,9 +551,9 @@ def live_reconcile(
     _reconcile(settings, account, yes, note)
 
 
-def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:
+def _open(require_utc: bool = False) -> tuple[Settings, Paper, Labeled]:
     settings = Settings.from_env()
-    notifier = Notifier(settings)
+    notifier = labeled(Notifier(settings), message.DAILY)
     # Dates are taken from the local clock (ADR 0002), so the scheduled jobs
     # refuse to run in any other zone.
     if require_utc and time.localtime().tm_gmtoff != 0:
@@ -565,9 +565,9 @@ def _open(require_utc: bool = False) -> tuple[Settings, Paper, Notifier]:
     return settings, Paper(ledger, OKX()), notifier
 
 
-def _open_intraday(require_utc: bool = False) -> tuple[Settings, IntradayPaper, Notifier]:
+def _open_intraday(require_utc: bool = False) -> tuple[Settings, IntradayPaper, Labeled]:
     settings = Settings.from_env()
-    notifier = Notifier(settings)
+    notifier = labeled(Notifier(settings), message.INTRADAY)
     if require_utc and time.localtime().tm_gmtoff != 0:
         notifier.send("trader 不在 UTC 时区运行，已退出。请用 TZ=UTC 启动。")
         _fail("trader must run with TZ=UTC")

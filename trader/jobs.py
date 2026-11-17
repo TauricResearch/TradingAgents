@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import tradingagents
-from trader import bars, memory, report, rules
+from trader import bars, memory, message, report, rules
 from trader.ledger import BUDGET_ERROR, Ledger, locked
 from trader.notify import Notifier
 from trader.paper import Paper
@@ -338,7 +338,7 @@ def _rerun(
             f"（研判日 {trade_date}，用上了当天的日线）"
         )
         ledger.add_event(now_ms, "research_update", text)
-        notifier.send(text)
+        notifier.send(message.research_update(coin, trade_date, old, result.rating))
         _wait(ledger, trade_date, [c for c in _waiting(ledger, trade_date) if c != coin])
 
 

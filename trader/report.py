@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from itertools import pairwise
 from pathlib import Path
 
-from trader import rules
+from trader import message, rules
 from trader.ledger import BUDGET_ERROR, Ledger
 from trader.okx import DAY_MS, REQUEST_ERRORS
 from trader.paper import Paper
@@ -122,47 +122,48 @@ def daily(
     paper: Paper, trade_date: str, states: dict[str, tuple[str, str | None]], now_ms: int,
     month_start_ms: int, cap: float | None,
 ) -> str:
-    """The report sent after each daily run. ``states`` maps research tickers to
-    ``jobs.coin_state`` results. The report goes out even when OKX is down or serves a
-    price ``rules.usable_prices`` refuses: equity is then marked at the last marks
-    (``Paper.equity_now``), the spot baseline is left out, and a last line says which.
-    A coin whose rating a rerun on the trade date's daily candle replaced says so, with
-    the time of the update (#53)."""
+    """The report sent after each daily run, laid out as ``trader.message`` says: a
+    paragraph per coin (its rating, the day's trades, the position left), then the
+    account's figures. ``states`` maps research tickers to ``jobs.coin_state`` results.
+    The report goes out even when OKX is down or serves a price ``rules.usable_prices``
+    refuses: equity is then marked at the last marks (``Paper.equity_now``), the spot
+    baseline is left out, and a last line says which. A coin whose rating a rerun on the
+    trade date's daily candle replaced says so, with the rating it had before when that
+    differs (#53)."""
     ledger = paper.ledger
     positions = ledger.positions()
     equity, marked = paper.equity_now()
     unavailable = ["净值按最近一次标记价计"] if marked else []
-    lines = [f"模拟盘日报 · 研判日 {trade_date}"]
+    blocks = [[f"日报 · 研判日 {message.day(trade_date)}"]]
     if ledger.get("halted"):
-        lines.append("⚠ 熔断中：只研判，不交易。确认后运行 python -m trader resume 恢复。")
+        blocks.append(["⚠ 熔断中：只研判，不交易。确认后运行 python -m trader resume 恢复。"])
     fills = [f for f in ledger.fills(now_ms - DAY_MS) if f.trade_date == trade_date]
-    updates = {coin: (old, new, ts) for _, coin, ts, old, new in ledger.updates(trade_date)}
+    updates = {coin: old for _, coin, _, old, _ in ledger.updates(trade_date)}
     for coin in paper.watchlist:
         state, detail = states[coin.research]
         if state == "done" and coin.research in updates:
-            old, new, ts = updates[coin.research]
-            head = f"{detail}（研判已更新：{old} → {new}，{_time(ts)}）"
+            old = updates[coin.research]
+            head = f"{detail}（{message.rerun(old, detail)}）"
         elif state == "done":
             head = detail
         elif detail == BUDGET_ERROR:
-            head = "未研判（本月 LLM 预算已用完）"
+            head = "未研判（本月 AI 预算已用完）"
         else:
             head = f"研判失败（{(detail or '')[:80]}）"
-        action = "；".join(
-            f"{'买入' if f.qty > 0 else '卖出'} {abs(f.qty):g} @ {f.price:,.2f}"
-            for f in fills if f.inst == coin.swap
-        )
-        pos = positions.get(coin.swap)
-        held = f"持仓 {pos.qty:+g}，止损 {pos.stop:,.2f}" if pos else "无持仓"
-        lines.append(f"{coin.research.split('-')[0]}：{head} → {action or '不调仓'}；{held}")
+        own = [f for f in fills if f.inst == coin.swap]
+        left = message.held(positions.get(coin.swap))
+        blocks.append([
+            f"{message.coin(coin.swap)} · {head}",
+            *([*message.trades(own), left] if own else [f"不调仓 · {left}"]),
+        ])
 
     series = ledger.equity_series()
     today_base = series[-1][1] if series else ledger.get("capital")
     peak = ledger.get("peak")
-    lines.append(
-        f"净值 {equity:,.2f} USDT，今日 {equity / today_base - 1:+.2%}，"
-        f"回撤 {rules.drawdown(equity, peak):.1%}（峰值 {peak:,.2f}）"
-    )
+    figures = [
+        f"净值 {equity:,.2f} USDT",
+        f"今日 {equity / today_base - 1:+.2%} · 回撤 {rules.drawdown(equity, peak):.1%}（峰值 {peak:,.2f}）",
+    ]
     start = ledger.get("validation_start")
     if start is not None:
         base = ledger.equity_series(start)[0][1]
@@ -174,7 +175,9 @@ def daily(
         held = [
             c for c in paper.watchlist if c.research in ref and rules.usable_prices(ref[c.research])
         ]
-        line = f"验证期累计 {equity / base - 1:+.2%}，扣 LLM 费用后 {(equity - spent) / base - 1:+.2%}"
+        figures.append(
+            f"验证期 {equity / base - 1:+.2%} · 扣 AI 费用后 {(equity - spent) / base - 1:+.2%}"
+        )
         try:
             spots = [paper.okx.last_price(c.spot) for c in held]
         except REQUEST_ERRORS:
@@ -183,8 +186,7 @@ def daily(
             unavailable.append("三币等权现货略去")
         elif spots:
             ratios = [spot / ref[c.research] for spot, c in zip(spots, held, strict=True)]
-            line += f"；三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}"
-        lines.append(line)
+            figures.append(f"同期三币等权现货 {sum(ratios) / len(ratios) - 1:+.2%}")
 
     today, unknown_today = ledger.cost_of(trade_date)
     month, unknown_month = ledger.cost_since(month_start_ms)
@@ -193,11 +195,12 @@ def daily(
         limit = f"上限未定（已观察 {min(learned, BUDGET_LEARNING_DAYS)}/{BUDGET_LEARNING_DAYS} 天）"
     else:
         limit = f"上限 ${cap:,.2f}"
-    unknown = "；有调用费用未知，没算进去" if unknown_today or unknown_month else ""
-    lines.append(f"LLM 费用：今日 ${today:,.2f}，本月 ${month:,.2f}，{limit}{unknown}")
+    figures.append(f"AI 费用：今日 ${today:,.2f} · 本月 ${month:,.2f} / {limit}")
+    if unknown_today or unknown_month:
+        figures.append("有调用费用未知，没算进去")
     if unavailable:
-        lines.append(f"⚠ 行情暂不可用（OKX）：{'，'.join(unavailable)}。")
-    return "\n".join(lines)
+        figures.append(f"⚠ 行情暂不可用（OKX）：{'，'.join(unavailable)}。")
+    return message.paragraphs(*blocks, figures)
 
 
 def _accuracy(path: Path) -> str:
@@ -212,7 +215,3 @@ def _num(value: float | None) -> str:
 
 def _date(ms: int) -> str:
     return datetime.fromtimestamp(ms / 1000, UTC).date().isoformat()
-
-
-def _time(ms: int) -> str:
-    return datetime.fromtimestamp(ms / 1000, UTC).strftime("%m-%d %H:%M UTC")
