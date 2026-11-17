@@ -7,7 +7,7 @@ plan (§6); the CI governance gates (GOV-001/003/005/006) remain open (see §9).
 
 Sources: `docs/req/selected-requirements.md` (§3–§5),
 `docs/architecture/invariants.md` (Member B), and the commands/evidence observed
-in this checkout (`test/offline/`, `test/live/`, `.github/workflows/ci.yml`,
+in this checkout (`tests/member_c_verification/offline/`, `tests/member_c_verification/live/`, `.github/workflows/ci.yml`,
 `docs/verification/`, `docs/bug-diary.md`).
 
 Ownership boundary: C defines the checks, test IDs and evidence; **E wires them
@@ -20,13 +20,13 @@ Three verification classes are constrained here:
 
 | Class | Question it answers | Evidence root |
 |---|---|---|
-| **Structural checks** | Does the code keep B's module/authority boundaries (INV-10, dependency direction)? | `test/offline/test_nfr005_layering.py` (AST scan) |
+| **Structural checks** | Does the code keep B's module/authority boundaries (INV-10, dependency direction)? | `tests/member_c_verification/offline/test_nfr005_layering.py` (AST scan) |
 | **Upstream regression** | Did the pre-existing `tests/` suite stay green except approved exceptions? | `tests/` (the upstream `testpaths`) |
-| **Behavioural acceptance** | Does each selected `SEL-TA-FR-*`/`SEL-TA-NFR-*` contract hold, including negative cases? | `test/offline/` |
+| **Behavioural acceptance** | Does each selected `SEL-TA-FR-*`/`SEL-TA-NFR-*` contract hold, including negative cases? | `tests/member_c_verification/offline/` |
 
 Two further classes are recorded separately:
 
-- **Live semantic evaluation** (`test/live/`) — evidence for GOV-004; opt-in,
+- **Live semantic evaluation** (`tests/member_c_verification/live/`) — evidence for GOV-004; opt-in,
   human-scored; **PASS** under the confirmed scoring plan (§6). E still needs to
   wire the opt-in gate into CI (§9).
 - **Governance/CI gates** (GOV-001/003/005/006) — E-owned enforcement (§9).
@@ -41,7 +41,7 @@ verdict is a separate, human-adjudicated record (§6).
   locally as part of the offline suite.
 - **Exact command:**
   ```bash
-  .venv/bin/python -m pytest test/offline/test_nfr005_layering.py -p no:cacheprovider -q
+  .venv/bin/python -m pytest tests/member_c_verification/offline/test_nfr005_layering.py -p no:cacheprovider -q
   ```
 - **What it checks (INV-10):**
   - `TC-NFR005-a`: no terminal-prompt import (`questionary`, `prompt_toolkit`,
@@ -120,7 +120,7 @@ The gate must fail closed on any *different* failure.
   evidence to E for the trace matrix.
 - **Exact command:**
   ```bash
-  .venv/bin/python -m pytest test/offline -p no:cacheprovider -q
+  .venv/bin/python -m pytest tests/member_c_verification/offline -p no:cacheprovider -q
   ```
 - **What it covers:** `SEL-TA-FR-001..007` and `SEL-TA-NFR-001..006` through the
   shared boundary `runapi.execution.run_analysis_api` with a scripted engine (no
@@ -198,16 +198,16 @@ in §2) must have at least one negative assertion. Observed coverage:
 - **Exact commands:**
   ```bash
   # Offline harness self-check (safe; no network, no billing)
-  .venv/bin/python -m pytest test/live/test_harness_selfcheck.py -p no:cacheprovider -q
+  .venv/bin/python -m pytest tests/member_c_verification/live/test_harness_selfcheck.py -p no:cacheprovider -q
 
   # Live replay, one trial per invocation (opt-in; loads .env; real provider calls)
   GOV004_LIVE=1 GOV004_TRIAL=1 GOV004_TICKER=AAPL GOV004_DATE=2026-01-09 \
-    .venv/bin/python -m pytest test/live/test_gov004_live.py -p no:cacheprovider -q -s
+    .venv/bin/python -m pytest tests/member_c_verification/live/test_gov004_live.py -p no:cacheprovider -q -s
   GOV004_LIVE=1 GOV004_TRIAL=2 GOV004_TICKER=AAPL GOV004_DATE=2026-01-09 \
-    .venv/bin/python -m pytest test/live/test_gov004_live.py -p no:cacheprovider -q -s
+    .venv/bin/python -m pytest tests/member_c_verification/live/test_gov004_live.py -p no:cacheprovider -q -s
 
   # Aggregate + apply the scored verdict
-  .venv/bin/python test/live/score_gov004.py test/live/evidence/gov004_scores.json
+  .venv/bin/python tests/member_c_verification/live/score_gov004.py tests/member_c_verification/live/evidence/gov004_scores.json
   ```
 - **Observed formal results (confirmed scoring plan; `git:e975528`):**
   - Harness self-check: **4 passed** (scripted model, no network).
@@ -223,8 +223,8 @@ in §2) must have at least one negative assertion. Observed coverage:
   step ("Complete the formal GOV-004 evaluation using the confirmed scoring
   plan"), recorded in the session transcript — same convention as test-plan §2;
   no separate signed artifact exists.
-- **Evidence location:** `test/live/evidence/gov004_<UTCSTAMP>.json`,
-  `test/live/evidence/gov004_scores.json`, and `test/live/evidence/runs/<UTCSTAMP>/…`
+- **Evidence location:** `tests/member_c_verification/live/evidence/gov004_<UTCSTAMP>.json`,
+  `tests/member_c_verification/live/evidence/gov004_scores.json`, and `tests/member_c_verification/live/evidence/runs/<UTCSTAMP>/…`
   (raw output; gitignored, not committed). Paths, run IDs, scores and citations
   recorded in `docs/verification/semantic-evaluation.md`.
 
@@ -268,7 +268,7 @@ nor a human score as a deterministic check result.
 
 ## 8. Evidence retention (minimum)
 
-Retain, per run, in `docs/verification/` (summaries) and `test/live/evidence/`
+Retain, per run, in `docs/verification/` (summaries) and `tests/member_c_verification/live/evidence/`
 (raw, gitignored):
 
 - The exact command used and the full summary/exit line.
@@ -286,8 +286,8 @@ clean-install smoke, and `ruff check .`. E must add/extend the following.
 
 | # | Check | Command | Blocking | Evidence artifact |
 |---|---|---|---|---|
-| E1 | C offline acceptance suite | `pytest test/offline -p no:cacheprovider -q` | yes | JUnit/pytest summary; 74 passed |
-| E2 | Structural boundary | `pytest test/offline/test_nfr005_layering.py -q` (covered by E1; keep as explicit job) | yes | summary + offender list on fail |
+| E1 | C offline acceptance suite | `pytest tests/member_c_verification/offline -p no:cacheprovider -q` | yes | JUnit/pytest summary; 74 passed |
+| E2 | Structural boundary | `pytest tests/member_c_verification/offline/test_nfr005_layering.py -q` (covered by E1; keep as explicit job) | yes | summary + offender list on fail |
 | E3 | Upstream zero-regression | `pytest -q` + parse failures against the approved-exception list (§4) | yes (fail closed) | summary + failed IDs; exception must be reproduced, not allowlisted |
 | E4 | Bedrock exception handling | proxy-unset reproduction step; or a skip guarded on proxy env, **only after A/E approval** | conditional | reproduction log; approval reference |
 | E5 | Lint (already present) | `ruff check .` | yes | ruff output |
@@ -329,7 +329,7 @@ flagged here rather than silently assumed:
    if a reviewer disagrees, should be confirmed before E relies on the gate.
 5. **Live-run scheduling and budget (D/E).** When/where the opt-in live job runs,
    which ticker/date, and who bears provider cost — not defined here.
-6. **Test layout acceptance (`test/offline` + `test/live`).** The instructor-
+6. **Test layout acceptance (`tests/member_c_verification/offline` + `tests/member_c_verification/live`).** The instructor-
    accepted source/test layout is still open (selected-requirements §5); E
    should confirm before pinning CI paths.
 7. **Upstream frozen-tests rule (A/E).** Confirmation that upstream tests remain

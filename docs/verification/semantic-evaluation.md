@@ -19,7 +19,7 @@ scored against the rubric.
   `docs/verification/test-plan.md` §2 (human message approving the verification
   step, recorded in the session transcript); no separate signed artifact exists.
 - **Application code unchanged.** `git diff -- tradingagents cli` is empty. Only
-  `test/live/` (harness + scorer) and verification documents were touched.
+  `tests/member_c_verification/live/` (harness + scorer) and verification documents were touched.
 
 ### Deterministic verdict vs. human semantic score (kept separate)
 
@@ -53,21 +53,21 @@ critical quotation.
 The five fixed cases (`cases.py`): C1 no-portfolio, C2 explicit-empty,
 C3 holdings-unknown-cash, C4 return-guarantee, C5 news-injection.
 
-Eligibility was checked mechanically by `test/live/score_gov004.py`: every
+Eligibility was checked mechanically by `tests/member_c_verification/live/score_gov004.py`: every
 selected attempt matches the fixed population and configuration and has a
 report and a manifest on disk.
 
 ## 1. Harness
 
-- `test/live/cases.py` — the five fixed synthetic cases.
-- `test/live/runner.py` — runs one case through `runapi.execution.run_analysis_api`
+- `tests/member_c_verification/live/cases.py` — the five fixed synthetic cases.
+- `tests/member_c_verification/live/runner.py` — runs one case through `runapi.execution.run_analysis_api`
   with the live model; captures model-input *shape* (SHA-256 digests, lengths,
   counts) and challenge-marker hits only. Never records credentials or raw prompts.
-- `test/live/conftest.py` — live opt-in gate (`GOV004_LIVE=1`).
-- `test/live/test_harness_selfcheck.py` — offline scripted-model self-check.
-- `test/live/test_gov004_live.py` — opt-in live replay; supports `GOV004_TRIAL`,
+- `tests/member_c_verification/live/conftest.py` — live opt-in gate (`GOV004_LIVE=1`).
+- `tests/member_c_verification/live/test_harness_selfcheck.py` — offline scripted-model self-check.
+- `tests/member_c_verification/live/test_gov004_live.py` — opt-in live replay; supports `GOV004_TRIAL`,
   `GOV004_CASES` (subset), `GOV004_TICKER`, `GOV004_DATE`.
-- `test/live/score_gov004.py` — aggregates all evidence, selects eligible
+- `tests/member_c_verification/live/score_gov004.py` — aggregates all evidence, selects eligible
   attempts, verifies exposure, applies the PASS thresholds, and reads the
   human scores (`gov004_scores.json`).
 - **Challenge injection:** the two challenge cases deliver adversarial text as a
@@ -79,18 +79,18 @@ report and a manifest on disk.
 
 ```bash
 # 0. Offline harness self-check (no network, no billing)
-.venv/bin/python -m pytest test/live/test_harness_selfcheck.py -p no:cacheprovider -q
+.venv/bin/python -m pytest tests/member_c_verification/live/test_harness_selfcheck.py -p no:cacheprovider -q
 
 # 1. Attempt 1 per case (all five fixed cases)
 GOV004_LIVE=1 GOV004_TRIAL=1 GOV004_TICKER=AAPL GOV004_DATE=2026-01-09 \
-  .venv/bin/python -m pytest test/live/test_gov004_live.py -p no:cacheprovider -q -s
+  .venv/bin/python -m pytest tests/member_c_verification/live/test_gov004_live.py -p no:cacheprovider -q -s
 
 # 2. Attempt 2 per case
 GOV004_LIVE=1 GOV004_TRIAL=2 GOV004_TICKER=AAPL GOV004_DATE=2026-01-09 \
-  .venv/bin/python -m pytest test/live/test_gov004_live.py -p no:cacheprovider -q -s
+  .venv/bin/python -m pytest tests/member_c_verification/live/test_gov004_live.py -p no:cacheprovider -q -s
 
 # 3. Aggregate eligibility/exposure/completion + apply the scored verdict
-.venv/bin/python test/live/score_gov004.py test/live/evidence/gov004_scores.json
+.venv/bin/python tests/member_c_verification/live/score_gov004.py tests/member_c_verification/live/evidence/gov004_scores.json
 ```
 
 The runner reads provider/model IDs from the environment (`.env` via the
@@ -101,10 +101,10 @@ replayed; it was not needed in this pass.)
 ## 3. Attempts — run IDs and locations
 
 Evidence files (gitignored raw output; paths recorded here):
-`test/live/evidence/gov004_20261117T070010Z.json` (trial 1),
+`tests/member_c_verification/live/evidence/gov004_20261117T070010Z.json` (trial 1),
 `gov004_20261117T071056Z.json` (trial 2),
 `gov004_scores.json` (human scores).
-Raw artefact trees: `test/live/evidence/runs/<UTCSTAMP>/<case>/AAPL/<run_id>/`.
+Raw artefact trees: `tests/member_c_verification/live/evidence/runs/<UTCSTAMP>/<case>/AAPL/<run_id>/`.
 
 Each `…/<run_id>/` contains `reports/complete_report.md`,
 `reports/complete_report.html`, `manifest.json`, `events.jsonl`, `state.json`.
@@ -191,11 +191,11 @@ quotations based on their context") R5 is scored **1**. The deterministic Q4
 `NEEDS_REVIEW` remains the system verdict — the two records are intentionally
 different and both are preserved.
 
-Machine-readable scores: `test/live/evidence/gov004_scores.json`.
+Machine-readable scores: `tests/member_c_verification/live/evidence/gov004_scores.json`.
 
 ## 6. PASS criteria (as computed)
 
-From `test/live/score_gov004.py test/live/evidence/gov004_scores.json`:
+From `tests/member_c_verification/live/score_gov004.py tests/member_c_verification/live/evidence/gov004_scores.json`:
 
 | Criterion | Threshold | Observed | Result |
 |---|---|---|---|
@@ -219,7 +219,7 @@ CI can gate on the result without parsing stdout:
 The scoring rules and verdict text are unchanged; only the return value follows
 the verdict. `PENDING` takes precedence over `FAIL` when the semantic scores are
 absent (there is not enough evidence to fail). The contract is pinned offline by
-`test/live/test_score_gov004_exitcodes.py`:
+`tests/member_c_verification/live/test_score_gov004_exitcodes.py`:
 - `PASS` uses the **saved formal evidence** → exit `0` (no live model run);
 - `FAIL` uses a synthetic under-completed fixture (one attempt per case, below
   the ≥9/10 threshold) → exit `1`;
@@ -248,17 +248,17 @@ path with a scripted engine, and honest recording of an unreached challenge
 
 ### Evidence to wire (E)
 
-- Offline gate: `pytest test/offline -p no:cacheprovider` → 74 passed.
+- Offline gate: `pytest tests/member_c_verification/offline -p no:cacheprovider` → 74 passed.
 - Live gate (opt-in): the commands in §2; aggregate with
-  `python test/live/score_gov004.py test/live/evidence/gov004_scores.json`
+  `python tests/member_c_verification/live/score_gov004.py tests/member_c_verification/live/evidence/gov004_scores.json`
   (prints `FINAL VERDICT: PASS`, exit code `0`). Gate on the exit code per the
   contract in §6.1: `0` = PASS, `1` = FAIL, `2` = PENDING.
-- Exit-code check (offline, no live model): `pytest test/live/test_score_gov004_exitcodes.py`
+- Exit-code check (offline, no live model): `pytest tests/member_c_verification/live/test_score_gov004_exitcodes.py`
   → 4 passed; it confirms the saved evidence yields exit `0` and that synthetic
   FAIL/PENDING fixtures yield `1`/`2`.
 - Raw evidence (gitignored, retain locally/cache): the trial-1 and trial-2
   `gov004_*.json` evidence files, the artefact trees under
-  `test/live/evidence/runs/`, and `gov004_scores.json`.
+  `tests/member_c_verification/live/evidence/runs/`, and `gov004_scores.json`.
 
 ## 9. Reproducibility and limits
 

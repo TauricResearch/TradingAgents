@@ -1,6 +1,6 @@
 """Aggregate GOV-004 evidence and compute the formal verdict inputs.
 
-Reads every ``test/live/evidence/gov004_*.json`` file, treats the 5-case pilot
+Reads every ``tests/member_c_verification/live/evidence/gov004_*.json`` file, treats the 5-case pilot
 as trial 1, assigns attempts per case, and reports:
 
 * eligibility: every attempt uses the fixed population, the fixed model
@@ -15,7 +15,7 @@ completion) that the formal verdict depends on. Finally it checks the supplied
 per-answer rubric scores against the PASS rule.
 
 Usage:
-    .venv/bin/python test/live/score_gov004.py [scores.json] [--threshold 0.90]
+    .venv/bin/python tests/member_c_verification/live/score_gov004.py [scores.json] [--threshold 0.90]
 
 Exit-code contract (matches the printed ``FINAL VERDICT``):
     PASS    -> 0

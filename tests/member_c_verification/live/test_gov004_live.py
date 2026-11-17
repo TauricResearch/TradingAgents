@@ -9,8 +9,8 @@ replayed rather than re-running every case):
 * ``GOV004_CASES`` -- comma-separated case IDs to run; default = all five.
 * ``GOV004_TICKER`` / ``GOV004_DATE`` -- ticker and analysis date.
 
-Evidence is written to ``test/live/evidence/gov004_<timestamp>.json`` and the
-case artefact trees are published under ``test/live/evidence/runs/``. The
+Evidence is written to ``tests/member_c_verification/live/evidence/gov004_<timestamp>.json`` and the
+case artefact trees are published under ``tests/member_c_verification/live/evidence/runs/``. The
 formal verdict is computed by ``score_gov004.py`` from all evidence files, not
 in the test itself. Nothing here records a credential or a raw prompt.
 """

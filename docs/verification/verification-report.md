@@ -12,7 +12,7 @@ at commit `d94c9f8`; application code was **not** modified by this work.
 ```
 Python: .venv (3.12)
 # New independent C suite
-.venv/bin/python -m pytest test/offline -p no:cacheprovider
+.venv/bin/python -m pytest tests/member_c_verification/offline -p no:cacheprovider
 # Upstream regression baseline
 .venv/bin/python -m pytest -q -p no:cacheprovider
 ```
@@ -156,12 +156,12 @@ model narrative (not only error paths). Suite after this addition: **74 collecte
   step ("Complete the formal GOV-004 evaluation using the confirmed scoring
   plan"), recorded in the session transcript, consistent with the test-plan §2
   approval convention; no separate signed artifact exists.
-- **Evidence:** `test/live/evidence/gov004_*.json` (trial 1 and trial 2),
-  `test/live/evidence/gov004_scores.json`, artefact trees under
-  `test/live/evidence/runs/`.
+- **Evidence:** `tests/member_c_verification/live/evidence/gov004_*.json` (trial 1 and trial 2),
+  `tests/member_c_verification/live/evidence/gov004_scores.json`, artefact trees under
+  `tests/member_c_verification/live/evidence/runs/`.
 - **Exit-code contract (for CI):** `score_gov004.py` returns `0`=PASS,
   `1`=FAIL, `2`=PENDING to match its printed verdict; verified offline by
-  `test/live/test_score_gov004_exitcodes.py` (4 passed), including the saved
+  `tests/member_c_verification/live/test_score_gov004_exitcodes.py` (4 passed), including the saved
   evidence yielding exit `0`. See `semantic-evaluation.md` §6.1 and
   `verification-constraints.md` E9.
 
@@ -173,7 +173,7 @@ model narrative (not only error paths). Suite after this addition: **74 collecte
 3. INTERRUPTED (R12) and checkpoint-resume behaviour tests if in scope.
 4. GOV-001/003/005/006 CI + denied-write tests once E installs enforcement.
 5. Resolve the bedrock baseline failure as a recorded environment exception.
-6. Course `test/offline` + `test/live` split — **both now exist**; E to wire the
+6. Course `tests/member_c_verification/offline` + `tests/member_c_verification/live` split — **both now exist**; E to wire the
    opt-in live gate per `docs/code-governance/verification-constraints.md`.
 7. NFR-003 residual nuance: the deterministic tests prove planted secrets and an
    unrelated holding are absent on the exercised sinks/paths, including a

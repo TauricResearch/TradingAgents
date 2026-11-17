@@ -17,15 +17,18 @@ Scope: the working selection `docs/req/selected-requirements.md`
 - **Engine:** a scripted engine injected through the shared boundary
   `runapi.execution.run_analysis_api(graph_factory=..., engine_runner=...)`.
   This exercises the real check/finalize/persist path with a deterministic state.
-- **Location:** `test/offline/` (C-owned, outside the upstream `testpaths=["tests"]`
-  so it runs separately from the upstream suite).
-- **Helpers:** `test/offline/conftest.py` (`make_engine`, `confirmed_context`,
+- **Location:** `tests/member_c_verification/offline/` (C-owned). It lives under
+  the upstream `testpaths=["tests"]`, so the default `pytest` run collects it
+  alongside the upstream suite; the offline tests keep the upstream conftest's
+  no-network/scripted-model discipline. The `live/` sibling is collected too but
+  skipped unless `GOV004_LIVE=1` (opt-in).
+- **Helpers:** `tests/member_c_verification/offline/conftest.py` (`make_engine`, `confirmed_context`,
   `GOOD_STATE`, `holding_portfolio`).
 
 ### Commands
 ```
 # New independent C suite (separate from upstream)
-.venv/bin/python -m pytest test/offline -p no:cacheprovider
+.venv/bin/python -m pytest tests/member_c_verification/offline -p no:cacheprovider
 
 # Upstream regression baseline (unchanged by this work)
 .venv/bin/python -m pytest -q -p no:cacheprovider
@@ -153,4 +156,4 @@ Parametrised cases expand to 74 collected test items.
   beyond the happy-path isolation checks; the fault-injection variants are
   pending.
 - **Corrupt-checkpoint / interrupted-run** (R12 INTERRUPTED) behavioural tests.
-- `test/offline` vs `test/live` full course layout split; only offline exists.
+- `tests/member_c_verification/offline` vs `tests/member_c_verification/live` full course layout split; both exist under `tests/member_c_verification/`.

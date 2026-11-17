@@ -11,8 +11,9 @@ model/endpoint rather than the harness:
    end, producing published report + manifest and a complete evidence record,
    including a challenge case whose marker reached the (scripted) model input.
 
-This file is run with ``pytest`` only when the live directory is selected; it is
-outside ``testpaths`` like ``test/offline``.
+This file is offline and is collected by the default ``pytest`` run (it lives
+under ``tests/`` via ``tests/member_c_verification/``); unlike the live replay it
+needs no opt-in and no network.
 """
 
 from __future__ import annotations
