@@ -1,6 +1,8 @@
 import json
 import math
+import os
 import re
+import shutil
 import sqlite3
 from datetime import UTC, datetime
 
@@ -51,15 +53,20 @@ def _isolate(monkeypatch, tmp_path):
     monkeypatch.setattr(app_module, "UI_DIST", tmp_path / "no_dist")
 
 
-def record(home, coin, trade_date, **fields):
+def record(home, coin, trade_date, written=None, **fields):
+    """A research record; ``written``: the UTC milliseconds its file is dated."""
     path = home / "logs" / coin / "x" / f"full_states_log_{trade_date}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"company_of_interest": coin, "trade_date": trade_date, **fields}))
+    if written is not None:
+        os.utime(path, (written / 1000, written / 1000))
+    return path
 
 
 def build(tmp_path, okx=None, validated=True):
     """A client over a paper account; validated: a short BTC, three midnights, research of
-    2026-01-09 done (BTC), blocked by the budget (ETH) and pending (SOL)."""
+    2026-01-09 done (BTC), blocked by the budget (ETH) and pending (SOL), and the records
+    written some minutes after their research began."""
     settings = Settings(home=tmp_path)
     ledger = Ledger(settings.ledger_path)
     ledger.initialize(10_000.0, T0)
@@ -95,9 +102,9 @@ def build(tmp_path, okx=None, validated=True):
         )
         ledger.add_event(T0, "code_change", "a")
         ledger.add_event(T0 + MINUTE, "resume", "b")
-        record(tmp_path, "BTC-USD", "2026-01-09", final_rating="Underweight")
-        record(tmp_path, "BTC-USD", "2026-01-08")
-        record(tmp_path, "SOL-USD", "2026-01-09", final_rating="Hold")
+        record(tmp_path, "BTC-USD", "2026-01-09", DAY0 + 28 * MINUTE, final_rating="Underweight")
+        record(tmp_path, "BTC-USD", "2026-01-08", DAY0 - DAY_MS + 18 * MINUTE)
+        record(tmp_path, "SOL-USD", "2026-01-09", DAY0 + 29 * MINUTE, final_rating="Hold")
     ledger.db.close()
     return TestClient(create_app(settings, okx or CountingOKX()))
 
@@ -175,16 +182,20 @@ def test_overview_marks_the_account_and_sums_up_the_day(tmp_path):
 
     latest = body["latest"]
     assert latest["trade_date"] == "2026-01-09" and latest["executed"] is True
+    assert latest["executed_at"] == "2026-01-10T00:30:00Z"
     btc, eth, sol = latest["coins"]
     assert btc == {
         "coin": "BTC-USD", "state": "done", "rating": "Sell", "error": None, "cost_usd": 1.5,
+        # When the record was written, 8 minutes into the attempt that gave the rating.
+        "published_at": "2026-01-10T00:28:00Z", "updated_at": None,
         "fills": [{"qty": -0.02, "price": 80_000.0}],
     }
     assert eth == {
         "coin": "ETH-USD", "state": "failed", "rating": None, "error": BUDGET_ERROR,
-        "cost_usd": None, "fills": [],
+        "cost_usd": None, "published_at": None, "updated_at": None, "fills": [],
     }
     assert sol["state"] == "pending" and sol["cost_usd"] is None and sol["fills"] == []
+    assert sol["published_at"] is None  # a record, but no rating in the ledger: nothing is out
 
 
 def test_overview_before_the_validation_period(tmp_path):
@@ -193,7 +204,7 @@ def test_overview_before_the_validation_period(tmp_path):
     assert body["validation_start"] is None and body["days"] == 0
     assert body["performance"] == {"strategy": None, "equal_weight": None, "btc": None}
     assert body["llm"]["today"] == 0 and body["llm"]["unknown"] is False
-    assert body["latest"]["executed"] is False
+    assert body["latest"]["executed"] is False and body["latest"]["executed_at"] is None
     assert [c["state"] for c in body["latest"]["coins"]] == ["pending"] * 3
     # No midnight snapshot yet: no day to measure; the sums over a flat account are zero.
     assert body["today"] == {"since": None, "pnl": None, "pct": None}
@@ -426,13 +437,67 @@ def test_research_index_merges_the_records_with_the_attempts(tmp_path):
     rows = build(tmp_path).get("/api/research").json()
     assert rows == [
         # The record's rating over the attempts'; cost and tokens over every attempt of the day.
+        # Started with the day's first attempt, the failed one; out when the record was written.
         {"coin": "BTC-USD", "trade_date": "2026-01-09", "rating": "Underweight", "cost_usd": 1.5,
-         "tokens_in": 110, "tokens_out": 55, "update": None},
+         "tokens_in": 110, "tokens_out": 55, "started_at": "2026-01-10T00:10:00Z",
+         "published_at": "2026-01-10T00:28:00Z", "executed_at": "2026-01-10T00:30:00Z",
+         "update": None},
+        # A record without attempts: only its file says when.
         {"coin": "SOL-USD", "trade_date": "2026-01-09", "rating": "Hold", "cost_usd": None,
-         "tokens_in": None, "tokens_out": None, "update": None},
+         "tokens_in": None, "tokens_out": None, "started_at": None,
+         "published_at": "2026-01-10T00:29:00Z", "executed_at": "2026-01-10T00:30:00Z",
+         "update": None},
+        # A trade date the account did not rebalance on.
         {"coin": "BTC-USD", "trade_date": "2026-01-08", "rating": "Hold", "cost_usd": 2.0,
-         "tokens_in": 80, "tokens_out": 40, "update": None},
+         "tokens_in": 80, "tokens_out": 40, "started_at": "2026-01-09T00:10:00Z",
+         "published_at": "2026-01-09T00:18:00Z", "executed_at": None, "update": None},
     ]
+
+
+def test_research_index_does_not_count_a_budget_refusal_as_the_start(tmp_path):
+    client = build(tmp_path)
+    ledger = Ledger(Settings(home=tmp_path).ledger_path)
+    ledger.record_attempt(
+        "2026-01-09", "SOL-USD", DAY0 + 5 * MINUTE, rating=None, error=BUDGET_ERROR
+    )
+    rows = {(r["coin"], r["trade_date"]): r for r in client.get("/api/research").json()}
+    assert rows["SOL-USD", "2026-01-09"]["started_at"] is None
+    ledger.record_attempt("2026-01-09", "SOL-USD", DAY0 + 21 * MINUTE, rating="Hold", error=None)
+    rows = {(r["coin"], r["trade_date"]): r for r in client.get("/api/research").json()}
+    assert rows["SOL-USD", "2026-01-09"]["started_at"] == "2026-01-10T00:21:00Z"
+
+
+def test_a_rerun_keeps_the_time_the_first_rating_was_published(tmp_path):
+    client = build(tmp_path)
+    ledger = Ledger(Settings(home=tmp_path).ledger_path)
+    # trader.jobs._rerun: the first record copied with its time, then written over.
+    first = tmp_path / "logs" / "BTC-USD" / "x" / "full_states_log_2026-01-09.json"
+    kept = first.with_name("superseded_20260110T0722Z_full_states_log_2026-01-09.json")
+    shutil.copy2(first, kept)
+    record(tmp_path, "BTC-USD", "2026-01-09", T0 + 7 * HOUR, final_rating="Overweight")
+    ledger.record_attempt(
+        "2026-01-09", BTC.research, T0 + 7 * HOUR - 8 * MINUTE, rating="Buy", error=None
+    )
+    ledger.record_update("2026-01-09", BTC.research, T0 + 7 * HOUR, "Sell", "Buy")
+
+    def btc():
+        rows = client.get("/api/research").json()
+        row = next(r for r in rows if (r["coin"], r["trade_date"]) == ("BTC-USD", "2026-01-09"))
+        return row, client.get("/api/accounts/paper/overview").json()["latest"]["coins"][0]
+
+    row, card = btc()
+    # The kept copy is not a record of its own.
+    assert [r["coin"] for r in client.get("/api/research").json()].count("BTC-USD") == 2
+    assert row["rating"] == "Overweight" and row["started_at"] == "2026-01-10T00:10:00Z"
+    assert row["published_at"] == "2026-01-10T00:28:00Z"  # the first run's, not the rerun's
+    assert row["update"]["at"] == "2026-01-10T07:30:00Z"
+    assert card["rating"] == "Buy" and card["published_at"] == "2026-01-10T00:28:00Z"
+    assert card["updated_at"] == "2026-01-10T07:30:00Z"
+
+    kept.unlink()  # the record left is the rerun's: when the first rating was out is not known
+    row, card = btc()
+    assert row["published_at"] is None and card["published_at"] is None
+    assert row["update"]["at"] == card["updated_at"] == "2026-01-10T07:30:00Z"
 
 
 def test_research_index_says_what_a_rerun_on_the_daily_candle_updated(tmp_path):
@@ -456,6 +521,8 @@ def test_research_index_reads_a_ledger_from_before_the_research_updates(tmp_path
     old.commit()
     old.close()
     assert [r["update"] for r in client.get("/api/research").json()] == [None, None, None]
+    latest = client.get("/api/accounts/paper/overview").json()["latest"]
+    assert [c["updated_at"] for c in latest["coins"]] == [None, None, None]
 
 
 def test_research_index_reads_a_record_file_once_until_it_changes(tmp_path, monkeypatch):
@@ -916,13 +983,14 @@ SIGNALS = [
 # The daily research of 2026-01-09 as build() leaves it, as every account that researches
 # nothing itself shows it: the ratings, without the daily account's fills and execution.
 SHARED_LATEST = {
-    "trade_date": "2026-01-09", "executed": None, "coins": [
+    # The ratings and when they were out; the execution is the daily account's, not shown.
+    "trade_date": "2026-01-09", "executed": None, "executed_at": None, "coins": [
         {"coin": "BTC-USD", "state": "done", "rating": "Sell", "error": None, "cost_usd": 1.5,
-         "fills": []},
+         "published_at": "2026-01-10T00:28:00Z", "updated_at": None, "fills": []},
         {"coin": "ETH-USD", "state": "failed", "rating": None, "error": BUDGET_ERROR,
-         "cost_usd": None, "fills": []},
+         "cost_usd": None, "published_at": None, "updated_at": None, "fills": []},
         {"coin": "SOL-USD", "state": "pending", "rating": None, "error": None, "cost_usd": None,
-         "fills": []},
+         "published_at": None, "updated_at": None, "fills": []},
     ],
 }
 

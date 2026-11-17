@@ -14,7 +14,7 @@ import re
 import threading
 import time
 from collections import Counter
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -23,7 +23,7 @@ from pathlib import Path
 from trader import jobs, overrides, prices, report, rules, settings as strategy_constants
 from trader.intraday import report as intraday_report
 from trader.intraday.paper import HOUR_MS
-from trader.ledger import Fill, Ledger, Position, Snapshot
+from trader.ledger import BUDGET_ERROR, Fill, Ledger, Position, Snapshot
 from trader.okx import DAY_MS, OKX, REQUEST_ERRORS, Bar, OKXError
 from trader.paper import Paper, _move
 from trader.research import build_config
@@ -38,6 +38,8 @@ BARS_TTL = 10 * 60   # seconds a daily candle series is reused
 FAILURE_TTL = 20     # seconds OKX is left alone after a request to it failed
 MARKET_ERRORS = REQUEST_ERRORS  # what a failed request to OKX raises
 RECORD_NAME = re.compile(r"^full_states_log_(\d{4}-\d{2}-\d{2})\.json$")
+# The first run's record, kept beside the one a rerun wrote over it (#53, trader.jobs._rerun).
+KEPT_NAME = re.compile(r"^superseded_\w+?_(full_states_log_\d{4}-\d{2}-\d{2}\.json)$")
 
 
 @dataclass(frozen=True)
@@ -575,30 +577,47 @@ def _position(account: Account, inst: str, pos, price: float | None) -> dict:
 
 
 def _latest(account: Account, ledger: Ledger, trade_date: str) -> dict:
-    """The state of the trade date's run: each coin's research and its fills."""
+    """The state of the trade date's run: each coin's research and its fills, and when:
+    a done coin's rating was published at ``published_at`` (``_published_ms``) and replaced
+    by a rerun's at ``updated_at`` (#53); the rebalance was executed at ``executed_at``."""
     fills = ledger.db.execute(
         "SELECT inst, qty, price FROM fills WHERE trade_date = ? ORDER BY id", (trade_date,)
     ).fetchall()
     totals = _attempt_totals(ledger)
+    updated = {coin: ts for _, coin, ts, _, _ in ledger.updates(trade_date)}
     coins = []
     for coin in account.watchlist:
         state, detail = jobs.coin_state(ledger, trade_date, coin.research)
         total = totals.get((trade_date, coin.research))
+        published = None
+        if state == "done":
+            record = _record_path(account, coin.research, trade_date)
+            if record is not None:
+                kept = record.parent.glob(f"superseded_*_{record.name}")
+                published = _published_ms(record, kept, coin.research in updated)
         coins.append({
             "coin": coin.research,
             "state": state,
             "rating": detail if state == "done" else None,
             "error": detail if state == "failed" else None,
             "cost_usd": total["cost_usd"] if total else None,
+            "published_at": _iso(published),
+            "updated_at": _iso(updated.get(coin.research)),
             "fills": [{"qty": q, "price": p} for inst, q, p in fills if inst == coin.swap],
         })
-    return {"trade_date": trade_date, "executed": ledger.executed(trade_date), "coins": coins}
+    return {
+        "trade_date": trade_date,
+        "executed": ledger.executed(trade_date),
+        "executed_at": _iso(_executions(ledger).get(trade_date)),
+        "coins": coins,
+    }
 
 
 def _shared_latest(account: Account, path: Path, trade_date: str) -> dict | None:
     """The trade date's research as the daily ledger at ``path`` has it, for an account
-    that researches nothing itself: the ratings without the daily account's fills and
-    execution (``executed`` null), which are not this account's. None without that ledger."""
+    that researches nothing itself: the ratings and when they were published, without the
+    daily account's fills and execution (``executed`` and ``executed_at`` null), which are
+    not this account's. None without that ledger."""
     if not path.is_file():
         return None
     research = Ledger(path, readonly=True)
@@ -607,7 +626,7 @@ def _shared_latest(account: Account, path: Path, trade_date: str) -> dict | None
     finally:
         research.db.close()
     coins = [{**coin, "fills": []} for coin in latest["coins"]]
-    return {**latest, "executed": None, "coins": coins}
+    return {**latest, "executed": None, "executed_at": None, "coins": coins}
 
 
 def _attempt_totals(ledger: Ledger) -> dict[tuple[str, str], dict]:
@@ -963,12 +982,23 @@ def research_index(account: Account, ledger: Ledger) -> list[dict]:
     """Every research record, newest trade date first and in watchlist order within a
     date. The rating is the record's, else the attempts'; cost and tokens are the attempts'.
     ``update`` is the rating a rerun on the trade date's daily candle replaced, the one it
-    gave and when (#53); None when the record is the day's first run."""
+    gave and when (#53); None when the record is the day's first run.
+
+    When it happened, each null when not known: ``started_at``, the day's first attempt
+    began; ``published_at``, its first rating was out (``_published_ms``); ``executed_at``,
+    the account rebalanced on the trade date's ratings."""
     totals = _attempt_totals(ledger)
     updates = {
         (trade_date, coin): {"from": old, "to": new, "at": _iso(ts)}
         for trade_date, coin, ts, old, new in ledger.updates()
     }
+    started = _first_attempts(ledger)
+    executed = _executions(ledger)
+    kept: dict[tuple[Path, str], list[Path]] = {}
+    for path in account.results_dir.glob("*/**/superseded_*_full_states_log_*.json"):
+        match = KEPT_NAME.match(path.name)
+        if match:
+            kept.setdefault((path.parent, match.group(1)), []).append(path)
     rank = {coin.research: i for i, coin in enumerate(account.watchlist)}
     rows = []
     seen = set()
@@ -979,6 +1009,8 @@ def research_index(account: Account, ledger: Ledger) -> list[dict]:
         seen.add(path)
         coin, trade_date = path.relative_to(account.results_dir).parts[0], match.group(1)
         total = totals.get((trade_date, coin)) or {}
+        update = updates.get((trade_date, coin))
+        published = _published_ms(path, kept.get((path.parent, path.name), ()), update is not None)
         rows.append({
             "coin": coin,
             "trade_date": trade_date,
@@ -986,7 +1018,10 @@ def research_index(account: Account, ledger: Ledger) -> list[dict]:
             "cost_usd": total.get("cost_usd"),
             "tokens_in": total.get("tokens_in"),
             "tokens_out": total.get("tokens_out"),
-            "update": updates.get((trade_date, coin)),
+            "started_at": _iso(started.get((trade_date, coin))),
+            "published_at": _iso(published),
+            "executed_at": _iso(executed.get(trade_date)),
+            "update": update,
         })
     for gone in [p for p in _RATINGS if p not in seen and p.is_relative_to(account.results_dir)]:
         del _RATINGS[gone]
@@ -1018,11 +1053,50 @@ def _read_rating(path: Path) -> str | None:
     return record.get("final_rating") if isinstance(record, dict) else None
 
 
+def _first_attempts(ledger: Ledger) -> dict[tuple[str, str], int]:
+    """Per (trade_date, coin): when its first research began. The budget's refusals are
+    not research: they are recorded without a run."""
+    rows = ledger.db.execute(
+        "SELECT trade_date, coin, MIN(ts) FROM attempts WHERE error IS NULL OR error != ?"
+        " GROUP BY trade_date, coin", (BUDGET_ERROR,),
+    )
+    return {(trade_date, coin): ts for trade_date, coin, ts in rows}
+
+
+def _executions(ledger: Ledger) -> dict[str, int]:
+    """Per trade date: when the account rebalanced on its ratings."""
+    return dict(ledger.db.execute("SELECT trade_date, ts FROM executions"))
+
+
+def _published_ms(record: Path, kept: Iterable[Path], updated: bool) -> int | None:
+    """When the first rating of ``record``'s trade date was out: when its file was written,
+    which the library does as a run ends. The ledger has no such time, so this is the
+    file's, and a file copied or rewritten by hand says when that was done. After a rerun
+    (``updated``, #53) the record is the rerun's and the first run's is the one in ``kept``,
+    copied with its time; with that copy gone the time is not known."""
+    times = [t for t in map(_mtime_ms, kept) if t is not None]
+    if times:
+        return min(times)
+    return None if updated else _mtime_ms(record)
+
+
+def _mtime_ms(path: Path) -> int | None:
+    try:
+        return path.stat().st_mtime_ns // 1_000_000
+    except OSError:
+        return None
+
+
+def _record_path(account: Account, coin: str, trade_date: str) -> Path | None:
+    paths = sorted(account.results_dir.glob(f"{coin}/**/full_states_log_{trade_date}.json"))
+    return paths[0] if paths else None
+
+
 def research_record(account: Account, coin: str, trade_date: str) -> bytes | None:
     """The record file of one research run, as written; None when there is none.
     ``coin`` and ``trade_date`` are validated by the route, as they name a path."""
-    paths = sorted(account.results_dir.glob(f"{coin}/**/full_states_log_{trade_date}.json"))
-    return paths[0].read_bytes() if paths else None
+    path = _record_path(account, coin, trade_date)
+    return path.read_bytes() if path else None
 
 
 # -- time ---------------------------------------------------------------------
