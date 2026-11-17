@@ -12,8 +12,11 @@ The **Sentinel Council** - the risk brain of the AI Co-Pilot for a The5ers
    Gemini *Risk Auditor* read the same setup and add a plain-English opinion. It is
    advisory only, hard-timeboxed and fails **open** so it can never block the trader.
 
-Risk model - The5ers Bootcamp, $20,000 account base
----------------------------------------------------
+Risk model - The5ers Bootcamp ($5,000 demo, scaling to $20,000)
+---------------------------------------------------------------
+* Account base        : **$5,000 demo** (the same engine scales cleanly to a
+                         **$20,000** funded/evaluation account - the risk rules are
+                         fixed dollar amounts, so only the R-multiple percentages move)
 * Fixed risk per trade  : **1R = $10**
 * Reward:risk floor     : **RRR >= 1 : 1.5** (i.e. TP >= $15)
 * Max trades per day    : **3**
@@ -54,9 +57,10 @@ LOGGER = logging.getLogger("copilot.council")
 DEFAULT_TIMEOUT = 8.0
 
 # --------------------------------------------------------------------------- #
-# Risk rules - The5ers Bootcamp, $20,000 account base
+# Risk rules - The5ers Bootcamp ($5,000 demo, scaling to $20,000)
 # --------------------------------------------------------------------------- #
-ACCOUNT_SIZE_USD = 20_000.0
+ACCOUNT_SIZE_USD = 5_000.0                    # demo base account
+ACCOUNT_SIZE_MAX_USD = 20_000.0               # scale-up / funded target
 RISK_PER_TRADE_USD = 10.0                     # 1R
 MIN_RRR = 1.5                                 # 1 : 1.5
 MIN_TP_USD = RISK_PER_TRADE_USD * MIN_RRR     # $15 minimum take-profit
@@ -441,7 +445,8 @@ _SCOUT_SYSTEM = (
 )
 
 _AUDITOR_SYSTEM = (
-    "You are the Risk Auditor for a The5ers Bootcamp $20,000 evaluation account. "
+    "You are the Risk Auditor for a The5ers Bootcamp evaluation account: a $5,000 "
+    "demo scaling to $20,000. "
     "Hard rules: risk per trade is 1R = $10, the take-profit must be at least 1.5x the "
     "stop (RRR >= 1:1.5, i.e. >= $15), at most 3 trades per day, the daily profit target "
     "is +$20, the circuit breaker locks out at -$20 (2R) and the hard kill-switch is -$30 "
@@ -836,6 +841,7 @@ __all__ = [
     "AUDITOR_MODELS",
     "DEFAULT_TIMEOUT",
     "ACCOUNT_SIZE_USD",
+    "ACCOUNT_SIZE_MAX_USD",
     "RISK_PER_TRADE_USD",
     "MIN_RRR",
     "MIN_TP_USD",

@@ -271,8 +271,8 @@ class MT5Client:
         if not self.connected:
             return {
                 "login": 0, "server": "offline-demo", "currency": "USD",
-                "balance": 20_000.0, "equity": 20_000.0, "margin": 0.0,
-                "margin_free": 20_000.0, "profit": 0.0, "offline": True,
+                "balance": 5_000.0, "equity": 5_000.0, "margin": 0.0,
+                "margin_free": 5_000.0, "profit": 0.0, "offline": True,
             }
         try:
             info = self._mt5.account_info()

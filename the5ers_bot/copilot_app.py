@@ -20,9 +20,9 @@ Design
 * **Sentinel Council** - :class:`sentinel_council.RiskEngine` is the deterministic,
   authoritative gate; the optional Groq *Scout* + Gemini *Risk Auditor* LLMs add a
   plain-English opinion and fail **open**.
-* **Risk model (The5ers Bootcamp, $20,000 base)** - 1R = $10, RRR floor 1:1.5, max
-  3 trades/day, circuit breaker at -$20 (2R) with a hard kill-switch at -$30 (3R),
-  a +$20 daily profit target, and a London / London-NY liquidity-session filter.
+* **Risk model (The5ers Bootcamp, $5,000 demo scaling to $20,000)** - 1R = $10, RRR
+  floor 1:1.5, max 3 trades/day, circuit breaker at -$20 (2R) with a hard kill-switch
+  at -$30 (3R), a +$20 daily profit target, and a London / London-NY session filter.
 
 Run it:
     streamlit run the5ers_bot/copilot_app.py     # dashboard
@@ -49,6 +49,7 @@ import streamlit as st  # noqa: E402
 
 from data_fetcher import TIMEFRAMES, MT5Client, SymbolSpec  # noqa: E402
 from sentinel_council import (  # noqa: E402
+    ACCOUNT_SIZE_MAX_USD,
     ACCOUNT_SIZE_USD,
     DAILY_LOSS_KILL_USD,
     DAILY_LOSS_LOCK_USD,
@@ -360,13 +361,16 @@ def render_circuit(assessment: RiskAssessment) -> None:
 def render_account(client: MT5Client, daily_pnl: float, trades_today: int, manual: bool) -> None:
     acct = client.account_info()
     cols = st.columns(5)
-    cols[0].metric("Balance", f"${acct.get('balance', 0.0):,.2f}")
+    cols[0].metric("Balance", f"${acct.get('balance', 0.0):,.2f}", help=f"Demo base ${ACCOUNT_SIZE_USD:,.0f} → funded ${ACCOUNT_SIZE_MAX_USD:,.0f}")
     cols[1].metric("Equity", f"${acct.get('equity', 0.0):,.2f}")
     cols[2].metric("Floating P/L", f"${acct.get('profit', 0.0):+,.2f}")
     cols[3].metric("Daily P/L", f"${daily_pnl:+,.2f}", help="Manual override" if manual else "From MT5 history + floating")
     cols[4].metric("Trades today", f"{trades_today}/{MAX_TRADES_PER_DAY}")
     if acct.get("offline"):
-        st.caption(f"Account base: ${ACCOUNT_SIZE_USD:,.0f} · risk/trade ${RISK_PER_TRADE_USD:.0f} (1R) · source: offline simulator")
+        st.caption(
+            f"Account base: ${ACCOUNT_SIZE_USD:,.0f} demo (scaling to ${ACCOUNT_SIZE_MAX_USD:,.0f}) · "
+            f"risk/trade ${RISK_PER_TRADE_USD:.0f} (1R) · source: offline simulator"
+        )
 
 
 def render_prices(client: MT5Client) -> None:
@@ -586,8 +590,9 @@ def main() -> None:
 
     st.title("🛰️ AI Co-Pilot · Sentinel Council")
     st.caption(
-        f"The5ers Bootcamp evaluation · ${ACCOUNT_SIZE_USD:,.0f} base · 1R=${RISK_PER_TRADE_USD:.0f} · "
-        f"RRR ≥ 1:{MIN_RRR:g} · max {MAX_TRADES_PER_DAY} trades/day · circuit breaker {DAILY_LOSS_LOCK_USD:+.0f}/{DAILY_LOSS_KILL_USD:+.0f} · "
+        f"The5ers Bootcamp evaluation · ${ACCOUNT_SIZE_USD:,.0f} demo → ${ACCOUNT_SIZE_MAX_USD:,.0f} funded · "
+        f"1R=${RISK_PER_TRADE_USD:.0f} · RRR ≥ 1:{MIN_RRR:g} · max {MAX_TRADES_PER_DAY} trades/day · "
+        f"circuit breaker {DAILY_LOSS_LOCK_USD:+.0f}/{DAILY_LOSS_KILL_USD:+.0f} · "
         "advisory only - you place every order by hand."
     )
 
