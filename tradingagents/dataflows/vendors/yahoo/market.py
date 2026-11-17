@@ -14,6 +14,19 @@ from tradingagents.dataflows.vendors.yahoo.ohlcv import _assert_ohlcv_not_stale,
 
 logger = logging.getLogger(__name__)
 
+# Shown for a date the vendor's daily series has no bar for. It says only that:
+# a missing date does not mean the market was closed. Crypto trades every day,
+# and Yahoo withholds the day just ended from its daily series for some hours
+# after 00:00 UTC, so the newest date can be missing only because it is not out yet.
+NO_DAILY_BAR = "N/A: no daily bar from the data source for this date"
+
+
+def _missing_bar_note(date_str: str, as_of_date: str) -> str:
+    """``NO_DAILY_BAR``, marked as possibly unpublished on the as-of date itself."""
+    if date_str == as_of_date:
+        return f"{NO_DAILY_BAR} (it may not be published yet)"
+    return NO_DAILY_BAR
+
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -152,6 +165,7 @@ def get_stock_stats_indicators_window(
 
     end_date = as_of_date
     as_of_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
+    as_of_str = as_of_dt.strftime("%Y-%m-%d")
     before = as_of_dt - relativedelta(days=look_back_days)
 
     # Optimized: Get stock data once and calculate indicators for all dates
@@ -169,7 +183,7 @@ def get_stock_stats_indicators_window(
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
             else:
-                indicator_value = "N/A: Not a trading day (weekend or holiday)"
+                indicator_value = _missing_bar_note(date_str, as_of_str)
 
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
@@ -186,10 +200,11 @@ def get_stock_stats_indicators_window(
         ind_string = ""
         as_of_dt = datetime.strptime(as_of_date, "%Y-%m-%d")
         while as_of_dt >= before:
-            indicator_value = get_stockstats_indicator(
-                symbol, indicator, as_of_dt.strftime("%Y-%m-%d")
-            )
-            ind_string += f"{as_of_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            date_str = as_of_dt.strftime("%Y-%m-%d")
+            indicator_value = get_stockstats_indicator(symbol, indicator, date_str)
+            if indicator_value == NO_DAILY_BAR:
+                indicator_value = _missing_bar_note(date_str, as_of_str)
+            ind_string += f"{date_str}: {indicator_value}\n"
             as_of_dt = as_of_dt - relativedelta(days=1)
 
     result_str = (
@@ -291,4 +306,4 @@ def get_stock_stats(
         indicator_value = matching_rows[indicator].values[0]
         return indicator_value
     else:
-        return "N/A: Not a trading day (weekend or holiday)"
+        return NO_DAILY_BAR
