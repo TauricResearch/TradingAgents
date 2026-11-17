@@ -62,6 +62,7 @@ markers = [
     "unit: fast isolated unit tests",
     "integration: tests requiring external services; run only when asked for, with -m integration",
     "smoke: quick sanity-check tests",
+    "live: opt-in live provider evaluation; runs only when GOV004_LIVE=1 (skipped otherwise)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
