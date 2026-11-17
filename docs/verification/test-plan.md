@@ -109,13 +109,19 @@ Scope: the working selection `docs/req/selected-requirements.md`
 | TC-NFR003-g | SEL-TA-NFR-003 | completed narrative with planted credential (md+html) | COMPLETED; benign sentence retained; credential omitted in both reports; [REDACTED] present |
 | TC-NFR004-a | SEL-TA-NFR-004 | two same-ticker/date runs | isolated dirs; first bytes unchanged |
 | TC-NFR004-b | SEL-TA-NFR-004 | portfolio provided | manifest omits payload/cash |
-| TC-NFR004-c | SEL-TA-NFR-004 | completed manifest | conditional fields correct |
+| TC-NFR004-c | SEL-TA-NFR-004 | completed manifest | conditional fields correct (rating present, stop_reason null) |
+| TC-NFR004-d | SEL-TA-NFR-004 | one config value changed | only that key differs in `effective_config`; run IDs differ |
+| TC-NFR004-e | SEL-TA-NFR-004 | prompt-template file edited (simulated) | `prompt_hash` changes; `effective_config` unchanged |
+| TC-NFR004-f | SEL-TA-NFR-004 | engine error → published INCOMPLETE | manifest has `final_rating=null`, `output_check=NOT_RUN`, a `stop_reason` |
+| TC-NFR004-g | SEL-TA-NFR-004 | R13a commit failure (rename fails) | INCOMPLETE/PERSISTENCE_ERROR/NOT_RUN; no rating; nothing published; no `_staging` left |
+| TC-NFR004-h | SEL-TA-NFR-004 | R13b best-effort state.json write fails | COMPLETED outcome preserved; `BEST_EFFORT_FAILED:state.json` in events |
+| TC-NFR004-i | SEL-TA-NFR-004 | R14 terminal-event append fails | COMPLETED preserved; manifest `terminal_event.durable=false` |
 | TC-NFR005-a | SEL-TA-NFR-005 | scan runapi/agents/graph | no terminal-prompt imports |
 | TC-NFR005-b | SEL-TA-NFR-005 | scan runapi imports | no `cli` import |
 | TC-NFR006-a | SEL-TA-NFR-006 | 6 complete/4 incomplete/2 cancel | 6/10, review 2, cancel 2 |
 | TC-NFR006-b | SEL-TA-NFR-006 | zero completed | INSUFFICIENT_EVIDENCE |
 
-Parametrised cases expand to 74 collected test items.
+Parametrised cases expand to 80 collected test items.
 
 ## 5. Plan changes made during implementation (with reasons)
 
@@ -152,8 +158,8 @@ Parametrised cases expand to 74 collected test items.
 - **GOV-001..006** CI and permission-gate tests — blocked on E enforcement and a
   frozen semantic rubric.
 - **Semantic evaluation (GOV-004)** — see §7.
-- **Persistence-failure walkthroughs** (R13a/R13b/R14, interface-contracts §7.5)
-  beyond the happy-path isolation checks; the fault-injection variants are
-  pending.
+- **Persistence-failure walkthroughs** (R13a/R13b/R14): **covered offline** by
+  TC-NFR004-g/h/i (injected commit failure, best-effort sink failure, terminal
+  event append failure). See `verification-report.md` §3.5.
 - **Corrupt-checkpoint / interrupted-run** (R12 INTERRUPTED) behavioural tests.
 - `tests/member_c_verification/offline` vs `tests/member_c_verification/live` full course layout split; both exist under `tests/member_c_verification/`.

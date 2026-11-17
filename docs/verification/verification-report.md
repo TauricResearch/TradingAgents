@@ -42,8 +42,8 @@ Python: .venv (3.12)
 
 | Metric | Count |
 |---|---|
-| Collected | 74 |
-| Passed | 74 |
+| Collected | 80 |
+| Passed | 80 |
 | Failed | 0 |
 | Skipped | 0 |
 | Exit | 0 |
@@ -97,12 +97,29 @@ lives in the result, manifest and report envelope.
 ### 3.4 NFR-003 credential redaction in a published narrative (latest run)
 
 TC-NFR003-g was added to cover redaction inside a **successfully published**
-model narrative (not only error paths). Suite after this addition: **74 collected,
-74 passed, exit 0**.
+model narrative (not only error paths). Suite after *that* addition: 74 collected,
+74 passed, exit 0 (that was the count before the NFR-004 additions in §3.5; the
+current suite is 80 passed).
 
 | Test ID | What it now proves | Result |
 |---|---|---|
 | TC-NFR003-g | A unique fake credential (`sk-NARRATIVELEAK…`) placed next to a benign sentence in the scripted `final_trade_decision`, run via `run_analysis_api` with HTML enabled. Run is `COMPLETED`; **both** `reports/complete_report.md` and `reports/complete_report.html` retain the benign sentence, omit the original credential, and contain the `[REDACTED]` marker (non-vacuous). Synthetic inputs only; existing fixtures reused; no external calls. | PASSED |
+
+### 3.5 NFR-004 persistence/reproducibility completeness (latest run)
+
+Six cases were added to `tests/member_c_verification/offline/test_nfr004_persistence.py`
+(the existing a–c retained; c renamed to `…_completed`). Suite after this
+addition: **80 collected, 80 passed, exit 0**. Application code unchanged;
+offline fixtures and monkeypatched filesystem faults only.
+
+| Test ID | What it now proves | Result |
+|---|---|---|
+| TC-NFR004-d | Two runs differing in one config value (`max_debate_rounds` 1 vs 3): the config-only comparison of `effective_config` finds exactly that one key differing (run IDs differ, excluded by construction). | PASSED |
+| TC-NFR004-e | Simulated prompt-template edit (patching `Path.read_text` for `portfolio_manager.py`) changes the recorded `prompt_hash` while `effective_config` stays identical. | PASSED |
+| TC-NFR004-f | An engine error produces a **published** INCOMPLETE manifest: `final_rating=null`, `output_check=NOT_RUN`, a `stop_reason` present; the COMPLETED case (c) still carries its rating and `stop_reason=null`. | PASSED |
+| TC-NFR004-g (R13a) | The single commit (`os.rename`) is forced to fail: result is INCOMPLETE / PERSISTENCE_ERROR / NOT_RUN with `final_rating=null`, `manifest_path=null`, `report_path=null`; **no** published run dir and **no** `_staging` residue. | PASSED |
+| TC-NFR004-h (R13b) | The best-effort `state.json` sink write is forced to fail: run stays COMPLETED with its rating; `BEST_EFFORT_FAILED:state.json` is recorded in `events.jsonl`. | PASSED |
+| TC-NFR004-i (R14) | The terminal-event `events.jsonl` replace is forced to fail: run still publishes COMPLETED with its rating; manifest records `terminal_event.logical=run.terminal` and `terminal_event.durable=false`. | PASSED |
 
 ## 4. Findings surfaced by the suite
 
@@ -128,8 +145,9 @@ model narrative (not only error paths). Suite after this addition: **74 collecte
 - **Semantic evaluation (GOV-004): PASS** under the confirmed scoring plan — see §6.
 - The limited output checker (Q1–Q4) is verified, but `PASSED` certifies only
   those deterministic rules, not factual accuracy or suitability.
-- Persistence-failure fault injection (R13a/b, R14) beyond happy-path isolation is
-  **pending**.
+- Persistence-failure fault injection (R13a/b, R14) is **now covered offline**
+  (TC-NFR004-g/h/i, §3.5); total-disk/power-loss durability remains explicitly
+  out of scope (cooperative `PERSISTENCE_ERROR` contract only).
 - CI/permission governance gates (GOV-001/003/005/006) are **not** verified —
   E has not installed enforcement.
 

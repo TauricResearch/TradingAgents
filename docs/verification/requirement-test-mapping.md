@@ -13,7 +13,7 @@ Legend for **Status**:
 - `OWNED ELSEWHERE` — not a C test artifact (A/E/human).
 
 Evidence root: `tests/member_c_verification/offline/` (run: `.venv/bin/python -m pytest tests/member_c_verification/offline -p no:cacheprovider`).
-Suite result at time of writing: **74 passed, 0 failed**.
+Suite result at time of writing: **80 passed, 0 failed**.
 Live semantic evidence: `tests/member_c_verification/live/` (opt-in; see `docs/verification/semantic-evaluation.md`).
 
 ## Functional requirements
@@ -35,7 +35,7 @@ Live semantic evidence: `tests/member_c_verification/live/` (opt-in; see `docs/v
 | SEL-TA-NFR-001 | TC-NFR001-a..e,d2 | PASS (offline) | `tests/member_c_verification/offline/test_nfr001_failures.py` | Typed outcomes; no escape; INTERRUPTED (R12) not yet tested |
 | SEL-TA-NFR-002 | TC-NFR002-a..c | PASS (offline) | `tests/member_c_verification/offline/test_nfr002_events.py` | Sink-level; full-run JSONL parse via completed run |
 | SEL-TA-NFR-003 | TC-NFR003-a..g | PASS (offline) | `tests/member_c_verification/offline/test_nfr003_privacy.py` | Offline redaction evidence: TC-a..c scrub four planted secret types and secret-keyed values; TC-d model-error, TC-e CLI input-error, TC-f mid-run vendor/data-error, TC-g successfully-published narrative each show no secret/unrelated-holding leak across result/report(.md/.html)/manifest/events/CLI, benign sentence retained, source bytes unchanged, vendor stub reached (DATA_FAILURE/NOT_RUN). Residual: universal absence of *arbitrary/paraphrased* secrets in free-text narrative is a Redactor-pattern property, not proven exhaustively; semantic *wording* quality is a separate gate (GOV-004, PASS) |
-| SEL-TA-NFR-004 | TC-NFR004-a..c | PARTIAL | `tests/member_c_verification/offline/test_nfr004_persistence.py` | Isolation + payload omission; failure walkthroughs (R13/R14) pending |
+| SEL-TA-NFR-004 | TC-NFR004-a..i | PASS (offline) | `tests/member_c_verification/offline/test_nfr004_persistence.py` | Isolation (a), payload omission (b), completed conditional fields (c), config-only one-key diff (d), prompt-template hash change (e), published INCOMPLETE has no rating (f), R13a critical publish failure → INCOMPLETE/PERSISTENCE_ERROR/NOT_RUN + nothing published (g), R13b best-effort failure preserves outcome (h), R14 terminal-event failure → `terminal_event.durable=false` (i). Residual: total-disk/power-loss durability out of scope (cooperative PERSISTENCE_ERROR contract). |
 | SEL-TA-NFR-005 | TC-NFR005-a,b | PASS (offline) | `tests/member_c_verification/offline/test_nfr005_layering.py` | Structural import scan (INV-10) |
 | SEL-TA-NFR-006 | TC-NFR006-a,b | PASS (offline) | `tests/member_c_verification/offline/test_nfr006_population.py` | Aggregation interface; zero-completed ⇒ insufficient |
 
@@ -53,7 +53,7 @@ Live semantic evidence: `tests/member_c_verification/live/` (opt-in; see `docs/v
 ## Baseline regression evidence
 
 - Upstream suite: **1412 passed, 1 failed (BD-001, environmental), 0 skipped, 1 deselected**.
-- C suite: **74 passed**.
+- C suite: **80 passed**.
 - No new regressions attributable to C's tests (they live outside `tests/`/`testpaths`).
 
 ## Live semantic evidence (GOV-004)

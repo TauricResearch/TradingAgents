@@ -128,10 +128,10 @@ The gate must fail closed on any *different* failure.
   It exercises the real check → finalize → persist path deterministically.
 - **Observed result in this checkout:**
   ```
-  74 passed
+  80 passed
   ```
-  Matches the recorded 74 collected / 74 passed / exit 0.
-- **Pass criteria:** 74 collected, 74 passed, 0 failed, 0 skipped, exit 0.
+  Matches the recorded 80 collected / 80 passed / exit 0.
+- **Pass criteria:** 80 collected, 80 passed, 0 failed, 0 skipped, exit 0.
 - **Fail criteria:** any failure or collection error; any silent skip that hides
   a requirement; any relaxation of an assertion without a corresponding,
   approved requirement change.
@@ -175,19 +175,20 @@ in §2) must have at least one negative assertion. Observed coverage:
 | INV-08 | incomplete ⇒ NOT_RUN + no rating; completed ⇒ rating present (asserted via outcome/check pairs) | TC-NFR001-a, TC-FR007-b (no single dedicated bidirectional conditional-field fixture — see gap note) |
 | INV-09 | FROZEN (unconfirmed) rejected; no/EOF → zero graph | TC-FR002-a/c |
 | INV-11 | second terminal event rejected | TC-NFR002-b |
-| INV-12 | two runs isolated; first bytes unchanged; refuse overwrite | TC-NFR004-a |
+| INV-12 | two runs isolated; first bytes unchanged; refuse overwrite | TC-NFR004-a/b |
 | INV-13 | REVIEW ≠ Hold; no-portfolio has no ownership claim | TC-FR005-b, TC-FR004-a |
-| INV-14 | persistence fault → INCOMPLETE/PERSISTENCE_ERROR | **PARTIAL — walkthroughs pending** (R13/R14) |
+| INV-14 | critical publish failure → INCOMPLETE/PERSISTENCE_ERROR/NOT_RUN, nothing published; best-effort failure preserves outcome; terminal-event failure → `durable=false` | TC-NFR004-g/h/i |
 
 - **Pass criteria:** no in-scope invariant lacks a negative case, except where a
   gap is explicitly recorded as `PARTIAL`/`GAP` with a follow-up owner.
 - **Fail criteria:** an invariant claimed verified with only positive-path tests;
   a negative test removed or weakened to accommodate a defect.
-- **Known gaps (recorded honestly, not treated as pass):** INV-14 persistence
-  walkthroughs are `PARTIAL` (R13/R14 pending), and INV-05b has **no dedicated
-  deep-immutability/mutation negative test** yet — a confirm-by-mutation case must
-  be added before INV-05b is claimed verified. `verification-report.md` does not
-  currently assert INV-05b.
+- **Known gaps (recorded honestly, not treated as pass):** INV-05b has **no
+  dedicated deep-immutability/mutation negative test** yet — a confirm-by-mutation
+  case must be added before INV-05b is claimed verified. `verification-report.md`
+  does not currently assert INV-05b. (INV-14 R13a/R13b/R14 are now covered by
+  TC-NFR004-g/h/i; total-disk/power-loss durability remains out of scope by
+  design — the cooperative `PERSISTENCE_ERROR` contract is what is tested.)
 - **Evidence to retain:** the mapping above kept current, plus the passing test
   IDs that assert the negative behaviour.
 
@@ -261,7 +262,7 @@ nor a human score as a deterministic check result.
 |---|---|---|---|
 | Structural boundary (INV-10) | yes | n/a | PASS (offline) |
 | Upstream regression | yes (§3), 1 known exception | n/a | 1412 pass / 1 env fail — exception **pending A/E** |
-| Behavioural FR/NFR | yes, 74 tests | n/a | PASS (offline) |
+| Behavioural FR/NFR | yes, 80 tests | n/a | PASS (offline) |
 | Output checker Q1–Q4 | yes | C1–C3 PASSED, C4/C5 NEEDS_REVIEW | deterministic only |
 | Human semantic rubric | n/a | 28/28 = 100%, 0 critical | **PASS** |
 | GOV-004 overall | — | — | **PASS** (re-validate after prompt/model change) |
@@ -273,7 +274,7 @@ Retain, per run, in `docs/verification/` (summaries) and `tests/member_c_verific
 
 - The exact command used and the full summary/exit line.
 - For upstream: failed node IDs + the §4 exception reproduction.
-- For offline: 74-passed summary; mapping rows updated.
+- For offline: 80-passed summary; mapping rows updated.
 - For live: the evidence JSON path, per-case run IDs, report/manifest paths,
   deterministic check outcome, and challenge-reached flag. **No credentials and
   no raw prompts** — the runner records only prompt digests/lengths and marker
@@ -286,7 +287,7 @@ clean-install smoke, and `ruff check .`. E must add/extend the following.
 
 | # | Check | Command | Blocking | Evidence artifact |
 |---|---|---|---|---|
-| E1 | C offline acceptance suite | `pytest tests/member_c_verification/offline -p no:cacheprovider -q` | yes | JUnit/pytest summary; 74 passed |
+| E1 | C offline acceptance suite | `pytest tests/member_c_verification/offline -p no:cacheprovider -q` | yes | JUnit/pytest summary; 80 passed |
 | E2 | Structural boundary | `pytest tests/member_c_verification/offline/test_nfr005_layering.py -q` (covered by E1; keep as explicit job) | yes | summary + offender list on fail |
 | E3 | Upstream zero-regression | `pytest -q` + parse failures against the approved-exception list (§4) | yes (fail closed) | summary + failed IDs; exception must be reproduced, not allowlisted |
 | E4 | Bedrock exception handling | proxy-unset reproduction step; or a skip guarded on proxy env, **only after A/E approval** | conditional | reproduction log; approval reference |
