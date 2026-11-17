@@ -1,4 +1,6 @@
 """The intraday account's messages: an hour's fills, the daily summary, the performance.
+The first two are laid out as ``trader.message`` says and go out labeled with the
+account (``trader.notify.labeled``); they do not name it themselves.
 
 Performance is equity net of the signals' LLM spend over the validation period,
 set against buy-and-hold of the same coins on OKX spot (CONTEXT.md), with the
@@ -10,12 +12,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from trader import rules
+from trader import message, rules
 from trader.intraday.paper import IntradayPaper, utc_date
-from trader.ledger import Fill, Ledger, Position
+from trader.ledger import Fill, Ledger
 from trader.okx import DAY_MS
 from trader.report import baselines, performance_line
-from trader.settings import Coin
 
 # Appended to an equity figure marked at the last marks because OKX gave no price.
 UNAVAILABLE = "（行情暂不可用，按最近一次标记价计）"
@@ -24,20 +25,23 @@ UNAVAILABLE = "（行情暂不可用，按最近一次标记价计）"
 def hourly(
     paper: IntradayPaper, hour: int, signals: dict[str, str | None], fills: list[Fill]
 ) -> str:
-    """The message for an hour that had fills: each filled coin's signal, fills and
-    position left, then the equity. ``fills`` are the hour's, from ``ledger.fills``."""
+    """The message for an hour that had fills: a paragraph for each filled coin (its
+    signal, its trades, the position left), then the equity. ``fills`` are the hour's,
+    from ``ledger.fills``."""
     positions = paper.ledger.positions()
-    when = datetime.fromtimestamp(hour / 1000, UTC).strftime("%m-%d %H:%M")
-    lines = [f"日内 · {when} UTC"]
+    blocks = [[f"成交 · {message.when(hour)}"]]
     for coin in paper.watchlist:
         own = [f for f in fills if f.inst == coin.swap]
         if own:
-            action = "；".join(_fill_text(f) for f in own)
-            signal = signals.get(coin.research) or "无信号"
-            lines.append(f"{_name(coin)}：{signal} → {action}；{_held(positions.get(coin.swap))}")
+            signal = signals.get(coin.research)
+            blocks.append([
+                f"{message.coin(coin.swap)} · {f'信号 {signal}' if signal else '无信号'}",
+                *message.trades(own),
+                message.held(positions.get(coin.swap)),
+            ])
     equity, unavailable = paper.equity_now()
-    lines.append(f"净值 {equity:,.2f} USDT{UNAVAILABLE if unavailable else ''}")
-    return "\n".join(lines)
+    blocks.append([f"净值 {equity:,.2f} USDT{UNAVAILABLE if unavailable else ''}"])
+    return message.paragraphs(*blocks)
 
 
 def daily(paper: IntradayPaper, day: str, now_ms: int) -> str:
@@ -51,37 +55,33 @@ def daily(paper: IntradayPaper, day: str, now_ms: int) -> str:
     day_start = int(datetime.fromisoformat(day).replace(tzinfo=UTC).timestamp() * 1000)
     day_end = day_start + DAY_MS
     equity, unavailable = paper.equity_now()
-    lines = [f"日内盘日报 · {day}"]
+    blocks = [[f"日报 · {message.day(day)}（UTC）"]]
     if ledger.get("halted"):
-        lines.append("⚠ 熔断中：不求信号、不交易。确认后运行 python -m trader intraday resume 恢复。")
+        blocks.append(["⚠ 熔断中：不求信号、不交易。确认后运行 python -m trader intraday resume 恢复。"])
     bases = [e for ts, e in ledger.equity_series() if ts <= day_start]
     change = (
-        f"较 {day} 零点 {equity / bases[-1] - 1:+.2%}" if bases
+        f"较 {message.day(day)} 零点 {equity / bases[-1] - 1:+.2%}" if bases
         else f"较本金 {equity / ledger.get('capital') - 1:+.2%}"
     )
     peak = ledger.get("peak")
-    lines.append(
-        f"净值 {equity:,.2f} USDT，{change}，"
-        f"回撤 {rules.drawdown(equity, peak):.1%}（峰值 {peak:,.2f}）{UNAVAILABLE if unavailable else ''}"
-    )
+    blocks.append([
+        f"净值 {equity:,.2f} USDT{UNAVAILABLE if unavailable else ''}",
+        f"{change} · 回撤 {rules.drawdown(equity, peak):.1%}（峰值 {peak:,.2f}）",
+    ])
     reasons = [f.reason for f in ledger.fills(day_start) if f.ts < day_end]
-    lines.append(
-        f"昨日成交 {len(reasons)} 笔（调仓 {reasons.count('trade')}，"
-        f"止损 {reasons.count('stop')}，熔断 {reasons.count('kill')}）"
-    )
     signals = [row[2] for row in ledger.signals(day_start) if row[0] < day_end]
-    lines.append(
-        f"昨日信号 {len(signals)} 次：Long {signals.count('Long')}，"
-        f"Short {signals.count('Short')}，Flat {signals.count('Flat')}，失败 {signals.count(None)}"
-    )
     day_costs = [cost for ts, cost in ledger.signal_costs(day_start) if ts < day_end]
     month, unknown_month = ledger.signal_cost_since(_month_start_ms(now_ms))
-    unknown = "；有调用费用未知，没算进去" if None in day_costs or unknown_month else ""
-    lines.append(
-        f"LLM 费用：昨日 ${sum(c or 0.0 for c in day_costs):,.2f}，本月 ${month:,.2f}"
-        f"（已从绩效扣除，没有预算上限）{unknown}"
-    )
-    return "\n".join(lines)
+    blocks.append([
+        f"成交 {len(reasons)} 笔：调仓 {reasons.count('trade')} · "
+        f"止损 {reasons.count('stop')} · 熔断 {reasons.count('kill')}",
+        f"信号 {len(signals)} 次：Long {signals.count('Long')} · "
+        f"Short {signals.count('Short')} · Flat {signals.count('Flat')} · 失败 {signals.count(None)}",
+        f"AI 费用：当日 ${sum(c or 0.0 for c in day_costs):,.2f} · 本月 ${month:,.2f}"
+        "（已从绩效扣除，没有预算上限）",
+        *(["有调用费用未知，没算进去"] if None in day_costs or unknown_month else []),
+    ])
+    return message.paragraphs(*blocks)
 
 
 def full(paper: IntradayPaper) -> str:
@@ -123,18 +123,6 @@ def net_equity(ledger: Ledger) -> list[tuple[int, float]]:
             i += 1
         out.append((ts, equity - spent))
     return out
-
-
-def _fill_text(fill: Fill) -> str:
-    return f"{'买入' if fill.qty > 0 else '卖出'} {abs(fill.qty):g} @ {fill.price:,.2f}"
-
-
-def _held(pos: Position | None) -> str:
-    return f"持仓 {pos.qty:+g}，止损 {pos.stop:,.2f}" if pos else "无持仓"
-
-
-def _name(coin: Coin) -> str:
-    return coin.research.split("-")[0]
 
 
 def _month_start_ms(now_ms: int) -> int:

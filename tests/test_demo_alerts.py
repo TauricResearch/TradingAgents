@@ -58,7 +58,7 @@ def test_the_run_whose_sync_finds_a_stop_filled_on_the_exchange_says_so_that_hou
     env.run(RUN0 + HOUR_MS)  # the next hour undecided: the sync is all the run does
     # 10 contracts long from 80,000 lost 105, and the stop's fill paid 3.95 of fees.
     assert env.inbox.sent[1:] == [
-        "【demo】止损成交：BTC-USDT-SWAP 卖出 10 张 @ 78,950.00，盈亏 -108.95 USDT（开仓均价 80,000.00，含手续费 3.95）"
+        "【demo】止损平仓 · BTC\n卖出 0.1 @ 78,950.00（开仓均价 80,000.00）\n盈亏 -108.95 USDT（-1.36%）"
     ]
     assert env.ledger.positions() == {} and [f.reason for f in env.ledger.fills()] == ["trade", "stop"]
     env.run(RUN0 + HOUR_MS + 60_000)  # booked once, told once
@@ -166,7 +166,7 @@ def test_what_a_run_could_not_send_goes_out_ahead_of_the_next_runs_own(env):
     env.exchange.trigger_stop(BTC.swap, 78_950.0)
     env.run(RUN0 + HOUR_MS)
     report, stop = env.inbox.sent
-    assert report.startswith("【demo】01-10 00:00 UTC\nBTC：Long → ")
+    assert report.startswith("【demo】成交 · 01-10 08:00 北京（00:00 UTC）\n\nBTC · 信号 Long\n")
     assert report.endswith("\n（补发：01-10 00:10 UTC 没发出去）")
-    assert stop.startswith("【demo】止损成交：")
+    assert stop.startswith("【demo】止损平仓 · BTC\n")
     assert env.ledger.get(DEMO.failures_key) is None  # the report was no failure's alert

@@ -285,7 +285,7 @@ def test_the_orders_and_their_stops_go_by_the_price_read_again_after_the_wait(tm
     assert env.exchange.book[BTC.swap] == [10.0, 81_200.0]
     assert stops(env.exchange) == [("sell", 10.0, 80_200.0)]
     (report,) = env.inbox.sent
-    assert report.startswith("【demo】01-10 00:00 UTC\nBTC：Long → ")
+    assert report.startswith("【demo】成交 · 01-10 08:00 北京（00:00 UTC）\n\nBTC · 信号 Long\n")
 
 
 def test_a_shadow_hour_sizes_its_orders_at_the_price_read_again_too(tmp_path):

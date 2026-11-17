@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from trader import rules
+from trader import message, rules
 from trader.ledger import Fill, Ledger, Position
 from trader.okx import DAY_MS, MINUTE_MS, OKX, REQUEST_ERRORS, Bar
 from trader.settings import ATR_DAYS, KILL_DRAWDOWN, STOP_ATR_MULT, WATCHLIST, Coin
@@ -135,7 +135,7 @@ class Paper:
                     price = rules.slipped(hit, -pos.qty)
                     pnl = _move(positions, inst, 0.0, price, 0.0, t, "stop", fills)
                     cash += pnl
-                    alerts.append(_stop_alert(inst, pos.qty, price, pnl))
+                    alerts.append(message.stopped(inst, -pos.qty, price, pos.entry, pnl))
             for inst, series in bars.items():
                 if t in series:
                     last_close[inst] = series[t].close
@@ -229,7 +229,7 @@ class Paper:
                 fill_price = rules.slipped(price, -pos.qty)
                 pnl = _move(positions, inst, 0.0, fill_price, 0.0, now_ms, "stop", fills)
                 cash += pnl
-                alerts.append(_stop_alert(inst, pos.qty, fill_price, pnl))
+                alerts.append(message.stopped(inst, -pos.qty, fill_price, pos.entry, pnl))
             else:
                 candidate = rules.initial_stop(price, pos.qty, atr_value)
                 pos.stop = rules.tighten(pos.stop, candidate, pos.qty)
@@ -329,10 +329,6 @@ def _move(
 def _midnights(start: int, end: int) -> list[int]:
     """UTC midnights M with start < M <= end, in milliseconds."""
     return list(range(start - start % DAY_MS + DAY_MS, end + 1, DAY_MS))
-
-
-def _stop_alert(inst: str, qty: float, price: float, pnl: float) -> str:
-    return f"止损：{inst} {qty:+g} 在 {price:,.2f} 平仓，盈亏 {pnl:+,.2f} USDT"
 
 
 def _bars_alert(inst: str, refused: list[Bar]) -> str:

@@ -12,11 +12,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from trader import rules
+from trader import message, rules
 from trader.intraday.settings import ATR_BAR, DEFAULT_PARAMS, Params
 from trader.ledger import Ledger
 from trader.okx import DAY_MS, OKX
-from trader.paper import Paper, _baseline_ref, _move, _stop_alert
+from trader.paper import Paper, _baseline_ref, _move
 from trader.settings import WATCHLIST, Coin
 
 HOUR_MS = 3_600_000
@@ -77,7 +77,7 @@ class IntradayPaper(Paper):
                 fill_price = rules.slipped(price, -pos.qty)
                 pnl = _move(positions, inst, 0.0, fill_price, 0.0, now_ms, "stop", fills)
                 cash += pnl
-                alerts.append(_stop_alert(inst, pos.qty, fill_price, pnl))
+                alerts.append(message.stopped(inst, -pos.qty, fill_price, pos.entry, pnl))
             else:
                 candidate = rules.initial_stop(price, pos.qty, atr_value, stop_mult=p.stop_mult)
                 pos.stop = rules.tighten(pos.stop, candidate, pos.qty)

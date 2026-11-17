@@ -633,7 +633,7 @@ def test_a_stop_that_fired_on_the_exchange_is_booked_as_a_stop_with_the_exchange
     assert (stop_fill.qty, stop_fill.price, stop_fill.reason) == (-0.1, 78_950.0, "stop")
     assert stop_fill.fee == pytest.approx(0.1 * 78_950 * FEE)
     assert result.alerts == [
-        "止损成交：BTC-USDT-SWAP 卖出 10 张 @ 78,950.00，盈亏 -108.95 USDT（开仓均价 80,000.00，含手续费 3.95）"
+        "止损平仓 · BTC\n卖出 0.1 @ 78,950.00（开仓均价 80,000.00）\n盈亏 -108.95 USDT（-1.36%）"
     ]
     # Cash is the wallet: 10,000 less both fees less the 105 lost.
     assert ledger.get("cash") == pytest.approx(10_000 - 4.0 - 0.1 * 78_950 * FEE - 105.0)
@@ -657,7 +657,7 @@ def test_a_fill_whose_order_cannot_be_read_is_booked_by_the_sync_that_reads_it(a
     assert [f.reason for f in ledger.fills()] == ["trade", "stop"] and not account.paused
     assert ledger.positions() == {}
     assert result.alerts == [
-        "止损成交：BTC-USDT-SWAP 卖出 10 张 @ 78,950.00，盈亏 -108.95 USDT（开仓均价 80,000.00，含手续费 3.95）"
+        "止损平仓 · BTC\n卖出 0.1 @ 78,950.00（开仓均价 80,000.00）\n盈亏 -108.95 USDT（-1.36%）"
     ]
 
 
@@ -700,20 +700,23 @@ def test_a_fill_of_an_order_the_exchange_does_not_know_is_manual(account, ledger
 
 
 def test_a_fired_stop_is_told_from_all_its_fills_and_from_the_entry_of_the_position_it_closed():
-    # A short's stop, filled in two pieces: 10 contracts at 81,300 on average, 1,300
-    # above the entry, lose 130 and 4 of fees.
+    # A short's stop, filled in two pieces: 0.1 BTC at 81,300 on average, 1,300 above
+    # the entry, lose 130 and 4 of fees, 1.68% of the 8,000 the 0.1 BTC cost.
     legs = [
         (4.0, Fill(T0, BTC.swap, 0.04, 81_000.0, 1.6, "stop")),
         (6.0, Fill(T0 + 1, BTC.swap, 0.06, 81_500.0, 2.4, "stop")),
     ]
-    head = "止损成交：BTC-USDT-SWAP 买入 10 张 @ 81,300.00，"
     short = Position(-0.1, 80_000.0, 81_000.0)
     assert account_module._fired_text(BTC.swap, legs, short) == (
-        head + "盈亏 -134.00 USDT（开仓均价 80,000.00，含手续费 4.00）"
+        "止损平仓 · BTC\n"
+        "买入 0.1 @ 均价 81,300.00（2 笔 · 开仓均价 80,000.00）\n"
+        "盈亏 -134.00 USDT（-1.68%）"
     )
     # No position it could have closed, in the ledger: no entry to measure from.
     for held in (None, Position(0.1, 80_000.0, 79_000.0)):
-        assert account_module._fired_text(BTC.swap, legs, held) == head + "账本里没有它平掉的仓位，算不出盈亏"
+        assert account_module._fired_text(BTC.swap, legs, held) == (
+            "止损平仓 · BTC\n买入 0.1 @ 均价 81,300.00（2 笔）\n账本里没有它平掉的仓位，算不出盈亏"
+        )
 
 
 def test_funding_is_booked_with_the_public_rate_and_not_twice(account, ledger, exchange):

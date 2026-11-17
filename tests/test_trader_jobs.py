@@ -80,8 +80,8 @@ def test_a_buy_is_researched_traded_and_reported(env):
     paper, inbox = run(env, researcher)
     assert researcher.calls == [("BTC-USD", "2026-01-09")]
     assert paper.ledger.positions()[BTC.swap].qty == pytest.approx(0.04)
-    assert "研判日 2026-01-09" in inbox.sent[-1]
-    assert "BTC：Buy → 买入 0.04" in inbox.sent[-1]
+    assert inbox.sent[-1].startswith("日报 · 研判日 01-09\n")
+    assert "BTC · Buy\n买入 0.04 @ 80,040.00\n" in inbox.sent[-1]
     assert "上限未定（已观察 0/7 天）" in inbox.sent[-1]
 
 
@@ -101,7 +101,7 @@ def test_the_report_goes_out_when_okx_fails_after_the_trades(env):
         published=candle_out,
     )
     assert paper.ledger.positions()[BTC.swap].qty == pytest.approx(0.04)
-    assert "研判日 2026-01-09" in inbox.sent[-1]
+    assert inbox.sent[-1].startswith("日报 · 研判日 01-09\n")
     assert inbox.sent[-1].splitlines()[-1].startswith("⚠ 行情暂不可用")
     assert ledger.get("reported") == ["2026-01-09", True]
 
@@ -132,7 +132,7 @@ def test_review_is_a_result_and_is_not_retried(env):
     _, inbox = run(env, researcher)
     assert len(researcher.calls) == 1
     assert env[1].positions() == {}
-    assert "BTC：REVIEW → 不调仓；无持仓" in inbox.sent[-1]
+    assert "BTC · REVIEW\n不调仓 · 无持仓" in inbox.sent[-1]
 
 
 def test_a_coin_failing_every_attempt_keeps_its_position(env):
@@ -158,7 +158,7 @@ def test_research_stops_when_the_monthly_budget_is_spent(env):
     assert researcher.calls == []
     assert jobs.coin_state(ledger, "2026-01-09", BTC.research) == ("failed", BUDGET_ERROR)
     assert ledger.get("budget_cap") == pytest.approx(45.0)
-    assert "未研判（本月 LLM 预算已用完）" in inbox.sent[-1]
+    assert "未研判（本月 AI 预算已用完）" in inbox.sent[-1]
 
 
 def test_the_cap_is_learned_from_days_with_known_costs(env):
@@ -179,7 +179,7 @@ def test_research_runs_but_nothing_trades_while_halted(env):
     assert len(researcher.calls) == 1
     assert ledger.positions() == {}
     assert not ledger.executed("2026-01-09")
-    assert inbox.sent[-1].splitlines()[1].startswith("⚠ 熔断中")
+    assert inbox.sent[-1].startswith("日报 · 研判日 01-09\n\n⚠ 熔断中")
 
 
 def test_a_second_day_with_failures_alerts(env):
@@ -222,7 +222,7 @@ def test_configured_model_prices_do_not_alert(env):
     settings, ledger = env
     priced = Settings(home=settings.home, price_deep=(3.0, 15.0), price_quick=(0.15, 0.6))
     _, inbox = run((priced, ledger), FakeResearcher({BTC.research: ["Buy"]}))
-    assert [text.splitlines()[0] for text in inbox.sent] == ["模拟盘日报 · 研判日 2026-01-09"]
+    assert [text.splitlines()[0] for text in inbox.sent] == ["日报 · 研判日 01-09"]
 
 
 def test_a_new_model_or_version_restarts_validation_and_a_code_change_does_not(env):
@@ -342,7 +342,7 @@ def test_once_the_candle_is_out_a_rerun_replaces_the_first_research_and_the_acco
     assert ledger.updates() == [("2026-01-09", "BTC-USD", late_ms, "Hold", "Buy")]
     text = "BTC 研判已更新：Hold → Buy（研判日 2026-01-09，用上了当天的日线）"
     assert ledger.events(kinds=("research_update",)) == [(late_ms, "research_update", text)]
-    assert inbox.sent[0] == text
+    assert inbox.sent[0] == "研判更新 · BTC\n评级 Hold → Buy\n研判日 01-09 · 用上了当天的日线"
     # The new record replaced the old one, kept under a name the readers skip.
     assert json.loads(record.read_text())["final_rating"] == "Buy"
     kept = record.with_name("superseded_20260110T0730Z_full_states_log_2026-01-09.json")
@@ -352,8 +352,8 @@ def test_once_the_candle_is_out_a_rerun_replaces_the_first_research_and_the_acco
     assert "[2026-01-09 | BTC-USD | Buy | pending]" in log and "without the day's candle" not in log
     # The account traded on it, and the report says so.
     assert ledger.positions()[BTC.swap].qty > 0 and ledger.executed("2026-01-09")
-    assert "BTC：Buy（研判已更新：Hold → Buy，01-10 07:30 UTC） → 买入 " in inbox.sent[-1]
-    assert "ETH：Hold → 不调仓" in inbox.sent[-1]
+    assert "BTC · Buy（重跑前是 Hold）\n买入 " in inbox.sent[-1]
+    assert "ETH · Hold\n不调仓 · 无持仓" in inbox.sent[-1]
 
 
 def test_a_failed_rerun_leaves_the_first_research_and_the_next_hour_tries_again(env):
@@ -372,7 +372,7 @@ def test_a_failed_rerun_leaves_the_first_research_and_the_next_hour_tries_again(
 
     _, inbox = run(env, first, now=LATE + timedelta(hours=1), published=Yahoo(BTC.research), rerun=rerun)
     assert jobs.coin_state(ledger, "2026-01-09", BTC.research) == ("done", "Buy")
-    assert "BTC：Buy（研判已更新：Hold → Buy，01-10 08:30 UTC） → 买入 0.04" in inbox.sent[-1]
+    assert "BTC · Buy（重跑前是 Hold）\n买入 0.04 @ 80,040.00\n" in inbox.sent[-1]
 
 
 def test_a_rerun_failing_after_it_wrote_its_record_puts_the_first_record_back(env):
@@ -407,7 +407,7 @@ def test_from_the_cutoff_hour_the_account_trades_on_the_first_rating_with_an_ale
     assert [text for _, _, text in ledger.events(kinds=("bar_cutoff",))] == [alert]
     assert len(researcher.calls) == 1
     assert ledger.positions()[BTC.swap].qty == pytest.approx(0.04)
-    assert "BTC：Buy → 买入 0.04" in inbox.sent[-1]
+    assert "BTC · Buy\n买入 0.04 @ 80,040.00\n" in inbox.sent[-1]
 
 
 def test_with_the_monthly_budget_spent_no_coin_waits_for_a_rerun(env):

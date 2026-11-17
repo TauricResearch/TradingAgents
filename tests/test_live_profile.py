@@ -73,7 +73,7 @@ def test_a_live_run_labels_what_it_sends_and_keeps_to_its_own_lock_and_throttle(
     run(env, account, exchange, RUN0)
     assert exchange.book[BTC.swap] == [10.0, 80_000.0]
     (text,) = env.inbox.sent
-    assert text.startswith("【live】01-10 00:00 UTC\nBTC：Long → ")
+    assert text.startswith("【live】成交 · 01-10 08:00 北京（00:00 UTC）\n\nBTC · 信号 Long\n")
     assert env.settings.live_lock_path.exists() and not env.settings.demo_lock_path.exists()
 
     def broken(ccy="USDT"):
@@ -103,7 +103,7 @@ def test_the_events_and_reports_of_a_live_account_name_it(tmp_path):
     assert performance[0].startswith("live 绩效：自 2026-01-10 起") and performance[1].startswith("live（交易所权益）")
     account.ledger.set("halted", True)
     daily = report.daily(account, "2026-01-09", RUN0).splitlines()
-    assert daily[:2] == ["日报 · 2026-01-09", "⚠ 熔断中：已平仓，不再下单。按 ADR 0010，live 熔断一次就不再解除，实验到此结束。"]
+    assert daily[:3] == ["日报 · 01-09（UTC）", "", "⚠ 熔断中：已平仓，不再下单。按 ADR 0010，live 熔断一次就不再解除，实验到此结束。"]
 
 
 def test_a_live_kill_alert_says_the_experiment_is_over(tmp_path):

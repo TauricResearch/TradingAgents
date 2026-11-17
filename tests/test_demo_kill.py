@@ -70,7 +70,7 @@ def test_a_close_that_fails_leaves_the_others_closed_its_stop_standing_and_the_n
     assert kill.endswith(f"停止交易；已对 ETH-USDT-SWAP 发出市价平仓；{failed}。{AFTER}")
     assert still == f"【demo】熔断中：BTC-USDT-SWAP 还有仓位；{failed}。"
     daily = report.daily(env.account, "2026-01-10", RUN0 + HOUR_MS).splitlines()
-    assert daily[1] == f"⚠ 熔断中：交易所里还有 1 个仓位，每次运行都再平，不再下单。{AFTER}"
+    assert daily[1:3] == ["", f"⚠ 熔断中：交易所里还有 1 个仓位，每次运行都再平，不再下单。{AFTER}"]
 
     env.exchange.failures.clear()
     env.run(RUN0 + 2 * HOUR_MS)

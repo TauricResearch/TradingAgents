@@ -80,7 +80,7 @@ def test_a_fill_the_program_did_not_make_pauses_the_account_until_a_resume(env):
     run(env, 2, "Flat")
     assert len(pause_alerts(env)) == 1 and env.exchange.calls[calls:] == []
     env.run(RUN0 + DAY_MS)
-    assert f"  暂停原因（01-10 01:10 UTC 起）：{text}" in env.inbox.sent[-1].splitlines()
+    assert f"暂停原因（01-10 09:10 北京起）：{text}" in env.inbox.sent[-1].splitlines()
     reasons, _ = resume(env, RUN0 + DAY_MS + 60_000)
     assert [(r["key"], r["text"]) for r in reasons] == [("fill:" + reasons[0]["key"][5:], text)]
     assert not env.account.paused and env.account.pause_reasons == []
