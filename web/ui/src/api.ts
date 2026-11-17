@@ -105,6 +105,11 @@ export interface LatestCoin {
   rating: string | null
   error: string | null
   cost_usd: number | null
+  /** When the day's first rating was out, as the record file is dated; null until the coin
+   * is done, and when a rerun replaced the record and the first one was not kept. */
+  published_at: string | null
+  /** When a rerun on the trade date's daily candle replaced the rating; null without one. */
+  updated_at: string | null
   fills: LatestFill[]
 }
 
@@ -113,6 +118,9 @@ export interface Latest {
   /** Null on an account that researches nothing itself: the daily research it shows, its
    * coins without fills. */
   executed: boolean | null
+  /** When the account rebalanced on the trade date's ratings; null like `executed`, and
+   * until it has. */
+  executed_at: string | null
   coins: LatestCoin[]
 }
 
@@ -301,6 +309,13 @@ export interface ResearchSummary {
   cost_usd: number | null
   tokens_in: number
   tokens_out: number
+  /** When the day's first attempt at the coin began; null for a record without attempts. */
+  started_at: string | null
+  /** When the day's first rating was out, as the record file is dated; null when a rerun
+   * replaced the record and the first one was not kept. */
+  published_at: string | null
+  /** When the daily account rebalanced on the trade date's ratings; null when it did not. */
+  executed_at: string | null
   update: ResearchUpdate | null
 }
 

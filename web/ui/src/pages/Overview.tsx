@@ -19,7 +19,7 @@ import { ExposureBar, PositionsTable } from '../components/PositionsTable'
 import { ErrorBox, Loading, MarketNote, StaleNote } from '../components/Status'
 import { Welcome } from '../components/Welcome'
 import { CHART_DAYS } from '../daily'
-import { fmtDate, fmtDay, fmtDrawdown, fmtNum, fmtPct, fmtSigned, fmtTime, fmtTimeFull, fmtUsdt, tone } from '../format'
+import { fmtBeijing, fmtDate, fmtDay, fmtDrawdown, fmtNum, fmtPct, fmtSigned, fmtTime, fmtTimeFull, fmtUsdt, tone } from '../format'
 import { useFetch } from '../hooks'
 
 const REFRESH_MS = 60_000
@@ -61,7 +61,17 @@ export function Overview() {
       title={`最近研判 · 研判日 ${ov.latest.trade_date}`}
       help="latest_research"
       aside={
-        shared ? SHARED_NOTE : ov.latest.executed ? '已执行调仓' : <span className="text-accent">尚未执行</span>
+        shared ? (
+          SHARED_NOTE
+        ) : !ov.latest.executed ? (
+          <span className="text-accent">尚未执行</span>
+        ) : ov.latest.executed_at ? (
+          <span className="num" title={`调仓执行时间：${fmtTimeFull(ov.latest.executed_at)}`}>
+            已执行调仓 · {fmtBeijing(ov.latest.executed_at)}
+          </span>
+        ) : (
+          '已执行调仓'
+        )
       }
       flush
     >
