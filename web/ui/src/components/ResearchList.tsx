@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ResearchSummary } from '../api'
-import { coinLabel, fmtInt, fmtUsd } from '../format'
+import { coinLabel, fmtBeijing, fmtInt, fmtTimeFull, fmtUsd, fmtUtcClock } from '../format'
 import { researchHref, researchKey } from '../routes'
 import { RatingChip } from './RatingChip'
 import { Empty } from './Status'
@@ -14,7 +14,9 @@ interface Props {
   compact?: boolean
 }
 
-/** Research records grouped by trade date, newest first as the API returns them. */
+/** Research records grouped by trade date, newest first as the API returns them, each with
+ * when its rating was published; a narrow screen leaves that to the update note of a row
+ * that has one. */
 export function ResearchList({ items, activeKey, compact = false }: Props) {
   if (items.length === 0) return <Empty label="还没有研判记录" />
 
@@ -50,6 +52,15 @@ export function ResearchList({ items, activeKey, compact = false }: Props) {
                       {coinLabel(r.coin)}
                     </span>
                     <RatingChip rating={r.rating} />
+                    {!compact && r.published_at && (
+                      <span
+                        className={`num shrink-0 text-[11px] text-muted ${r.update ? 'hidden sm:inline' : ''}`}
+                        title={`发布时间：${fmtTimeFull(r.published_at)}`}
+                      >
+                        发布 {fmtBeijing(r.published_at)}
+                        <span className="hidden sm:inline"> · {fmtUtcClock(r.published_at)}</span>
+                      </span>
+                    )}
                     {r.update && <UpdateNote update={r.update} compact={compact} />}
                     {!compact && (
                       <span className="num ml-auto flex gap-4 text-[11px] text-muted">

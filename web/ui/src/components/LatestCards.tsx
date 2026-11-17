@@ -3,6 +3,7 @@ import type { Latest, LatestCoin } from '../api'
 import { coinLabel, fmtAbsQty, fmtUsd, fmtUsdt } from '../format'
 import { researchHref } from '../routes'
 import { RatingChip } from './RatingChip'
+import { Time } from './Time'
 
 function fillsText(coin: LatestCoin): string {
   if (coin.fills.length === 0) return '不调仓'
@@ -23,6 +24,20 @@ function CardBody({ coin, shared }: { coin: LatestCoin; shared: boolean }) {
           {fmtUsd(coin.cost_usd)}
         </span>
       </div>
+      {(coin.published_at || coin.updated_at) && (
+        <div className="flex flex-wrap gap-x-3 pl-12 text-[11px] text-muted">
+          {coin.published_at && (
+            <span>
+              发布 <Time ts={coin.published_at} />
+            </span>
+          )}
+          {coin.updated_at && (
+            <span>
+              更新 <Time ts={coin.updated_at} />
+            </span>
+          )}
+        </div>
+      )}
       {!shared && (
         <div className={`num pl-12 text-[12px] ${coin.fills.length ? 'text-fg' : 'text-muted'}`}>
           {fillsText(coin)}
@@ -32,7 +47,8 @@ function CardBody({ coin, shared }: { coin: LatestCoin; shared: boolean }) {
   )
 }
 
-/** The latest trade date's research per coin; finished ones open the record. `shared`: the
+/** The latest trade date's research per coin, with when its rating was published and when a
+ * rerun replaced it; finished ones open the record. `shared`: the
  * daily research on an account that trades by the hourly signals, without the daily
  * account's rebalancing. */
 export function LatestCards({ latest, shared = false }: { latest: Latest; shared?: boolean }) {

@@ -60,6 +60,7 @@ export type HelpKey =
   | 's_risk'
   | 's_decision'
   | 'tokens'
+  | 'research_times'
   // history tabs
   | 'daily'
   | 'fills'
@@ -164,7 +165,7 @@ export const HELP: Record<HelpKey, HelpEntry> = {
     section: 'validation',
   },
   latest_research: {
-    text: `每个币最新一次研判的评级、当日成交摘要和 AI 费用；点击可进入完整的研判流程详情。日内、demo、live 不自己研判，小时信号读的就是这份日频研判，所以显示的是同一份（各账户共用），只有评级和 AI 费用，不带日频账户的调仓。`,
+    text: `每个币最新一次研判的评级、发布时间（评级被重跑更新过的另有更新时间）、当日成交摘要和 AI 费用；标题右侧是调仓有没有执行、什么时候执行的；点击可进入完整的研判流程详情。日内、demo、live 不自己研判，小时信号读的就是这份日频研判，所以显示的是同一份（各账户共用），只有评级和 AI 费用，不带日频账户的调仓。`,
     section: 'research',
   },
   rating: {
@@ -269,6 +270,10 @@ export const HELP: Record<HelpKey, HelpEntry> = {
   },
   s_decision: {
     text: `组合经理综合全部分析后给出的最终评级（Buy / Overweight / Hold / Underweight / Sell），或无法识别时记为 REVIEW。`,
+    section: 'research-page',
+  },
+  research_times: {
+    text: `这次研判每一步的时间：开始研判（当天第一次尝试开始）、发布（第一个评级出来）、更新（等到研判日的日线后重跑，评级换成新的；没有重跑就没有这一项）、调仓执行（日频账户按这天的评级调仓）。发布时间取自研判记录文件的写入时间；显示“—”表示这个时间没有记到。`,
     section: 'research-page',
   },
   tokens: {

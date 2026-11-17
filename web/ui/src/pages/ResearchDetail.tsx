@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import type { ResearchDetail as Detail, ResearchSummary, ResearchUpdate, RunSettings } from '../api'
+import type { ResearchDetail as Detail, ResearchSummary, RunSettings } from '../api'
 import { researchPath } from '../api'
 import { Debate } from '../components/Debate'
 import { Help } from '../components/Help'
@@ -10,8 +10,10 @@ import { RatingChip } from '../components/RatingChip'
 import { ResearchList } from '../components/ResearchList'
 import { Section } from '../components/Section'
 import { ErrorBox, Loading } from '../components/Status'
+import { Time } from '../components/Time'
 import { UpdateNote } from '../components/UpdateNote'
 import type { HelpKey } from '../content/help'
+import { DASH } from '../format'
 import { useFetch } from '../hooks'
 import { researchKey } from '../routes'
 
@@ -122,17 +124,51 @@ function SettingsTags({ s }: { s: RunSettings }) {
   )
 }
 
+/** When the research happened: begun, its first rating out, replaced by a rerun, traded on.
+ * The account waits for the rerun before it trades; one that traded first is shown so. */
+function TimeNodes({ row }: { row: ResearchSummary }) {
+  const executed = { label: '调仓执行', ts: row.executed_at, none: '未执行' }
+  const updated = row.update && { label: '更新', ts: row.update.at, none: DASH }
+  const tail = !updated
+    ? [executed]
+    : row.executed_at && row.executed_at < updated.ts
+      ? [executed, updated]
+      : [updated, executed]
+  const nodes = [
+    { label: '开始研判', ts: row.started_at, none: DASH },
+    { label: '发布', ts: row.published_at, none: DASH },
+    ...tail,
+  ]
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+      <span className="flex items-center gap-1.5 text-muted">
+        时间节点
+        <Help k="research_times" />
+      </span>
+      {nodes.map((n, i) => (
+        <span key={n.label} className="flex items-center gap-2">
+          {i > 0 && <span className="text-muted">→</span>}
+          <span className="text-muted">{n.label}</span>
+          {n.ts ? <Time ts={n.ts} /> : <span className="num text-muted">{n.none}</span>}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function Body({
   detail,
   coin,
   date,
-  update,
+  row,
 }: {
   detail: Detail
   coin: string
   date: string
-  update: ResearchUpdate | null
+  /** The record's line in the index: its times and what a rerun changed; absent until it loads. */
+  row: ResearchSummary | undefined
 }) {
+  const update = row?.update ?? null
   const [open, setOpen] = useState<Record<string, boolean>>(DEFAULT_OPEN)
   const steps = useMemo(() => STEPS.filter((s) => !(s.hideIfEmpty && s.text(detail).trim() === '')), [detail])
   const setAll = (value: boolean) => setOpen(Object.fromEntries(steps.map((s) => [s.id, value])))
@@ -158,6 +194,7 @@ function Body({
             </button>
           </div>
         </div>
+        {row && <TimeNodes row={row} />}
         <SettingsTags s={detail.run_settings} />
       </header>
 
@@ -186,7 +223,7 @@ export function ResearchDetail() {
   const { coin = '', date = '' } = useParams()
   const detail = useFetch<Detail>(coin && date ? researchPath(coin, date) : null)
   const list = useFetch<ResearchSummary[]>('/api/research')
-  const update = list.data?.find((r) => r.coin === coin && r.trade_date === date)?.update ?? null
+  const row = list.data?.find((r) => r.coin === coin && r.trade_date === date)
 
   return (
     <div className="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)]">
@@ -215,7 +252,7 @@ export function ResearchDetail() {
         ) : !detail.data ? (
           <Loading />
         ) : (
-          <Body key={researchKey(coin, date)} detail={detail.data} coin={coin} date={date} update={update} />
+          <Body key={researchKey(coin, date)} detail={detail.data} coin={coin} date={date} row={row} />
         )}
       </div>
     </div>
