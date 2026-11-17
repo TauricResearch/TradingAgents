@@ -71,7 +71,7 @@ const fillColumns: Column<Fill>[] = [
   { key: 'fee', header: '手续费', align: 'right', render: (f) => fmtUsdt(f.fee, 4) },
   {
     key: 'realized_net',
-    header: '已实现（扣费）',
+    header: '平仓收益（扣费）',
     help: 'fill_pnl',
     align: 'right',
     render: (f) => (
@@ -79,6 +79,20 @@ const fillColumns: Column<Fill>[] = [
         {f.realized === 0 ? <span className="text-muted">{fmtSigned(f.realized_net)}</span> : <Num value={f.realized_net} fmt={fmtSigned} />}
       </span>
     ),
+  },
+  {
+    key: 'realized_pct',
+    header: '收益率',
+    help: 'fill_return',
+    align: 'right',
+    render: (f) =>
+      f.realized_pct === null ? (
+        <span className="text-muted">—</span>
+      ) : (
+        <span title={f.entry === null ? undefined : `开仓均价 ${fmtUsdt(f.entry)}`}>
+          <Num value={f.realized_pct} fmt={fmtPct} />
+        </span>
+      ),
   },
   {
     key: 'position_after',
@@ -208,7 +222,7 @@ export function History() {
             )}
             {active === 'fills' && fills.data && fills.data.length > 0 && (
               <span>
-                所列 {fills.data.length} 笔已实现（扣费）合计{' '}
+                所列 {fills.data.length} 笔平仓收益（扣费）合计{' '}
                 <Num value={fills.data.reduce((sum, f) => sum + f.realized_net, 0)} fmt={fmtSigned} />
               </span>
             )}

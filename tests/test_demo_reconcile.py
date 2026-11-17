@@ -139,7 +139,7 @@ def test_what_the_exchange_no_longer_holds_is_closed_at_the_entry_the_fills_give
     assert (fill.qty, fill.price) == (pytest.approx(left - 0.2), pytest.approx(81_000.0))
     reconcile.apply(env.account, repair, HOUR + 30 * MINUTE)
     # The dashboard's replay of the fills realizes nothing on it.
-    *_, (last, realized, after) = _replayed(env.ledger)
+    *_, (last, realized, after, _) = _replayed(env.ledger)
     assert (last.reason, realized, after) == ("adjust", pytest.approx(0.0), pytest.approx(left))
     assert synced(env, HOUR + 31 * MINUTE).holding == []
 
@@ -153,7 +153,7 @@ def test_a_position_on_the_other_side_is_closed_at_the_ledgers_entry_and_opened_
     ]
     assert reconcile.describe(repair)[2] == "  BTC-USDT-SWAP 账本推算 +0.1，交易所 -0.05：调整 -0.1 @ 80,000.00、-0.05 @ 81,000.00"
     reconcile.apply(env.account, repair, HOUR + 2 * HOUR_MS)
-    assert [(realized, after) for f, realized, after in _replayed(env.ledger) if f.reason == "adjust"] == [
+    assert [(realized, after) for f, realized, after, _ in _replayed(env.ledger) if f.reason == "adjust"] == [
         (pytest.approx(0.0), 0.0), (pytest.approx(0.0), -0.05),
     ]
     assert synced(env, HOUR + 2 * HOUR_MS + MINUTE).holding == []
