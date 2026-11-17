@@ -794,6 +794,13 @@ def _months(spans: list[_Span]) -> list[dict]:
     return out
 
 
+# Fills of one contract, on one side and of one kind, this close to each other are one
+# order's. The exchange fills a market order in pieces at once: on the accounts' ledgers
+# the pieces of an order are within milliseconds of each other and the next order an
+# hour away.
+ORDER_WINDOW_MS = 1_000
+
+
 def _replayed(ledger: Ledger) -> list[tuple[Fill, float, float, float | None]]:
     """Every fill with the PnL it realized, the signed position it left and the average
     entry of the position it closed some of (None when it closed nothing), in time
@@ -816,28 +823,81 @@ def _replayed(ledger: Ledger) -> list[tuple[Fill, float, float, float | None]]:
 
 
 def fills(account: Account, ledger: Ledger, since_ms: int, limit: int) -> list[dict]:
-    rows = [row for row in _replayed(ledger) if row[0].ts >= since_ms][-limit:]
-    return [
-        {
-            "ts": _iso(f.ts), "inst": f.inst, "coin": account.coin_of(f.inst), "qty": f.qty,
-            "price": f.price, "fee": f.fee, "reason": f.reason, "trade_date": f.trade_date,
-            "realized": realized, "realized_net": realized - f.fee,
-            "realized_pct": _closed_return(f, realized - f.fee, after, entry),
-            "entry": entry, "position_after": after,
-        }
-        for f, realized, after, entry in reversed(rows)
-    ]
+    """The account's orders since ``since_ms``, newest first, at most ``limit``: a row for
+    each order, and under it (``fills``, newest first) the fills the exchange split it
+    into; none under an order that came back in one fill, whose row is that fill. An
+    order's row is its fills taken as one: the quantity, the fee and the PnL summed,
+    the average price, the return over all it closed, the position its last fill left.
+    """
+    orders = [o for o in _orders(_replayed(ledger)) if o[-1][0].ts >= since_ms][-limit:]
+    return [_order_row(account, order) for order in reversed(orders)]
 
 
-def _closed_return(fill: Fill, net: float, after: float, entry: float | None) -> float | None:
-    """``net``, what a fill realized less its fee, over the value at ``entry`` of the part
-    of the position it closed: the whole fill on a reduce or a close, the old side on a
-    flip. None for a fill that closed nothing. The fee of the fill that opened the
-    position is on that fill's own row and the funding apart, as in ``realized_net``."""
+_Replayed = tuple[Fill, float, float, float | None]
+
+
+def _orders(rows: list[_Replayed]) -> list[list[_Replayed]]:
+    """``rows`` gathered into orders, in the time order of their first fills. The ledger
+    keeps no order id, so an order is told by what its fills share: the contract, the
+    side, the kind, and each within ``ORDER_WINDOW_MS`` of the one before. Fills of
+    another contract in between do not part them."""
+    orders: list[list[_Replayed]] = []
+    latest: dict[str, list[_Replayed]] = {}
+    for row in rows:
+        fill = row[0]
+        own = latest.get(fill.inst)
+        last = own[-1][0] if own else None
+        if (
+            last is not None and (last.qty > 0) == (fill.qty > 0) and last.reason == fill.reason
+            and fill.ts - last.ts <= ORDER_WINDOW_MS
+        ):
+            own.append(row)
+        else:
+            latest[fill.inst] = own = [row]
+            orders.append(own)
+    return orders
+
+
+def _order_row(account: Account, order: list[_Replayed]) -> dict:
+    if len(order) == 1:
+        return {**_fill_row(account, *order[0]), "fills": []}
+    first = order[0][0]
+    qty = round(sum(f.qty for f, *_ in order), 12)
+    fee = sum(f.fee for f, *_ in order)
+    realized = sum(realized for _, realized, _, _ in order)
+    closed = sum(_closed_value(f, after, entry) for f, _, after, entry in order)
+    return {
+        "ts": _iso(first.ts), "inst": first.inst, "coin": account.coin_of(first.inst), "qty": qty,
+        "price": sum(f.qty * f.price for f, *_ in order) / qty, "fee": fee,
+        "reason": first.reason, "trade_date": first.trade_date,
+        "realized": realized, "realized_net": realized - fee,
+        "realized_pct": (realized - fee) / closed if closed else None,
+        "entry": next((entry for *_, entry in order if entry is not None), None),
+        "position_after": order[-1][2],
+        "fills": [_fill_row(account, *row) for row in reversed(order)],
+    }
+
+
+def _fill_row(account: Account, fill: Fill, realized: float, after: float, entry: float | None) -> dict:
+    closed = _closed_value(fill, after, entry)
+    return {
+        "ts": _iso(fill.ts), "inst": fill.inst, "coin": account.coin_of(fill.inst), "qty": fill.qty,
+        "price": fill.price, "fee": fill.fee, "reason": fill.reason, "trade_date": fill.trade_date,
+        "realized": realized, "realized_net": realized - fill.fee,
+        # What the fill realized less its fee, over the value at the entry of what it
+        # closed. The fee of the fill that opened the position is on that fill's own row
+        # and the funding apart, as in ``realized_net``.
+        "realized_pct": (realized - fill.fee) / closed if closed else None,
+        "entry": entry, "position_after": after,
+    }
+
+
+def _closed_value(fill: Fill, after: float, entry: float | None) -> float:
+    """The value at ``entry`` of the part of the position a fill closed: the whole fill
+    on a reduce or a close, the old side on a flip. Zero for a fill that closed nothing."""
     if entry is None:
-        return None
-    closed = min(abs(after - fill.qty), abs(fill.qty))
-    return net / (closed * entry) if closed * entry else None
+        return 0.0
+    return min(abs(after - fill.qty), abs(fill.qty)) * entry
 
 
 def transfers(ledger: Ledger, since_ms: int, limit: int) -> list[dict]:

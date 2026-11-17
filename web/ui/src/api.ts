@@ -231,6 +231,17 @@ export interface Fill {
   position_after: number
 }
 
+/**
+ * An order, as the fills table lists it: its fills taken as one (the quantity, the fee and the
+ * PnL summed, the average price, the return over all it closed, the position its last fill left;
+ * `ts` is its first fill's), and under it the fills the exchange split it into, newest first;
+ * none when it came back in one fill, whose row is that fill. The ledger keeps no order id: fills
+ * of one contract, side and kind within a second of each other are one order's.
+ */
+export interface Order extends Fill {
+  fills: Fill[]
+}
+
 /** Money a person moved into an account on the exchange (positive) or out of it (#40). */
 export interface Transfer {
   ts: string

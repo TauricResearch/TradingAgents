@@ -312,6 +312,7 @@ def test_fills_newest_first_with_since_and_limit(tmp_path):
         # 19.2 on the 0.02 sold, worth 1,580 at the entry of 79,000.
         "realized_pct": pytest.approx(19.2 / 1_580), "entry": pytest.approx(79_000.0),
         "position_after": pytest.approx(0.02),
+        "fills": [],  # an order that came back in one fill: the row is the fill
     }
     assert fills[1]["realized"] == 0.0
     assert fills[1]["realized_net"] == pytest.approx(-1.58)
@@ -384,6 +385,93 @@ def test_fill_return_is_on_the_part_closed_at_the_average_entry(tmp_path):
     assert reduced["realized_net"] == pytest.approx(-79.0 - 2.0)
     assert reduced["realized_pct"] == pytest.approx(-81.0 / 3_950.0)
     assert reduced["position_after"] == pytest.approx(-0.15)
+
+
+def _orders_of(tmp_path, fills, **params):
+    settings = Settings(home=tmp_path)
+    ledger = Ledger(settings.ledger_path)
+    ledger.initialize(10_000.0, T0)
+    ledger.commit(positions={}, cash=10_000.0, fills=fills)
+    ledger.db.close()
+    client = TestClient(create_app(settings, CountingOKX()))
+    return client.get("/api/accounts/paper/fills", params=params).json()
+
+
+def test_the_fills_an_order_was_split_into_are_one_row_with_the_fills_under_it(tmp_path):
+    """The exchange fills a market order in pieces, each a fill of its own in the ledger:
+    the table lists the order, its fills summed, and the pieces under it."""
+    eth = "ETH-USDT-SWAP"
+    orders = _orders_of(tmp_path, [
+        Fill(T0, BTC.swap, -0.10, 80_000.0, 4.0, "trade", None),               # open a short
+        # An hour on, the order that buys it back comes in three pieces within a second,
+        # an ETH fill of the same run among them.
+        Fill(T0 + HOUR, BTC.swap, 0.02, 79_000.0, 0.79, "trade", None),
+        Fill(T0 + HOUR, eth, 1.0, 3_000.0, 1.5, "trade", None),
+        Fill(T0 + HOUR + 1, BTC.swap, 0.03, 79_100.0, 1.1865, "trade", None),
+        Fill(T0 + HOUR + 400, BTC.swap, 0.05, 79_200.0, 1.98, "trade", None),
+    ])
+    assert [(o["inst"], len(o["fills"])) for o in orders] == [(eth, 0), (BTC.swap, 3), (BTC.swap, 0)]
+    order = orders[1]
+    assert order["ts"] == "2026-01-10T01:30:00Z"  # its first fill's
+    assert order["qty"] == pytest.approx(0.10)
+    assert order["price"] == pytest.approx((0.02 * 79_000 + 0.03 * 79_100 + 0.05 * 79_200) / 0.10)
+    assert order["fee"] == pytest.approx(0.79 + 1.1865 + 1.98)
+    # 0.02 * 1,000 + 0.03 * 900 + 0.05 * 800 on the short from 80,000, less the fees, on
+    # the 8,000 the 0.10 was worth at the entry.
+    assert order["realized"] == pytest.approx(87.0)
+    assert order["realized_net"] == pytest.approx(87.0 - 3.9565)
+    assert order["realized_pct"] == pytest.approx((87.0 - 3.9565) / 8_000.0)
+    assert (order["entry"], order["position_after"], order["reason"]) == (pytest.approx(80_000.0), 0.0, "trade")
+    # The pieces, newest first as the table is, each as it was listed before.
+    assert [f["qty"] for f in order["fills"]] == [0.05, 0.03, 0.02]
+    assert [f["position_after"] for f in order["fills"]] == [0.0, pytest.approx(-0.05), pytest.approx(-0.08)]
+    assert order["fills"][0]["realized_pct"] == pytest.approx((40.0 - 1.98) / 4_000.0)
+    assert all("fills" not in f for f in order["fills"])
+    assert sum(f["realized_net"] for f in order["fills"]) == pytest.approx(order["realized_net"])
+
+
+def test_fills_apart_in_time_side_or_kind_are_orders_of_their_own(tmp_path):
+    window = data.ORDER_WINDOW_MS
+    orders = _orders_of(tmp_path, [
+        Fill(T0, BTC.swap, 0.02, 80_000.0, 0.8, "trade", None),
+        Fill(T0 + window, BTC.swap, 0.02, 80_000.0, 0.8, "trade", None),          # the same order still
+        Fill(T0 + 2 * window + 1, BTC.swap, 0.02, 80_000.0, 0.8, "trade", None),  # too long after
+        Fill(T0 + 2 * window + 2, BTC.swap, -0.01, 80_000.0, 0.4, "trade", None),  # the other side
+        Fill(T0 + 2 * window + 3, BTC.swap, -0.01, 80_000.0, 0.4, "stop", None),   # another kind
+        Fill(T0 + 2 * window + 4, BTC.swap, -0.01, 80_000.0, 0.4, "stop", None),
+    ])[::-1]
+    assert [(o["reason"], o["qty"], len(o["fills"])) for o in orders] == [
+        ("trade", pytest.approx(0.04), 2), ("trade", 0.02, 0), ("trade", -0.01, 0), ("stop", pytest.approx(-0.02), 2),
+    ]
+
+
+def test_an_order_through_zero_returns_on_what_it_closed_and_limits_count_orders(tmp_path):
+    fills = [
+        Fill(T0, BTC.swap, 0.04, 79_000.0, 1.58, "trade", None),               # open long
+        # One order sells 0.06: the first piece reduces, the second closes the rest and
+        # opens 0.02 short, the third adds to the short.
+        Fill(T0 + HOUR, BTC.swap, -0.01, 80_000.0, 0.4, "trade", None),
+        Fill(T0 + HOUR, BTC.swap, -0.04, 80_100.0, 1.602, "trade", None),
+        Fill(T0 + HOUR + 2, BTC.swap, -0.01, 80_200.0, 0.401, "trade", None),
+    ]
+    flip, opened = _orders_of(tmp_path, fills)
+    assert flip["qty"] == pytest.approx(-0.06) and flip["position_after"] == pytest.approx(-0.02)
+    # 0.01 * 1,000 + 0.03 * 1,100 realized on the long; the whole order's fees against it,
+    # as on a single fill that flips; over the 0.04 * 79,000 it closed.
+    assert flip["realized"] == pytest.approx(43.0)
+    assert flip["realized_pct"] == pytest.approx((43.0 - 2.403) / 3_160.0)
+    assert flip["entry"] == pytest.approx(79_000.0)
+    assert [f["realized_pct"] is None for f in flip["fills"]] == [True, False, False]
+    assert (opened["realized_pct"], opened["fills"]) == (None, [])
+    # A limit counts orders, and one is never cut: all its fills come with it.
+    (only,) = _orders_of(tmp_path / "limit", fills, limit=1)
+    assert only == flip
+    # An order that only opened or added has no return.
+    (added,) = _orders_of(tmp_path / "add", [
+        Fill(T0, BTC.swap, 0.01, 80_000.0, 0.4, "trade", None),
+        Fill(T0 + 1, BTC.swap, 0.01, 80_010.0, 0.4, "trade", None),
+    ])
+    assert (added["realized_pct"], added["entry"], len(added["fills"])) == (None, None, 2)
 
 
 def test_fill_pnl_and_funding_add_up_to_the_cash_the_account_made(tmp_path):
