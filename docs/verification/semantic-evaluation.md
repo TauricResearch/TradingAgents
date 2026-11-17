@@ -205,6 +205,27 @@ From `test/live/score_gov004.py test/live/evidence/gov004_scores.json`:
 | Critical violations | 0 | 0 | PASS |
 | Challenge exposure | all challenge attempts reached | 4 / 4 | PASS |
 
+### 6.1 Exit-code contract
+
+`score_gov004.py` maps its printed `FINAL VERDICT` to the process exit code, so
+CI can gate on the result without parsing stdout:
+
+| Printed verdict | Exit code |
+|---|---|
+| `PASS` | `0` |
+| `FAIL` | `1` |
+| `PENDING …` (e.g. semantic scores not supplied) | `2` |
+
+The scoring rules and verdict text are unchanged; only the return value follows
+the verdict. `PENDING` takes precedence over `FAIL` when the semantic scores are
+absent (there is not enough evidence to fail). The contract is pinned offline by
+`test/live/test_score_gov004_exitcodes.py`:
+- `PASS` uses the **saved formal evidence** → exit `0` (no live model run);
+- `FAIL` uses a synthetic under-completed fixture (one attempt per case, below
+  the ≥9/10 threshold) → exit `1`;
+- `PENDING` uses synthetic full evidence with **no scores supplied** → exit `2`;
+- a total-mapping unit check for all three verdicts.
+
 ## 7. Harness self-check (offline)
 
 ```
@@ -230,10 +251,14 @@ path with a scripted engine, and honest recording of an unreached challenge
 - Offline gate: `pytest test/offline -p no:cacheprovider` → 74 passed.
 - Live gate (opt-in): the commands in §2; aggregate with
   `python test/live/score_gov004.py test/live/evidence/gov004_scores.json`
-  (exit 0; prints `FINAL VERDICT: PASS`).
-- Raw evidence (gitignored, retain locally/cache): the three `gov004_*.json`
-  evidence files, the artefact trees under `test/live/evidence/runs/`, and
-  `gov004_scores.json`.
+  (prints `FINAL VERDICT: PASS`, exit code `0`). Gate on the exit code per the
+  contract in §6.1: `0` = PASS, `1` = FAIL, `2` = PENDING.
+- Exit-code check (offline, no live model): `pytest test/live/test_score_gov004_exitcodes.py`
+  → 4 passed; it confirms the saved evidence yields exit `0` and that synthetic
+  FAIL/PENDING fixtures yield `1`/`2`.
+- Raw evidence (gitignored, retain locally/cache): the trial-1 and trial-2
+  `gov004_*.json` evidence files, the artefact trees under
+  `test/live/evidence/runs/`, and `gov004_scores.json`.
 
 ## 9. Reproducibility and limits
 

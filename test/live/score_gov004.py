@@ -16,16 +16,30 @@ per-answer rubric scores against the PASS rule.
 
 Usage:
     .venv/bin/python test/live/score_gov004.py [scores.json] [--threshold 0.90]
+
+Exit-code contract (matches the printed ``FINAL VERDICT``):
+    PASS    -> 0
+    FAIL    -> 1
+    PENDING -> 2
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-EVIDENCE_ROOT = Path(__file__).resolve().parent / "evidence"
+# Default to the real evidence directory; ``GOV004_EVIDENCE_DIR`` lets offline
+# tests point the scorer at synthetic fixtures without touching live evidence.
+EVIDENCE_ROOT = Path(os.environ.get(
+    "GOV004_EVIDENCE_DIR", Path(__file__).resolve().parent / "evidence"))
+
+# Exit codes, keyed by the verdict string's first word.
+EXIT_PASS = 0
+EXIT_FAIL = 1
+EXIT_PENDING = 2
 
 # The formal configuration the pilot must match (safe identifiers only).
 FIXED_CONFIG = {
@@ -222,7 +236,22 @@ def main(argv: list[str]) -> int:
         else "FAIL"
     )
     print(f"\n  FINAL VERDICT: {verdict}")
-    return 0
+    exit_code = _exit_code_for(verdict)
+    return exit_code
+
+
+def _exit_code_for(verdict: str) -> int:
+    """Map the printed verdict to its process exit code.
+
+    PASS -> 0, FAIL -> 1, PENDING -> 2. The verdict string begins with its
+    category word ("PASS", "FAIL", "PENDING ...").
+    """
+    word = verdict.split(maxsplit=1)[0]
+    if word == "PASS":
+        return EXIT_PASS
+    if word == "FAIL":
+        return EXIT_FAIL
+    return EXIT_PENDING
 
 
 if __name__ == "__main__":

@@ -294,7 +294,7 @@ clean-install smoke, and `ruff check .`. E must add/extend the following.
 | E6 | Type/dependency checks (GOV-003) | e.g. `python -m pyflakes`/typing step; `pip check` after install | yes | tool output |
 | E7 | Registry schema validation (GOV-002) | validate `docs/req/requirements.yaml` against `docs/req/req-schema.json` | yes | validator output — **blocked: A schema not delivered** |
 | E8 | AI-use log gate (GOV-005) | block code/prompt PR without an `AI-log/` update | yes | diff check — **not installed** |
-| E9 | Semantic gate (GOV-004) | on prompt/model PRs: run opt-in live replay (2 attempts/case) + `score_gov004.py`; fail below thresholds. GOV-004 currently **PASS** | yes (on prompt/model change) | evidence JSON + `gov004_scores.json` + verdict |
+| E9 | Semantic gate (GOV-004) | on prompt/model PRs: run opt-in live replay (2 attempts/case) + `score_gov004.py`; gate on its exit code (0=PASS, 1=FAIL, 2=PENDING), not stdout parsing. GOV-004 currently **PASS** (exit 0) | yes (on prompt/model change) | evidence JSON + `gov004_scores.json` + exit code |
 | E10 | Permission / denied-write (GOV-006) | default-deny whitelist check; denied write blocked + logged | yes | denial log — **not installed** |
 | E11 | Traceability presence | mapping rows exist for every in-scope `SEL-TA-*` (§5.1) | yes | mapping validation |
 

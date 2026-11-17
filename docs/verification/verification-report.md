@@ -159,6 +159,11 @@ model narrative (not only error paths). Suite after this addition: **74 collecte
 - **Evidence:** `test/live/evidence/gov004_*.json` (trial 1 and trial 2),
   `test/live/evidence/gov004_scores.json`, artefact trees under
   `test/live/evidence/runs/`.
+- **Exit-code contract (for CI):** `score_gov004.py` returns `0`=PASS,
+  `1`=FAIL, `2`=PENDING to match its printed verdict; verified offline by
+  `test/live/test_score_gov004_exitcodes.py` (4 passed), including the saved
+  evidence yielding exit `0`. See `semantic-evaluation.md` §6.1 and
+  `verification-constraints.md` E9.
 
 ## 7. Remaining verification work
 
