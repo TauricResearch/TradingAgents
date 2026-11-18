@@ -219,22 +219,40 @@ def test_a_quote_feed_with_articles_is_not_searched(monkeypatch):
     assert "FEED" in out and searched == []
 
 
+def _failing_quote_feed(monkeypatch):
+    """The quote feed raising the way yfinance 1.7 does when Yahoo blocks it."""
+    from yfinance.exceptions import YFDataException
+
+    class FailingTicker:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_news(self, count=20):
+            raise YFDataException("*** YAHOO! FINANCE IS CURRENTLY DOWN! ***")
+
+    monkeypatch.setattr(ynews.yf, "Ticker", FailingTicker)
+
+
 @pytest.mark.unit
 def test_a_failing_quote_feed_still_falls_back_to_search(monkeypatch):
     # The quote feed can fail on its own ("Yahoo is down") while search still answers.
     today = datetime.now(UTC).strftime("%Y-%m-%d")
     searched = _ticker_with([], monkeypatch, search_news=[_tagged("ABOUT AAPL", today, "AAPL")])
-
-    class DownTicker:
-        def __init__(self, *a, **k):
-            pass
-
-        def get_news(self, count=20):
-            raise RuntimeError("YAHOO! FINANCE IS CURRENTLY DOWN")
-
-    monkeypatch.setattr(ynews.yf, "Ticker", DownTicker)
+    _failing_quote_feed(monkeypatch)
     out = ynews.get_news_yfinance("AAPL", today, today)
     assert searched == ["AAPL"] and "ABOUT AAPL" in out
+
+
+@pytest.mark.unit
+def test_a_failing_quote_feed_and_a_search_with_no_answer_is_a_vendor_outage(monkeypatch):
+    # The fallback must not turn a real outage into "no news".
+    from tradingagents.dataflows.errors import VendorUnavailableError
+
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    _ticker_with([], monkeypatch, search_quotes=())
+    _failing_quote_feed(monkeypatch)
+    with pytest.raises(VendorUnavailableError):
+        ynews.get_news_yfinance("AAPL", today, today)
 
 
 @pytest.mark.unit
