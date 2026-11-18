@@ -43,6 +43,19 @@ def get_YFin_data_online(
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
 
+    # yfinance can return the newest bar with no prices (an unsettled or
+    # glitched session) while still carrying its volume. Drop rows without a
+    # close, as the indicator loader does (#1201), so the agent never reads a
+    # blank bar as the latest session, and name the omitted dates so the gap
+    # stays visible. A range with no close anywhere is no data (#1289).
+    omitted = []
+    if "Close" in data.columns:
+        no_close = data["Close"].isna()
+        omitted = [ts.strftime("%Y-%m-%d") for ts in data.index[no_close]]
+        data = data[~no_close]
+        if data.empty:
+            raise_for_empty(symbol, canonical, f"rows with a close between {start_date} and {end_date}")
+
     # Reject a stale frame (e.g. a year-old partial response) before it is
     # formatted into the report. Raises NoMarketDataError, which the router
     # turns into one clear unavailable signal (#1021).
@@ -58,7 +71,10 @@ def get_YFin_data_online(
     # instrument was priced.
     label = canonical if canonical == symbol.upper() else f"{canonical} (from {symbol})"
     header = f"# Stock data for {label} from {start_date} to {end_date}\n"
-    header += f"# Total records: {len(data)}\n\n"
+    header += f"# Total records: {len(data)}\n"
+    if omitted:
+        header += f"# Omitted rows with no close price: {', '.join(omitted)}\n"
+    header += "\n"
 
     return header + csv_string
 
