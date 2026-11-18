@@ -15,11 +15,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from trader import report
+from trader import report, rules
 from trader.evaluation.history import HOUR_MS, MINUTE_MS, HistoryStore
 from trader.evaluation.market import HistoricalOKX
 from trader.intraday.paper import IntradayPaper
-from trader.intraday.settings import DECISION_MINUTE, DEFAULT_PARAMS, Params
+from trader.intraday.settings import ATR_BAR, DECISION_MINUTE, DEFAULT_PARAMS, Params
 from trader.ledger import Fill, Ledger, Position
 from trader.okx import OKXError
 from trader.settings import WATCHLIST, Coin
@@ -52,15 +52,43 @@ class Policy:
     flip_min_conviction: int = 0
     # After a stop-out the coin stays flat this many hours; 0 re-enters at once.
     stop_cooldown_hours: int = 0
+    # Favorable move from entry, in hourly ATRs, required before the hourly stop
+    # tightens toward the price; 0 tightens every hour.
+    trail_after_atr: float = 0.0
+    # Hourly efficiency ratio (over er_bars hours) below which directional targets
+    # are scaled by er_scale; 0 disables it.
+    er_threshold: float = 0.0
+    er_scale: float = 0.5
+    er_bars: int = 24
+    # Consecutive Flat signals required while holding a position before flattening
+    # (earlier Flats keep the position); 1 flattens on the first Flat.
+    flat_confirm: int = 1
+
+    def __post_init__(self) -> None:
+        if self.trail_after_atr < 0:
+            raise ValueError(f"trail_after_atr must be >= 0, got {self.trail_after_atr}")
+        if not 0.0 <= self.er_threshold <= 1.0:
+            raise ValueError(f"er_threshold must be in [0, 1], got {self.er_threshold}")
+        if not 0.0 <= self.er_scale <= 1.0:
+            raise ValueError(f"er_scale must be in [0, 1], got {self.er_scale}")
+        if self.er_bars < 1:
+            raise ValueError(f"er_bars must be >= 1, got {self.er_bars}")
+        if self.flat_confirm < 1:
+            raise ValueError(f"flat_confirm must be >= 1, got {self.flat_confirm}")
 
     def labels(self) -> dict[str, float]:
         """The engine's weights for the labels this policy emits."""
         if self.conviction_weights is None:
-            return dict(DEFAULT_PARAMS.weights)
-        weights = {"Flat": 0.0}
-        for level, w in enumerate(self.conviction_weights, start=1):
-            weights[f"Long{level}"] = w
-            weights[f"Short{level}"] = -w
+            base = {d: DEFAULT_PARAMS.weights[d] for d in DIRECTIONS}
+        else:
+            base = {}
+            for level, w in enumerate(self.conviction_weights, start=1):
+                base[f"Long{level}"] = w
+                base[f"Short{level}"] = -w
+        weights = {"Flat": 0.0, **base}
+        if self.er_threshold > 0 and self.er_scale > 0:
+            for label, w in base.items():
+                weights[f"{label}_chop"] = w * self.er_scale
         return weights
 
 
@@ -104,44 +132,135 @@ class Result:
         }
 
 
+def efficiency_ratio(market: HistoricalOKX, inst: str, now_ms: int, bars: int = 24) -> float | None:
+    """Kaufman efficiency ratio over the last ``bars`` closed hourly changes before
+    ``now_ms``: ``|net move| / sum(|hourly moves|)``, in ``[0, 1]``; None when the
+    history holds fewer than ``bars + 1`` usable hourly candles."""
+    hour = now_ms - now_ms % HOUR_MS
+    try:
+        hourly = market.bars(inst, ATR_BAR, hour - (bars + 5) * HOUR_MS, hour)
+    except OKXError:
+        return None
+    usable = [b for b in hourly if rules.usable_prices(b.open, b.high, b.low, b.close)]
+    if len(usable) < bars + 1:
+        return None
+    closes = [b.close for b in usable[-(bars + 1):]]
+    path = sum(abs(closes[i] - closes[i - 1]) for i in range(1, len(closes)))
+    return 0.0 if path == 0 else abs(closes[-1] - closes[0]) / path
+
+
 class _Overlay:
     """Applies a Policy to one hour's raw signals, remembering what it needs between
-    hours: the last direction taken per coin and the cooldowns running."""
+    hours: the last direction taken per coin, the cooldowns running and the consecutive
+    Flat count while a position is held."""
 
     def __init__(self, policy: Policy):
         self.policy = policy
         self.last_direction: dict[str, str] = {}
         self.cooldown_until: dict[str, int] = {}
+        self.flat_runs: dict[str, int] = {}
 
-    def apply(self, signals: list[Signal], now_ms: int) -> dict[str, str | None]:
+    def apply(
+        self, signals: list[Signal], now_ms: int, *,
+        market: HistoricalOKX | None = None,
+        swap_of: dict[str, str] | None = None,
+        positions: dict[str, Position] | None = None,
+    ) -> dict[str, str | None]:
         labels: dict[str, str | None] = {}
         for s in signals:
-            labels[s.coin] = self._label(s, now_ms)
+            inst = (swap_of or {}).get(s.coin)
+            pos = (positions or {}).get(inst) if inst else None
+            held = pos is not None and pos.qty != 0
+            labels[s.coin] = self._label(s, now_ms, market, inst, held)
         return labels
 
-    def _label(self, s: Signal, now_ms: int) -> str | None:
+    def _label(
+        self, s: Signal, now_ms: int, market: HistoricalOKX | None,
+        inst: str | None, held: bool,
+    ) -> str | None:
         p, raw = self.policy, s.signal
         if raw is None:
             return None
         if raw not in DIRECTIONS:
+            if p.flat_confirm > 1 and held:
+                self.flat_runs[s.coin] = self.flat_runs.get(s.coin, 0) + 1
+                if self.flat_runs[s.coin] < p.flat_confirm:
+                    return None
+            self.flat_runs.pop(s.coin, None)
             self.last_direction.pop(s.coin, None)
             return raw
+        self.flat_runs.pop(s.coin, None)
         if now_ms < self.cooldown_until.get(s.coin, 0):
             self.last_direction.pop(s.coin, None)
             return "Flat"
         last = self.last_direction.get(s.coin)
         if p.flip_min_conviction and last and raw != last and (s.conviction or 0) < p.flip_min_conviction:
             return None
+        chop = False
+        if p.er_threshold > 0 and market is not None and inst is not None:
+            er = efficiency_ratio(market, inst, now_ms, p.er_bars)
+            chop = er is not None and er < p.er_threshold
+        if chop and p.er_scale == 0.0:
+            self.last_direction.pop(s.coin, None)
+            return "Flat"
         self.last_direction[s.coin] = raw
         if p.conviction_weights is None:
-            return raw
-        level = min(max(s.conviction or 1, 1), len(p.conviction_weights))
-        return f"{raw}{level}"
+            base = raw
+        else:
+            level = min(max(s.conviction or 1, 1), len(p.conviction_weights))
+            base = f"{raw}{level}"
+        return f"{base}_chop" if chop else base
 
     def stopped_out(self, coin: str, at_ms: int) -> None:
+        self.flat_runs.pop(coin, None)
         if self.policy.stop_cooldown_hours:
             self.cooldown_until[coin] = at_ms + self.policy.stop_cooldown_hours * HOUR_MS
             self.last_direction.pop(coin, None)
+
+
+def _hold_unearned_stops(
+    ledger: Ledger, market: HistoricalOKX, before: dict[str, Position],
+    new_fills: list[Fill], now_ms: int, params: Params, trail_after_atr: float,
+) -> None:
+    """Keep each surviving position's pre-hour stop until its favorable move from entry
+    reaches ``trail_after_atr`` hourly ATRs; same-side adds still apply ``stop_after_trade``
+    against that pre-hour stop."""
+    after = ledger.positions()
+    hour = now_ms - now_ms % HOUR_MS
+    changed = False
+    for inst, old in before.items():
+        cur = after.get(inst)
+        if cur is None or (cur.qty > 0) != (old.qty > 0):
+            continue
+        if any(f.inst == inst and f.reason == "stop" for f in new_fills):
+            continue
+        try:
+            hourly = market.bars(inst, ATR_BAR, hour - (params.atr_bars + 5) * HOUR_MS, hour)
+            atr_value = rules.atr(
+                [b.high for b in hourly], [b.low for b in hourly], [b.close for b in hourly],
+                days=params.atr_bars,
+            )
+            price = market.last_price(inst)
+        except (OKXError, ValueError):
+            continue
+        if not rules.usable_quote(price, atr_value):
+            continue
+        gain = (price - old.entry) if old.qty > 0 else (old.entry - price)
+        if gain >= trail_after_atr * atr_value:
+            continue
+        trades = [f for f in new_fills if f.inst == inst and f.reason == "trade"]
+        if trades and abs(cur.qty) > abs(old.qty):
+            wanted = rules.stop_after_trade(
+                old.qty, cur.qty, old.stop, trades[-1].price, atr_value,
+                stop_mult=params.stop_mult,
+            )
+        else:
+            wanted = old.stop
+        if cur.stop != wanted:
+            cur.stop = wanted
+            changed = True
+    if changed:
+        ledger.commit(positions=after, cash=ledger.get("cash"))
 
 
 def replay(
@@ -177,10 +296,12 @@ def replay(
     )
     market = market if market is not None else HistoricalOKX(store, start)
     market.at(start)
-    engine_params = params if policy.conviction_weights is None else replace(params, weights=policy.labels())
+    needs_labels = policy.conviction_weights is not None or policy.er_threshold > 0
+    engine_params = replace(params, weights=policy.labels()) if needs_labels else params
     paper = IntradayPaper(ledger, market, watchlist, params=engine_params)
     overlay = _Overlay(policy)
     by_coin = {c.swap: c.research for c in watchlist}
+    swap_of = {c.research: c.swap for c in watchlist}
     result = Result(params=params, policy=policy, capital=capital)
 
     by_hour: dict[int, list[Signal]] = {}
@@ -201,12 +322,20 @@ def replay(
             if f.reason == "stop" and f.inst in by_coin:
                 overlay.stopped_out(by_coin[f.inst], f.ts)
         seen_fills = len(ledger.fills())
+        positions = ledger.positions()
         if signaler is not None:
-            hourly = signaler(now, market, ledger.positions())
+            hourly = signaler(now, market, positions)
         latest: dict[str, Signal] = {s.coin: s for s in hourly}  # the last one per coin
-        labels = overlay.apply(list(latest.values()), now)
+        labels = overlay.apply(
+            list(latest.values()), now, market=market, swap_of=swap_of, positions=positions,
+        )
         if labels:
             paper.execute(labels, now)
+            new_fills = ledger.fills()[seen_fills:]
+            if policy.trail_after_atr > 0:
+                _hold_unearned_stops(
+                    ledger, market, positions, new_fills, now, engine_params, policy.trail_after_atr,
+                )
             seen_fills = len(ledger.fills())
         result.equity.append((now, _mark(paper, market)))
         result.exposure.append(_gross(paper, market) / result.equity[-1][1])
@@ -261,7 +390,15 @@ def signals_from_json(path: Path) -> list[Signal]:
 # -- grids -------------------------------------------------------------------
 
 _PARAM_TYPES = {"risk": float, "stop_mult": float, "atr_bars": int, "rebalance_threshold": float}
-_POLICY_TYPES = {"flip_min_conviction": int, "stop_cooldown_hours": int}
+_POLICY_TYPES = {
+    "flip_min_conviction": int,
+    "stop_cooldown_hours": int,
+    "trail_after_atr": float,
+    "er_threshold": float,
+    "er_scale": float,
+    "er_bars": int,
+    "flat_confirm": int,
+}
 
 
 def parse_grid(param_specs: list[str], policy_specs: list[str]) -> list[tuple[Params, Policy]]:
@@ -322,8 +459,9 @@ def describe(params: Params, policy: Policy) -> str:
     if policy.conviction_weights is not None:
         parts.append("conviction_weights=" + "/".join(f"{w:g}" for w in policy.conviction_weights))
     for name in _POLICY_TYPES:
-        if getattr(policy, name):
-            parts.append(f"{name}={getattr(policy, name)}")
+        val = getattr(policy, name)
+        if val != getattr(DEFAULT_POLICY, name):
+            parts.append(f"{name}={val:g}" if isinstance(val, float) else f"{name}={val}")
     return " ".join(parts) or "默认"
 
 

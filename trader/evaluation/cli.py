@@ -31,7 +31,7 @@ from tradingagents.llm_clients import create_tier_client
 
 evaluate_app = typer.Typer(add_completion=False, no_args_is_help=True)
 
-ATR_LOOKBACK_HOURS = 60   # covers any atr_bars a grid is likely to try, plus the engine's margin
+ATR_LOOKBACK_HOURS = 80   # covers any atr_bars / er_bars a grid is likely to try, plus margin
 FORWARD_HOURS = 24        # the longest horizon the signal study looks ahead
 EVAL_BACKEND_URL = "TRADER_EVAL_BACKEND_URL"
 EVAL_API_KEY = "TRADER_EVAL_API_KEY"
@@ -129,7 +129,7 @@ def replay_command(
     capital: float = typer.Option(10_000.0, help="起始资金 USDT"),
     param: Annotated[list[str] | None, typer.Option(help="引擎参数网格，如 stop_mult=2,2.5,3")] = None,
     policy: Annotated[list[str] | None, typer.Option(
-        help="策略层网格，如 conviction_weights=0.5/1/1 flip_min_conviction=2"
+        help="策略层网格，如 trail_after_atr=0,1.5 er_threshold=0,0.25 flat_confirm=1,2"
     )] = None,
     out: Annotated[Path | None, typer.Option(help="把报告写到这个 Markdown 文件")] = None,
     no_fetch: bool = typer.Option(False, "--no-fetch", help="不补拉行情，只用缓存"),

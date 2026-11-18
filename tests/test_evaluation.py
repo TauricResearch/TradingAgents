@@ -15,6 +15,7 @@ from trader.evaluation.replay import (
     Policy,
     Signal,
     describe,
+    efficiency_ratio,
     parse_grid,
     replay,
     signals_from_json,
@@ -264,6 +265,101 @@ def test_a_replay_can_keep_its_ledger(store, tmp_path):
     assert len(Ledger(path).fills()) == 1
 
 
+def test_trail_after_atr_holds_the_initial_stop_until_profit_reaches_the_threshold(store, tmp_path):
+    # Hourly range is ~100 on 50,000 (0.1% each way), so 2.5 ATRs is ~250.
+    # Enter Long at T0+2h (~50,000, initial stop ~49,750).
+    # At T0+3h price rises +120 (~1.2 ATRs) -> default tightens stop to ~49,870.
+    # At T0+3h30m price dips to 49,820 -> default stops out, trail_after_atr=2.0 holds.
+    # At T0+5h price rises to 50,350 (~3.5 ATRs >= 2.0) -> trail_after_atr=2.0 now tightens above entry.
+    def path(minute: int) -> float:
+        t = DAY0 + minute * MINUTE_MS
+        if t < T0 + 3 * HOUR_MS:
+            return 50_000.0
+        if t < T0 + 3 * HOUR_MS + 20 * MINUTE_MS:
+            return 50_120.0
+        if t < T0 + 4 * HOUR_MS:
+            return 49_860.0
+        return 50_350.0
+
+    load(store, path, 48)
+    signals = [Signal(T0 + h * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 2) for h in (2, 3, 4, 5)]
+    plain = run(store, signals, T0, T0 + 6 * HOUR_MS, params=Params(risk=0.002))
+    held_ledger = tmp_path / "held.sqlite"
+    gated = run(
+        store, signals, T0, T0 + 6 * HOUR_MS,
+        params=Params(risk=0.002), policy=Policy(trail_after_atr=2.0), ledger_path=held_ledger,
+    )
+    assert "stop" in [f.reason for f in plain.fills]
+    assert "stop" not in [f.reason for f in gated.fills]
+    # By hour 5 (+350 > 2.0 * ATR) the gated stop has tightened above the 50,000 entry.
+    pos = Ledger(held_ledger).positions()[BTC.swap]
+    assert pos.stop > 50_000.0
+
+
+def test_er_threshold_scales_or_flattens_positions_in_choppy_hours(store):
+    # Alternating +1% / -1% every hour: net move over 24h is 0, path is ~24% -> ER == 0.
+    def choppy(minute: int) -> float:
+        hour = minute // 60
+        return 50_000.0 * (1.01 if hour % 2 else 1.0)
+
+    load(store, choppy, 48)
+    market = HistoricalOKX(store, T0 + 2 * HOUR_MS + 4 * MINUTE_MS)
+    assert efficiency_ratio(market, BTC.swap, T0 + 2 * HOUR_MS + 4 * MINUTE_MS, bars=24) == pytest.approx(0.0)
+    # Insufficient history -> None.
+    assert efficiency_ratio(market, BTC.swap, DAY0 + 5 * HOUR_MS, bars=24) is None
+
+    signals = [Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Short", 2)]
+    full = run(store, signals, T0, T0 + 4 * HOUR_MS, params=Params(risk=0.002))
+    half = run(
+        store, signals, T0, T0 + 4 * HOUR_MS,
+        params=Params(risk=0.002), policy=Policy(er_threshold=0.25, er_scale=0.5),
+    )
+    none = run(
+        store, signals, T0, T0 + 4 * HOUR_MS,
+        params=Params(risk=0.002), policy=Policy(er_threshold=0.25, er_scale=0.0),
+    )
+    assert abs(half.fills[0].qty) == pytest.approx(abs(full.fills[0].qty) / 2, abs=2 * SPEC.contract_value)
+    assert none.fills == []
+
+    # On a smooth trend (ER == 1.0 >= 0.25), er_threshold=0.25 takes the full position.
+    trend_store = HistoryStore(store.path.with_name("trend.sqlite"))
+    load(trend_store, price_path(48, trend=0.003), 48)
+    trend_market = HistoricalOKX(trend_store, T0 + 2 * HOUR_MS + 4 * MINUTE_MS)
+    assert efficiency_ratio(trend_market, BTC.swap, T0 + 2 * HOUR_MS + 4 * MINUTE_MS, bars=24) == pytest.approx(1.0)
+    trend_full = replay(trend_store, signals, T0, T0 + 4 * HOUR_MS, watchlist=(BTC,), params=Params(risk=0.002))
+    trend_gated = replay(
+        trend_store, signals, T0, T0 + 4 * HOUR_MS, watchlist=(BTC,),
+        params=Params(risk=0.002), policy=Policy(er_threshold=0.25, er_scale=0.5),
+    )
+    assert trend_gated.fills[0].qty == trend_full.fills[0].qty
+
+
+def test_flat_confirm_requires_consecutive_flats_to_close_a_position(store):
+    load(store, price_path(72, trend=0.002), 72)
+    # Long at h=2, single Flat at h=4, Long again at h=5, then Flat at h=7, missing at h=8, Flat at h=9.
+    signals = [
+        Signal(T0 + 2 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 2),
+        Signal(T0 + 4 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Flat", 1),
+        Signal(T0 + 5 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Long", 2),
+        Signal(T0 + 7 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Flat", 1),
+        Signal(T0 + 8 * HOUR_MS + 4 * MINUTE_MS, BTC.research, None, None),
+        Signal(T0 + 9 * HOUR_MS + 4 * MINUTE_MS, BTC.research, "Flat", 1),
+    ]
+    plain = run(store, signals, T0, T0 + 11 * HOUR_MS, params=Params(risk=0.002))
+    confirmed = run(
+        store, signals, T0, T0 + 11 * HOUR_MS,
+        params=Params(risk=0.002), policy=Policy(flat_confirm=2),
+    )
+    # Default flattens at h=4, re-opens at h=5, flattens at h=7 (4 trades).
+    assert len(plain.fills) == 4
+    # flat_confirm=2 ignores the lone Flat at h=4 and only flattens on the second consecutive Flat at h=9 (2 trades).
+    assert [f.ts for f in confirmed.fills] == [
+        T0 + 2 * HOUR_MS + 5 * MINUTE_MS,
+        T0 + 9 * HOUR_MS + 5 * MINUTE_MS,
+    ]
+    assert confirmed.fills[0].qty > 0 and confirmed.fills[1].qty < 0
+
+
 # -- signal sources and grids ------------------------------------------------
 
 def test_signals_come_from_a_ledger_or_a_json_file(tmp_path):
@@ -299,10 +395,26 @@ def test_a_grid_is_every_combination_of_the_specs():
     ([], ["cooldown=4"], "unknown policy knob"),
     (["risk"], [], "expected name=value"),
     ([], ["conviction_weights=1/2"], "w1/w2/w3"),
+    ([], ["trail_after_atr=-0.5"], "trail_after_atr"),
+    ([], ["er_threshold=1.2"], "er_threshold"),
+    ([], ["er_scale=-0.1"], "er_scale"),
+    ([], ["er_bars=0"], "er_bars"),
+    ([], ["flat_confirm=0"], "flat_confirm"),
 ])
 def test_a_bad_grid_spec_is_refused(params, policies, message):
     with pytest.raises(ValueError, match=message):
         parse_grid(params, policies)
+
+
+def test_new_policy_knobs_parse_and_describe_defaults_cleanly():
+    grid = parse_grid(
+        [],
+        ["trail_after_atr=0,1.5", "er_threshold=0,0.25", "flat_confirm=1,2"],
+    )
+    assert len(grid) == 8
+    assert grid[0] == (DEFAULT_PARAMS, Policy())
+    assert describe(*grid[0]) == "默认"
+    assert describe(*grid[-1]) == "trail_after_atr=1.5 er_threshold=0.25 flat_confirm=2"
 
 
 # -- signal quality ------------------------------------------------------------
