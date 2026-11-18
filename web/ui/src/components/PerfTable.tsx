@@ -63,7 +63,7 @@ export function PerfTable({ performance, strategyLabel }: { performance: Perform
         </thead>
         <tbody>
           {ROWS.map((r) => (
-            <tr key={r.key} className="border-t border-border/60">
+            <tr key={r.key} className="border-t border-border/60 even:bg-row-alt">
               <td className="px-2 py-1">
                 <span className="mr-2 inline-block h-0.5 w-3 align-middle" style={{ background: r.color }} />
                 {r.key === 'strategy' && strategyLabel ? strategyLabel : r.label}

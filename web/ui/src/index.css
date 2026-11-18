@@ -5,6 +5,9 @@
   --color-panel: #12151a;
   --color-panel-2: #171b21;
   --color-border: #1f242c;
+  /* Table rows: every other one is shaded, and the one under the pointer is lighter than either. */
+  --color-row-alt: #1a1f26;
+  --color-row-hover: #27303b;
   --color-fg: #e6e8eb;
   --color-muted: #8b949e;
   --color-accent: #f5a524;

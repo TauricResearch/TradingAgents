@@ -319,7 +319,8 @@ export function History() {
             state={fills}
             columns={fillCols}
             rowKey={(f) => f.id}
-            rowClassName={(f) => (f.piece ? 'bg-panel-2/50 text-muted' : '')}
+            rowClassName={(f) => (f.piece ? 'text-muted' : '')}
+            rowContinues={(f) => f.piece}
           />
         )}
         {active === 'funding' && (

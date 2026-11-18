@@ -26,11 +26,23 @@ interface Props<T> {
   footer?: Partial<Record<string, ReactNode>>
   /** Extra classes for a row, e.g. to set the rows under another apart. */
   rowClassName?: (row: T) => string
+  /** True for a row that breaks down the one above it: it is shaded with that row instead of taking its own turn. */
+  rowContinues?: (row: T) => boolean
+}
+
+/** Which rows are shaded: every other one, a row that continues the one above staying with it. */
+function shadedRows<T>(rows: T[], continues?: (row: T) => boolean): boolean[] {
+  let shaded = true
+  return rows.map((row, i) => {
+    if (i === 0 || !continues?.(row)) shaded = !shaded
+    return shaded
+  })
 }
 
 /** Dense table; scrolls horizontally on narrow screens. */
-export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', stickyHeader = false, footer, rowClassName }: Props<T>) {
+export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', stickyHeader = false, footer, rowClassName, rowContinues }: Props<T>) {
   if (rows.length === 0) return <Empty label={empty} />
+  const shaded = shadedRows(rows, rowContinues)
   return (
     <div className="w-full overflow-x-auto">
       <table className="w-full border-collapse whitespace-nowrap text-[12px]">
@@ -56,7 +68,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty = '暂无记录', st
           {rows.map((row, i) => (
             <tr
               key={rowKey(row, i)}
-              className={`border-b border-border/60 last:border-b-0 hover:bg-panel-2/60 ${rowClassName?.(row) ?? ''}`}
+              className={`border-b border-border/60 last:border-b-0 hover:bg-row-hover ${shaded[i] ? 'bg-row-alt' : ''} ${rowClassName?.(row) ?? ''}`}
             >
               {columns.map((c) => (
                 <td
