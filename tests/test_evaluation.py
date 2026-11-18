@@ -360,6 +360,94 @@ def test_flat_confirm_requires_consecutive_flats_to_close_a_position(store):
     assert confirmed.fills[0].qty > 0 and confirmed.fills[1].qty < 0
 
 
+def sig(hour: int, label: str | None, conviction: int | None = 2) -> Signal:
+    """BTC's signal four minutes into that hour of the replay; it trades a minute later."""
+    return Signal(T0 + hour * HOUR_MS + 4 * MINUTE_MS, BTC.research, label, conviction)
+
+
+def traded(result) -> list[tuple[float, str, bool]]:
+    """Each fill as (hours since T0, reason, bought)."""
+    return [(round((f.ts - T0) / HOUR_MS, 2), f.reason, f.qty > 0) for f in result.fills]
+
+
+def test_entry_min_conviction_gates_what_opens_a_position_and_nothing_else(store):
+    load(store, price_path(72, trend=0.002), 72)
+    signals = [sig(2, "Long", 1), sig(3, "Long", 2), sig(4, "Long", 1), sig(6, "Short", 1), sig(8, "Short", 2)]
+    plain = run(store, signals, T0, T0 + 10 * HOUR_MS, params=Params(risk=0.002))
+    gated = run(
+        store, signals, T0, T0 + 10 * HOUR_MS,
+        params=Params(risk=0.002), policy=Policy(entry_min_conviction=2),
+    )
+    # Following every signal, the account opens at 02:05 and reverses in one fill at 06:05.
+    assert traded(plain) == [(2.08, "trade", True), (6.08, "trade", False)]
+    assert plain.fills[1].qty == pytest.approx(-2 * plain.fills[0].qty, abs=2 * SPEC.contract_value)
+    # Gated, the weak Long of 02:04 opens nothing and the one of 03:04 does; the weak
+    # Long of 04:04 leaves that position alone; the weak Short of 06:04 still closes it
+    # but opens no short, which waits for the Short of 08:04.
+    assert traded(gated) == [(3.08, "trade", True), (6.08, "trade", False), (8.08, "trade", False)]
+    assert gated.fills[1].qty == -gated.fills[0].qty
+
+
+def test_entry_confirm_waits_for_consecutive_signals_of_one_direction(store):
+    load(store, price_path(72, trend=0.002), 72)
+    signals = [
+        sig(2, "Long"), sig(3, "Flat"), sig(4, "Long"), sig(5, None, None),
+        sig(6, "Long"), sig(7, "Long"), sig(9, "Flat"),
+    ]
+    plain = run(store, signals, T0, T0 + 11 * HOUR_MS, params=Params(risk=0.002))
+    twice = run(store, signals, T0, T0 + 11 * HOUR_MS, params=Params(risk=0.002), policy=Policy(entry_confirm=2))
+    thrice = run(store, signals, T0, T0 + 11 * HOUR_MS, params=Params(risk=0.002), policy=Policy(entry_confirm=3))
+    assert traded(plain) == [
+        (2.08, "trade", True), (3.08, "trade", False), (4.08, "trade", True), (9.08, "trade", False),
+    ]
+    # The Flat of 03:04 starts the count again; the hour without a signal (05:04) does
+    # not, so the Longs of 04:04 and 06:04 are two in a row. Once open, the position
+    # follows the signals as they are: the first Flat closes it.
+    assert traded(twice) == [(6.08, "trade", True), (9.08, "trade", False)]
+    assert traded(thrice) == [(7.08, "trade", True), (9.08, "trade", False)]
+
+
+def test_entry_er_threshold_refuses_entries_in_choppy_hours_but_keeps_a_position_held(store):
+    # Up 0.2% an hour until 03:00 of the replay day, then 0.6% up and down in turn: the
+    # 24-hour efficiency ratio falls from 1.0 as the choppy hours replace the trend's.
+    def turning(minute: int) -> float:
+        hour = minute // 60
+        if hour < 27:
+            return 50_000.0 * (1 + 0.002 * minute / 60)
+        return 52_700.0 * (1.006 if hour % 2 else 1.0)
+
+    load(store, turning, 60)
+    market = HistoricalOKX(store, T0 + 14 * HOUR_MS + 4 * MINUTE_MS)
+    assert efficiency_ratio(market, BTC.swap, T0 + 2 * HOUR_MS + 4 * MINUTE_MS, bars=24) == pytest.approx(1.0)
+    assert efficiency_ratio(market, BTC.swap, T0 + 14 * HOUR_MS + 4 * MINUTE_MS, bars=24) < 0.5
+
+    policy = Policy(entry_er_threshold=0.5)
+    early = [sig(h, "Long") for h in range(2, 23)]
+    plain = run(store, early, T0, T0 + 24 * HOUR_MS, params=Params(risk=0.002))
+    gated = run(store, early, T0, T0 + 24 * HOUR_MS, params=Params(risk=0.002), policy=policy)
+    # Opened in the trend, the position is the ungated account's to the last fill,
+    # however low the ratio falls afterwards.
+    assert plain.fills[0].ts == T0 + 2 * HOUR_MS + 5 * MINUTE_MS
+    assert [(f.ts, f.qty) for f in gated.fills] == [(f.ts, f.qty) for f in plain.fills]
+    assert sum(f.qty for f in gated.fills) > 0
+
+    # The same Longs starting in the chop open nothing.
+    late = [s for s in early if s.ts >= T0 + 14 * HOUR_MS]
+    assert traded(run(store, late, T0, T0 + 24 * HOUR_MS, params=Params(risk=0.002))) == [(14.08, "trade", True)]
+    assert run(store, late, T0, T0 + 24 * HOUR_MS, params=Params(risk=0.002), policy=policy).fills == []
+
+
+def test_an_entry_gate_applies_again_after_a_stop_out(store):
+    load(store, price_path(72, crash_at=30 * 60), 72)
+    signals = [sig(2, "Long", 3)] + [sig(h, "Long", 1) for h in range(3, 14)]
+    plain = run(store, signals, T0, T0 + 14 * HOUR_MS)
+    gated = run(store, signals, T0, T0 + 14 * HOUR_MS, policy=Policy(entry_min_conviction=2))
+    # The weak Longs keep the position until the crash stops it out at 06:00; after it
+    # they would open a new one, which the gate refuses.
+    assert traded(plain)[:3] == [(2.08, "trade", True), (6.0, "stop", False), (6.08, "trade", True)]
+    assert traded(gated) == [(2.08, "trade", True), (6.0, "stop", False)]
+
+
 # -- signal sources and grids ------------------------------------------------
 
 def test_signals_come_from_a_ledger_or_a_json_file(tmp_path):
@@ -400,6 +488,9 @@ def test_a_grid_is_every_combination_of_the_specs():
     ([], ["er_scale=-0.1"], "er_scale"),
     ([], ["er_bars=0"], "er_bars"),
     ([], ["flat_confirm=0"], "flat_confirm"),
+    ([], ["entry_min_conviction=-1"], "entry_min_conviction"),
+    ([], ["entry_confirm=0"], "entry_confirm"),
+    ([], ["entry_er_threshold=1.5"], "entry_er_threshold"),
 ])
 def test_a_bad_grid_spec_is_refused(params, policies, message):
     with pytest.raises(ValueError, match=message):
@@ -415,6 +506,16 @@ def test_new_policy_knobs_parse_and_describe_defaults_cleanly():
     assert grid[0] == (DEFAULT_PARAMS, Policy())
     assert describe(*grid[0]) == "默认"
     assert describe(*grid[-1]) == "trail_after_atr=1.5 er_threshold=0.25 flat_confirm=2"
+
+
+def test_the_entry_gates_parse_and_are_off_by_default():
+    grid = parse_grid([], ["entry_min_conviction=0,2", "entry_confirm=1,2", "entry_er_threshold=0,0.15"])
+    assert len(grid) == 8
+    assert grid[0] == (DEFAULT_PARAMS, Policy())
+    assert grid[-1][1] == Policy(entry_min_conviction=2, entry_confirm=2, entry_er_threshold=0.15)
+    assert describe(*grid[-1]) == "entry_min_conviction=2 entry_confirm=2 entry_er_threshold=0.15"
+    # They emit no label of their own: the engine's weights stay the default ones.
+    assert grid[-1][1].labels() == Policy().labels()
 
 
 # -- signal quality ------------------------------------------------------------

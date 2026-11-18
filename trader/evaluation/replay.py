@@ -63,6 +63,16 @@ class Policy:
     # Consecutive Flat signals required while holding a position before flattening
     # (earlier Flats keep the position); 1 flattens on the first Flat.
     flat_confirm: int = 1
+    # The three below gate new entries only. A signal that would open a position, or
+    # reverse one, is taken as Flat until it passes all of them (so a refused reversal
+    # still closes the old position); a position held on the signal's side is left alone.
+    # Lowest conviction that opens a position; 0 opens at any.
+    entry_min_conviction: int = 0
+    # Consecutive signals of one direction required to open (a Flat between them
+    # starts the count again, an hour without a signal does not); 1 opens on the first.
+    entry_confirm: int = 1
+    # Hourly efficiency ratio (over er_bars hours) required to open; 0 disables it.
+    entry_er_threshold: float = 0.0
 
     def __post_init__(self) -> None:
         if self.trail_after_atr < 0:
@@ -75,6 +85,12 @@ class Policy:
             raise ValueError(f"er_bars must be >= 1, got {self.er_bars}")
         if self.flat_confirm < 1:
             raise ValueError(f"flat_confirm must be >= 1, got {self.flat_confirm}")
+        if self.entry_min_conviction < 0:
+            raise ValueError(f"entry_min_conviction must be >= 0, got {self.entry_min_conviction}")
+        if self.entry_confirm < 1:
+            raise ValueError(f"entry_confirm must be >= 1, got {self.entry_confirm}")
+        if not 0.0 <= self.entry_er_threshold <= 1.0:
+            raise ValueError(f"entry_er_threshold must be in [0, 1], got {self.entry_er_threshold}")
 
     def labels(self) -> dict[str, float]:
         """The engine's weights for the labels this policy emits."""
@@ -151,14 +167,15 @@ def efficiency_ratio(market: HistoricalOKX, inst: str, now_ms: int, bars: int = 
 
 class _Overlay:
     """Applies a Policy to one hour's raw signals, remembering what it needs between
-    hours: the last direction taken per coin, the cooldowns running and the consecutive
-    Flat count while a position is held."""
+    hours: the last direction taken per coin, the cooldowns running, the consecutive
+    Flat count while a position is held and the run of same-direction signals."""
 
     def __init__(self, policy: Policy):
         self.policy = policy
         self.last_direction: dict[str, str] = {}
         self.cooldown_until: dict[str, int] = {}
         self.flat_runs: dict[str, int] = {}
+        self.direction_runs: dict[str, tuple[str, int]] = {}
 
     def apply(
         self, signals: list[Signal], now_ms: int, *,
@@ -170,19 +187,21 @@ class _Overlay:
         for s in signals:
             inst = (swap_of or {}).get(s.coin)
             pos = (positions or {}).get(inst) if inst else None
-            held = pos is not None and pos.qty != 0
-            labels[s.coin] = self._label(s, now_ms, market, inst, held)
+            side = None if pos is None or pos.qty == 0 else "Long" if pos.qty > 0 else "Short"
+            labels[s.coin] = self._label(s, now_ms, market, inst, side)
         return labels
 
     def _label(
         self, s: Signal, now_ms: int, market: HistoricalOKX | None,
-        inst: str | None, held: bool,
+        inst: str | None, side: str | None,
     ) -> str | None:
+        """``side`` is the direction of the position held, None when flat."""
         p, raw = self.policy, s.signal
         if raw is None:
             return None
         if raw not in DIRECTIONS:
-            if p.flat_confirm > 1 and held:
+            self.direction_runs.pop(s.coin, None)
+            if p.flat_confirm > 1 and side is not None:
                 self.flat_runs[s.coin] = self.flat_runs.get(s.coin, 0) + 1
                 if self.flat_runs[s.coin] < p.flat_confirm:
                     return None
@@ -190,12 +209,17 @@ class _Overlay:
             self.last_direction.pop(s.coin, None)
             return raw
         self.flat_runs.pop(s.coin, None)
+        direction, run = self.direction_runs.get(s.coin, (raw, 0))
+        self.direction_runs[s.coin] = (raw, run + 1 if direction == raw else 1)
         if now_ms < self.cooldown_until.get(s.coin, 0):
             self.last_direction.pop(s.coin, None)
             return "Flat"
         last = self.last_direction.get(s.coin)
         if p.flip_min_conviction and last and raw != last and (s.conviction or 0) < p.flip_min_conviction:
             return None
+        if side != raw and not self._may_enter(s, now_ms, market, inst):
+            self.last_direction.pop(s.coin, None)
+            return "Flat"
         chop = False
         if p.er_threshold > 0 and market is not None and inst is not None:
             er = efficiency_ratio(market, inst, now_ms, p.er_bars)
@@ -210,6 +234,20 @@ class _Overlay:
             level = min(max(s.conviction or 1, 1), len(p.conviction_weights))
             base = f"{raw}{level}"
         return f"{base}_chop" if chop else base
+
+    def _may_enter(
+        self, s: Signal, now_ms: int, market: HistoricalOKX | None, inst: str | None,
+    ) -> bool:
+        p = self.policy
+        if (s.conviction or 0) < p.entry_min_conviction:
+            return False
+        if self.direction_runs[s.coin][1] < p.entry_confirm:
+            return False
+        if p.entry_er_threshold > 0 and market is not None and inst is not None:
+            er = efficiency_ratio(market, inst, now_ms, p.er_bars)
+            if er is not None and er < p.entry_er_threshold:
+                return False
+        return True
 
     def stopped_out(self, coin: str, at_ms: int) -> None:
         self.flat_runs.pop(coin, None)
@@ -398,13 +436,16 @@ _POLICY_TYPES = {
     "er_scale": float,
     "er_bars": int,
     "flat_confirm": int,
+    "entry_min_conviction": int,
+    "entry_confirm": int,
+    "entry_er_threshold": float,
 }
 
 
 def parse_grid(param_specs: list[str], policy_specs: list[str]) -> list[tuple[Params, Policy]]:
     """Every combination of ``name=v1,v2,...`` specs: params by the engine's knobs,
-    policies by ``conviction_weights=w1/w2/w3`` (or ``off``), ``flip_min_conviction``
-    and ``stop_cooldown_hours``. No specs give the single default pair."""
+    policies by ``conviction_weights=w1/w2/w3`` (or ``off``) and the knobs of
+    ``_POLICY_TYPES``. No specs give the single default pair."""
     axes: list[list[tuple[str, str, object]]] = []
     for spec in param_specs:
         name, values = _split(spec)
