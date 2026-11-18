@@ -448,6 +448,144 @@ def test_an_entry_gate_applies_again_after_a_stop_out(store):
     assert traded(gated) == [(2.08, "trade", True), (6.0, "stop", False)]
 
 
+def test_close_cooldown_keeps_a_coin_flat_after_a_flat_or_a_reversal(store):
+    load(store, price_path(72, trend=0.002), 72)
+    params, cooled = Params(risk=0.002), Policy(close_cooldown_hours=3)
+    # Closed by the Flat of 04:04, the account opens again on the next Long; cooled, it
+    # waits three hours from that close.
+    signals = [sig(2, "Long"), sig(4, "Flat")] + [sig(h, "Long") for h in range(5, 9)]
+    plain = run(store, signals, T0, T0 + 9 * HOUR_MS, params=params)
+    waited = run(store, signals, T0, T0 + 9 * HOUR_MS, params=params, policy=cooled)
+    assert traded(plain) == [(2.08, "trade", True), (4.08, "trade", False), (5.08, "trade", True)]
+    assert traded(waited) == [(2.08, "trade", True), (4.08, "trade", False), (7.08, "trade", True)]
+    # A reversal is one fill following every signal; cooled, it only closes the Long
+    # and the Short waits the three hours too.
+    signals = [sig(2, "Long")] + [sig(h, "Short") for h in range(4, 8)]
+    plain = run(store, signals, T0, T0 + 8 * HOUR_MS, params=params)
+    waited = run(store, signals, T0, T0 + 8 * HOUR_MS, params=params, policy=cooled)
+    assert traded(plain) == [(2.08, "trade", True), (4.08, "trade", False)]
+    assert plain.fills[1].qty == pytest.approx(-2 * plain.fills[0].qty, abs=2 * SPEC.contract_value)
+    assert traded(waited) == [(2.08, "trade", True), (4.08, "trade", False), (7.08, "trade", False)]
+    assert waited.fills[1].qty == -waited.fills[0].qty
+
+
+def test_close_cooldown_follows_a_stop_out_too(store):
+    load(store, price_path(72, crash_at=30 * 60), 72)
+    longs = [sig(h, "Long", 3) for h in range(2, 14)]
+    cooled = run(store, longs, T0, T0 + 14 * HOUR_MS, policy=Policy(close_cooldown_hours=4))
+    # Stopped out at 06:00, the coin opens again four hours later, at 10:05.
+    assert traded(cooled)[:3] == [(2.08, "trade", True), (6.0, "stop", False), (10.08, "trade", True)]
+
+
+ETH = Coin(research="ETH-USD", swap="ETH-USDT-SWAP", spot="ETH-USDT")
+
+
+def two_crashes(minute: int) -> float:
+    """50,000 dropping 5% at 06:00 of the replay day and 5% again at 09:00."""
+    return 50_000.0 * (0.95 if minute >= 30 * 60 else 1.0) * (0.95 if minute >= 33 * 60 else 1.0)
+
+
+def opened(result, coin: Coin = BTC) -> list[float]:
+    """Hours since T0 of the fills that opened a position of ``coin`` from flat."""
+    times, qty = [], 0.0
+    for f in result.fills:
+        if f.inst != coin.swap:
+            continue
+        if qty == 0:
+            times.append(round((f.ts - T0) / HOUR_MS, 2))
+        qty = round(qty + f.qty, 9)
+    return times
+
+
+def test_stop_guard_pauses_entries_after_repeated_stop_outs(store):
+    load(store, two_crashes, 72)
+    longs = [sig(h, "Long", 3) for h in range(2, 14)]
+
+    def guarded(**knobs) -> list[float]:
+        return opened(run(store, longs, T0, T0 + 14 * HOUR_MS, policy=Policy(**knobs)))
+
+    plain = run(store, longs, T0, T0 + 14 * HOUR_MS)
+    assert [hour for hour, reason, _ in traded(plain) if reason == "stop"] == [6.0, 9.0]
+    assert opened(plain) == [2.08, 6.08, 9.08]
+    # The second stop-out within the window pauses the coin three hours, to 12:00; the
+    # first one alone does not.
+    assert guarded(stop_guard_stops=2, stop_guard_pause_hours=3) == [2.08, 6.08, 12.08]
+    # Stop-outs three hours apart are not two within a two-hour window, nor three.
+    assert guarded(stop_guard_stops=2, stop_guard_window_hours=2, stop_guard_pause_hours=3) == [2.08, 6.08, 9.08]
+    assert guarded(stop_guard_stops=3, stop_guard_pause_hours=3) == [2.08, 6.08, 9.08]
+
+
+def test_stop_guard_scopes_are_a_coin_a_side_of_it_or_the_account(store):
+    load(store, two_crashes, 72)
+    load(store, price_path(72), 72, inst=ETH.swap)
+    params = Params(risk=0.002)
+
+    def guarded(signals, scope: str):
+        policy = Policy(stop_guard_stops=2, stop_guard_pause_hours=3, stop_guard_scope=scope)
+        return replay(store, signals, T0, T0 + 14 * HOUR_MS, watchlist=(BTC, ETH), params=params, policy=policy)
+
+    # BTC's two Longs are stopped out; the Shorts that follow are the other side.
+    turned = [sig(h, "Long", 3) for h in range(2, 10)] + [sig(h, "Short", 3) for h in range(10, 14)]
+    assert opened(guarded(turned, "coin")) == [2.08, 6.08, 12.08]
+    assert opened(guarded(turned, "side")) == [2.08, 6.08, 10.08]
+
+    # ETH has no stop-out of its own: only the account's scope pauses its entries.
+    def eth(hour: int, label: str) -> Signal:
+        return Signal(T0 + hour * HOUR_MS + 4 * MINUTE_MS, ETH.research, label, 3)
+
+    longs = [sig(h, "Long", 3) for h in range(2, 10)]
+    late = longs + [eth(h, "Long") for h in range(10, 14)]
+    assert opened(guarded(late, "coin"), ETH) == [10.08]
+    assert opened(guarded(late, "account"), ETH) == [12.08]
+    # A position held through the pause is left alone.
+    held = guarded(longs + [eth(h, "Long") for h in range(2, 14)], "account")
+    assert opened(held, ETH) == [2.08]
+    assert sum(f.qty for f in held.fills if f.inst == ETH.swap) > 0
+
+
+def test_stop_at_entry_atr_trails_at_the_opening_distance_whatever_the_atr_does_later(store, tmp_path):
+    # Swinging 0.5% either side of 50,000 every hour until 02:00 of the replay day
+    # (hourly ATR ~600), then quiet at 50,000 (ATR falling to ~100), a dip to 49,400
+    # for half an hour at 18:00, and 51,000 from 20:00.
+    def path(minute: int) -> float:
+        if minute < 26 * 60:
+            return 50_000.0 * (1.005 if minute % 60 < 30 else 0.995)
+        if 42 * 60 <= minute < 42 * 60 + 30:
+            return 49_400.0
+        return 50_000.0 if minute < 44 * 60 else 51_000.0
+
+    load(store, path, 72)
+    longs = [sig(h, "Long") for h in range(2, 22)]
+
+    def kept(name: str, hours: int, **knobs):
+        ledger = tmp_path / f"{name}.sqlite"
+        result = run(
+            store, longs, T0, T0 + hours * HOUR_MS,
+            params=Params(risk=0.002), policy=Policy(**knobs), ledger_path=ledger,
+        )
+        return result, Ledger(ledger).positions().get(BTC.swap)
+
+    # Opened at 2.5 ATRs of the swinging hours: 1,500 below the fill.
+    _, start = kept("start", 3, stop_at_entry_atr=True)
+    distance = start.entry - start.stop
+    assert distance == pytest.approx(1_500.0, abs=5.0)
+
+    # Following the current ATR, the stop has crept to 250 under the unmoved price by
+    # 18:00 and the dip takes it out; at the opening distance it has not moved.
+    plain, _ = kept("plain", 19)
+    assert (18.0, "stop", False) in traded(plain)
+    fixed, quiet = kept("quiet", 19, stop_at_entry_atr=True)
+    assert "stop" not in [f.reason for f in fixed.fills]
+    assert quiet.stop == start.stop
+
+    # It still follows the price: 1,500 under 51,000 after the rise.
+    _, risen = kept("risen", 22, stop_at_entry_atr=True)
+    assert risen.stop == pytest.approx(51_000.0 - distance, abs=1e-6)
+    # With trail_after_atr it waits for the favorable move first, then trails likewise.
+    _, both = kept("both", 22, stop_at_entry_atr=True, trail_after_atr=1.0)
+    assert both.stop == risen.stop
+
+
 # -- signal sources and grids ------------------------------------------------
 
 def test_signals_come_from_a_ledger_or_a_json_file(tmp_path):
@@ -491,6 +629,12 @@ def test_a_grid_is_every_combination_of_the_specs():
     ([], ["entry_min_conviction=-1"], "entry_min_conviction"),
     ([], ["entry_confirm=0"], "entry_confirm"),
     ([], ["entry_er_threshold=1.5"], "entry_er_threshold"),
+    ([], ["close_cooldown_hours=-1"], "close_cooldown_hours"),
+    ([], ["stop_guard_stops=-1"], "stop_guard_stops"),
+    ([], ["stop_guard_window_hours=0"], "stop_guard_window_hours"),
+    ([], ["stop_guard_pause_hours=0"], "stop_guard_pause_hours"),
+    ([], ["stop_guard_scope=pair"], "stop_guard_scope"),
+    ([], ["stop_at_entry_atr=1"], "expected on or off"),
 ])
 def test_a_bad_grid_spec_is_refused(params, policies, message):
     with pytest.raises(ValueError, match=message):
@@ -515,6 +659,25 @@ def test_the_entry_gates_parse_and_are_off_by_default():
     assert grid[-1][1] == Policy(entry_min_conviction=2, entry_confirm=2, entry_er_threshold=0.15)
     assert describe(*grid[-1]) == "entry_min_conviction=2 entry_confirm=2 entry_er_threshold=0.15"
     # They emit no label of their own: the engine's weights stay the default ones.
+    assert grid[-1][1].labels() == Policy().labels()
+
+
+def test_the_cooldown_guard_and_entry_atr_switches_parse_and_are_off_by_default():
+    grid = parse_grid([], [
+        "close_cooldown_hours=0,4", "stop_guard_stops=0,2", "stop_guard_window_hours=24,48",
+        "stop_guard_pause_hours=12", "stop_guard_scope=coin,account", "stop_at_entry_atr=off,on",
+    ])
+    assert len(grid) == 32
+    assert grid[0] == (DEFAULT_PARAMS, Policy())
+    assert describe(*grid[0]) == "默认"
+    assert grid[-1][1] == Policy(
+        close_cooldown_hours=4, stop_guard_stops=2, stop_guard_window_hours=48,
+        stop_guard_scope="account", stop_at_entry_atr=True,
+    )
+    assert describe(*grid[-1]) == (
+        "close_cooldown_hours=4 stop_guard_stops=2 stop_guard_window_hours=48"
+        " stop_guard_scope=account stop_at_entry_atr=on"
+    )
     assert grid[-1][1].labels() == Policy().labels()
 
 
