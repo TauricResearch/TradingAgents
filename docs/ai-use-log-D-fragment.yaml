@@ -1,0 +1,110 @@
+# AI-use log — Member D fragment
+#
+# This is a D-owned fragment prepared for later assembly into the team's
+# docs/ai-use-log.yaml (owned by E). It records only facts observed in this session.
+# It is NOT a test approval record and does NOT claim that any test, ADR, PR or
+# implementation was approved.
+
+schema_version: "1.0"
+project: EGTA-CS5351-Group20
+role: D
+github_login: ZFebron491001
+date: 2026-11-20
+fragment_for: docs/ai-use-log.yaml
+
+sessions:
+  - session_id: "D-2026-11-20-FR04-spec"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    time:
+      - "2026-11-20T18:12:10+08:00"   # evidence capture
+      - "2026-11-20T18:12:50+08:00"   # fragment written
+    task_requirement_ids:
+      - FR-04
+      - NFR-04
+      - NFR-05
+      - NFR-09
+      - INV-01
+      - INV-04
+      - INV-06
+      - INV-07
+      - D3
+      - D8
+      - GATE-01
+      - GATE-02
+      - GATE-05
+      - GATE-06
+    writable_path:
+      - "docs/architecture/adr/003-risk-authority.md"
+      - "docs/architecture/threat-model.md"
+      - "docs/architecture/risk-policy.md"
+      - "docs/architecture/invariants.md"
+      - "docs/architecture/permission-model.md"
+      - "docs/code-governance/mcp-tool-manifest.md"
+      - "docs/evidence/FR-04/"
+      - "docs/ai-use-log-D-fragment.yaml"
+      - "test/offline/risk_gate/"
+    generated_files:
+      - file: "docs/architecture/adr/003-risk-authority.md"
+        commit: "uncommitted"
+        note: "ADR-003 draft, status PROPOSED — PENDING HUMAN APPROVAL"
+      - file: "docs/architecture/threat-model.md"
+        commit: "uncommitted"
+        note: "T01–T16 threat register"
+      - file: "docs/architecture/risk-policy.md"
+        commit: "uncommitted"
+        note: "draft policy; 20%/10% plan-specified, freshness/fee/slippage pending"
+      - file: "docs/architecture/invariants.md"
+        commit: "uncommitted"
+        note: "D entries only; other owners must append"
+      - file: "docs/architecture/permission-model.md"
+        commit: "uncommitted"
+        note: "policy artifact; runtime enforcement not claimed"
+      - file: "docs/code-governance/mcp-tool-manifest.md"
+        commit: "uncommitted"
+        note: "D portion; no runtime MCP server claimed"
+      - file: "test/offline/risk_gate/"
+        commit: "uncommitted"
+        note: "124 identified cases, fakes, fixtures, manifest meta-test"
+      - file: "docs/evidence/FR-04/"
+        commit: "uncommitted"
+        note: "red baseline, manifest green, ruff green, case-build dry run"
+    human_intervention:
+      - type: approve
+        what: "Phase 0 plan and authorization to generate Phase 1–4 docs/tests"
+        evidence: "interactive plan approval in this session"
+        limit: "Not a Test PR approval; not an ADR approval; no implementation authorization"
+      - type: reject/none
+        what: "no human rejection recorded in this session"
+    verification_output:
+      - command: "python -m pytest test/offline/risk_gate -q --tb=line"
+        exit_code: 1
+        result: "124 failed (expected red: egta/risk_gate absent), 5 passed (manifest)"
+        evidence: "docs/evidence/FR-04/phase4-red-baseline.txt"
+      - command: "python -m pytest test/offline/risk_gate/test_spec_manifest.py -q"
+        exit_code: 0
+        result: "5 passed"
+        evidence: "docs/evidence/FR-04/phase4-manifest-green.txt"
+      - command: "python -m ruff check test/offline/risk_gate"
+        exit_code: 0
+        result: "All checks passed"
+        evidence: "docs/evidence/FR-04/phase4-ruff.txt"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+        evidence: "session output"
+      - command: "case-construction dry run"
+        exit_code: 0
+        result: "124 cases built; scenario keys wired"
+        evidence: "docs/evidence/FR-04/phase4-case-build.txt"
+    implementation_status: "NOT STARTED — GATE-01 approval not yet obtained"
+    test_pr: null
+    approval_links: []
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No implementation code was written."
+      - "No contract, CI, CODEOWNERS, ruleset or human-only file was changed."
+      - "No git commit, push, PR, review or merge was performed."
+      - "The red baseline is expected test-first evidence, not xfail/skip."
+      - "Instrument identity is a contract gap; tests use a test-only ticker field."

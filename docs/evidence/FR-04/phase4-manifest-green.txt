@@ -1,0 +1,15 @@
+FR-04 manifest self-check
+================================
+Date: 2026-11-20T18:12:10+08:00
+Branch: spec/FR-04-risk-gate
+HEAD: 9fa1196fffbcfd9de5146d2dd2869df84ab99838
+Python: 3.12.15
+pytest: 9.2.0
+Command: python -m pytest test/offline/risk_gate/test_spec_manifest.py -q
+Interpretation: the 124-case manifest is complete, unique, requirement-mapped and
+wired to the six behavioural test modules even while the implementation is absent.
+------------------------------------------------------------
+.....                                                                    [100%]
+5 passed in 0.02s
+
+Exit code: 0
