@@ -1,0 +1,109 @@
+# AI-use log — test/FR-01-evidence (PR #4)
+#
+# Structured record for the INV-02 time-policy test-first session (GATE-06),
+# per execution_plan §10.1. Facts only; unknown values are "unknown". This file
+# lives on the spec branch so the test/spec PR carries its own AI-use record;
+# the opencode transcript export stays local (it contains machine paths).
+
+schema_version: "1.0"
+project: EGTA-CS5351-Group20
+role: A
+github_login: yuxiangdu39
+
+context:
+  spec_pr: 4
+  spec_branch: test/FR-01-evidence
+  scope: "INV-02 time filtering only; FR-01 pack-level tests deferred"
+  related:
+    pr_2: "D's FR-04 risk-gate spec; A is the approver (co-sign 510828a)"
+    contracts_v1: "B's PR #3, not frozen; ReasonCode gap blocks pack-level tests"
+    gate_01: "test-first: implementation must not start before D approves this spec"
+
+sessions:
+  - session_id: "A-2026-11-20-inv02-time-policy"
+    student: "A / Du Yuxiang / yuxiangdu39"
+    agent_tool_model: "OpenCode / opencode CLI / model: unknown"
+    time:
+      - "2026-11-20T21:48:00+08:00"   # session start
+      - "2026-11-20T21:58:00+08:00"   # session end
+    task_requirement_ids:
+      - INV-02
+      - FR-01
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "test/offline/evidence/"
+    generated_files:
+      - file: "test/offline/evidence/_target.py"
+        change: "import shim; records MISSING_REASON and re-raises ModuleNotFoundError"
+      - file: "test/offline/evidence/conftest.py"
+        change: "REPO_ROOT/SRC_DIR resolution, frozen_now=2026-11-11T00:00:00Z, load_case, iter_items"
+      - file: "test/offline/evidence/test_time_policy.py"
+        change: "11 time-policy tests written before any implementation"
+      - file: "test/offline/evidence/README.md"
+        change: "red/green contract for the suite"
+    human_intervention:
+      - category: "human instruction / supervision"
+        action: "Ran the 13-step runbook; typed the two explicit approval phrases (Step 4: diff review; Step 7: stop before implementation); refused to write src/."
+        reason: "Enforce GATE-01 test-first ordering."
+        requirement_ids: ["INV-02", "GATE-01"]
+    verification_output:
+      - cmd: "python -m pytest test/offline/evidence -q"
+        env: "egta (Python 3.12.16)"
+        result: "ModuleNotFoundError: No module named 'egta' — RED by design"
+    cost: "unknown"
+    session_path: "/tmp/A-session-raw-1.md (2,676 lines, 222,961 bytes; local only, not committed)"
+
+  - session_id: "A-2026-11-21-inv02-revision-after-d-review"
+    student: "A / Du Yuxiang / yuxiangdu39"
+    agent_tool_model: "Doubao Work assistant (agent) / human-directed"
+    time:
+      - "2026-11-21T00:46:00+08:00"
+    task_requirement_ids:
+      - INV-02
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "test/offline/evidence/"
+      - "scripts/"
+      - "docs/"
+    generated_files:
+      - file: "test/offline/evidence/conftest.py"
+        change: "ruff UP017: timezone.utc -> UTC"
+      - file: "test/offline/evidence/test_time_policy.py"
+        change: "ruff UP017; date-only == as_of now ADMITTED (E-31); added exact published_at == as_of test"
+      - file: "test/offline/evidence/README.md"
+        change: "removed stale 'no test functions yet'; added scope (INV-02 only) and the closed-interval boundary rule"
+      - file: "scripts/gen_evidence_fixtures.py"
+        change: "31 fixtures; E-21 duplicate gets E-21-1-dup; new E-31 boundary-equal case"
+      - file: "test/offline/evidence/fixtures/E-21.json, E-31.json"
+        change: "regenerated deterministically"
+      - file: "docs/evidence/FR-01/red-baseline.txt"
+        change: "captured red run, exit 2"
+      - file: "docs/evidence/FR-01/compile-ast.txt"
+        change: "py_compile exit 0 + AST count 12"
+      - file: "docs/evidence/FR-01/ruff.txt"
+        change: "ruff clean"
+      - file: "docs/req/trace-FR-01-evidence.md"
+        change: "requirement-to-test trace + expected-red registry"
+      - file: "docs/ai-use-log.yaml"
+        change: "this record"
+      - file: "docs/approvals/test-hash-FR-01-evidence.txt"
+        change: "per-file + aggregate over tests, fixtures and generator; three-field commit binding"
+    human_intervention:
+      - category: "human decision"
+        action: "Chose route 1 (narrow PR #4 to INV-02) instead of adding 18 pack-level fixture tests."
+        reason: "EvidencePack contract is not frozen; pack-level assertions would be rewritten."
+        requirement_ids: ["INV-02", "FR-01"]
+    verification_output:
+      - cmd: "python -m pytest test/offline/evidence -q --tb=line"
+        env: "egta"
+        result: "exit 2, ModuleNotFoundError: No module named 'egta' (RED by design)"
+      - cmd: "python -m ruff check ."
+        env: "egta"
+        result: "All checks passed!"
+      - cmd: "python -m py_compile test/offline/evidence/*.py"
+        env: "egta"
+        result: "exit 0; AST count = 12 test functions"
+    cost: "unknown"
+    session_path: "unknown"

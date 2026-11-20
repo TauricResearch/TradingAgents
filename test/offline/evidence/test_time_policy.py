@@ -1,6 +1,6 @@
 """Tests for evidence time filtering, driven by the E-01..E-30 fixtures."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -8,7 +8,7 @@ from ._target import TimeVerdict, is_admissible  # noqa: F401
 
 
 def _as_of_string(frozen_now) -> str:
-    return frozen_now.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return frozen_now.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def test_future_items_excluded(load_case, frozen_now, iter_items):
@@ -50,7 +50,7 @@ def test_offset_normalized_to_utc(load_case, frozen_now, iter_items):
     )
     assert verdict.admissible is True
     normalized = datetime.fromisoformat(verdict.normalized_at.replace("Z", "+00:00"))
-    expected_instant = datetime(2026, 11, 10, 9, 0, 0, tzinfo=timezone.utc)
+    expected_instant = datetime(2026, 11, 10, 9, 0, 0, tzinfo=UTC)
     assert normalized == expected_instant
 
 
@@ -141,13 +141,30 @@ def test_naive_as_of_rejected(frozen_now):
         )
 
 
-def test_date_only_equal_to_as_of_date_excludes(frozen_now):
-    """This choice is pending confirmation from B and D; the alternative is
-    FUTURE_DATA; both exclude, only the reason code differs."""
+def test_date_only_equal_to_as_of_date_admitted(load_case, frozen_now, iter_items):
+    """as_of is a closed interval: a date-only value on the as-of UTC date is
+    admissible. D's review (PR #2 / PR #4 round) fixed this: a valid date-only
+    value is never INVALID_TIME."""
+    case = load_case("E-31")
+    item = iter_items(case)[0]
     verdict = is_admissible(
-        published_at="2026-11-11",
-        time_granularity="date_only",
+        published_at=item["published_at"],
+        time_granularity=item["time_granularity"],
         as_of=_as_of_string(frozen_now),
     )
-    assert verdict.admissible is False
-    assert verdict.reason_code == "INVALID_TIME"
+    assert verdict.admissible is True
+    assert verdict.availability == "available"
+    assert verdict.reason_code is None
+
+
+def test_published_at_exactly_equal_to_as_of_admitted(frozen_now):
+    """Exact equality with as_of is admitted, not FUTURE_DATA."""
+    verdict = is_admissible(
+        published_at=_as_of_string(frozen_now),
+        time_granularity="second",
+        as_of=_as_of_string(frozen_now),
+    )
+    assert verdict.admissible is True
+    assert verdict.availability == "available"
+    assert verdict.reason_code is None
+

@@ -1,0 +1,6 @@
+# Ruff
+date_utc: 2026-11-20T16:46:32Z
+
+$ python -m ruff check .
+All checks passed!
+exit_code=0

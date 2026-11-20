@@ -21,7 +21,7 @@
       "trust_label": "secondary"
     },
     {
-      "case_local_id": "E-21-1",
+      "case_local_id": "E-21-1-dup",
       "source_type": "yahoo_news",
       "source_uri": "yahoo-news://8f2c1d",
       "raw_time_field": "providerPublishTime",
@@ -41,6 +41,6 @@
     "excluded": [],
     "conflict_groups": [],
     "outcome": "PACK",
-    "note": "两个 item 内容完全相同，去重后只应出现一次"
+    "note": "两个 item 内容完全相同；E-21-1-dup 是同一抓取的重复副本，去重后只应出现一次"
   }
 }

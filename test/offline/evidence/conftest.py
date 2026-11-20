@@ -2,7 +2,7 @@
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SRC_DIR = REPO_ROOT / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-FROZEN_NOW = datetime(2026, 11, 11, 0, 0, 0, tzinfo=timezone.utc)
+FROZEN_NOW = datetime(2026, 11, 11, 0, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture

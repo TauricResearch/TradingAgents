@@ -1,0 +1,38 @@
+{
+  "case_id": "E-31",
+  "purpose": "临界 admitted：date_only 日期恰等于 as_of 的 UTC 日期，as_of 为闭区间",
+  "source_type": "yfinance_bar",
+  "raw_time_field": "Date",
+  "time_granularity": "date_only",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "boundary_equal",
+  "items": [
+    {
+      "case_local_id": "E-31-1",
+      "source_type": "yfinance_bar",
+      "source_uri": "yfinance://AAPL/2026-11-11",
+      "raw_time_field": "Date",
+      "time_granularity": "date_only",
+      "published_at": "2026-11-11",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "OHLC 2026-11-11: open 229.87, high 231.2, low 228.9, close 230.55",
+      "content_hash": "b346a8c793258fa8855eeb8b718f5471df941f95a3be79506f1020eb2724d76a",
+      "raw_value": {
+        "open": 229.87,
+        "high": 231.2,
+        "low": 228.9,
+        "close": 230.55
+      },
+      "trust_label": "primary"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-31-1"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK",
+    "note": "date_only 只给日期；该日包含 as_of，不得判为 INVALID_TIME 或 FUTURE_DATA"
+  }
+}

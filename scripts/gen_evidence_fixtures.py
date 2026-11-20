@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the 30 evidence fixtures for FR-01 / INV-02 tests.
+"""Generate the 31 evidence fixtures for FR-01 / INV-02 tests.
 
 Deterministic: re-running produces byte-identical files.
 
@@ -452,11 +452,11 @@ CASES.append({
     "items": [
         news("E-21-1", "yahoo-news://8f2c1d", "2026-11-10T13:05:00Z",
              "Apple supplier orders point to a stronger iPhone build in the March quarter."),
-        news("E-21-1", "yahoo-news://8f2c1d", "2026-11-10T13:05:00Z",
+        news("E-21-1-dup", "yahoo-news://8f2c1d", "2026-11-10T13:05:00Z",
              "Apple supplier orders point to a stronger iPhone build in the March quarter."),
     ],
     "expected": {"admitted": ["E-21-1"], "excluded": [], "conflict_groups": [], "outcome": "PACK",
-                 "note": "两个 item 内容完全相同，去重后只应出现一次"},
+                 "note": "两个 item 内容完全相同；E-21-1-dup 是同一抓取的重复副本，去重后只应出现一次"},
 })
 
 CASES.append({
@@ -586,6 +586,21 @@ CASES.append({
     "expected": {"admitted": [],
                  "excluded": [{"case_local_id": "E-30-1", "reason_code": "INTEGRITY_VIOLATION"}],
                  "conflict_groups": [], "outcome": "PACK", "integrity_event": True},
+})
+
+
+# ---------------------------------------------------------------- 4.8 boundary equal (E-31)
+
+
+CASES.append({
+    "case_id": "E-31",
+    "purpose": "临界 admitted：date_only 日期恰等于 as_of 的 UTC 日期，as_of 为闭区间",
+    "source_type": "yfinance_bar", "raw_time_field": "Date", "time_granularity": "date_only",
+    "as_of": AS_OF, "provider_behavior": "boundary_equal",
+    "items": [bar("E-31-1", "yfinance://AAPL/2026-11-11", "2026-11-11",
+                  {"open": 229.87, "high": 231.20, "low": 228.90, "close": 230.55})],
+    "expected": {"admitted": ["E-31-1"], "excluded": [], "conflict_groups": [], "outcome": "PACK",
+                 "note": "date_only 只给日期；该日包含 as_of，不得判为 INVALID_TIME 或 FUTURE_DATA"},
 })
 
 
