@@ -81,6 +81,23 @@ def test_daily_report_lays_out_a_paragraph_per_coin_and_says_what_a_rerun_did_to
     assert text.splitlines()[-1] == "AI 费用：今日 $0.00 · 本月 $0.00 / 上限 $53.40"
 
 
+def test_daily_report_says_when_a_trade_only_reduced_the_position(tmp_path):
+    # Sell became Underweight: three quarters of the short bought back, and still short.
+    ledger = Ledger(tmp_path / "ledger.sqlite")
+    ledger.initialize(10_000.0, DAY0)
+    ledger.commit(
+        positions={BTC.swap: Position(-0.025, 80_000.0, 85_000.0)}, cash=10_000.0,
+        fills=[Fill(DAY0, BTC.swap, 0.075, 80_000.0, 3.0, "trade", "2026-01-09")],
+    )
+    text = report.daily(
+        Paper(ledger, FakeOKX(), (BTC,)), "2026-01-09", {BTC.research: ("done", "Underweight")},
+        DAY0 + 1, DAY0, None,
+    )
+    assert text.split("\n\n")[1] == (
+        "BTC · Underweight\n买入 0.075 @ 80,000.00（空头减仓）\n持仓 -0.025 · 止损 85,000.00"
+    )
+
+
 class DownOKX(FakeOKX):
     """FakeOKX whose ticker endpoint fails like an unreachable host."""
 

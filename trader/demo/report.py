@@ -29,10 +29,11 @@ def hourly(account: DemoAccount, hour: int, signals: dict[str, str | None], fill
         own = [f for f in fills if f.inst == coin.swap]
         if own:
             signal = signals.get(coin.research)
+            left = positions.get(coin.swap)
             blocks.append([
                 f"{message.coin(coin.swap)} · {f'信号 {signal}' if signal else '无信号'}",
-                *message.trades(own),
-                message.held(positions.get(coin.swap)),
+                *message.trades(own, left.qty if left else 0.0),
+                message.held(left),
             ])
     blocks.append([f"权益 {account.ledger.get('equity', 0.0):,.2f} USDT"])
     return message.paragraphs(*blocks)

@@ -34,10 +34,11 @@ def hourly(
         own = [f for f in fills if f.inst == coin.swap]
         if own:
             signal = signals.get(coin.research)
+            left = positions.get(coin.swap)
             blocks.append([
                 f"{message.coin(coin.swap)} · {f'信号 {signal}' if signal else '无信号'}",
-                *message.trades(own),
-                message.held(positions.get(coin.swap)),
+                *message.trades(own, left.qty if left else 0.0),
+                message.held(left),
             ])
     equity, unavailable = paper.equity_now()
     blocks.append([f"净值 {equity:,.2f} USDT{UNAVAILABLE if unavailable else ''}"])

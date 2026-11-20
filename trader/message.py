@@ -56,17 +56,37 @@ def trade(qty: float, price: float, count: int = 1, *notes: str) -> str:
     return text + (f"（{' · '.join(notes)}）" if notes else "")
 
 
-def trades(fills: list[Fill]) -> list[str]:
+def trades(fills: list[Fill], held: float | None = None) -> list[str]:
     """A line for each run of ``fills`` on one side and of one kind, in their order: the
     pieces an order was filled in are one trade at their average price. A fill that was
-    not a rebalancing trade says what it was."""
+    not a rebalancing trade says what it was.
+
+    ``held`` is the position the last of them left, in signed coins (0 when flat). Given
+    it, a rebalancing trade that only made the position smaller says so (``reduced``):
+    it buys under a Short signal or sells under a Long one, and reads as a reversal
+    without the word."""
     lines = []
+    position = None if held is None else round(held - sum(f.qty for f in fills), 12)
     for (_, reason), run in groupby(fills, key=lambda f: (f.qty > 0, f.reason)):
         own = list(run)
         qty = round(sum(f.qty for f in own), 12)
         price = sum(f.qty * f.price for f in own) / qty
-        lines.append(trade(qty, price, len(own), *([_REASONS[reason]] if reason in _REASONS else [])))
+        notes = [_REASONS[reason]] if reason in _REASONS else []
+        if position is not None:
+            before, position = position, round(position + qty, 12)
+            if not notes and (kind := reduced(before, position)):
+                notes.append(kind)
+        lines.append(trade(qty, price, len(own), *notes))
     return lines
+
+
+def reduced(before: float, after: float) -> str | None:
+    """``空头减仓`` or ``多头减仓`` of a trade that took a position of ``before`` signed coins
+    to a smaller one on the same side, ``after``; None of one that opened, added to,
+    closed or reversed it."""
+    if before * after > 0 and abs(after) < abs(before):
+        return "空头减仓" if before < 0 else "多头减仓"
+    return None
 
 
 def held(pos: Position | None) -> str:

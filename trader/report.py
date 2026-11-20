@@ -151,10 +151,11 @@ def daily(
         else:
             head = f"研判失败（{(detail or '')[:80]}）"
         own = [f for f in fills if f.inst == coin.swap]
-        left = message.held(positions.get(coin.swap))
+        pos = positions.get(coin.swap)
+        left = message.held(pos)
         blocks.append([
             f"{message.coin(coin.swap)} · {head}",
-            *([*message.trades(own), left] if own else [f"不调仓 · {left}"]),
+            *([*message.trades(own, pos.qty if pos else 0.0), left] if own else [f"不调仓 · {left}"]),
         ])
 
     series = ledger.equity_series()
