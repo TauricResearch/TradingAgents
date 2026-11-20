@@ -206,6 +206,7 @@ def _cash_for_one(case, gate_factory):
     assert snapshot.version == 2
     assert snapshot.cash == Decimal("4000.00")
     assert snapshot.cash >= Decimal("0")
+    assert snapshot.positions == {"AAPL": 60, "MSFT": 500}
 
 
 def _concurrent_sells(case, gate_factory):
@@ -299,6 +300,7 @@ def _concurrent_different(case, gate_factory):
     assert snapshot.ledger_count == 1
     assert snapshot.version == 2
     assert snapshot.cash == Decimal("9899.90")
+    assert snapshot.positions == {"AAPL": 1}
 
 
 def _install_trigger(db_path, name, table, statement):

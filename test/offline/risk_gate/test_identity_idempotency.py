@@ -109,7 +109,7 @@ def _same_hash_different_id(case, gate_factory):
     verdict = harness.gate.evaluate_and_commit(forged, evidence, portfolio)
     snapshot = ledger_snapshot(harness.db_path)
     assert status_of(verdict) == "REJECTED"
-    assert "INVALID_OUTPUT" in reason_codes(verdict)
+    assert "INTEGRITY_VIOLATION" in reason_codes(verdict)
     assert snapshot.ledger_count == 0
     assert snapshot.version == 1
 

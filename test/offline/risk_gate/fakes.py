@@ -7,7 +7,13 @@ file.
 
 The tests deliberately keep this file dependency-free (stdlib only) so the test
 suite can be collected while the implementation is absent. Behavioural tests fail
-red at fixture setup; ``test_spec_manifest.py`` remains green.
+red at fixture setup; the manifest and harness self-checks remain green.
+
+Test fixture parameters are not product policy. ``price_freshness_seconds``,
+``fee_bps`` and ``slippage_bps`` are injected by tests only; the product policy is
+PENDING human approval and an unconfigured policy must fail closed. The FR-04
+freshness boundary cases pass the parameter explicitly via ``freshness`` rather
+than relying on a product default.
 """
 
 from __future__ import annotations
@@ -24,6 +30,16 @@ from typing import Any
 NOW = datetime(2026, 1, 2, 15, 0, 0, tzinfo=UTC)
 ZERO_HASH = "0" * 64
 CANARY = "CANARY_SECRET_SHOULD_NOT_BE_PERSISTED_9f3a"
+
+# Test-fixture parameters only. They do not approve any product threshold.
+TEST_PRICE_FRESHNESS_SECONDS = 240
+TEST_FEE_BPS = Decimal("10")
+TEST_SLIPPAGE_BPS = Decimal("0")
+TEST_FIXTURE_PARAMETERS = {
+    "price_freshness_seconds": TEST_PRICE_FRESHNESS_SECONDS,
+    "fee_bps": str(TEST_FEE_BPS),
+    "slippage_bps": str(TEST_SLIPPAGE_BPS),
+}
 
 
 @dataclass(frozen=True)
@@ -355,9 +371,9 @@ def make_policy(**overrides: Any) -> FakeRiskPolicy:
         "base_currency": "USD",
         "max_position_pct": Decimal("0.20"),
         "max_order_pct": Decimal("0.10"),
-        "price_freshness_seconds": 300,
-        "fee_bps": Decimal("10"),
-        "slippage_bps": Decimal("0"),
+        "price_freshness_seconds": TEST_PRICE_FRESHNESS_SECONDS,
+        "fee_bps": TEST_FEE_BPS,
+        "slippage_bps": TEST_SLIPPAGE_BPS,
         "allowed_actions": frozenset({"BUY", "SELL", "HOLD"}),
         "long_only": True,
         "paper_only": True,
@@ -393,10 +409,13 @@ def make_portfolio(**overrides: Any) -> FakePortfolioSnapshot:
 
 
 def make_evidence(**overrides: Any) -> FakeEvidencePack:
-    cutoff_offset = overrides.pop("cutoff_offset", -600)
+    cutoff_offset = overrides.pop("cutoff_offset", -30)
     excluded_base = overrides.pop("excluded_base", False)
     pack_hash = overrides.pop("pack_hash", None)
+    item_overrides = overrides.pop("item_overrides", None)
     item = base_evidence_item()
+    if item_overrides:
+        item = replace(item, **item_overrides)
     fields: dict[str, Any] = {
         "run_id": "run-1",
         "snapshot_id": "snap-1",
@@ -472,12 +491,19 @@ def make_proposal(
 def build_case(case: Any) -> CaseInput:
     params = case.params
     policy_params = params.get("policy", {})
+    proposal_params = dict(params.get("proposal", {}))
+    freshness = params.get("freshness")
+    if freshness:
+        policy_params = dict(policy_params or {})
+        policy_params["price_freshness_seconds"] = freshness["seconds"]
+        proposal_params["price_time_offset"] = -(
+            int(freshness["seconds"]) + int(freshness.get("delta", 0))
+        )
     policy = None if policy_params is None else make_policy(**policy_params)
     portfolio_params = params.get("portfolio", {})
     portfolio = make_portfolio(**portfolio_params)
     evidence_params = params.get("evidence", {})
     evidence = None if evidence_params is None else make_evidence(**evidence_params)
-    proposal_params = dict(params.get("proposal", {}))
     forge_field = params.get("forge_field")
     if forge_field:
         base = make_proposal(policy=policy, evidence=evidence, portfolio=portfolio)
@@ -550,6 +576,20 @@ def ledger_snapshot(db_path: str | Path, portfolio_id: str = "portfolio-1") -> L
                 )
             ),
         )
+    finally:
+        connection.close()
+
+
+def raw_positions(db_path: str | Path, portfolio_id: str = "portfolio-1") -> dict[str, int]:
+    connection = sqlite3.connect(Path(db_path))
+    try:
+        return {
+            row[0]: int(row[1])
+            for row in connection.execute(
+                "SELECT symbol, quantity FROM positions WHERE portfolio_id = ? ORDER BY symbol",
+                (portfolio_id,),
+            )
+        }
     finally:
         connection.close()
 
@@ -629,5 +669,11 @@ def assert_case(case: Any, harness: Any, case_input: CaseInput) -> Any:
         assert after.positions == case.expected_positions, (
             f"{case.test_id}: positions {after.positions}, "
             f"expected {case.expected_positions}"
+        )
+    if case.expected_raw_positions is not None:
+        actual_raw = raw_positions(harness.db_path, case_input.portfolio.portfolio_id)
+        assert actual_raw == case.expected_raw_positions, (
+            f"{case.test_id}: raw positions {actual_raw}, "
+            f"expected {case.expected_raw_positions}"
         )
     return verdict

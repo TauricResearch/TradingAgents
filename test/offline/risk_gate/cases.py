@@ -1,9 +1,21 @@
-"""FR-04 test-case manifest: 124 independently identified risk cases.
+"""FR-04 test-case manifest: 126 independently identified risk cases.
 
 Each ``CaseSpec`` carries the Test ID, requirement IDs, fixture parameters, expected
 outcome, positive/negative classification, component and failure mode required by the
 D work package. The behavioural tests are parametrised over these lists; the meta-test
 checks IDs, counts, uniqueness and requirement coverage.
+
+``classification`` is outcome-only and is enforced by the manifest test:
+
+- ``positive``: the expected verdict status is ``APPROVED`` (including HOLD no-action
+  and duplicate-return cases).
+- ``negative``: the expected verdict status is ``REJECTED``, ``REVIEW`` or ``BLOCKED``.
+
+The property under test is recorded separately in ``test_kind``:
+``outcome``, ``idempotency``, ``atomicity``, ``security`` or ``static``. Seven cases
+are static inspection (imports/signatures, no DB behaviour); the other 119 are
+behavioural. The two harness self-tests in ``test_harness_selfcheck.py`` are meta-tests,
+not part of the 126 risk cases.
 
 No production module may import this file. The cases describe desired behaviour; they
 do not grant approval and they do not enable implementation.
@@ -15,6 +27,18 @@ from dataclasses import dataclass, field
 from typing import Any
 
 ZERO_HASH = "0" * 64
+
+STATIC_SEC_IDS = frozenset(
+    {
+        "T-RISK-SEC-02",
+        "T-RISK-SEC-03",
+        "T-RISK-SEC-05",
+        "T-RISK-SEC-06",
+        "T-RISK-SEC-07",
+        "T-RISK-SEC-14",
+        "T-RISK-SEC-16",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -31,8 +55,10 @@ class CaseSpec:
     classification: str
     component: str
     failure_mode: str
+    test_kind: str
     expected_cash: str | None = None
     expected_positions: dict[str, int] | None = field(default=None)
+    expected_raw_positions: dict[str, int] | None = field(default=None)
 
 
 def _case(
@@ -51,9 +77,21 @@ def _case(
     *,
     expected_cash: str | None = None,
     expected_positions: dict[str, int] | None = None,
+    expected_raw_positions: dict[str, int] | None = None,
 ) -> CaseSpec:
+    test_id = f"T-RISK-{suffix}"
+    if test_id in STATIC_SEC_IDS:
+        test_kind = "static"
+    elif category == "ATM":
+        test_kind = "atomicity"
+    elif category == "SEC":
+        test_kind = "security"
+    elif category == "IDM":
+        test_kind = "idempotency"
+    else:
+        test_kind = "outcome"
     return CaseSpec(
-        test_id=f"T-RISK-{suffix}",
+        test_id=test_id,
         requirement_ids=requirements,
         category=category,
         description=description,
@@ -65,8 +103,10 @@ def _case(
         classification=classification,
         component=component,
         failure_mode=failure_mode,
+        test_kind=test_kind,
         expected_cash=expected_cash,
         expected_positions=expected_positions,
+        expected_raw_positions=expected_raw_positions,
     )
 
 
@@ -387,7 +427,7 @@ ACT_CASES = [
         "ACT-19",
         ("FR-04", "INV-01"),
         "ACT",
-        "HOLD with no quantity",
+        "HOLD with valid evidence pack and no quantity",
         {"proposal": {"action": "HOLD", "quantity": None}},
         "APPROVED",
         None,
@@ -403,7 +443,7 @@ ACT_CASES = [
         "ACT-20",
         ("FR-04", "INV-01"),
         "ACT",
-        "HOLD ignores order fields",
+        "HOLD with valid evidence pack ignores order fields",
         {"proposal": {"action": "HOLD", "quantity": 10, "reference_price": "100.00"}},
         "APPROVED",
         None,
@@ -838,6 +878,7 @@ FND_CASES = [
         "policy",
         "short position violates long-only starting state",
         expected_cash="10000.00",
+        expected_raw_positions={"AAPL": -1},
     ),
     _case(
         "FND-20",
@@ -971,8 +1012,8 @@ EVD_CASES = [
         "EVD",
         "evidence pack hash is forged",
         {"evidence": {"pack_hash": ZERO_HASH}},
-        "REVIEW",
-        "EVIDENCE_MISSING",
+        "REJECTED",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -987,8 +1028,8 @@ EVD_CASES = [
         "EVD",
         "proposal references a different evidence pack hash",
         {"proposal": {"evidence_pack_hash": ZERO_HASH}},
-        "REVIEW",
-        "EVIDENCE_MISSING",
+        "REJECTED",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1003,8 +1044,8 @@ EVD_CASES = [
         "EVD",
         "proposal run id differs from evidence run id",
         {"proposal": {"run_id": "run-2"}},
-        "REVIEW",
-        "EVIDENCE_MISSING",
+        "REJECTED",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1049,15 +1090,15 @@ EVD_CASES = [
         "EVD-07",
         ("FR-04", "INV-01", "NFR-09"),
         "EVD",
-        "price age exactly at the freshness limit",
-        {"proposal": {"price_time_offset": -300}},
+        "price age exactly at the parameterized freshness limit",
+        {"freshness": {"seconds": 240, "delta": 0}},
         "APPROVED",
         None,
         1,
         1,
         "positive",
         "rules",
-        "age equal to the limit is allowed",
+        "age equal to the policy parameter is allowed",
         expected_cash="9899.90",
         expected_positions={"AAPL": 1},
     ),
@@ -1065,15 +1106,15 @@ EVD_CASES = [
         "EVD-08",
         ("FR-04", "INV-01", "NFR-09"),
         "EVD",
-        "price age one second over the freshness limit",
-        {"proposal": {"price_time_offset": -301}},
+        "price age one second over the parameterized freshness limit",
+        {"freshness": {"seconds": 240, "delta": 1}},
         "REJECTED",
-        "POLICY_REJECTED",
+        "STALE_DATA",
         0,
         0,
         "negative",
         "rules",
-        "stale price must not execute",
+        "age greater than the policy parameter must not execute",
         expected_cash="10000.00",
         expected_positions={},
     ),
@@ -1116,7 +1157,7 @@ EVD_CASES = [
         "proposal policy hash mismatch",
         {"proposal": {"policy_hash": ZERO_HASH}},
         "REJECTED",
-        "POLICY_REJECTED",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1179,8 +1220,8 @@ EVD_CASES = [
         "EVD",
         "policy hash does not match policy fields",
         {"policy": {"policy_hash": ZERO_HASH}},
-        "BLOCKED",
-        "INCOMPATIBLE_STATE",
+        "REJECTED",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1196,7 +1237,7 @@ EVD_CASES = [
         "naive price time",
         {"proposal": {"price_time_naive": True}},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INVALID_TIME",
         0,
         0,
         "negative",
@@ -1254,7 +1295,7 @@ EVD_CASES = [
             }
         },
         "REVIEW",
-        "EVIDENCE_MISSING",
+        "INVALID_CITATION",
         0,
         0,
         "negative",
@@ -1276,6 +1317,38 @@ EVD_CASES = [
         "negative",
         "rules",
         "HOLD still needs a verifiable evidence pack",
+        expected_cash="10000.00",
+        expected_positions={},
+    ),
+    _case(
+        "EVD-21",
+        ("FR-04", "INV-01", "NFR-09"),
+        "EVD",
+        "sole evidence support is unreachable",
+        {"evidence": {"item_overrides": {"availability": "unreachable"}}},
+        "REVIEW",
+        "VENDOR_UNAVAILABLE",
+        0,
+        0,
+        "negative",
+        "rules",
+        "an unreachable sole support must be excluded, not treated as valid",
+        expected_cash="10000.00",
+        expected_positions={},
+    ),
+    _case(
+        "EVD-22",
+        ("FR-04", "INV-01", "NFR-09"),
+        "EVD",
+        "sole evidence support is stale",
+        {"evidence": {"item_overrides": {"availability": "stale"}}},
+        "REVIEW",
+        "STALE_DATA",
+        0,
+        0,
+        "negative",
+        "rules",
+        "a stale sole support must be excluded, not treated as valid",
         expected_cash="10000.00",
         expected_positions={},
     ),
@@ -1306,7 +1379,7 @@ IDM_CASES = [
         "forged all-zero proposal hash",
         {"proposal": {"proposal_hash_mode": "zeros"}},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1354,7 +1427,7 @@ IDM_CASES = [
         "action changed but old hash retained",
         {"forge_field": "action", "forge_value": "SELL"},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1370,7 +1443,7 @@ IDM_CASES = [
         "quantity changed but old hash retained",
         {"forge_field": "quantity", "forge_value": 2},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1386,7 +1459,7 @@ IDM_CASES = [
         "price changed but old hash retained",
         {"forge_field": "reference_price", "forge_value": "101.00"},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1402,7 +1475,7 @@ IDM_CASES = [
         "evidence hash changed but old hash retained",
         {"forge_field": "evidence_pack_hash", "forge_value": ZERO_HASH},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1418,7 +1491,7 @@ IDM_CASES = [
         "portfolio version changed but old hash retained",
         {"forge_field": "portfolio_version", "forge_value": 2},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1437,7 +1510,7 @@ IDM_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "second identical request must return the stored verdict",
         expected_cash="9899.90",
@@ -1453,7 +1526,7 @@ IDM_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "restart must not replay a committed trade",
         expected_cash="9899.90",
@@ -1485,7 +1558,7 @@ IDM_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "duplicate HOLD must remain a no-action decision",
         expected_cash="10000.00",
@@ -1498,7 +1571,7 @@ IDM_CASES = [
         "same hash with an edited proposal id is a forged proposal",
         {"scenario": "same_hash_different_id"},
         "REJECTED",
-        "INVALID_OUTPUT",
+        "INTEGRITY_VIOLATION",
         0,
         0,
         "negative",
@@ -1517,7 +1590,7 @@ IDM_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "dedupe must also cover the audit event",
         expected_cash="9899.90",
@@ -1655,7 +1728,7 @@ ATM_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "concurrency must not duplicate the trade",
         expected_cash="9899.90",
@@ -1671,7 +1744,7 @@ ATM_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "a wider race must still produce one ledger entry",
         expected_cash="9899.90",
@@ -1687,10 +1760,11 @@ ATM_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "cash must never be spent twice",
         expected_cash="4000.00",
+        expected_positions={"AAPL": 60, "MSFT": 500},
     ),
     _case(
         "ATM-08",
@@ -1702,7 +1776,7 @@ ATM_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "concurrent sells must not oversell",
         expected_cash="9999.00",
@@ -1718,10 +1792,11 @@ ATM_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "one of two same-version writers must observe a stale version",
         expected_cash="9899.90",
+        expected_positions={"AAPL": 1},
     ),
     _case(
         "ATM-10",
@@ -1861,7 +1936,7 @@ ATM_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "a duplicate must not append a second event",
         expected_cash="9899.90",
@@ -1909,7 +1984,7 @@ ATM_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "other readers must not see uncommitted cash or positions",
         expected_cash="9899.90",
@@ -1993,7 +2068,7 @@ SEC_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "service",
         "final risk authority must remain deterministic",
     ),
@@ -2007,7 +2082,7 @@ SEC_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "service",
         "force/skip/override/verdict parameters would destroy the authority boundary",
     ),
@@ -2037,7 +2112,7 @@ SEC_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "service",
         "a detached verdict object must never authorize a commit",
     ),
@@ -2051,7 +2126,7 @@ SEC_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "the public package surface must not expose a direct writer",
     ),
@@ -2065,7 +2140,7 @@ SEC_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "cross-module private imports would bypass the gate",
     ),
@@ -2079,7 +2154,7 @@ SEC_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "raw claims must not be stored",
         expected_cash="9899.90",
@@ -2111,7 +2186,7 @@ SEC_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "parameterized SQL must keep the table intact",
         expected_cash="9899.90",
@@ -2143,7 +2218,7 @@ SEC_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "ledger",
         "audit metrics/reasons must not copy claims",
         expected_cash="9899.90",
@@ -2159,7 +2234,7 @@ SEC_CASES = [
         None,
         1,
         1,
-        "negative",
+        "positive",
         "service",
         "offline determinism requires no network",
         expected_cash="9899.90",
@@ -2175,7 +2250,7 @@ SEC_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "the database path is not caller-controlled",
     ),
@@ -2211,7 +2286,7 @@ SEC_CASES = [
         None,
         0,
         0,
-        "negative",
+        "positive",
         "ledger",
         "callers must go through evaluate_and_commit",
     ),

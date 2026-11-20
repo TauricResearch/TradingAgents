@@ -18,7 +18,7 @@
 | Paper only | No broker, no real account, no real order | FR-04 | PLAN-SPECIFIED (not frozen) |
 | Long only | Short selling and negative positions are rejected | execution plan §5.1 | PLAN-SPECIFIED (not frozen) |
 | No leverage | Cash may not go below zero after costs | execution plan §5.1 | PLAN-SPECIFIED (not frozen) |
-| HOLD | Valid no-trade suggestion; no order, no ledger entry | FR-04 / execution plan §5.1 | PLAN-SPECIFIED (not frozen) |
+| HOLD | Valid no-trade suggestion **with a valid evidence pack**; no order, no ledger entry; missing pack -> `REVIEW` | FR-04 / execution plan §5.1 | PLAN-SPECIFIED (not frozen) |
 | BUY/SELL quantity | Positive integer; `bool`, float, string, `None` rejected | FR-04 | PLAN-SPECIFIED (not frozen) |
 | SELL quantity | `quantity <= current holding` | execution plan §5.1 | PLAN-SPECIFIED (not frozen) |
 
@@ -81,9 +81,20 @@ ledger mutation.
 | Base currency | PENDING (demo proposal: USD) | execution plan requires compatibility | Safe reject if unset |
 | Policy version/hash | PENDING | shared contract decision | Safe reject if unset |
 | Quantization | PENDING (test fixture: `0.01`) | money precision | Safe reject if unset |
-| HOLD evidence requirement | PENDING (test proposal: valid pack required) | FR-04 evidence rule | Safe reject if unset |
+| HOLD evidence requirement | DECIDED: valid pack required; missing -> `REVIEW/EVIDENCE_MISSING` | FR-04 evidence rule | Decided in this spec; not a financial threshold |
 
 The 20% and 10% caps are course-demonstration constraints, not investment advice.
+
+### Test fixture parameters (not product policy)
+
+The offline suite injects `price_freshness_seconds=240`, `fee_bps=10` and
+`slippage_bps=0` via `fakes.TEST_FIXTURE_PARAMETERS`. These are **test-only** values,
+not approved product defaults. The product values remain PENDING. The unconfigured or
+invalid-policy cases (`FND-13/14/15`, `EVD-12/13/14`) require safe rejection.
+
+EVD-07/EVD-08 pass the freshness value as an explicit `freshness` parameter and assert
+the rule "age equal to the parameter is allowed, one second over is rejected", rather
+than freezing a product default of 300 seconds.
 
 ## 5. Status and reason mapping (proposed contract)
 
@@ -92,20 +103,77 @@ The 20% and 10% caps are course-demonstration constraints, not investment advice
 | Condition | Status | reason_code |
 |---|---|---|
 | Valid BUY/SELL | `APPROVED` | — |
-| Valid HOLD | `APPROVED` (no action) | — |
+| Valid HOLD with a valid pack | `APPROVED` (no action) | — |
 | Schema/action/quantity/price invalid | `REJECTED` | `INVALID_OUTPUT` |
+| Malformed hash syntax (not 64 lowercase hex) | `REJECTED` | `INVALID_OUTPUT` |
+| Well-formed hash does not match content or run binding | `REJECTED` | `INTEGRITY_VIOLATION` |
 | Limit/cash/holding/currency/price-age violation | `REJECTED` | `POLICY_REJECTED` |
-| Missing/unverifiable evidence | `REVIEW` | `EVIDENCE_MISSING` |
+| Price older than `price_freshness_seconds` | `REJECTED` | `STALE_DATA` |
+| Naive/ambiguous time | `REJECTED` | `INVALID_TIME` |
+| Missing evidence pack or non-executable proposal without claims | `REVIEW` | `EVIDENCE_MISSING` |
+| Claim cites an evidence id absent from the pack | `REVIEW` | `INVALID_CITATION` |
+| Sole usable support is unreachable | `REVIEW` | `VENDOR_UNAVAILABLE` |
+| Sole usable support is stale | `REVIEW` | `STALE_DATA` |
 | Future-dated price/evidence | `REJECTED` | `FUTURE_DATA` |
 | Stale portfolio version | `REJECTED` | `STALE_PORTFOLIO` |
-| Policy missing/inactive/tampered | `BLOCKED` | `INCOMPATIBLE_STATE` |
+| Policy missing/inactive/expired | `BLOCKED` | `INCOMPATIBLE_STATE` |
 | Audit/storage unavailable | `BLOCKED` | `AUDIT_UNAVAILABLE` |
 | Duplicate `proposal_hash` | stored verdict | original reason |
 | Budget/deadline (B) | `INCOMPLETE` | `BUDGET_DENIED` |
 
-The canonical reason list is shared with E's `RunEvent` draft. If a storage/busy
-failure is not well represented by `AUDIT_UNAVAILABLE`, an RFC to E/B is required
-before adding a new code.
+B's accepted reason table includes `INVALID_CITATION`, `INTEGRITY_VIOLATION`,
+`INVALID_TIME`, `STALE_DATA` and `VENDOR_UNAVAILABLE`. E's current `RunEvent` draft
+does not yet include all five; contracts v1 must align before implementation. If a
+storage/busy failure is not well represented by `AUDIT_UNAVAILABLE`, an RFC to E/B is
+required before adding a new code.
+
+### Hash-mismatch rule
+
+One rule applies to all hash/identity cases:
+
+1. A hash that is not 64 lowercase hex characters is **malformed**:
+   `REJECTED/INVALID_OUTPUT` (IDM-03, IDM-04).
+2. A well-formed hash that does not match the recomputed content, or that binds the
+   proposal to a different run/snapshot/policy than the supplied object, is an
+   **integrity violation**: `REJECTED/INTEGRITY_VIOLATION` (EVD-02, EVD-03, EVD-04,
+   EVD-11, EVD-15, IDM-02, IDM-05..09, IDM-14).
+3. Missing or unusable evidence is a **review/data-availability** outcome, not an
+   integrity or policy violation: `REVIEW` with `EVIDENCE_MISSING`,
+   `INVALID_CITATION`, `VENDOR_UNAVAILABLE` or `STALE_DATA` depending on the cause.
+
+No hash/identity failure writes the ledger.
+
+### Evidence availability state machine
+
+Only evidence items with `availability=available` are usable. `stale` and
+`unreachable` items are excluded; the availability state is the state, and the reason
+code is the cause. If a proposal loses all usable support:
+
+- unreachable sole support -> `REVIEW/VENDOR_UNAVAILABLE` (EVD-21);
+- stale sole support -> `REVIEW/STALE_DATA` (EVD-22);
+- missing pack -> `REVIEW/EVIDENCE_MISSING` (EVD-01, EVD-20);
+- dangling citation -> `REVIEW/INVALID_CITATION` (EVD-19).
+
+A stale **proposal price** is a separate price-freshness failure:
+`REJECTED/STALE_DATA` (EVD-08). `AUDIT_UNAVAILABLE` is an audit/storage cause and is
+not an evidence `availability` value.
+
+### Gate verdict -> RunEvent.RunStatus
+
+`HOLD` is an `AdvisoryProposal.action`, not a `RiskVerdict.status`. The proposed
+mapping to E's event status is:
+
+| Gate outcome | `RunEvent.RunStatus` |
+|---|---|
+| `APPROVED` trade | `OK` |
+| `APPROVED` HOLD no-action | `OK` |
+| `REJECTED` | `BLOCKED` |
+| `REVIEW` | `REVIEW` |
+| `BLOCKED` | `BLOCKED` |
+| `INCOMPLETE` (B/app level) | `INCOMPLETE`, not emitted by the risk gate |
+
+If contracts v1 chooses a different mapping, this is deferred to that contract; C
+must not infer a mapping from prose.
 
 ## 5a. Contract gap: instrument identity
 

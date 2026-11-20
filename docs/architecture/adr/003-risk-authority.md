@@ -56,7 +56,8 @@ contract.
 9. Fail closed: missing evidence, invalid policy, invalid portfolio, stale version,
    or unavailable audit/storage produces `REVIEW`, `REJECTED` or `BLOCKED` with a
    structured reason. It never produces a silent success.
-10. HOLD is a valid no-trade suggestion (`APPROVED`, no ledger entry). It is not a
+10. HOLD is a valid no-trade suggestion only with a valid evidence pack (`APPROVED`,
+    no ledger entry). A missing/unverifiable pack makes HOLD `REVIEW`. HOLD is not a
     failure and is distinct from `REVIEW`, `BLOCKED` and `INCOMPLETE`.
 11. The gate never connects to a broker and never processes a real order. Paper-only
     and long-only are policy preconditions, not optional flags.
@@ -70,16 +71,45 @@ for B/E review, not an approved public contract.
 | Condition | Status | reason_code | Ledger effect |
 |---|---|---|---|
 | Valid BUY/SELL | `APPROVED` | none | one atomic entry |
-| Valid HOLD | `APPROVED` | none | none |
+| Valid HOLD with a valid pack | `APPROVED` | none | none |
 | Invalid schema/action/quantity/price | `REJECTED` | `INVALID_OUTPUT` | none |
+| Malformed hash syntax | `REJECTED` | `INVALID_OUTPUT` | none |
+| Hash/identity does not match content or run binding | `REJECTED` | `INTEGRITY_VIOLATION` | none |
 | Policy/limit violation | `REJECTED` | `POLICY_REJECTED` | none |
-| Missing/unverifiable evidence | `REVIEW` | `EVIDENCE_MISSING` | none |
+| Price older than the freshness parameter | `REJECTED` | `STALE_DATA` | none |
+| Naive/ambiguous time | `REJECTED` | `INVALID_TIME` | none |
+| Missing evidence pack / no claims | `REVIEW` | `EVIDENCE_MISSING` | none |
+| Dangling evidence citation | `REVIEW` | `INVALID_CITATION` | none |
+| Sole support unreachable | `REVIEW` | `VENDOR_UNAVAILABLE` | none |
+| Sole support stale | `REVIEW` | `STALE_DATA` | none |
 | Future-dated price/evidence | `REJECTED` | `FUTURE_DATA` | none |
 | Stale portfolio version | `REJECTED` | `STALE_PORTFOLIO` | none |
-| Missing/inactive/tampered policy | `BLOCKED` | `INCOMPATIBLE_STATE` | none |
+| Policy missing/inactive/expired | `BLOCKED` | `INCOMPATIBLE_STATE` | none |
 | Audit or storage unavailable | `BLOCKED` | `AUDIT_UNAVAILABLE` | rollback |
 | Duplicate proposal hash | stored verdict | original reason | none |
 | Budget/deadline exhausted | `INCOMPLETE` (B, outside gate) | `BUDGET_DENIED` | none |
+
+Hash/identity rule: malformed hash syntax is `INVALID_OUTPUT`; a well-formed hash
+that does not match the recomputed content or binds a different run/snapshot/policy
+is `INTEGRITY_VIOLATION`. Missing/unusable evidence is a `REVIEW` data-availability
+outcome, not an integrity violation. See `risk-policy.md` for the exact case list.
+
+Evidence availability is the state; the reason code is the cause. Only `available`
+items are usable; `stale` and `unreachable` items are excluded, producing `STALE_DATA`
+or `VENDOR_UNAVAILABLE` when they were the sole support. `AUDIT_UNAVAILABLE` is not an
+evidence availability value.
+
+`HOLD` is an `AdvisoryProposal.action`, not a `RiskVerdict.status`; it is
+`APPROVED` no-action. For E's `RunEvent.RunStatus`, the proposed mapping is:
+`APPROVED` -> `OK`, `REJECTED` -> `BLOCKED`, `REVIEW` -> `REVIEW`, `BLOCKED` ->
+`BLOCKED`; `INCOMPLETE` is app/budget-level, not a risk verdict. If contracts v1
+chooses differently, the mapping is deferred to that contract.
+
+The offline suite injects `price_freshness_seconds=240`, `fee_bps=10` and
+`slippage_bps=0` as **test-only** fixture parameters. They are not approved product
+defaults. The product values remain PENDING; unconfigured or invalid policy must fail
+closed. The freshness boundary cases assert the rule against the parameter, not a
+product default of 300 seconds.
 
 ## Transaction and schema outline
 
