@@ -2,9 +2,11 @@
 
 - **Date:** 2026-11-20 (Asia/Hong_Kong)
 - **Branch:** `spec/FR-04-risk-gate`
-- **HEAD:** `9fa1196fffbcfd9de5146d2dd2869df84ab99838`
-- **Status:** spec materials generated; implementation **NOT STARTED**; no commit,
-  push, PR, merge, approval record, or contract edit was performed.
+- **Initial spec commit:** `2bbbdc09f2eb9c9e6a2994b03253630205f47b12`
+- **Test PR:** https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2
+- **Status:** spec materials generated and pushed; Test PR #2 is OPEN and ready for
+  review. Implementation **NOT STARTED**. No merge, approval record, self-approval,
+  contract edit, CI edit, or human-only file edit was performed.
 
 ## Deliverable status
 
@@ -24,7 +26,8 @@
 | Case construction dry run | VERIFIED green | `docs/evidence/FR-04/phase4-case-build.txt` |
 | RiskGate implementation | NOT IMPLEMENTED (gated by GATE-01) | Phase 5 not started |
 | Permission/approval checkers | NOT IMPLEMENTED (Phase 7) | not in this package |
-| Test PR / A approval | PENDING HUMAN ACTION | not created by agent |
+| Test PR #2 | OPEN — ready for review | https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2 |
+| A approval / protected record | PENDING HUMAN ACTION | independent approval not yet recorded |
 | Security ADR human approval | PENDING HUMAN ACTION | status remains PROPOSED |
 
 ## Generated files
@@ -82,6 +85,16 @@ The 124 failures are the **expected test-first red baseline**: the implementatio
 absent, and no `xfail`/`skip` was used to hide that. The red output records the real
 `ModuleNotFoundError` reason. This is not reported as PASS.
 
+## Git / PR outputs
+
+| Action | Result |
+|---|---|
+| Local commit | `2bbbdc09f2eb9c9e6a2994b03253630205f47b12` |
+| Push | `origin/spec/FR-04-risk-gate` |
+| Test PR | [#2](https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2), open, ready for review |
+| CI checks on PR #2 | none reported; `actions/workflows` total_count = 0 for this fork |
+| Formal reviewer request | rejected (HTTP 422): `@yuxiangdu39` is not a collaborator |
+
 ## Interface blockers / pending collaboration
 
 1. **`AdvisoryProposal` missing** (C/B). The tests use a test-only fake.
@@ -103,14 +116,24 @@ absent, and no `xfail`/`skip` was used to hide that. The red output records the 
     packaging are not implemented.
 12. **Unapproved policy thresholds:** price freshness, fee and slippage remain
     PENDING; unconfigured policy must safely reject.
+13. **A is not a repository collaborator.** GitHub rejected the formal reviewer
+    request with HTTP 422. An administrator must invite `@yuxiangdu39` before A's
+    approval can satisfy the required-approval rule.
+14. **CI workflows are not registered on this fork.** `actions/workflows` returns
+    `total_count = 0` even though `.github/workflows/ci.yml` exists on `main`. No
+    checks are reported on PR #2. E/an administrator must enable/register Actions
+    and decide the approved bootstrap for the 124 expected red tests.
 
 ## GATE-01 handoff (human action required)
 
-1. Member D reviews this spec package and the 124-case manifest.
-2. Member D commits the spec materials and opens the `spec/FR-04` Test PR.
-3. Member A independently reviews and approves the FR-04 tests.
+1. Administrator invites `@yuxiangdu39` (A) as a repository collaborator.
+2. E/administrator enables/registers Actions and agrees how `test/offline` will be
+   represented during the approved bootstrap (the 124 red tests are not blocking CI
+   in this Test PR).
+3. Member A independently reviews and approves the FR-04 tests on PR #2.
 4. A protected approval record captures PR, test file hashes, approver and commit.
-5. Only after the approved tests are merged/recorded may Phase 5 implementation start.
+5. The Test PR is merged.
+6. Only after the approved tests are merged/recorded may Phase 5 implementation start.
 
-The agent did not create an approval record, did not approve its own tests, did not
-push, and did not open a PR.
+The agent created the authorized Test PR at D's explicit instruction. It did not
+create an approval record, self-approve, merge, or start implementation.

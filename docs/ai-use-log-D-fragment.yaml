@@ -19,6 +19,8 @@ sessions:
     time:
       - "2026-11-20T18:12:10+08:00"   # evidence capture
       - "2026-11-20T18:12:50+08:00"   # fragment written
+      - "2026-11-20T18:25:38+08:00"   # spec commit 2bbbdc0 authored
+      - "2026-11-20T18:26:21+08:00"   # Test PR #2 created
     task_requirement_ids:
       - FR-04
       - NFR-04
@@ -46,34 +48,38 @@ sessions:
       - "test/offline/risk_gate/"
     generated_files:
       - file: "docs/architecture/adr/003-risk-authority.md"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "ADR-003 draft, status PROPOSED — PENDING HUMAN APPROVAL"
       - file: "docs/architecture/threat-model.md"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "T01–T16 threat register"
       - file: "docs/architecture/risk-policy.md"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "draft policy; 20%/10% plan-specified, freshness/fee/slippage pending"
       - file: "docs/architecture/invariants.md"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "D entries only; other owners must append"
       - file: "docs/architecture/permission-model.md"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "policy artifact; runtime enforcement not claimed"
       - file: "docs/code-governance/mcp-tool-manifest.md"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "D portion; no runtime MCP server claimed"
       - file: "test/offline/risk_gate/"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "124 identified cases, fakes, fixtures, manifest meta-test"
       - file: "docs/evidence/FR-04/"
-        commit: "uncommitted"
+        commit: "2bbbdc0 (initial spec commit)"
         note: "red baseline, manifest green, ruff green, case-build dry run"
     human_intervention:
       - type: approve
         what: "Phase 0 plan and authorization to generate Phase 1–4 docs/tests"
         evidence: "interactive plan approval in this session"
         limit: "Not a Test PR approval; not an ADR approval; no implementation authorization"
+      - type: approve
+        what: "Explicit authorization to complete the Test PR flow (commit + push + create PR)"
+        evidence: "human instruction: '直接完成 Test PR 流程'"
+        limit: "Not a test approval; not an ADR approval; no merge; no implementation authorization"
       - type: reject/none
         what: "no human rejection recorded in this session"
     verification_output:
@@ -97,14 +103,27 @@ sessions:
         exit_code: 0
         result: "124 cases built; scenario keys wired"
         evidence: "docs/evidence/FR-04/phase4-case-build.txt"
+    git_output:
+      - action: "git commit"
+        result: "2bbbdc09f2eb9c9e6a2994b03253630205f47b12"
+      - action: "git push"
+        result: "origin/spec/FR-04-risk-gate"
+      - action: "gh pr create"
+        result: "PR #2 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2 (open, ready for review)"
     implementation_status: "NOT STARTED — GATE-01 approval not yet obtained"
-    test_pr: null
+    test_pr: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2"
+    test_pr_number: 2
+    test_pr_state: "OPEN"
     approval_links: []
+    repository_blockers:
+      - "A (@yuxiangdu39) is not a repository collaborator; formal reviewer request returned HTTP 422."
+      - "actions/workflows total_count = 0 for this fork; no CI checks are reported on PR #2. E/admin must enable/register Actions."
     cost: "unknown"
     session_path: "unknown (raw session not exported yet)"
     notes:
       - "No implementation code was written."
       - "No contract, CI, CODEOWNERS, ruleset or human-only file was changed."
-      - "No git commit, push, PR, review or merge was performed."
+      - "Commit 2bbbdc0 and Test PR #2 were created under explicit human authorization; no merge, review or approval was performed."
       - "The red baseline is expected test-first evidence, not xfail/skip."
       - "Instrument identity is a contract gap; tests use a test-only ticker field."
+      - "This fragment was updated after PR creation; the PR head may contain a follow-up log commit."
