@@ -1,26 +1,88 @@
-PR/task: FR-01 evidence pack + INV-02 time policy (test-first spec, test/ ONLY — no implementation)
+PR/task: INV-02 evidence time-filtering test spec (test-first, test/ ONLY — no implementation)
+         FR-01 pack-level tests deliberately deferred (see Scope/Notes)
 branch:   test/FR-01-evidence
-commit:   78c3ee7dcf925d459b24d6725842d72d5daa2c0a
 base:     main
 
-files (per-file SHA-256):
-  0b787e5cb199e9a6115f5db1083a2ad1ba7704723c629c3272798d975dcf45f0  test/offline/evidence/README.md
+# --- Commit binding (three distinct fields; same scheme as FR-05) ------------
+# 1) test-content commit  : the commit that last changed the test files' content
+# 2) reviewed PR head     : the exact head D reviews (final head before merge)
+# 3) merge commit         : created by GitHub when this PR merges (post-approval)
+test_content_commit:     a936cd6daee466680cc98861236f233abd0be282
+reviewed_pr_head:        PENDING  # set to the final head D reviews
+merge_commit:            PENDING  # filled after merge (record-only; not pushed after approval)
+
+# Approval binds to: reviewed_pr_head == the last commit before merge, with the
+# aggregate hash below. GitHub review is the authoritative approval; this file
+# only records content binding. DO NOT push changes to this file (or the test
+# files, fixtures, or generator) after D approves — the aggregate changes and
+# the approval is void.
+
+files (per-file SHA-256; tests + fixtures + generator):
+  5370ba434116934d865e0718cb55e1f09b0d3572734122e32ddfa03db2210516  scripts/gen_evidence_fixtures.py
+  d3e709f9078ad9247987317af5cd10223c030212d181f496627bc76f4a693b98  test/offline/evidence/README.md
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  test/offline/evidence/__init__.py
   780985d1dffa7690b64c490b9d8d3496385af97880eeb14e62bd671f9875ff50  test/offline/evidence/_target.py
-  dcd0fb67e3d09f86d4645a8d889178d15ef77e4cb57aafb6b532ff7516897cfd  test/offline/evidence/conftest.py
-  b98d1988cea6ba174536062a62d94cf43196be0e6cdbde8a9567d651055f7d92  test/offline/evidence/test_time_policy.py
+  33bce2b99a852735b8493b4255ed921f371fd86cfed59c10b2e58a814cc00ab3  test/offline/evidence/conftest.py
+  271641177ad99f3962448faa3383386deb97548f270b8f96efd3de42df3eba21  test/offline/evidence/fixtures/E-01.json
+  ff47d114098c79658e99e12a533b3c65ecc17e0fb4da999af1917c4b3db6eae9  test/offline/evidence/fixtures/E-02.json
+  f71c17bbe808fc7cfba166e848aefd14b1f50e7946d81952e94b2aefdcc47d09  test/offline/evidence/fixtures/E-03.json
+  382d4ed84309c44e9f1eb228522d239efa2fd366dd275a65d91109bfebce2a4d  test/offline/evidence/fixtures/E-04.json
+  ee4f08441d6b8bbc2daba7a20e1f77eef019139300d3380a0a8ccbe7b8c0f0fd  test/offline/evidence/fixtures/E-05.json
+  1d1eb6edd32e3479e8486b2b21d1ba2afd1377f3dda4de0ca34472199313aa6f  test/offline/evidence/fixtures/E-06.json
+  456394d34fb5a3bd47aa6db5b88c97dd74345e9ebff043d5e135d1a00e909b27  test/offline/evidence/fixtures/E-07.json
+  3a6eba45ac269d866007e96bea70b7aecc45bab45713fb632b91f378c3241e21  test/offline/evidence/fixtures/E-08.json
+  73f9895bd53a8789151e968c80f1086a74a5549005f6209e0ad10e725ea570df  test/offline/evidence/fixtures/E-09.json
+  abc3000e89f5ffd19e63aabfa204722a1147517fcb7b80a81a7ac804ef2c7575  test/offline/evidence/fixtures/E-10.json
+  b5a8bd8b83535c98e17b5374d13ff9c640f3bf289ad1bdda2c859fdcd6a29186  test/offline/evidence/fixtures/E-11.json
+  175804af758cd403b2c075ea4ef44058831003f329381737d6868b02b448eba5  test/offline/evidence/fixtures/E-12.json
+  6e2cd6ca54ba4d5aeb8a6485bc583b7ac4a5b0354e72ef77b602f83b09d89f52  test/offline/evidence/fixtures/E-13.json
+  d9bb0db1c6cdd7185b78aa373df455f64da680ac9d6075152e7231b4df1de823  test/offline/evidence/fixtures/E-14.json
+  cc3dfa5699ad5cdb3726917a5d27574b904f75daa7d3eb134bd28877d81dcce9  test/offline/evidence/fixtures/E-15.json
+  c89d0ec060e39457b6e49dc28302682017ef91efc423dcf8c855381c136d6f73  test/offline/evidence/fixtures/E-16.json
+  9dcc7b838e0f231a0f617a58bccb7b4a11f3ad8221eb7d4fbd7a5540ea24d7b7  test/offline/evidence/fixtures/E-17.json
+  c35abf3d40f086c6ac4dcb9102caf17cc9e39793145a9f468d62c9603eecdaa5  test/offline/evidence/fixtures/E-18.json
+  b66049e7b9cb9618cdba7efefc875e3fc181a0aa212ad0ad6f3f169604630076  test/offline/evidence/fixtures/E-19.json
+  e00531cfe5fc4ee62d44b5b95a304f79fd57af91866b82662e08b39a002d0923  test/offline/evidence/fixtures/E-20.json
+  0f3a2e23548333ea3579378422a9b70513de3b952ca43c9be8458aa6ccaf95f2  test/offline/evidence/fixtures/E-21.json
+  da5bbb3c8bb374ca4354897ea5abec8c322b897545fdf7cceff83e65c5e40162  test/offline/evidence/fixtures/E-22.json
+  fff56cc05de308f308177d5d3626fa962c62e49ac8aec17e9460dcb614136c3c  test/offline/evidence/fixtures/E-23.json
+  77e4e02049524359ab2d6ca47ffe3550e99f040a815cea243afacac1dadef435  test/offline/evidence/fixtures/E-24.json
+  fd3856f3beff95ca25f819735f610e219e292210ad60ca8e6a01062362aa327f  test/offline/evidence/fixtures/E-25.json
+  b53a39294a8a7272f17759bb7416ff455988310a4c645fe3001bc00475aaa86b  test/offline/evidence/fixtures/E-26.json
+  b19619da809f2808416d7de13e8567137978f2596cac6c3d387a4873c84bdbed  test/offline/evidence/fixtures/E-27.json
+  ceffb533a6bfdc8c21faada518253827984e733df256b52202ae92d1742dd140  test/offline/evidence/fixtures/E-28.json
+  99cc9b34abf06a3c7d2656b710319b895bbf947ff21e8e77de1a21aee34ae406  test/offline/evidence/fixtures/E-29.json
+  2e5c7969d17a6f7ada15cac8562fd44c04f4a7fc01176c201e84e7170e239b73  test/offline/evidence/fixtures/E-30.json
+  500f8f0110fc7fe47e16d3ae445a5b7c8fc72c787ada0b4ce83ed1bec553f86c  test/offline/evidence/fixtures/E-31.json
+  b45512a615aa65f8407e0bc71836e077d6502925e83c31326445225ef37ef182  test/offline/evidence/test_time_policy.py
 
-aggregate_sha256 (sha256sum of per-file lines, sorted by path):
-  7f71de28390ac47ff0bde5dba3ea8b8b94d6b3f9d45f5151f82990ac26f4c154
+aggregate_sha256 (sha256sum of the 37 per-file lines, sorted by path):
+  d3e7801dd6ef4849109ac2ae2775e3f39d47e65094cdfc1126cfce254a41dc77
 
 approved_by: D (@ZFebron491001) — PENDING
 approved_at: PENDING
 
 Notes:
-- Approval binds to this content hash AND the commit above. If any test file
-  changes after approval, the aggregate hash changes and approval is void.
-- Tests are RED on this branch by design (no src/egta/evidence here); red is the
-  test-first signal, not a failure. No xfail/skip is permitted to mask it.
-- One open question for D: when a date-only value falls exactly on the as_of UTC
-  date, should the reason code be INVALID_TIME (current choice, locked in
-  test_date_only_equal_to_as_of_date_excludes) or FUTURE_DATA?
+- Scope is INV-02 time filtering only. 12 tests in test_time_policy.py; 31
+  fixtures; generator included in the hash so the test oracle is covered.
+  FR-01 pack-level tests (pack completeness, pack_hash, dedupe, conflict,
+  citation, stale, provider errors, integrity) are deferred to a separate PR
+  because EvidencePack and the canonical ReasonCode are not frozen.
+- RED by design: `python -m pytest test/offline/evidence` exits 2 with
+  `ModuleNotFoundError: No module named 'egta'`; no xfail/skip. Captured in
+  docs/evidence/FR-01/red-baseline.txt. Syntax/AST proof: py_compile exit 0 and
+  12 test_* functions (docs/evidence/FR-01/compile-ast.txt). Lint clean:
+  docs/evidence/FR-01/ruff.txt.
+- Boundary rule (from D's review): as_of is a closed interval. published_at ==
+  as_of is admitted, and a date_only value on the as-of UTC date is admitted
+  (fixture E-31). This replaces the earlier pending INVALID_TIME assertion.
+- Blocking dependency: INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE,
+  INTEGRITY_VIOLATION, INVALID_CITATION are not yet in the contracts ReasonCode
+  enum (B's PR #3). B must add them or publish a canonical mapping before
+  pack/reason-code assertions land.
+- Clarification for D: E-24/E-25 (empty items, outcome PACK) and E-29 (admitted
+  plus outcome ERROR) are pack-level expectations; they are carried as data and
+  deliberately not constrained here.
+- AI use: docs/ai-use-log.yaml (GATE-06).
+- If any file listed above changes after approval, the aggregate changes and
+  approval is void.
