@@ -8,7 +8,7 @@ PR:       #2 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2
 # 2) reviewed PR head     : the exact head A reviews (final head before merge)
 # 3) merge commit         : created by GitHub when this PR merges (post-approval)
 test_content_commit:     9de822ff664546d0d741b00636702d176855105b
-reviewed_pr_head:        PENDING  # set by A to the final reviewed head
+reviewed_pr_head:        6faf9ee6fae767fb54d3272f7b62830075532c59
 merge_commit:            PENDING  # filled after merge (record-only; not pushed after approval)
 
 # Approval binds to: reviewed_pr_head == the last commit before merge, with the
@@ -42,8 +42,8 @@ files (per-file SHA-256):
 aggregate_sha256 (sha256sum of per-file lines, sorted by path):
   1885986e8cd3b31627f7417fe003d7001f0d3a7f50f0b7c716b27d8b9cb45b2e
 
-approved_by: PENDING
-approved_at: PENDING
+approved_by:             A (Du Yuxiang, @yuxiangdu39)
+approved_at:             2026-11-20T16:03:26Z
 
 # --- Review-response record (B1–B6) ------------------------------------------
 # B1 reason codes: EVD-19 -> INVALID_CITATION; EVD-02 -> INTEGRITY_VIOLATION;
