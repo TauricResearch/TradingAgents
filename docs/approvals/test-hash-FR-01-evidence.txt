@@ -1,0 +1,26 @@
+PR/task: FR-01 evidence pack + INV-02 time policy (test-first spec, test/ ONLY — no implementation)
+branch:   test/FR-01-evidence
+commit:   PENDING
+base:     main
+
+files (per-file SHA-256):
+  0b787e5cb199e9a6115f5db1083a2ad1ba7704723c629c3272798d975dcf45f0  test/offline/evidence/README.md
+  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  test/offline/evidence/__init__.py
+  780985d1dffa7690b64c490b9d8d3496385af97880eeb14e62bd671f9875ff50  test/offline/evidence/_target.py
+  dcd0fb67e3d09f86d4645a8d889178d15ef77e4cb57aafb6b532ff7516897cfd  test/offline/evidence/conftest.py
+  b98d1988cea6ba174536062a62d94cf43196be0e6cdbde8a9567d651055f7d92  test/offline/evidence/test_time_policy.py
+
+aggregate_sha256 (sha256sum of per-file lines, sorted by path):
+  7f71de28390ac47ff0bde5dba3ea8b8b94d6b3f9d45f5151f82990ac26f4c154
+
+approved_by: D (@ZFebron491001) — PENDING
+approved_at: PENDING
+
+Notes:
+- Approval binds to this content hash AND the commit above. If any test file
+  changes after approval, the aggregate hash changes and approval is void.
+- Tests are RED on this branch by design (no src/egta/evidence here); red is the
+  test-first signal, not a failure. No xfail/skip is permitted to mask it.
+- One open question for D: when a date-only value falls exactly on the as_of UTC
+  date, should the reason code be INVALID_TIME (current choice, locked in
+  test_date_only_equal_to_as_of_date_excludes) or FUTURE_DATA?
