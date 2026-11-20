@@ -1,0 +1,99 @@
+PR/task: FR-04 deterministic risk gate + paper ledger (test-first spec, test/spec ONLY — no implementation)
+branch:   spec/FR-04-risk-gate
+base:     main
+PR:       #2 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2
+
+# --- Commit binding (three distinct fields; same convention as FR-05) ----------
+# 1) test-content commit  : the commit that last changed the test files' content
+# 2) reviewed PR head     : the exact head A reviews (final head before merge)
+# 3) merge commit         : created by GitHub when this PR merges (post-approval)
+test_content_commit:     9de822ff664546d0d741b00636702d176855105b
+reviewed_pr_head:        PENDING  # set by A to the final reviewed head
+merge_commit:            PENDING  # filled after merge (record-only; not pushed after approval)
+
+# Approval binds to: reviewed_pr_head == the last commit before merge, with the
+# test aggregate hash below. GitHub review is the authoritative approval; this
+# file only records content binding. DO NOT push changes to this file (or the
+# test files) after A approves — that would dismiss the stale approval.
+
+case_inventory:
+  risk_cases: 126            # 119 behavioural + 7 static inspection
+  behavioural_cases: 119
+  static_cases: 7
+  manifest_meta_tests: 11
+  harness_self_tests: 2
+  category_counts: "ACT 22, FND 24, EVD 22, IDM 18, ATM 24, SEC 16"
+  red_baseline: "126 failed, 13 passed — expected red, no xfail/skip"
+
+files (per-file SHA-256):
+  d1aca0dd758a6ab6b22f2e55bc46125b1953511bb73aa739b5fa1b6326d37586  test/offline/risk_gate/_crash_child.py
+  19ee89ac53db75d05ce2ea15fdf509d73def76e32bd5c6f22c1a8fb456d3e655  test/offline/risk_gate/cases.py
+  8ad8b76947e819ad8b5759e370cd945dfdf70efd238a91017fa31222c2d92b48  test/offline/risk_gate/conftest.py
+  14b8bab06921ef114f02f28938e4b9ab9dd0cca9d117eef4cc35c5a590f7d13c  test/offline/risk_gate/fakes.py
+  ce984bf2c27c4f69d8861dbb2c443eaef72751cedff22a214d1a46a18599e99b  test/offline/risk_gate/test_actions_quantities.py
+  b729f6598c88e38c5e7abd0fe781ff77da0de1b45de7213a9e4824af1526d5c8  test/offline/risk_gate/test_atomicity_concurrency.py
+  ba079a6fb0e40c8caf19dd6077586fb0b59313f07924f7bee296a1ea58c2f074  test/offline/risk_gate/test_evidence_time_policy.py
+  edfaf3110b921aa386d81cdc51645859724924723b6a332bc480d239df29d6bd  test/offline/risk_gate/test_funds_positions_costs.py
+  0d5f55f594dee4d3eb21de76b0cdb4905a7d5b884b0887d749a657da37e1160c  test/offline/risk_gate/test_harness_selfcheck.py
+  a32458a94d490d97469976ed83f2013a558826c0b77b167602a1dae28149d97b  test/offline/risk_gate/test_identity_idempotency.py
+  769ec59b34539bdfd77f77d496aa8403e88c2191dc1b9ec5a4d92a325ea16a77  test/offline/risk_gate/test_security_boundaries.py
+  b8f64a699b1cbd2de2898d59cf1f1c9f52c0f48b1c5286a87b37be2a90a4481e  test/offline/risk_gate/test_spec_manifest.py
+
+aggregate_sha256 (sha256sum of per-file lines, sorted by path):
+  1885986e8cd3b31627f7417fe003d7001f0d3a7f50f0b7c716b27d8b9cb45b2e
+
+approved_by: PENDING
+approved_at: PENDING
+
+# --- Review-response record (B1–B6) ------------------------------------------
+# B1 reason codes: EVD-19 -> INVALID_CITATION; EVD-02 -> INTEGRITY_VIOLATION;
+#    EVD-15 -> INTEGRITY_VIOLATION; EVD-16 -> INVALID_TIME; EVD-08 -> STALE_DATA.
+#    One hash/identity rule: malformed syntax -> INVALID_OUTPUT; well-formed
+#    content/binding mismatch -> REJECTED/INTEGRITY_VIOLATION (EVD-02/03/04/11/15,
+#    IDM-02/05..09/14). No ledger mutation.
+# B2 availability: EVD-21 sole support unreachable -> REVIEW/VENDOR_UNAVAILABLE;
+#    EVD-22 sole support stale -> REVIEW/STALE_DATA.
+# B3 fixture parameters (TEST-ONLY, NOT product policy):
+#    price_freshness_seconds = 240; fee_bps = 10; slippage_bps = 0.
+#    EVD-07/08 assert "age == parameter allowed; one second over rejected" via an
+#    explicit freshness parameter. FND-13/14/15 and EVD-12/13/14 require safe
+#    rejection of invalid/unconfigured policy. Product thresholds remain PENDING.
+# B4 harness: test_harness_selfcheck.py has one satisfying stub and one violating
+#    stub; assert_case is exercised.
+# B6 classification: positive iff expected_status == APPROVED; negative otherwise.
+#    test_kind = outcome/idempotency/atomicity/security/static; 7 static cases.
+# Non-blocking answers:
+#    HOLD requires a valid pack; HOLD without a pack -> REVIEW/EVIDENCE_MISSING.
+#    HOLD is an action, not a RiskVerdict.status; APPROVED no-action.
+#    ATM-07/ATM-09 and FND-19 now assert the discriminating position/state.
+#    119 behavioural + 7 static are stated explicitly.
+#    Gate -> RunEvent.RunStatus: APPROVED->OK, REJECTED->BLOCKED, REVIEW->REVIEW,
+#    BLOCKED->BLOCKED; INCOMPLETE is B/app-level, not a risk verdict.
+#    If contracts v1 changes this mapping, it is deferred to contracts v1.
+
+blocking_dependencies (must be resolved before implementation):
+  - instrument identity: AdvisoryProposal has no ticker; C/B must add an approved
+    field or freeze run_id -> RunSpec.ticker. Tests use a test-only ticker.
+  - shared contracts not frozen: AdvisoryProposal, EvidencePack, RiskVerdict,
+    PortfolioSnapshot, AuditSink.
+  - E RunEvent (PR #1) not frozen/merged; B's five new reason codes must be added
+    to the shared RunEvent.ReasonCode before contracts v1.
+  - hash canonicalization is proposed, not approved.
+  - product policy thresholds PENDING; unconfigured policy must safely reject.
+  - CI bootstrap / test/offline collection pending E; no checks currently reported
+    on PR #2 because this fork has no registered workflows.
+  - A's independent approval is required; the author must not self-approve.
+
+evidence:
+  - docs/evidence/FR-04/phase4-red-baseline.txt
+  - docs/evidence/FR-04/phase4-manifest-green.txt
+  - docs/evidence/FR-04/phase4-harness-green.txt
+  - docs/evidence/FR-04/phase4-ruff.txt
+  - docs/evidence/FR-04/phase4-case-build.txt
+
+Notes:
+- Tests are RED on this branch by design (no src/egta/risk_gate). No xfail/skip.
+- If any test file changes after approval, the aggregate hash changes and the
+  approval is void (re-review required).
+- This file is a hash record, not an approval. A must co-sign with the reviewed
+  head SHA; the author must not fill approved_by.

@@ -113,10 +113,10 @@ sessions:
     implementation_status: "NOT STARTED — GATE-01 approval not yet obtained"
     test_pr: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2"
     test_pr_number: 2
-    test_pr_state: "OPEN"
+    test_pr_state: "OPEN — A requested changes on 55df6ca; response 9de822f awaits re-review"
     approval_links: []
     repository_blockers:
-      - "A (@yuxiangdu39) is not a repository collaborator; formal reviewer request returned HTTP 422."
+      - "At initial PR creation A (@yuxiangdu39) was not a collaborator; the formal request returned HTTP 422. A later reviewed PR #2 as a collaborator."
       - "actions/workflows total_count = 0 for this fork; no CI checks are reported on PR #2. E/admin must enable/register Actions."
     cost: "unknown"
     session_path: "unknown (raw session not exported yet)"
@@ -127,3 +127,87 @@ sessions:
       - "The red baseline is expected test-first evidence, not xfail/skip."
       - "Instrument identity is a contract gap; tests use a test-only ticker field."
       - "This fragment was updated after PR creation; the PR head may contain a follow-up log commit."
+
+  - session_id: "D-2026-11-20-FR04-review-response"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    time:
+      - "2026-11-20T23:22:05+08:00"   # A review submitted (15:22:05Z)
+      - "2026-11-20T23:43:49+08:00"   # review-response commit 9de822f
+      - "2026-11-20T23:45:15+08:00"   # approval hash record / this log update
+    task_requirement_ids:
+      - FR-04
+      - NFR-04
+      - NFR-05
+      - NFR-09
+      - INV-01
+      - INV-04
+      - INV-06
+      - INV-07
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "test/offline/risk_gate/"
+      - "docs/architecture/risk-policy.md"
+      - "docs/architecture/adr/003-risk-authority.md"
+      - "docs/architecture/threat-model.md"
+      - "docs/evidence/FR-04/"
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt"
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: redirect
+        what: "A requested changes (B1–B6 plus five non-blocking answers); D instructed the agent to address them and commit to PR #2"
+        evidence: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2#pullrequestreview-5995039509"
+        limit: "Not an approval; A must re-review and co-sign the hash record"
+    review_response:
+      - "B1: aligned INVALID_CITATION, INTEGRITY_VIOLATION, INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE; one hash/identity rule"
+      - "B2: added EVD-21 unreachable support and EVD-22 stale support"
+      - "B3: parameterized freshness (240) and recorded test-only fee/slippage fixture values"
+      - "B4: added test_harness_selfcheck.py with satisfying and violating stubs"
+      - "B5: added docs/approvals/test-hash-FR-04-risk-gate.txt with approved_by: PENDING"
+      - "B6: classification is positive iff APPROVED; test_kind split 119 behavioural + 7 static"
+      - "HOLD requires a valid pack; HOLD is an action, not a verdict status"
+      - "ATM-07/ATM-09/FND-19 now assert the discriminating state"
+      - "Gate -> RunEvent.RunStatus mapping recorded; instrument identity is a blocking dependency in the hash record"
+    verification_output:
+      - command: "python -m pytest test/offline/risk_gate -q --tb=line"
+        exit_code: 1
+        result: "126 failed (expected red: egta/risk_gate absent), 13 passed (11 manifest + 2 harness)"
+        evidence: "docs/evidence/FR-04/phase4-red-baseline.txt"
+      - command: "python -m pytest test/offline/risk_gate/test_spec_manifest.py -q"
+        exit_code: 0
+        result: "11 passed"
+        evidence: "docs/evidence/FR-04/phase4-manifest-green.txt"
+      - command: "python -m pytest test/offline/risk_gate/test_harness_selfcheck.py -q"
+        exit_code: 0
+        result: "2 passed"
+        evidence: "docs/evidence/FR-04/phase4-harness-green.txt"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+        evidence: "docs/evidence/FR-04/phase4-ruff.txt"
+      - command: "case-construction dry run"
+        exit_code: 0
+        result: "126 built; 119 behavioural + 7 static"
+        evidence: "docs/evidence/FR-04/phase4-case-build.txt"
+    git_output:
+      - action: "git commit"
+        result: "9de822ff664546d0d741b00636702d176855105b (review-response test content)"
+      - action: "git push"
+        result: "origin/spec/FR-04-risk-gate"
+    implementation_status: "NOT STARTED — A re-review pending"
+    test_pr: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2"
+    test_pr_number: 2
+    test_pr_state: "OPEN — A CHANGES_REQUESTED on 55df6ca; response 9de822f awaits re-review"
+    approval_links:
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt (approved_by: PENDING)"
+    repository_blockers:
+      - "A re-review pending on the new head."
+      - "actions/workflows total_count = 0 for this fork; no CI checks are reported on PR #2."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No implementation code was written."
+      - "No self-approval, merge, contract edit, CI edit or human-only file edit was performed."
+      - "The 126 failures are expected red, not xfail/skip."
+      - "The hash record is prepared but NOT signed by the agent."

@@ -1,19 +1,22 @@
-FR-04 case-construction dry run
+FR-04 case-construction dry run (review-response revision)
 ================================
-Date: 2026-11-20T18:12:10+08:00
+Date: 2026-11-20T23:43:54+08:00
 Branch: spec/FR-04-risk-gate
-HEAD: 9fa1196fffbcfd9de5146d2dd2869df84ab99838
+Test content commit: 9de822ff664546d0d741b00636702d176855105b
 Command: local Python script (see output)
-Interpretation: all 124 cases construct with the test-only fakes; every ATM/SEC
+Interpretation: all 126 cases construct with the test-only fakes; every ATM/SEC
 scenario key and every IDM special scenario key is wired. This does not execute the
 missing RiskGate implementation and is not reported as behavioural PASS.
 ------------------------------------------------------------
-category counts: {'ACT': 22, 'FND': 24, 'EVD': 20, 'IDM': 18, 'ATM': 24, 'SEC': 16}
-total: 124
-unique: 124
+category counts: {'ACT': 22, 'FND': 24, 'EVD': 22, 'IDM': 18, 'ATM': 24, 'SEC': 16}
+total: 126
+unique: 126
+classification: {'positive': 44, 'negative': 82}
+test kinds: {'outcome': 68, 'idempotency': 18, 'atomicity': 24, 'security': 9, 'static': 7}
 build errors: 0
 scenario wiring: OK
 proposal hash length: 64
 evidence hash length: 64
 policy hash length: 64
+fixture parameters: {'price_freshness_seconds': 240, 'fee_bps': '10', 'slippage_bps': '0'}
 Exit code: 0

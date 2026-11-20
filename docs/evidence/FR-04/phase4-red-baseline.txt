@@ -1,8 +1,9 @@
-FR-04 Phase 4 red baseline
+FR-04 Phase 4 red baseline (review-response revision)
 ================================
-Date: 2026-11-20T18:12:10+08:00
+Date: 2026-11-20T23:43:54+08:00
 Branch: spec/FR-04-risk-gate
-HEAD: 9fa1196fffbcfd9de5146d2dd2869df84ab99838
+Test content commit: 9de822ff664546d0d741b00636702d176855105b
+PR: https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2
 Python: 3.12.15
 pydantic: 2.14.4
 pytest: 9.2.0
@@ -10,14 +11,19 @@ ruff: 0.17.6
 SQLite: 3.53.4
 Environment: conda egta
 Command: python -m pytest test/offline/risk_gate -q --tb=line
-Interpretation: 5 manifest meta-tests pass; 124 behavioural cases fail because
-src/egta/risk_gate is not implemented (Phase 5 not started). This is the expected
-red test-first baseline, not xfail/skip and not a reported success.
+Interpretation: 126 risk cases fail because src/egta/risk_gate is not implemented
+(Phase 5 not started). 13 meta-tests pass (11 manifest checks + 2 harness
+self-checks). This is the expected red test-first baseline, not xfail/skip and not
+a reported success.
 Coverage: NOT RUN (no implementation)
 ------------------------------------------------------------
-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF [ 55%]
-FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.....                [100%]
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF [ 51%]
+FFFFFFFFFFFFFFFFFFFF..FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF...........      [100%]
 =================================== FAILURES ===================================
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
 E   ModuleNotFoundError: No module named 'egta'
 /home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
 E   ModuleNotFoundError: No module named 'egta'
@@ -339,6 +345,8 @@ FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_a
 FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-18]
 FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-19]
 FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-20]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-21]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-22]
 FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-01]
 FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-02]
 FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-03]
@@ -397,6 +405,6 @@ FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundar
 FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-14]
 FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-15]
 FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-16]
-124 failed, 5 passed in 0.21s
+126 failed, 13 passed in 0.37s
 
 Exit code: 1
