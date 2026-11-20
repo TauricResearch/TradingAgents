@@ -1,0 +1,51 @@
+{
+  "case_id": "E-23",
+  "purpose": "转载篡改 excerpt：按 source_uri + hash 判为篡改，保留原版",
+  "source_type": "yahoo_news",
+  "raw_time_field": "providerPublishTime",
+  "time_granularity": "second",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "tampered_hash",
+  "items": [
+    {
+      "case_local_id": "E-23-1",
+      "source_type": "yahoo_news",
+      "source_uri": "yahoo-news://8f2c1d",
+      "raw_time_field": "providerPublishTime",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T13:05:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Apple supplier orders point to a stronger iPhone build in the March quarter.",
+      "content_hash": "8a5c877e7bde6728b73b49efbf3fda265ca8d4f51de74d1353b8715f8004fd94",
+      "raw_value": null,
+      "trust_label": "secondary"
+    },
+    {
+      "case_local_id": "E-23-2",
+      "source_type": "yahoo_news",
+      "source_uri": "yahoo-news://8f2c1d",
+      "raw_time_field": "providerPublishTime",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T13:05:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Apple supplier orders point to a much weaker iPhone build in the March quarter.",
+      "content_hash": "8a5c877e7bde6728b73b49efbf3fda265ca8d4f51de74d1353b8715f8004fd94",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-23-1"
+    ],
+    "excluded": [
+      {
+        "case_local_id": "E-23-2",
+        "reason_code": "INTEGRITY_VIOLATION",
+        "availability": "unavailable"
+      }
+    ],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}

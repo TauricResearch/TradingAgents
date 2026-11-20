@@ -28,7 +28,7 @@ AS_OF = "2026-11-11T00:00:00Z"
 TICKER = "AAPL"
 FETCHED = "2026-11-11T00:05:00Z"
 
-OUT = Path(__file__).resolve().parents[1] / "tests" / "egta" / "evidence" / "fixtures"
+OUT = Path(__file__).resolve().parents[1] / "test" / "offline" / "evidence" / "fixtures"
 
 
 def sha(text: str) -> str:

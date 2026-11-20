@@ -1,0 +1,37 @@
+{
+  "case_id": "E-26",
+  "purpose": "全离线只有旧缓存：必须标 stale，不得伪装成新数据",
+  "source_type": "cache",
+  "raw_time_field": "providerPublishTime",
+  "time_granularity": "second",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "offline_cache",
+  "items": [
+    {
+      "case_local_id": "E-26-1",
+      "source_type": "cache",
+      "source_uri": "yahoo-news://cached-8f2c1d",
+      "raw_time_field": "providerPublishTime",
+      "time_granularity": "second",
+      "published_at": "2026-09-19T13:05:00Z",
+      "fetched_at": "2026-09-20T02:00:00Z",
+      "excerpt": "Cached copy of the March-quarter supplier story.",
+      "content_hash": "735f16fd35d6183f9fd0377068e77099f41595b02292d53e4d44b25a83b9247d",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [],
+    "excluded": [
+      {
+        "case_local_id": "E-26-1",
+        "reason_code": "STALE_DATA",
+        "availability": "stale"
+      }
+    ],
+    "conflict_groups": [],
+    "outcome": "PACK",
+    "note": "条目可以被读出来，但 availability 必须是 stale，不得是 available"
+  }
+}

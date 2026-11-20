@@ -1,0 +1,33 @@
+{
+  "case_id": "E-06",
+  "purpose": "FRED 宏观观测点入包",
+  "source_type": "fred",
+  "raw_time_field": "date",
+  "time_granularity": "day",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "normal",
+  "items": [
+    {
+      "case_local_id": "E-06-1",
+      "source_type": "fred",
+      "source_uri": "fred://DFF/2026-10-31",
+      "raw_time_field": "date",
+      "time_granularity": "day",
+      "published_at": "2026-10-31",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "DFF effective rate 4.33 percent on 2026-10-31.",
+      "content_hash": "ee31a22bbc5268d1c6ccc1cf66fb4ac8e36426205bde24d514f354db722fe225",
+      "raw_value": 4.33,
+      "trust_label": "primary",
+      "series": "DFF"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-06-1"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}
