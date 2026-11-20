@@ -1,0 +1,34 @@
+{
+  "case_id": "E-05",
+  "purpose": "Reddit 帖子以 epoch 时间戳入包",
+  "source_type": "reddit",
+  "raw_time_field": "created_utc",
+  "time_granularity": "second",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "normal",
+  "items": [
+    {
+      "case_local_id": "E-05-1",
+      "evidence_id": "E-05-1",
+      "source_type": "reddit",
+      "source_uri": "reddit://r/stocks/t3_1kv9ab",
+      "raw_time_field": "created_utc",
+      "time_granularity": "second",
+      "created_utc": 1794312900,
+      "published_at": "2026-11-10T12:15:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Thread: who is actually pricing the services growth here?",
+      "content_hash": "6e794d1c006a2c934466ee8052a9768cee458354e8d46b8878700560b2624b31",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-05-1"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}

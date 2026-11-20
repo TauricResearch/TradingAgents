@@ -1,0 +1,33 @@
+{
+  "case_id": "E-09",
+  "purpose": "内部人交易按申报日计（发生日与申报日分开）",
+  "source_type": "insider_trade",
+  "raw_time_field": "filed",
+  "time_granularity": "day",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "normal",
+  "items": [
+    {
+      "case_local_id": "E-09-1",
+      "evidence_id": "E-09-1",
+      "source_type": "insider_trade",
+      "source_uri": "sec-edgar://CIK0000320193/form4/2026-10-20",
+      "raw_time_field": "filed",
+      "time_granularity": "day",
+      "published_at": "2026-10-20",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Form 4: officer sold 12,000 shares on 2026-10-16, filed 2026-10-20.",
+      "content_hash": "7e19591f4660a9fe481c2bb54da7c167431454a8f5d87f81ad7ad71c1e7e5f1b",
+      "raw_value": 12000,
+      "trust_label": "primary"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-09-1"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}
