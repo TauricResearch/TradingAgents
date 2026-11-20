@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-29-1",
-      "evidence_id": "E-29-1",
       "source_type": "yahoo_news",
       "source_uri": "yahoo-news://7f10aa",
       "raw_time_field": "providerPublishTime",
@@ -28,7 +27,8 @@
     "evidence_ids": [
       "E-29-1",
       "E-99-does-not-exist"
-    ]
+    ],
+    "note": "evidence_ids 以 case_local_id 书写；正式 evidence_id 由服务按 <run_id>-<case_local_id> 生成"
   },
   "expected": {
     "admitted": [

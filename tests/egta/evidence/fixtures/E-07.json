@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-07-1",
-      "evidence_id": "E-07-1",
       "source_type": "yfinance_bar",
       "source_uri": "yfinance://AAPL/2026-11-10",
       "raw_time_field": "Date",

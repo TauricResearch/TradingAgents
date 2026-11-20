@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-02-1",
-      "evidence_id": "E-02-1",
       "source_type": "sec_edgar",
       "source_uri": "sec-edgar://CIK0000320193/0000320193-26-000010",
       "raw_time_field": "filed",

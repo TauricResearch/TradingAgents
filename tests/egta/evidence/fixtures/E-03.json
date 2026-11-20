@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-03-1",
-      "evidence_id": "E-03-1",
       "source_type": "yahoo_fundamentals",
       "source_uri": "yahoo-fin://AAPL/fundamentals/2026Q3",
       "raw_time_field": "date",

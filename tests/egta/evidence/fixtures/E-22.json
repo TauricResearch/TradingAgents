@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-22-1",
-      "evidence_id": "E-22-1",
       "source_type": "yahoo_fundamentals",
       "source_uri": "yahoo-fin://AAPL/fundamentals/2026Q3",
       "raw_time_field": "date",
@@ -24,7 +23,6 @@
     },
     {
       "case_local_id": "E-22-2",
-      "evidence_id": "E-22-2",
       "source_type": "yahoo_fundamentals",
       "source_uri": "alpha-vantage://AAPL/income/2026Q3",
       "raw_time_field": "date",

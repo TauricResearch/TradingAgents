@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-17-1",
-      "evidence_id": "E-17-1",
       "source_type": "yahoo_news",
       "source_uri": "yahoo-news://e77a10",
       "raw_time_field": "none",
@@ -26,7 +25,8 @@
     "excluded": [
       {
         "case_local_id": "E-17-1",
-        "reason_code": "EVIDENCE_MISSING"
+        "reason_code": "EVIDENCE_MISSING",
+        "availability": "unavailable"
       }
     ],
     "conflict_groups": [],

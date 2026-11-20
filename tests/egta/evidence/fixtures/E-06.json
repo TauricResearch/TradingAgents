@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-06-1",
-      "evidence_id": "E-06-1",
       "source_type": "fred",
       "source_uri": "fred://DFF/2026-10-31",
       "raw_time_field": "date",

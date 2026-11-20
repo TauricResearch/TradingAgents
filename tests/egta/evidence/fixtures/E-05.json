@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-05-1",
-      "evidence_id": "E-05-1",
       "source_type": "reddit",
       "source_uri": "reddit://r/stocks/t3_1kv9ab",
       "raw_time_field": "created_utc",

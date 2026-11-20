@@ -16,7 +16,8 @@
     "excluded": [
       {
         "case_local_id": "provider",
-        "reason_code": "VENDOR_UNAVAILABLE"
+        "reason_code": "VENDOR_UNAVAILABLE",
+        "availability": "unreachable"
       }
     ],
     "conflict_groups": [],

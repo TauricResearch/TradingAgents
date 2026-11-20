@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-09-1",
-      "evidence_id": "E-09-1",
       "source_type": "insider_trade",
       "source_uri": "sec-edgar://CIK0000320193/form4/2026-10-20",
       "raw_time_field": "filed",

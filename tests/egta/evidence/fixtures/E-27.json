@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-27-1",
-      "evidence_id": "E-27-1",
       "source_type": "yahoo_news",
       "source_uri": "yahoo-news://9a2f01",
       "raw_time_field": "providerPublishTime",

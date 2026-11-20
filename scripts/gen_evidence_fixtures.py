@@ -46,7 +46,6 @@ def news(cid: str, uri: str, published: str | None, text: str, *, field="provide
          gran="second", trust="secondary", **extra):
     d = {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "yahoo_news",
         "source_uri": uri,
         "raw_time_field": field,
@@ -67,7 +66,6 @@ def news(cid: str, uri: str, published: str | None, text: str, *, field="provide
 def edgar(cid: str, uri: str, filed: str, text: str, *, form="10-Q", accn="", value=None):
     return {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "sec_edgar",
         "source_uri": uri,
         "raw_time_field": "filed",
@@ -86,7 +84,6 @@ def edgar(cid: str, uri: str, filed: str, text: str, *, form="10-Q", accn="", va
 def fundamentals(cid: str, uri: str, available: str, text: str, value: float, *, period_end="2026-09-30"):
     return {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "yahoo_fundamentals",
         "source_uri": uri,
         "raw_time_field": "date",
@@ -104,7 +101,6 @@ def fundamentals(cid: str, uri: str, available: str, text: str, value: float, *,
 def stocktwits(cid: str, uri: str, created: str | None, text: str, *, field="created_at"):
     d = {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "stocktwits",
         "source_uri": uri,
         "raw_time_field": field,
@@ -124,7 +120,6 @@ def stocktwits(cid: str, uri: str, created: str | None, text: str, *, field="cre
 def reddit(cid: str, uri: str, created_iso: str | None, text: str):
     d = {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "reddit",
         "source_uri": uri,
         "raw_time_field": "created_utc",
@@ -145,7 +140,6 @@ def reddit(cid: str, uri: str, created_iso: str | None, text: str):
 def fred(cid: str, uri: str, day: str, text: str, value: float, series="DFF"):
     return {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "fred",
         "source_uri": uri,
         "raw_time_field": "date",
@@ -164,7 +158,6 @@ def bar(cid: str, uri: str, day: str, ohlc: dict):
     text = f"OHLC {day}: open {ohlc['open']}, high {ohlc['high']}, low {ohlc['low']}, close {ohlc['close']}"
     return {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "yfinance_bar",
         "source_uri": uri,
         "raw_time_field": "Date",
@@ -181,7 +174,6 @@ def bar(cid: str, uri: str, day: str, ohlc: dict):
 def insider(cid: str, uri: str, filed: str, text: str, shares=12000):
     return {
         "case_local_id": cid,
-        "evidence_id": cid,
         "source_type": "insider_trade",
         "source_uri": uri,
         "raw_time_field": "filed",
@@ -536,7 +528,6 @@ CASES.append({
     "as_of": AS_OF, "provider_behavior": "offline_cache",
     "items": [{
         "case_local_id": "E-26-1",
-        "evidence_id": "E-26-1",
         "source_type": "cache",
         "source_uri": "yahoo-news://cached-8f2c1d",
         "raw_time_field": "providerPublishTime",
@@ -598,9 +589,28 @@ CASES.append({
 })
 
 
+AVAILABILITY_BY_REASON = {
+    "FUTURE_DATA": "unavailable",
+    "EVIDENCE_MISSING": "unavailable",
+    "INVALID_TIME": "unavailable",
+    "STALE_DATA": "stale",
+    "VENDOR_UNAVAILABLE": "unreachable",
+    "INTEGRITY_VIOLATION": "unavailable",
+    "INVALID_CITATION": "available",
+}
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for case in CASES:
+        # availability 是状态，reason_code 是原因；两者不互相替代
+        for ex in case["expected"].get("excluded", []):
+            ex.setdefault("availability", AVAILABILITY_BY_REASON[ex["reason_code"]])
+        # claim 用 case_local_id 书写，正式 id 由服务组合
+        if "claim" in case:
+            case["claim"].setdefault(
+                "note", "evidence_ids 以 case_local_id 书写；正式 evidence_id 由服务按 <run_id>-<case_local_id> 生成")
+
         path = OUT / f"{case['case_id']}.json"
         path.write_text(json.dumps(case, indent=2, ensure_ascii=False, sort_keys=False) + "\n",
                         encoding="utf-8")

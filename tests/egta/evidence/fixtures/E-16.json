@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-16-1",
-      "evidence_id": "E-16-1",
       "source_type": "fred",
       "source_uri": "fred://DFF/2026-11-13",
       "raw_time_field": "date",
@@ -28,7 +27,8 @@
     "excluded": [
       {
         "case_local_id": "E-16-1",
-        "reason_code": "FUTURE_DATA"
+        "reason_code": "FUTURE_DATA",
+        "availability": "unavailable"
       }
     ],
     "conflict_groups": [],

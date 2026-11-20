@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-11-1",
-      "evidence_id": "E-11-1",
       "source_type": "yahoo_news",
       "source_uri": "hkexnews://2026-11-10/e-1",
       "raw_time_field": "pubDate",

@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-12-1",
-      "evidence_id": "E-12-1",
       "source_type": "yahoo_news",
       "source_uri": "yahoo-news://c3d8e1",
       "raw_time_field": "providerPublishTime",
@@ -23,7 +22,6 @@
     },
     {
       "case_local_id": "E-12-2",
-      "evidence_id": "E-12-2",
       "source_type": "sec_edgar",
       "source_uri": "sec-edgar://CIK0000320193/0000320193-26-000007",
       "raw_time_field": "filed",
@@ -39,7 +37,6 @@
     },
     {
       "case_local_id": "E-12-3",
-      "evidence_id": "E-12-3",
       "source_type": "stocktwits",
       "source_uri": "stocktwits://msg/4711888",
       "raw_time_field": "created_at",
@@ -53,7 +50,6 @@
     },
     {
       "case_local_id": "E-12-4",
-      "evidence_id": "E-12-4",
       "source_type": "reddit",
       "source_uri": "reddit://r/stocks/t3_1kv91x",
       "raw_time_field": "created_utc",
@@ -68,7 +64,6 @@
     },
     {
       "case_local_id": "E-12-5",
-      "evidence_id": "E-12-5",
       "source_type": "fred",
       "source_uri": "fred://DFF/2026-10-30",
       "raw_time_field": "date",
@@ -83,7 +78,6 @@
     },
     {
       "case_local_id": "E-12-6",
-      "evidence_id": "E-12-6",
       "source_type": "yfinance_bar",
       "source_uri": "yfinance://AAPL/2026-11-09",
       "raw_time_field": "Date",

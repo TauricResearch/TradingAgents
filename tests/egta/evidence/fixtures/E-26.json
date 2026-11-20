@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-26-1",
-      "evidence_id": "E-26-1",
       "source_type": "cache",
       "source_uri": "yahoo-news://cached-8f2c1d",
       "raw_time_field": "providerPublishTime",
@@ -27,7 +26,8 @@
     "excluded": [
       {
         "case_local_id": "E-26-1",
-        "reason_code": "STALE_DATA"
+        "reason_code": "STALE_DATA",
+        "availability": "stale"
       }
     ],
     "conflict_groups": [],

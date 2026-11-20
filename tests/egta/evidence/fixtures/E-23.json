@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-23-1",
-      "evidence_id": "E-23-1",
       "source_type": "yahoo_news",
       "source_uri": "yahoo-news://8f2c1d",
       "raw_time_field": "providerPublishTime",
@@ -23,7 +22,6 @@
     },
     {
       "case_local_id": "E-23-2",
-      "evidence_id": "E-23-2",
       "source_type": "yahoo_news",
       "source_uri": "yahoo-news://8f2c1d",
       "raw_time_field": "providerPublishTime",
@@ -43,7 +41,8 @@
     "excluded": [
       {
         "case_local_id": "E-23-2",
-        "reason_code": "INTEGRITY_VIOLATION"
+        "reason_code": "INTEGRITY_VIOLATION",
+        "availability": "unavailable"
       }
     ],
     "conflict_groups": [],

@@ -9,7 +9,6 @@
   "items": [
     {
       "case_local_id": "E-19-1",
-      "evidence_id": "E-19-1",
       "source_type": "stocktwits",
       "source_uri": "stocktwits://msg/4711999",
       "raw_time_field": "created_at",
@@ -27,7 +26,8 @@
     "excluded": [
       {
         "case_local_id": "E-19-1",
-        "reason_code": "INVALID_TIME"
+        "reason_code": "INVALID_TIME",
+        "availability": "unavailable"
       }
     ],
     "conflict_groups": [],
