@@ -89,6 +89,27 @@ def test_a_long_signal_is_recorded_traded_and_messaged(env):
     ]
 
 
+class WideOKX(FakeOKX):
+    """Hourly candles twice as wide as FakeOKX's: an hourly ATR of 800."""
+
+    def bars(self, inst, bar, start_ms, end_ms):
+        if bar == "1H":
+            return [Bar(ts, 80_000, 80_400, 79_600, 80_000) for ts in range(start_ms, end_ms, HOUR_MS)]
+        return super().bars(inst, bar, start_ms, end_ms)
+
+
+def test_a_trade_that_only_reduces_the_position_is_messaged_as_one(env):
+    run(env, FakeSignaler({BTC.research: ["Long"]}))
+    # Long again, but the hourly ATR has doubled and the unit halved: the account sells.
+    okx = WideOKX(minute=minutes(T0 - MINUTE_MS, [80_000] * 61))
+    _, inbox = run(env, FakeSignaler({BTC.research: ["Long"]}), now=NOW + timedelta(hours=1), okx=okx)
+    (text,) = [t for t in inbox.sent if t.startswith("成交 · ")]
+    # 9,992 of equity make a unit of 0.0499 BTC; reducing leaves the stop where it was.
+    assert text.split("\n\n")[1] == (
+        "BTC · 信号 Long\n卖出 0.0501 @ 79,960.00（多头减仓）\n持仓 +0.0499 · 止损 79,040.00"
+    )
+
+
 def test_a_rerun_in_the_same_hour_neither_asks_nor_trades_again(env):
     signaler = FakeSignaler({BTC.research: ["Long", "Short"]})
     run(env, signaler)

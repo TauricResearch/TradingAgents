@@ -54,6 +54,46 @@ def test_fills_on_the_other_side_or_of_another_kind_are_trades_of_their_own():
     ]
 
 
+def test_a_trade_that_only_made_the_position_smaller_says_it_reduced_it():
+    # The live account at 2026-11-19 23:00 UTC: Short all along, and a buy, the unit
+    # smaller for an hourly ATR that had grown. Without the word it read as a reversal.
+    buy = [Fill(T0, BTC, 0.0011, 61_944.5, 0.03, "trade")]
+    assert message.trades(buy, -0.0032) == ["买入 0.0011 @ 61,944.50（空头减仓）"]
+    pieces = [
+        Fill(T0, BTC, -0.2, 80_000.0, 8.0, "trade"),
+        Fill(T0 + 1, BTC, -0.1, 80_010.0, 4.0, "trade"),
+    ]
+    assert message.trades(pieces, 0.2) == ["卖出 0.3 @ 均价 80,003.33（2 笔 · 多头减仓）"]
+    # Without the position left there is nothing to tell it by.
+    assert message.trades(buy) == ["买入 0.0011 @ 61,944.50"]
+
+
+@pytest.mark.parametrize(
+    ("qty", "held"),
+    [(-0.05, -0.05), (-0.05, -0.15), (0.05, 0.0), (0.05, 0.02)],
+    ids=["opened", "added to", "closed", "reversed"],
+)
+def test_a_trade_that_did_anything_else_to_the_position_says_nothing_more(qty, held):
+    assert message.trades([Fill(T0, BTC, qty, 80_000.0, 2.0, "trade")], held) == [
+        f"{'买入' if qty > 0 else '卖出'} 0.05 @ 80,000.00"
+    ]
+
+
+def test_each_trade_is_told_by_the_position_it_met():
+    fills = [
+        Fill(T0, BTC, 0.1, 81_000.0, 4.0, "stop"),         # a stop closed the short
+        Fill(T0 + 1, BTC, -0.08, 80_000.0, 3.2, "trade"),  # the signal opened it again
+        Fill(T0 + 2, BTC, 0.03, 79_900.0, 1.2, "trade"),   # a later order bought some back
+        Fill(T0 + 3, BTC, 0.01, 79_800.0, 0.4, "manual"),  # and so did a person: told as theirs
+    ]
+    assert message.trades(fills, -0.04) == [
+        "买入 0.1 @ 81,000.00（止损）",
+        "卖出 0.08 @ 80,000.00",
+        "买入 0.03 @ 79,900.00（空头减仓）",
+        "买入 0.01 @ 79,800.00（非程序）",
+    ]
+
+
 def test_a_position_is_told_with_its_stop():
     assert message.held(Position(-0.0539, 64_700.0, 65_701.4)) == "持仓 -0.0539 · 止损 65,701.40"
     assert message.held(Position(0.1, 80_000.0, None)) == "持仓 +0.1 · 止损 待挂"

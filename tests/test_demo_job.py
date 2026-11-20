@@ -20,7 +20,7 @@ from trader.demo.settings import INTRADAY_POLL_SECONDS, INTRADAY_WAIT_MS, KILL_S
 from trader.intraday.paper import HOUR_MS
 from trader.intraday.types import SignalResult
 from trader.ledger import Ledger
-from trader.okx import DAY_MS, OKXError
+from trader.okx import DAY_MS, Bar, OKXError
 from trader.okx_private import NoBalance, OKXPrivateError
 from trader.settings import Settings
 
@@ -92,6 +92,22 @@ def test_the_hour_follows_the_intraday_signal_and_reports_the_trade(env):
     # The same hour again: nothing to do, nothing said.
     env.run(RUN0 + 60_000)
     assert len(env.exchange.fill_rows) == 1 and len(env.inbox.sent) == 1
+
+
+def test_a_trade_that_only_reduces_the_position_is_reported_as_one(env):
+    env.decide(HOUR, "Long")
+    env.run(RUN0)
+    # Long again, but the hourly ATR has doubled and the unit halved: the account sells.
+    env.okx.bars = lambda inst, bar, start_ms, end_ms: [
+        Bar(ts, 80_000, 80_400, 79_600, 80_000) for ts in range(start_ms, end_ms, HOUR_MS)
+    ]
+    env.decide(HOUR + HOUR_MS, "Long")
+    env.run(RUN0 + HOUR_MS)
+    # 9,996 of equity make a unit of 4.99 contracts; reducing leaves the stop where it was.
+    assert env.exchange.book[BTC.swap] == [4.99, 80_000.0]
+    assert env.inbox.sent[-1].split("\n\n")[1] == (
+        "BTC · 信号 Long\n卖出 0.0501 @ 80,000.00（多头减仓）\n持仓 +0.0499 · 止损 79,000.00"
+    )
 
 
 def test_the_demo_waits_for_the_intraday_decision_then_trades(env):
