@@ -1,0 +1,110 @@
+# Requirements — Deterministic Safety Gate (experiment slice).
+# A single deterministic post-decision gate after the Portfolio Manager
+# (Candidate B). Authoritative vocabulary: REQ-SG-01..06, INV-SG-01..02.
+schema: req-sg-v1
+scope: >-
+  A single deterministic post-decision gate after the Portfolio Manager
+  (Candidate B). Authoritative vocabulary: REQ-SG-01..06, INV-SG-01..02.
+authoritative_vocabulary: [REQ-SG-01, REQ-SG-02, REQ-SG-03, REQ-SG-04, REQ-SG-05,
+  REQ-SG-06, INV-SG-01, INV-SG-02]
+status_legend: [proposed, approved, implemented, verified]
+priorities: MoSCoW
+
+requirements:
+  - id: REQ-SG-01
+    type: functional
+    statement: >-
+      After the Portfolio Manager, a deterministic node evaluates the final decision
+      against evidence from the configured (selected) analysts and required upstream
+      plans, emits a stable reason code set, and may downgrade final_rating to REVIEW.
+    fit_criterion: >-
+      A tradeable-rating state missing any selected report or required plan yields
+      final_rating REVIEW with the matching reason code; a fully evidenced state is
+      preserved with an empty reason-code list. All violations are collected in a
+      deterministic order.
+    priority: Must
+    tradeoff: Adds one graph node and additive state keys; may raise the REVIEW rate on partial runs (accepted, fail-closed).
+    status: verified
+
+  - id: REQ-SG-02
+    type: non-functional
+    statement: >-
+      The gate is pure and deterministic: zero LLM, tool, or vendor calls; it imports
+      no model, vendor, or tool modules.
+    fit_criterion: >-
+      Static import scan finds no banned modules; the gate module makes no network or
+      model calls in any test.
+    priority: Must
+    tradeoff: None material; the gate cannot consult fresh data, by design.
+    status: verified
+
+  - id: REQ-SG-03
+    type: non-functional
+    statement: >-
+      The gate adds negligible latency (single extra top-level graph step, pure
+      in-memory work).
+    fit_criterion: >-
+      evaluate_safety over 10k complete fixture states stays well under 1 ms/call
+      (measured, not asserted in tests).
+    priority: Should
+    tradeoff: One extra graph step in the run.
+    status: verified
+
+  - id: REQ-SG-04
+    type: non-functional
+    statement: >-
+      Public compatibility is preserved: final_trade_decision, the 5-tier rating
+      vocabulary, run_rating/is_review semantics, and message signatures are unchanged.
+    fit_criterion: >-
+      Existing regression tests pass unmodified; a complete run keeps its rating and
+      rendered decision text; the gate only adds state keys.
+    priority: Must
+    tradeoff: Gate must not rewrite decision prose, limiting what it can express beyond reason codes.
+    status: verified
+
+  - id: REQ-SG-05
+    type: governance
+    statement: >-
+      Gate outcome is traceable: status, reason codes, and missing-evidence keys are
+      persisted in the run state log for audit.
+    fit_criterion: >-
+      The saved state JSON carries the three gate fields for every run.
+    priority: Should
+    tradeoff: Small additive state-log schema growth.
+    status: implemented
+
+  - id: REQ-SG-06
+    type: governance
+    statement: >-
+      Test-first with a negative test per invariant: each invariant must have at least
+      one test that fails when the invariant is violated.
+    fit_criterion: >-
+      INV-SG-01 and INV-SG-02 each have dedicated failing-when-broken tests in
+      tests/test_safety_gate.py.
+    priority: Must
+    tradeoff: Test maintenance cost.
+    status: verified
+
+invariants:
+  - id: INV-SG-01
+    statement: >-
+      A tradeable rating MUST NOT leave the graph unless every selected analyst's
+      report and the investment plan, trader plan, and final decision are non-empty
+      (non-blank strings).
+    enforcement: tradingagents/graph/safety_gate.py
+    negative_test: tests/test_safety_gate.py::test_missing_or_nonstring_selected_evidence_downgrades, ::test_missing_plan_or_decision_downgrades
+    fallback: final_rating=REVIEW with MISSING_SELECTED_EVIDENCE / MISSING_*_PLAN / MISSING_DECISION
+    priority: Must
+    tradeoff: Partial runs are held for review instead of trading (fail-closed).
+    status: verified
+
+  - id: INV-SG-02
+    statement: >-
+      The gate is monotonic: it preserves a canonical 5-tier rating or downgrades to
+      REVIEW; it never upgrades REVIEW and never swaps one tradeable tier for another.
+    enforcement: tradingagents/graph/safety_gate.py
+    negative_test: tests/test_safety_gate.py::test_monotonic_downgrade_and_idempotence, ::test_bad_or_unrecoverable_rating_fails_closed
+    fallback: final_rating=REVIEW with UNUSABLE_RATING
+    priority: Must
+    tradeoff: None; forbidden upgrades are the point.
+    status: verified

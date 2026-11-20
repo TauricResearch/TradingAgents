@@ -161,6 +161,9 @@ class TradingAgentsGraph:
             # before the Memory Log step would resume without the lessons.
             "analysts=parallel",
             "memory=parallel",
+            # The Safety Gate after the Portfolio Manager: a checkpoint saved
+            # before it existed would resume straight to END, bypassing it.
+            "safety=gate",
             f"settings={digest}",
         ])
 
@@ -462,6 +465,9 @@ class TradingAgentsGraph:
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
             "final_rating": run_rating(final_state),
+            "safety_gate_status": final_state.get("safety_gate_status", ""),
+            "safety_gate_reason_codes": list(final_state.get("safety_gate_reason_codes") or ()),
+            "safety_gate_missing_evidence": list(final_state.get("safety_gate_missing_evidence") or ()),
             "run_settings": self.run_settings(),
         }
 

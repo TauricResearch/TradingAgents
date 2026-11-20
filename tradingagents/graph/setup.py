@@ -25,6 +25,7 @@ from tradingagents.agents.state import AgentState
 
 from .analyst_execution import build_analyst_execution_plan
 from .conditional_logic import ConditionalLogic
+from .safety_gate import create_safety_gate
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +154,7 @@ class GraphSetup:
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        workflow.add_node("Safety Gate", create_safety_gate(selected_analysts))
 
         # The analysts work at the same time; the research debate starts once
         # every one of them has filed its report. The memory log settles past
@@ -182,6 +184,10 @@ class GraphSetup:
                 RISK_ANALYSIS_PATH_MAP,
             )
 
-        workflow.add_edge("Portfolio Manager", END)
+        # The decision passes through the deterministic safety gate before the
+        # run ends, so an unevidenced or unreadable rating cannot leave as a
+        # tradeable call (Candidate B; docs/architecture/adr/001).
+        workflow.add_edge("Portfolio Manager", "Safety Gate")
+        workflow.add_edge("Safety Gate", END)
 
         return workflow

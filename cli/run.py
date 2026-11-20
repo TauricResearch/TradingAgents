@@ -375,14 +375,23 @@ def run_analysis(checkpoint: bool | None = None, portfolio=None, flags=None):
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
 
-    # A decision nobody can read is not a position. Say so here rather than
+    # A decision nobody can read, or one the deterministic safety gate held for
+    # missing evidence, is not a position. Say which, and why, here rather than
     # leaving the run to look like a normal result.
     if is_review(run_rating(final_state)):
-        console.print(
-            "[yellow]No rating could be read from the final decision, so this run "
-            "is recorded for review rather than as a position. Re-run, or read the "
-            "decision text below and judge it yourself.[/yellow]\n"
-        )
+        reason_codes = tuple(final_state.get("safety_gate_reason_codes") or ())
+        if final_state.get("safety_gate_status") == "REVIEW" and reason_codes:
+            console.print(
+                f"[yellow]The safety gate held this decision for review ({', '.join(reason_codes)}), "
+                "so it is recorded for review rather than as a position. Re-run, or read the "
+                "decision text below and judge it yourself.[/yellow]\n"
+            )
+        else:
+            console.print(
+                "[yellow]No rating could be read from the final decision, so this run "
+                "is recorded for review rather than as a position. Re-run, or read the "
+                "decision text below and judge it yourself.[/yellow]\n"
+            )
     console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
     _offer_reports(final_state, graph, selections["ticker"],
