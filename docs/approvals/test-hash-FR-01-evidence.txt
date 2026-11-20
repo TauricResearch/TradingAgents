@@ -1,6 +1,6 @@
 PR/task: FR-01 evidence pack + INV-02 time policy (test-first spec, test/ ONLY — no implementation)
 branch:   test/FR-01-evidence
-commit:   PENDING
+commit:   78c3ee7dcf925d459b24d6725842d72d5daa2c0a
 base:     main
 
 files (per-file SHA-256):
