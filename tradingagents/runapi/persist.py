@@ -10,6 +10,8 @@ from pathlib import Path
 
 from tradingagents.dataflows.symbols import safe_ticker_component
 
+from .context import validate_run_id
+
 
 @dataclass(frozen=True)
 class PublishedArtifacts:
@@ -27,17 +29,22 @@ def publish_run(results_dir: str | Path, ticker: str, run_id: str,
                 report_markdown: str, report_html: str | None,
                 manifest: dict, event_sink, redactor, *, state_data: dict | None = None,
                 message_log: str | None = None, terminal_outcome: str = "COMPLETED") -> PublishedArtifacts:
-    root = Path(results_dir)
+    safe_run_id = validate_run_id(run_id)
+    root = Path(results_dir).resolve()
     safe_ticker = safe_ticker_component(ticker)
     staging_root = root / "_staging"
-    final_dir = root / safe_ticker / run_id
-    staging_dir = staging_root / run_id
+    final_dir = root / safe_ticker / safe_run_id
+    staging_dir = staging_root / safe_run_id
+    if not final_dir.resolve().is_relative_to(root) or not staging_dir.resolve().is_relative_to(root):
+        raise ValueError("Run artifact paths must stay inside results_dir")
+    staging_identity = None
     try:
         staging_root.mkdir(parents=True, exist_ok=True)
         final_dir.parent.mkdir(parents=True, exist_ok=True)
         if final_dir.exists() or staging_dir.exists():
             raise FileExistsError("Run identifier already exists; refusing to overwrite artifacts.")
         staging_dir.mkdir()
+        staging_identity = staging_dir.stat()
         reports = staging_dir / "reports"
         reports.mkdir()
         (reports / "complete_report.md").write_text(redactor.scrub(report_markdown), encoding="utf-8")
@@ -82,7 +89,9 @@ def publish_run(results_dir: str | Path, ticker: str, run_id: str,
                                   final_dir / "manifest.json", terminal_durable)
     except Exception as exc:
         try:
-            if staging_dir.exists():
+            if (staging_identity is not None and not staging_dir.is_symlink()
+                    and staging_dir.exists()
+                    and os.path.samestat(staging_identity, staging_dir.stat())):
                 shutil.rmtree(staging_dir)
         except OSError:
             pass

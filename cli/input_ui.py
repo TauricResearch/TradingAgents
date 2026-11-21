@@ -63,9 +63,11 @@ def _choose_file(service: PortfolioInputService, interactive: bool) -> LoadedPor
             index = int(answer) - 1
             if index < 0 or index >= len(choices):
                 raise ValueError
-            return service.read_file(choices[index])
         except ValueError:
             console.print("[red]Choose one of the listed numbers, N, or C.[/red]")
+            continue
+        try:
+            return service.read_file(choices[index])
         except InputError as exc:
             console.print(f"[red]{escape(exc.detail)}[/red]")
             if not _confirm("Try selecting a portfolio file again?"):

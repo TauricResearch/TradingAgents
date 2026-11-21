@@ -4,6 +4,7 @@ from tradingagents.agents.context import (
     get_language_instruction,
     get_portfolio_context_from_state,
     opponent_argument_or_opening,
+    protect_context,
     report_or_absent,
 )
 
@@ -25,8 +26,8 @@ def create_neutral_debator(llm):
         sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
         news_report = report_or_absent(state["news_report"], "news")
         fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
-        instrument_context = get_instrument_context_from_state(state)
-        portfolio_context = get_portfolio_context_from_state(state)
+        instrument_context = protect_context(get_instrument_context_from_state(state))
+        portfolio_context = protect_context(get_portfolio_context_from_state(state))
 
         trader_decision = state["trader_investment_plan"]
 

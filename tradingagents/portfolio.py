@@ -60,6 +60,17 @@ class PortfolioContext(BaseModel):
             lines.append(f"- Current position in {symbol}: {position.quantity:,.4g} units{price}{listed}")
         if not held:
             lines.append(f"- No current position in {symbol}")
+        if not held or all(position.quantity == 0 for position in held):
+            lines.append("Ownership instruction: the supplied snapshot has no nonzero target position. "
+                         "Do not imply an existing holding, retained exposure, profits or a position to trim. "
+                         "Do not recommend reducing or maintaining a nonexistent position. "
+                         "A bearish rating or Sell action means avoid entry or stay flat, not sell owned units. "
+                         "Correct any contrary ownership assumption in upstream analysis.")
+        else:
+            lines.append("Ownership instruction: refer only to the supplied signed quantities; "
+                         "do not invent other holdings. Treat short positions according to their sign.")
+        if self.cash is None:
+            lines.append("Available funds were not supplied; do not invent a balance or affordability.")
         if self.cash is not None:
             lines.append(f"- Cash available: {self.cash:,.2f}{' ' + self.currency if self.currency else ''}")
         others = [p for p in self.positions if all(p is not h for h in held)]

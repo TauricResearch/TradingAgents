@@ -15,6 +15,7 @@ from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
     get_portfolio_context_from_state,
+    protect_context,
 )
 from tradingagents.agents.rating import parse_rating
 from tradingagents.agents.schemas import PortfolioDecision, render_pm_decision
@@ -25,10 +26,10 @@ def create_portfolio_manager(llm):
     structured_llm = bind_structured(llm, PortfolioDecision, "Portfolio Manager")
 
     def portfolio_manager_node(state) -> dict:
-        instrument_context = get_instrument_context_from_state(state)
-        portfolio_context = get_portfolio_context_from_state(state)
+        instrument_context = protect_context(get_instrument_context_from_state(state))
+        portfolio_context = protect_context(get_portfolio_context_from_state(state))
         has_portfolio = bool((state.get("portfolio_context") or "").strip())
-        hold_meaning = ("maintain the supplied current position" if has_portfolio else
+        hold_meaning = ("maintain only an explicitly supplied nonzero target position; if flat, remain flat" if has_portfolio else
                         "the evidence supports no new directional action; do not interpret Hold as maintaining an assumed position")
 
         history = state["risk_debate_state"]["history"]
@@ -55,7 +56,7 @@ def create_portfolio_manager(llm):
 - **Buy**: Strong conviction to enter or add to position
 - **Overweight**: Favorable outlook, gradually increase exposure
 - **Hold**: {hold_meaning}
-- **Underweight**: Reduce exposure, take partial profits
+- **Underweight**: Cautious research outlook; trim only a supplied existing long position, otherwise avoid entry
 - **Sell**: Exit position or avoid entry
 
 **Context:**

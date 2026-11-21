@@ -16,6 +16,16 @@ if TYPE_CHECKING:
     from tradingagents.portfolio import PortfolioContext
 
 
+_RUN_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+
+
+def validate_run_id(run_id: str) -> str:
+    # A run ID is stored directly as one filesystem path component.
+    if not isinstance(run_id, str) or run_id in {".", ".."} or not _RUN_ID_RE.fullmatch(run_id):
+        raise ValueError("run_id must be a safe single path component")
+    return run_id
+
+
 class InputMode(StrEnum):
     NO_PORTFOLIO = "NO_PORTFOLIO"
     PORTFOLIO_PROVIDED = "PORTFOLIO_PROVIDED"
@@ -108,8 +118,9 @@ class RunContext:
     def __post_init__(self):
         if (self.mode == InputMode.NO_PORTFOLIO) != (self.snapshot is None):
             raise ValueError("snapshot must be absent exactly in NO_PORTFOLIO mode")
-        if not self.run_id or not self.ticker.strip():
-            raise ValueError("run_id and ticker are required")
+        validate_run_id(self.run_id)
+        if not self.ticker.strip():
+            raise ValueError("ticker is required")
 
     def confirm(self) -> RunContext:
         if self.consent_state != ConsentState.FROZEN:

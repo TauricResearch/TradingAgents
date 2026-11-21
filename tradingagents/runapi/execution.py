@@ -30,7 +30,9 @@ def _source_revision() -> str:
         root = Path(__file__).resolve().parents[2]
         result = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root,
                                 capture_output=True, text=True, timeout=1, check=True)
-        return f"git:{result.stdout.strip()}"
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=root,
+                                capture_output=True, text=True, timeout=1, check=True)
+        return f"git:{result.stdout.strip()}" + ("+dirty" if status.stdout.strip() else "")
     except Exception:
         return "unknown"
 
@@ -41,7 +43,7 @@ def _prompt_hash(selected_analysts) -> str:
         "market": "analysts/market_analyst.py", "social": "analysts/sentiment_analyst.py",
         "news": "analysts/news_analyst.py", "fundamentals": "analysts/fundamentals_analyst.py",
     }
-    files = {"agents/context.py", "agents/managers/research_manager.py",
+    files = {"agents/structured.py", "agents/analysts/turn.py", "portfolio.py", "agents/context.py", "agents/managers/research_manager.py",
              "agents/managers/portfolio_manager.py", "agents/trader/trader.py",
              "agents/researchers/bull_researcher.py", "agents/researchers/bear_researcher.py",
              "agents/risk_mgmt/aggressive_debator.py", "agents/risk_mgmt/conservative_debator.py",
@@ -147,7 +149,9 @@ def run_analysis_api(
         factory = graph_factory or _default_graph_factory
         graph = factory(selected_analysts=selected_analysts, config=config, callbacks=callbacks or [])
         runner = engine_runner or (lambda engine, context: _default_engine_runner(engine, context, config))
-        final_state = runner(graph, run_context)
+        from tradingagents.dataflows.config import run_config
+        with run_config(config):
+            final_state = runner(graph, run_context)
         if isinstance(final_state, tuple):
             final_state = final_state[0]
         if not isinstance(final_state, dict) or not final_state:

@@ -270,6 +270,8 @@ class TradingAgentsGraph:
             "max_debate_rounds": cfg.get("max_debate_rounds"),
             "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
             "output_language": cfg.get("output_language"),
+            "context_cap_tokens": cfg.get("context_cap_tokens", 24000),
+            "compaction_threshold_tokens": cfg.get("compaction_threshold_tokens", 19200),
             "data_vendors": dict(cfg.get("data_vendors") or {}),
             "tool_vendors": dict(cfg.get("tool_vendors") or {}),
         }

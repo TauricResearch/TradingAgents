@@ -8,6 +8,7 @@ from tradingagents.agents.context import (
     get_instrument_context_from_state,
     get_language_instruction,
     get_portfolio_context_from_state,
+    protect_context,
 )
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
 from tradingagents.agents.structured import (
@@ -22,7 +23,7 @@ def create_trader(llm):
 
     def trader_node(state):
         company_name = state["company_of_interest"]
-        instrument_context = get_instrument_context_from_state(state)
+        instrument_context = protect_context(get_instrument_context_from_state(state))
         investment_plan = state["investment_plan"]
         # The research plan digests the debate but loses exact price structure;
         # give the Trader the technical market report so entry/stop levels are
@@ -30,7 +31,7 @@ def create_trader(llm):
         # report is empty when the user did not select the market analyst, so
         # only offer it (and the grounding instruction) when it has content.
         market_report = (state["market_report"] or "").strip()
-        portfolio_context = get_portfolio_context_from_state(state)
+        portfolio_context = protect_context(get_portfolio_context_from_state(state))
 
         if market_report:
             grounding = (
@@ -75,7 +76,10 @@ def create_trader(llm):
                     "on its own line:\n\n"
                     "- **Action**: exactly one of Buy / Hold / Sell. A research "
                     "recommendation of Overweight is a Buy and Underweight is a Sell, "
-                    "sized by how strong the case is; conflict alone is not a Hold.\n"
+                    "sized by how strong the case is; conflict alone is not a Hold. "
+                    "Sell is directional research guidance: without a supplied long position it means "
+                    "avoid entry, not liquidate assumed holdings. The supplied portfolio facts override "
+                    "ownership assumptions in the investment plan.\n"
                     "- **Reasoning**: why, against the plan and the price structure\n"
                     "- **Entry Price**, **Stop Loss**, **Position Sizing**: when you can state them"
                 ),
