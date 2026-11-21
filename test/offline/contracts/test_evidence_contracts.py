@@ -24,9 +24,10 @@ import hashlib
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
+
 from egta.contracts import EvidenceItem, EvidencePack, RunSpec
 from egta.contracts.events import ReasonCode
-from pydantic import ValidationError
 
 SHA = "a" * 64
 
