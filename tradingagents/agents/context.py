@@ -2,8 +2,8 @@
 
 import functools
 import logging
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, Mapping
+from langchain_core.messages import HumanMessage, RemoveMessage
 
 from tradingagents.dataflows.date_window import is_historical
 from tradingagents.dataflows.vendors.yahoo.fundamentals import get_company_profile
@@ -216,3 +216,64 @@ def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
         "holdings or cash, so do not assume a flat book; give direction and "
         "sizing guidance in terms the caller can apply to their own position."
     )
+
+
+def _is_user_like_message(message: Any) -> bool:
+    """Whether ``message`` is user/human authored across accepted input shapes."""
+    if isinstance(message, HumanMessage):
+        return True
+    msg_type = getattr(message, "type", None)
+    if isinstance(msg_type, str) and msg_type.lower() in {"human", "user"}:
+        return True
+    if isinstance(message, (tuple, list)) and message:
+        role = str(message[0]).strip().lower()
+        if role in {"human", "user"}:
+            return True
+    if isinstance(message, Mapping):
+        role = message.get("role") or message.get("type")
+        if isinstance(role, str) and role.strip().lower() in {"human", "user"}:
+            return True
+    return False
+
+
+def ensure_user_query_message(messages: Any, fallback_prompt: str) -> list:
+    """Return ``messages`` with at least one user message.
+
+    Some OpenAI-compatible gateways reject requests that carry only system/tool
+    content ("no user query found in messages"). This normalizes the analyst
+    input so there is always at least one user/human message.
+    """
+    normalized = list(messages or [])
+    if any(_is_user_like_message(m) for m in normalized):
+        return normalized
+    return normalized + [HumanMessage(content=fallback_prompt)]
+
+
+def create_msg_delete():
+    def delete_messages(state):
+        """Clear messages and add a context-anchored placeholder.
+
+        The placeholder must not be a bare ``"Continue"``: some
+        OpenAI-compatible providers interpret that literally as the user task
+        and produce output about the word "continue" instead of analysing the
+        instrument (#888). Anchoring it to the resolved instrument context and
+        date keeps the next analyst on-task even if the provider treats the
+        placeholder as a standalone request.
+        """
+        messages = state["messages"]
+        removal_operations = [RemoveMessage(id=m.id) for m in messages]
+
+        instrument_context = get_instrument_context_from_state(state)
+        trade_date = state.get("trade_date", "the requested date")
+        placeholder = HumanMessage(
+            content=(
+                f"Proceed with your assigned analysis for this workflow. "
+                f"{instrument_context} The analysis date is {trade_date}."
+            )
+        )
+        return {"messages": removal_operations + [placeholder]}
+
+    return delete_messages
+
+
+

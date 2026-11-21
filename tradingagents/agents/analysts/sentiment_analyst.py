@@ -22,7 +22,11 @@ from datetime import datetime, timedelta
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.context import (
+    ensure_user_query_message,
+    get_instrument_context_from_state,
+    get_language_instruction,
+)
 from tradingagents.agents.post_screen import jev_screen
 from tradingagents.agents.schemas import SentimentReport, render_sentiment_report
 from tradingagents.agents.structured import (
@@ -109,7 +113,13 @@ def create_sentiment_analyst(llm):
         # Format the template into a concrete message list so the structured
         # and free-text paths receive the same input. No bind_tools — the
         # data is already in the prompt.
-        formatted_messages = prompt.format_messages(messages=state["messages"])
+        fallback_query = (
+            f"Run sentiment analysis for `{ticker}` on {end_date}. "
+            f"{instrument_context}"
+        )
+        formatted_messages = prompt.format_messages(
+            messages=ensure_user_query_message(state.get("messages"), fallback_query)
+        )
 
         report_text = invoke_structured_or_freetext(
             structured_llm,

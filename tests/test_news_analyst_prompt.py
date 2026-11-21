@@ -23,3 +23,9 @@ def test_news_prompt_matches_get_news_signature():
     src = inspect.getsource(na)
     assert "get_news(start_date, end_date)" in src
     assert "get_news(query" not in src
+
+
+@pytest.mark.unit
+def test_news_prompt_mentions_cot_tool_signature():
+    src = inspect.getsource(na)
+    assert "get_commitments_of_traders(topic, look_back_weeks)" in src
