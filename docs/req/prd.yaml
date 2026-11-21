@@ -1,0 +1,397 @@
+# PRD — Evidence-Governed TradingAgents (EGTA)
+# D1 deliverable, owner A. Machine-readable, and deliberately reference-only:
+# every acceptance number lives in docs/req/requirements.yaml and is cited here by id.
+# Sources: CS5351-2026-2027-project.pdf D1; execution_plan_261111.md §1, §3.4, §3.5.
+
+schema_version: '1.0'
+document: prd
+owner: A
+status: draft_for_review
+source_of_truth: docs/req/requirements.yaml
+product:
+  name: Evidence-Governed TradingAgents
+  abbreviation: EGTA
+  baseline: TradingAgents (TauricResearch); the pinned upstream SHA is recorded in docs/baseline.md
+  one_liner: A stock-analysis system whose recommendations are traceable to evidence, bounded by a hard per-run
+    budget, gated by deterministic risk rules, and whose enhancement can be verified against the baseline on the
+    same inputs.
+  platform: single machine, single user, one ticker per run, local paper ledger only
+problem:
+  research_question: Can requirement formalisation, architectural authority boundaries and executable governance
+    keep the evidence quality of a trading advisory while cutting redundant reasoning, and stop unsupported or rule-violating
+    advisories from reaching simulated execution?
+  gaps_in_baseline:
+  - id: GAP-01
+    description: The baseline has no cross-module evidence contract, so a recommendation cannot be traced to a specific
+      source, timestamp and content hash.
+    addressed_by:
+    - FR-01
+    - INV-02
+  - id: GAP-02
+    description: Existing configuration limits tokens per call but not the cumulative cost of a run, and SDK retries
+      can spend budget twice.
+    addressed_by:
+    - FR-02
+    - INV-03
+    - NFR-01
+  - id: GAP-03
+    description: The multi-agent discussion stops on a round count, not on a testable condition, so it cannot be
+      shown to converge.
+    addressed_by:
+    - FR-03
+    - NFR-06
+  - id: GAP-04
+    description: Nothing between an advisory and the paper ledger is deterministic; an unapproved proposal can still
+      mutate state.
+    addressed_by:
+    - FR-04
+    - INV-01
+    - INV-04
+    - INV-06
+    - INV-07
+  - id: GAP-05
+    description: 'No course-level governance surrounds the enhancement itself: no approval records, no gates, no
+      reproducible comparison.'
+    addressed_by:
+    - FR-05
+    - GOV-01
+    - GOV-02
+    - GOV-03
+    - GOV-04
+    - GATE-01
+    - GATE-02
+    - GATE-03
+    - GATE-04
+    - GATE-05
+    - GATE-06
+stakeholders:
+- id: ST-01
+  name: Single local user (the researcher running an analysis)
+  interest: Wants an advisory it can audit, and a run that cannot silently overspend.
+  requirement_ids:
+  - FR-01
+  - FR-05
+  - NFR-01
+- id: ST-02
+  name: Course reviewers and instructor
+  interest: Needs evidence that the work was supervised, that gates actually blocked, and that the enhancement is
+    reproducible.
+  requirement_ids: &id001
+  - GOV-01
+  - GOV-02
+  - GOV-03
+  - GOV-04
+  - GOV-05
+  - GOV-06
+  - GOV-07
+  - GOV-08
+  - GOV-09
+- id: ST-03
+  name: Student team A-E
+  interest: Each member must be able to finish a module without depending on another module's internals.
+  requirement_ids:
+  - GATE-01
+  - GATE-02
+  - GATE-03
+- id: ST-04
+  name: Upstream TradingAgents maintainers
+  interest: 'The fork must stay recognisable: provenance preserved, upstream behaviour not silently rewritten.'
+  requirement_ids:
+  - NFR-10
+  - GOV-08
+- id: ST-05
+  name: AI coding agent (a supervised worker, never an approver)
+  interest: Constrained by permission boundaries, not trusted with approval authority.
+  requirement_ids:
+  - GOV-03
+  - GOV-05
+  - GATE-06
+objectives:
+- id: G1
+  goal: Every conclusion can be traced to concrete data, with time filtering that cannot peek past the as-of instant.
+  requirement_ids:
+  - FR-01
+  - INV-02
+  - NFR-10
+- id: G2
+  goal: A run cannot exceed its budget envelope, and an unknown usage is not refunded optimistically.
+  requirement_ids:
+  - FR-02
+  - INV-03
+  - NFR-01
+- id: G3
+  goal: Discussion terminates on a checkable condition rather than a fixed round count.
+  requirement_ids:
+  - FR-03
+  - NFR-06
+- id: G4
+  goal: No proposal reaches the paper ledger without passing deterministic risk control and the audit trail.
+  requirement_ids:
+  - FR-04
+  - INV-01
+  - INV-04
+  - INV-06
+  - INV-07
+- id: G5
+  goal: Baseline, enhancement and ablation are compared on identical inputs, and the comparison is reproducible.
+  requirement_ids:
+  - FR-05
+  - NFR-07
+  - NFR-09
+  - GATE-05
+- id: G6
+  goal: 'The team''s own process is governed and auditable: deliverables, gates, branch protection and submission
+    checks.'
+  requirement_ids:
+  - GOV-01
+  - GOV-02
+  - GOV-03
+  - GOV-04
+  - GOV-05
+  - GOV-06
+  - GOV-07
+  - GOV-08
+  - GOV-09
+  - GATE-06
+  - SUB-01
+scope:
+  in_scope:
+  - Offline analysis of one ticker per run on a single machine; US equities and US ADRs.
+  - Local paper ledger and simulated execution; no brokerage connectivity.
+  - Five deterministic-capable modules (evidence, budget, deliberation, risk, evaluation), one owner each.
+  - A released baseline/enhancement/ablation comparison on the same frozen inputs.
+  out_of_scope:
+  - Live trading, brokerage accounts, real money.
+  - Multi-tenant deployment, distributed queues, Kubernetes, cloud platform services.
+  - Reinforcement-learning training, automatic stock screening, profit guarantees.
+  - A web dashboard before every Must requirement passes.
+  notes: Hong Kong tickers, a second model provider and more history windows are Could items and are tracked in
+    the registry rather than promised here.
+use_cases:
+- id: UC-01
+  title: Run one analysis and receive an auditable advisory
+  actor: ST-01
+  trigger: The user asks for an analysis of one ticker.
+  requirement_ids:
+  - FR-01
+  - FR-02
+  - FR-03
+  - INV-02
+  - INV-03
+  main_flow:
+  - The run declares its budget envelope and starts under the budget governor.
+  - Every data item is admitted or excluded by the time policy against the as-of instant.
+  - The discussion stops when its convergence condition is met, not on a round count.
+  - The advisory is emitted together with an evidence pack naming source, publication time, fetch time and content
+    hash.
+  postcondition: The user holds a report whose claims trace to admitted data, plus a ledger of what the run spent.
+- id: UC-02
+  title: Refuse or degrade a run that would overspend
+  actor: ST-01
+  trigger: A reservation would exceed the remaining budget, or a concurrent call already holds the remainder.
+  requirement_ids:
+  - FR-02
+  - INV-03
+  - NFR-01
+  main_flow:
+  - The governor reserves before the call and settles after it.
+  - An unknown usage keeps the reservation instead of returning it.
+  - The run fails closed with an explicit reason rather than continuing unbudgeted.
+  postcondition: The ledger still balances and no call was made that could not be paid for.
+- id: UC-03
+  title: Consume an evidence pack as a downstream module
+  actor: ST-03
+  trigger: A deliberation or advisory module needs the evidence behind a claim.
+  requirement_ids:
+  - FR-01
+  - FR-03
+  - INV-05
+  main_flow:
+  - The consumer reads the pack through the shared contract, not through producer internals.
+  - A content hash that does not match the excerpt is an integrity violation, not something to repair.
+  - A claim without a supported citation is rejected before it can enter a proposal.
+  postcondition: No consumer needs to know how evidence was fetched, and no tampered excerpt passes.
+- id: UC-04
+  title: Block a proposal that fails deterministic risk control
+  actor: ST-05
+  trigger: An advisory proposal asks to change the paper ledger.
+  requirement_ids:
+  - FR-04
+  - INV-01
+  - INV-04
+  - INV-06
+  - INV-07
+  main_flow:
+  - The proposal is checked against the deterministic rule set.
+  - A failed check returns a blocking verdict and records a security event.
+  - The ledger mutation is rolled back or never applied; the model alone decides nothing.
+  postcondition: The ledger holds only state that passed deterministic control, with an audit entry per attempt.
+- id: UC-05
+  title: Compare baseline, enhancement and ablation
+  actor: ST-01
+  trigger: The same frozen input set is ready for all three configurations.
+  requirement_ids:
+  - FR-05
+  - NFR-07
+  - NFR-09
+  - GATE-05
+  main_flow:
+  - All three configurations run on identical inputs, with the comparison recorded and replayable.
+  - Metrics and reports are produced from recorded run artifacts, not from memory.
+  - A failing sample is reported, never dropped from the comparison.
+  postcondition: The team can state what changed, by how much, and from which sample each number came.
+- id: UC-06
+  title: Govern the delivery
+  actor: ST-02
+  trigger: A deliverable or gate is claimed complete.
+  requirement_ids:
+  - GOV-01
+  - GOV-02
+  - GOV-03
+  - GOV-04
+  - GOV-05
+  - GOV-06
+  - GOV-07
+  - GOV-08
+  - GOV-09
+  - GATE-06
+  - SUB-01
+  main_flow:
+  - The claim is checked against the artifact, not against the intention.
+  - A gate that cannot run is reported as not applicable, never as passed.
+  - The submission package is checked for missing deliverables, secrets and stray binaries.
+  postcondition: What is claimed complete is what exists, and the check itself is written down.
+assumptions:
+- id: AS-01
+  assumption: Five members, one module each, each supervising its own coding agent.
+  impact_if_wrong: Modules would have to be merged and the registry's ownership fields become wrong.
+- id: AS-02
+  assumption: One machine, one user, sequential runs.
+  impact_if_wrong: Budget reservations and audit serialisation would need a shared store, which is out of scope.
+- id: AS-03
+  assumption: Model configurations must support token counting and output limits; a model without a reliable upper
+    bound does not enter a hard-budget configuration.
+  impact_if_wrong: The budget requirement becomes unenforceable and must be renegotiated, not quietly dropped.
+- id: AS-04
+  assumption: The upstream fork is pinned by SHA and its tests pass at the baseline.
+  impact_if_wrong: Every comparison result becomes non-reproducible.
+- id: AS-05
+  assumption: A local simulated ledger satisfies the course requirement; no real trading is required.
+  impact_if_wrong: A brokerage adapter would need its own threat model and acceptance scope.
+constraints:
+  runtime: Python 3.11+ with one tested version pinned, upstream LangGraph, Pydantic, SQLite, YAML/JSON Schema,
+    pytest, Ruff, mypy, GitHub Actions.
+  execution_model: 'Human-supervised agent work: no unsupervised runs, and no direct human edits of agent-generated
+    code.'
+  data: Core demonstration uses sources reachable without a paid live feed; a data gap is reported, never invented.
+  provenance: Upstream license, commit SHA and diff are recorded in docs/baseline.md and kept in every submission.
+prioritisation:
+  rule: MoSCoW, recorded per entry as the priority field of requirements.yaml.
+  must: The five functional requirements, every non-functional requirement except NFR-02, all governance deliverables,
+    the annotated sessions, the six gates, branch protection and the comparison video.
+  should: NFR-02's optional optimisation target and wider model-stability experiments.
+  could: A compact web report, a second model provider, a Hong Kong ticker sample, more history windows.
+  wont: Live trading, reinforcement-learning training, automatic stock screening, multi-tenancy, Kubernetes, any
+    profit guarantee.
+  tradeoff_order: Deterministic safety and auditability > quality > cost > latency > interface.
+requirement_index:
+  by_type:
+    functional:
+    - FR-01
+    - FR-02
+    - FR-03
+    - FR-04
+    - FR-05
+    nonfunctional:
+    - NFR-01
+    - NFR-02
+    - NFR-03
+    - NFR-04
+    - NFR-05
+    - NFR-06
+    - NFR-07
+    - NFR-08
+    - NFR-09
+    - NFR-10
+    invariant:
+    - INV-01
+    - INV-02
+    - INV-03
+    - INV-04
+    - INV-05
+    - INV-06
+    - INV-07
+    governance: *id001
+    gate:
+    - GATE-01
+    - GATE-02
+    - GATE-03
+    - GATE-04
+    - GATE-05
+    - GATE-06
+    submission:
+    - SUB-01
+  by_component:
+    budget:
+    - FR-02
+    - INV-03
+    - NFR-01
+    - NFR-04
+    deliberation:
+    - FR-03
+    - INV-05
+    - NFR-03
+    evaluation:
+    - FR-05
+    - NFR-02
+    - NFR-06
+    - NFR-08
+    - NFR-09
+    evidence:
+    - FR-01
+    - INV-02
+    governance:
+    - GATE-01
+    - GATE-02
+    - GATE-03
+    - GATE-04
+    - GATE-05
+    - GATE-06
+    - GOV-01
+    - GOV-02
+    - GOV-03
+    - GOV-04
+    - GOV-05
+    - GOV-06
+    - GOV-09
+    - NFR-07
+    - NFR-10
+    repo:
+    - GOV-07
+    - GOV-08
+    risk_gate:
+    - FR-04
+    - INV-01
+    - INV-04
+    - INV-06
+    - INV-07
+    - NFR-05
+    submission:
+    - SUB-01
+traceability:
+  registry: docs/req/requirements.yaml
+  schema: docs/req/req-schema.json
+  traces:
+  - docs/req/trace-FR-01-evidence.md
+  - docs/req/trace-FR-05-contracts.md
+  - docs/req/trace-E2-evaluation.md
+  approval_records: docs/approvals/
+  note: A requirement is traced when its id resolves to a component, a verification and at least one artifact in
+    the registry; this file deliberately does not duplicate that mapping.
+glossary:
+  evidence_pack: The per-claim bundle of source, publication time, fetch time, content hash and citations.
+  as_of: The instant the analysis pretends to know the world; nothing published later may be admitted.
+  budget_governor: The pre-call reservation layer that owns the right to spend.
+  paper_ledger: The local simulated account, mutable only through deterministic risk control.
+  gate: A blocking check that must pass; a gate that cannot run is not applicable, not passed.
+  moscow: Must / Should / Could / Won't, the per-requirement prioritisation scale.

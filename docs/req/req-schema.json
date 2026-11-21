@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EGTA requirement registry (docs/req/requirements.yaml)",
+  "description": "Structural schema for the D1 requirement registry. This validates required fields, enums and threshold types only. Semantic checks that JSON Schema cannot express (unique ids, resolvable cross-references, every Must entry bound to a component and a verification, every invariant at zero tolerance) belong to the checker in tools/check_requirements.py; a YAML that validates here is structurally sound, not necessarily a good requirement.",
+  "type": "object",
+  "required": ["schema_version", "requirements"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "$comment": "Bump together with this schema; the registry and the schema version move as a pair."
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/requirement" }
+    }
+  },
+  "$defs": {
+    "requirement": {
+      "type": "object",
+      "required": [
+        "id", "type", "statement", "priority", "source", "tradeoff",
+        "owner", "component", "fit_criterion", "evidence", "status", "supplied_by"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "(FR|NFR|INV|GOV|GATE|SUB)-[0-9]{2}",
+          "$comment": "Uniqueness is checked semantically, not here."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["functional", "nonfunctional", "invariant", "governance", "gate", "submission"]
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 15,
+          "$comment": "One testable sentence. No thresholds here — those live in fit_criterion."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["Must", "Should", "Could", "Won't"]
+        },
+        "source": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 2 },
+          "$comment": "Where the requirement comes from: plan section, course page, or another requirement id."
+        },
+        "tradeoff": {
+          "type": ["string", "null"],
+          "minLength": 10,
+          "$comment": "null is allowed only where nothing is being given up; see the conditional rule below."
+        },
+        "owner": { "$ref": "#/$defs/owner_list" },
+        "supplied_by": { "$ref": "#/$defs/owner_list" },
+        "component": {
+          "type": "string",
+          "enum": [
+            "evidence", "contracts", "budget", "deliberation", "risk_gate",
+            "evaluation", "adapters", "app", "governance", "repo", "submission"
+          ],
+          "$comment": "Exactly one enforcing component. Adding a module means changing this enum deliberately."
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 2 },
+          "$comment": "Artifacts or trace ids that can be pointed at when the requirement is reviewed."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["confirmed_by_owner", "draft_from_plan", "pending_owner_supply"]
+        },
+        "fit_criterion": { "$ref": "#/$defs/fit_criterion" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "priority": { "enum": ["Should", "Could"] } }, "required": ["priority"] },
+          "then": {
+            "properties": { "tradeoff": { "type": "string", "minLength": 10 } },
+            "$comment": "A Should/Could requirement must say what is given up, otherwise the priority is decoration."
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "invariant" } }, "required": ["type"] },
+          "then": {
+            "properties": { "tradeoff": { "type": "string", "minLength": 10 } },
+            "$comment": "Every invariant states its fallback, i.e. what is sacrificed when it would be violated."
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "pending_owner_supply" } }, "required": ["status"] },
+          "then": {
+            "$comment": "An entry waiting for its owner's value must not carry a made-up number.",
+            "properties": {
+              "fit_criterion": {
+                "properties": {
+                  "threshold": { "type": "null" }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "fit_criterion": {
+                "properties": {
+                  "threshold": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            "$comment": "Everything not waiting for a value must have a numeric threshold."
+          }
+        },
+        {
+          "if": {
+            "properties": { "status": { "enum": ["confirmed_by_owner", "draft_from_plan"] } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "fit_criterion": {
+                "required": ["verification"],
+                "properties": { "verification": { "minLength": 15 } }
+              }
+            },
+            "$comment": "A criterion without a way to prove it is not a criterion."
+          }
+        }
+      ]
+    },
+    "fit_criterion": {
+      "type": "object",
+      "required": ["metric", "operator", "threshold", "verification"],
+      "additionalProperties": false,
+      "properties": {
+        "metric": {
+          "type": "string",
+          "pattern": "[a-z][a-z0-9_]*",
+          "$comment": "lower_snake_case name of the measured quantity."
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["gte", "lte", "eq", "gt", "lt", "neq"],
+          "$comment": "Zero tolerance is expressed as eq with threshold 0; there is no separate operator."
+        },
+        "threshold": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "unit": {
+          "type": ["string", "null"],
+          "enum": ["percent", "count", "tokens", "seconds", "usd", null],
+          "$comment": "null means the metric is a boolean or an identifier rather than a quantity."
+        },
+        "verification": {
+          "type": "string",
+          "minLength": 15,
+          "$comment": "A command, a test id, or a review step. Not 'manual check'."
+        }
+      }
+    },
+    "owner_list": {
+      "type": "string",
+      "pattern": "(A|B|C|D|E)(\\+(A|B|C|D|E))*",
+      "$comment": "Single owner 'B', or a joint obligation 'A+E'. Roles only, never names, so the registry survives roster changes."
+    }
+  }
+}
