@@ -4,7 +4,8 @@ Requirement-to-test trace for `test/offline/contracts/test_evidence_contracts.py
 **Spec/test only. No `src/`.** The three public types (`RunSpec`, `EvidenceItem`,
 `EvidencePack`) are delivered by a **separate implementation PR** (B) after this
 spec is approved and merged; that PR has no number yet. Contract definitions:
-`docs/req/contracts-summary.md` §7.
+`docs/req/evidence-contracts.md` (standalone; `docs/req/contracts-summary.md` is
+left unchanged from its `main` baseline).
 
 **This file is distinct from A's INV-02 time-policy trace**
 (`docs/req/trace-FR-01-evidence.md`, PR #4). #4 owns the UTC filter algorithm and
