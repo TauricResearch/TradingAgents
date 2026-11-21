@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'v[0-9]+.[0-9]+.[0-9]+']
+    branches: [main, 'v*']
   pull_request:
 
 concurrency:
@@ -13,14 +13,22 @@ jobs:
   test:
     name: tests (py${{ matrix.python-version }}${{ matrix.tz && format(', {0}', matrix.tz) || '' }})
     runs-on: ubuntu-latest
+    # Experimental interpreters (e.g. 3.14) are non-blocking.
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13"]
+        experimental: [false]
         # One run away from UTC, so a test that only passes in UTC fails here.
+        # 3.14 is include-only and experimental (truly non-blocking) to avoid
+        # false reds from a failing pip install / provider wheel gap.
         include:
+          - python-version: "3.14"
+            experimental: true
           - python-version: "3.12"
             tz: America/New_York
+            experimental: false
     env:
       TZ: ${{ matrix.tz }}
     steps:
@@ -65,3 +73,168 @@ jobs:
         # The repo is fully clean under the strict select, so we lint everything
         # (generated results/ is excluded via pyproject extend-exclude).
         run: ruff check .
+
+  # Offline spec suites, gated per-suite (A review: Block 1 + Block 2).
+  #
+  # Each suite independently detects its module directory so one unimplemented
+  # module never reds another:
+  #   contracts  ⇔ src/egta/contracts   (7 explicit FR-05 files; count read from
+  #                docs/approvals/test-hash-FR-05-contracts.txt actual_cases, NOT
+  #                hardcoded 199; not the whole directory -m spec, so other specs
+  #                such as FR-01 evidence cannot contaminate it)
+  #   evaluation ⇔ src/egta/evaluation  (-m spec test/offline/evaluation, 28)
+  #   risk_gate  ⇔ src/egta/risk_gate   (test/offline/risk_gate by path, 139)
+  # If a suite's dir is absent it reports ::notice:: N/A (skip only that suite).
+  #
+  # The gate runs pytest (not just --collect-only): the run's terminal summary
+  # `passed` count must equal the expected number, and any skip/xfail/xpass/error
+  # fails the gate. --collect-only is also checked for an extra consistency guard.
+  offline-tests:
+    name: offline spec suites (per-suite gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install (with dev extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Gate each offline suite
+        env:
+          # contracts expected is read from the approval record (F1 scheme 2) so
+          # the spec PR and CI can never drift. E2/risk_gate have no record yet.
+          CONTRACTS_RECORD: "docs/approvals/test-hash-FR-05-contracts.txt"
+          EXPECT_EVALUATION: "28"
+          EXPECT_RISK_GATE: "139"  # A confirmed FR-04 126 + 13 = 139
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          # FR-05 contracts share test/offline/contracts with OTHER specs (e.g.
+          # FR-01 test_evidence_contracts.py lands there via #5), so we list
+          # FR-05's files explicitly to keep its actual_cases uncontaminated.
+          # NOTE: FR-01 evidence is NOT gated here yet — it needs #5 merged + B's
+          # EvidenceItem/EvidencePack types + an actual_cases record. Tracked as a
+          # follow-up debt (owner E, verifier A), not a suite in this job.
+          _CONTRACTS_DIR = "test/offline/contracts"
+          _FR05_FILES = [
+              "_crash_child.py",  # not selected; harmless if absent
+              "test_comparison.py", "test_events.py", "test_audit.py",
+              "test_replay.py", "test_evaluation_result.py", "test_manifest.py",
+              "test_metrics_serialization.py",
+          ]
+          _fr05_paths = [f"{_CONTRACTS_DIR}/{n}" for n in _FR05_FILES
+                         if n.startswith("test_")]
+
+          # (suite-name, module-dir, pytest-args, expected-source)
+          #   expected-source: None => read contracts record;
+          #                    "ENV:NAME" => env var; "RECORD:path" => approval record
+          suites = [
+              ("contracts",  "src/egta/contracts",  ["-m", "spec", *_fr05_paths], None),
+              ("evaluation", "src/egta/evaluation", ["-m", "spec", "test/offline/evaluation"], "ENV:EXPECT_EVALUATION"),
+              ("risk_gate",  "src/egta/risk_gate",  ["test/offline/risk_gate"],                "ENV:EXPECT_RISK_GATE"),
+          ]
+
+          # pytest terminal summary, e.g. "123 passed, 2 skipped in 0.4s".
+          _SUMMARY = re.compile(
+              r"(\d+)\s+passed|(\d+)\s+failed|(\d+)\s+error|(\d+)\s+skipped"
+              r"|(\d+)\s+xfailed|(\d+)\s+xpassed"
+          )
+
+          def run_pytest(args):
+              return subprocess.run(
+                  [sys.executable, "-m", "pytest", "-o", "addopts=--strict-markers",
+                   "-q", "-rsx", *args],
+                  capture_output=True, text=True,
+              )
+
+          def collect_count(args):
+              out = subprocess.run(
+                  [sys.executable, "-m", "pytest", "-o", "addopts=--strict-markers",
+                   "--collect-only", "-q", *args],
+                  capture_output=True, text=True,
+              )
+              if out.returncode != 0:
+                  return None
+              ids = {
+                  line.strip() for line in out.stdout.splitlines()
+                  if "::" in line and not line.strip().startswith(("<", "=", "collected", "no tests"))
+              }
+              return len(ids)
+
+          def summary_passed(text):
+              # Take the LAST line that looks like the terminal summary.
+              counts = {}
+              for line in reversed(text.splitlines()):
+                  if "passed" in line or "failed" in line or "error" in line or "skipped" in line:
+                      for m in _SUMMARY.finditer(line):
+                          if m.group(1) is not None: counts["passed"] = int(m.group(1))
+                          elif m.group(2) is not None: counts["failed"] = int(m.group(2))
+                          elif m.group(3) is not None: counts["error"] = int(m.group(3))
+                          elif m.group(4) is not None: counts["skipped"] = int(m.group(4))
+                          elif m.group(5) is not None: counts["xfailed"] = int(m.group(5))
+                          elif m.group(6) is not None: counts["xpassed"] = int(m.group(6))
+                      if counts:
+                          return counts
+              return counts
+
+          def expected_from_record(path):
+              # F1 scheme 2: parse `actual_cases: <n>` from the approval record.
+              if not Path(path).is_file():
+                  return None
+              text = Path(path).read_text(encoding="utf-8")
+              m = re.search(r"^\s*actual_cases:\s*(\d+)", text, re.MULTILINE)
+              if not m:
+                  return None
+              return int(m.group(1))
+
+          failures = []
+          for name, moddir, args, env in suites:
+              if not Path(moddir).is_dir():
+                  print(f"::notice::{name}: {moddir} absent -- N/A (suite skipped, not pass/fail)")
+                  continue
+              if env is None:
+                  expected = expected_from_record(os.environ["CONTRACTS_RECORD"])
+              elif env.startswith("RECORD:"):
+                  expected = expected_from_record(env.split(":", 1)[1])
+              elif env.startswith("ENV:"):
+                  expected = int(os.environ[env.split(":", 1)[1]])
+              else:
+                  expected = int(os.environ[env])
+              if expected is None:
+                  # Directory exists but no approval record yet -> N/A (not a fail).
+                  print(f"::notice::{name}: no expected count record -- N/A (suite skipped)")
+                  continue
+
+              # 1) collect-only consistency (extra guard; not the sole gate).
+              collected = collect_count(args)
+              print(f"{name}: collect-only={collected} expected={expected}")
+
+              # 2) REAL run; terminal summary must show exactly `expected` passed.
+              res = run_pytest(args)
+              sys.stdout.write(res.stdout)
+              sys.stderr.write(res.stderr)
+              counts = summary_passed(res.stdout)
+              passed = counts.get("passed", 0)
+              bad = {k: counts.get(k, 0) for k in ("failed", "error", "skipped", "xfailed", "xpassed")}
+              bad = {k: v for k, v in bad.items() if v}
+
+              ok = (res.returncode == 0 and passed == expected and not bad
+                    and (collected is None or collected == expected))
+              status = "OK" if ok else "FAIL"
+              print(f"{name}: passed={passed} expected={expected} bad={bad} rc={res.returncode} -> {status}")
+              if not ok:
+                  failures.append(name)
+                  print(f"::error::{name}: expected exactly {expected} passed, no skip/xfail/"
+                        f"error; got passed={passed} bad={bad} rc={res.returncode}")
+
+          if failures:
+              raise SystemExit(f"offline gate failed: {', '.join(failures)}")
+          print("All applicable offline suites passed at their exact expected counts.")
+          PY

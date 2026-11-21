@@ -13,7 +13,12 @@ from datetime import UTC, datetime
 
 import pytest
 
-from egta.contracts.audit import ChainBroken, DuplicateConflict, recompute_payload_hash
+from egta.contracts.audit import (
+    ChainBroken,
+    DuplicateConflict,
+    recompute_payload_hash,
+    verify_chain,
+)
 from egta.contracts.evaluation import ReplayState, replay_events
 from egta.contracts.events import Phase, RunEvent, RunStatus
 
@@ -110,3 +115,17 @@ def test_replay_is_offline_no_llm(monkeypatch):
     state = replay_events(_log())
     assert state.event_count == 2
     assert state.chain_tip_hash == _log()[-1].payload_hash
+
+
+# --- D#6 (contracts): empty chain + anchor ----------------------------------
+
+
+def test_empty_chain_without_anchor_ok():
+    """verify_chain([]) with no anchor is OK."""
+    assert verify_chain([]) is None
+
+
+def test_empty_chain_with_anchor_fail_closed():
+    """D#6: an anchor with no events cannot be validated -> ChainBroken."""
+    with pytest.raises(ChainBroken):
+        verify_chain([], anchor="a" * 64)

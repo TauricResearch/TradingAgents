@@ -50,6 +50,22 @@ independent `quality_rubric` + typed `metrics_rubric`. Stated once per contract.
   status-reason/schema_version are enforced (not deferred).
 - `HOLD` = `AdvisoryProposal.action` (not RunStatus/CompletionStatus; not a
   system failure). `RunSummary.variant` propagates to `EvaluationResult.variant`.
+- `MISSING_METRIC` added to `IncompleteReason` (no observation for a rubric
+  metric → INCOMPLETE/MISSING_METRIC).
+- `SequenceConflict(AuditContractError)` for differing `(run_id, sequence)`
+  (fields run_id, sequence, existing_event_id, incoming_event_id);
+  `DuplicateConflict` ONLY for differing `(run_id, event_id)`; `AuditUnavailable`
+  ONLY for store/anchor unavailability.
+- `compare_runs(..., manifest: ExperimentManifest | None = None)` (D#1): supplied
+  manifest's `compute_manifest_hash` must equal both sides' `manifest_hash` →
+  else MANIFEST_MISMATCH; check order manifest → snapshot/model/prompt/code/
+  policy → result/usage → rubric observation.
+- **D#4 deferral (debt):** winner/composite scoring deferred (owner E, due
+  2026-11-22T18:00+08:00, verifier D); required now = typed rubric validation,
+  `MISSING_METRIC` existence check, operator/threshold applied (scored value =
+  observed value, not threshold). Winner not reported before FR-05 is reported.
+- **D#6 (contracts):** `verify_chain([])` OK; `verify_chain([], anchor=...)` →
+  `ChainBroken` (fail-closed) — tested here in contracts.
 
 ## PENDING
 - None (no PENDING B/D).

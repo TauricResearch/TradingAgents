@@ -1,0 +1,12 @@
+# Ruff
+content_commit: 511ef7d2f059
+captured_at: 2026-11-21T16:12:51+08:00
+note: the head advances only by docs-only commits after this content commit.
+
+$ python -m ruff check .
+All checks passed!
+exit_code=0
+
+$ python scripts/gen_evidence_fixtures.py && git diff --exit-code -- test/offline/evidence/fixtures
+wrote 31 fixtures to /home/lenovo/projects/EGTA-CS5351-Group20/test/offline/evidence/fixtures
+exit_code=0  # byte-identical regeneration; no fixture drift

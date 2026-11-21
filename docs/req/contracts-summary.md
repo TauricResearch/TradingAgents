@@ -21,6 +21,7 @@ class ChainBroken(AuditContractError):        # (run_id, expected_sequence, actu
 class DuplicateConflict(AuditContractError):  # (run_id, event_id, existing_payload_hash, incoming_payload_hash)
 class PayloadMismatch(AuditContractError):    # (run_id, event_id, stored_payload_hash, recomputed_payload_hash)
 class AuditUnavailable(AuditContractError):   # (run_id, operation, cause)
+class SequenceConflict(AuditContractError):    # (run_id, sequence, existing_event_id, incoming_event_id)
 ```
 Each exposes those attributes in that order.
 
@@ -43,6 +44,12 @@ class AuditReader(Protocol):
   (idempotent); same `(run_id, event_id)` + different content → `DuplicateConflict`;
   storage failure → `AuditUnavailable` **fail-closed** (no partial write, no silent
   success).
+- **Uniqueness / exception mapping:** `DuplicateConflict` ONLY for a differing
+  `(run_id, event_id)`; `SequenceConflict` for a differing
+  `(run_id, sequence)` (fields `run_id, sequence, existing_event_id,
+  incoming_event_id`); `AuditUnavailable` ONLY when the store/anchor is
+  unavailable. A real storage failure (e.g. mid-process after the event insert)
+  → `AuditUnavailable`, transaction rolled back (no partial rows/receipt).
 - Cross-run: same `event_id` under a **different** `run_id` is **not** a conflict
   (identity is `(run_id, event_id)`).
 - **Hybrid read API (intentional, D item 6 — do not delete):** `AuditSink.read(
@@ -76,9 +83,9 @@ Ordering keys: `(run_id, sequence)` and `(run_id, event_id)`.
 class CompletionStatus(StrEnum):   # COMPLETE, INCOMPLETE, BLOCKED, REVIEW, FAILED
 class IncompleteReason(StrEnum):
     MANIFEST_MISMATCH, SNAPSHOT_MISMATCH, MODEL_MISMATCH, PROMPT_MISMATCH,
-    CODE_MISMATCH, POLICY_MISMATCH, MISSING_RESULT, MISSING_USAGE
+    CODE_MISMATCH, POLICY_MISMATCH, MISSING_RESULT, MISSING_USAGE, MISSING_METRIC
 ```
-`MISSING_USAGE` is now a first-class member (D resolved; no longer PENDING).
+`MISSING_USAGE` and `MISSING_METRIC` are first-class members (D resolved). `MISSING_METRIC` = no observation for a rubric metric.
 
 **HOLD is not a system status.** `HOLD` is an `AdvisoryProposal.action` value
 (a valid "do not trade" recommendation), distinct from `RunStatus` and from
@@ -141,10 +148,21 @@ scoring/verification). Comparability requires matching `target_snapshot_id`,
 `model_config_hash`, `prompt_hash`, `code_hash`, `policy_hash`. Any mismatch ⇒
 INCOMPLETE with the specific reason (SNAPSHOT/MODEL/PROMPT/CODE/POLICY_MISMATCH);
 a missing required variant/result ⇒ INCOMPLETE `MISSING_RESULT`; unknown usage ⇒
-INCOMPLETE `MISSING_USAGE`. `manifest_hash` is **recomputed via
-`compute_manifest_hash`** and compared to the recorded value; a mismatch ⇒
-INCOMPLETE `MANIFEST_MISMATCH`. None of these count as a win. `variant` is
-propagated to `EvaluationResult.variant`.
+INCOMPLETE `MISSING_USAGE`; no observed value for a rubric metric ⇒ INCOMPLETE
+`MISSING_METRIC`. Optional `manifest: ExperimentManifest | None = None`: when
+supplied, `compute_manifest_hash(manifest)` must equal **both** sides'
+`manifest_hash`, else INCOMPLETE `MANIFEST_MISMATCH`. Check order: manifest →
+snapshot/model/prompt/code/policy → result/usage → rubric observation (so the
+manifest counterexample still yields `MANIFEST_MISMATCH`). None of these count as
+a win. `variant` is propagated to `EvaluationResult.variant`.
+
+**D#4 scope:** winner/composite scoring is **deferred (debt)**; `winner`/
+`baseline_win`/`enhanced_win` stay `None`/`False` until debt closure (owner E,
+due 2026-11-22T18:00+08:00, verifier D; winner not reported before FR-05 is
+reported). Required now: typed rubric validation (`TypeAdapter(dict[str,
+MetricDef])`), observation existence (`MISSING_METRIC`), and applying
+operator/threshold per metric (scored value = the **observed** value, not the
+threshold).
 
 ---
 

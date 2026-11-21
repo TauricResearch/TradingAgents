@@ -120,15 +120,31 @@ def test_missing_result_is_incomplete_not_win():
 
 
 def test_matching_inputs_complete_and_rubric_used():
-    baseline = _summary(variant="B0")
-    enhanced = _summary(variant="B1")
-    rubric = _rubric()
+    """Observed metrics present -> COMPLETE, and operator/threshold actually apply."""
+    baseline = _summary(variant="B0", metrics={"token_cost": 1.0})
+    enhanced = _summary(variant="B1", metrics={"token_cost": 1.5})
+    rubric = _rubric()  # token_cost lte 2.0
     result = compare_runs(baseline, enhanced, rubric)
     assert result.completion_status is CompletionStatus.COMPLETE
     assert result.incomplete_reason is None
     # rubric must influence the result: its metric appears in scored metrics
     assert "token_cost" in result.metrics
+    # NOT threshold-as-metric: the scored value is the observed value (1.0/1.5),
+    # not the threshold (2.0). This proves the observed values are used.
+    assert result.metrics["token_cost"] in (1.0, 1.5)
+    assert result.metrics["token_cost"] != rubric["token_cost"].threshold
     assert isinstance(result, EvaluationResult)
+
+
+def test_missing_metric_observation_is_missing_metric():
+    """No observation for a rubric metric -> INCOMPLETE/MISSING_METRIC, no win."""
+    baseline = _summary(variant="B0")  # metrics = {} (no observation)
+    enhanced = _summary(variant="B1")
+    result = compare_runs(baseline, enhanced, _rubric())
+    assert result.completion_status is CompletionStatus.INCOMPLETE
+    assert result.incomplete_reason is IncompleteReason.MISSING_METRIC
+    assert result.winner is None
+    assert result.baseline_win is False and result.enhanced_win is False
 
 
 # --- RunSummary typed contract (D item 1) -----------------------------------
@@ -225,3 +241,85 @@ def test_missing_usage_is_incomplete_not_win():
     assert result.incomplete_reason is IncompleteReason.MISSING_USAGE
     assert result.winner is None
     assert result.baseline_win is False and result.enhanced_win is False
+
+
+# --- D#1 (contracts): compare_runs(manifest=...) direct ---------------------
+
+
+def _manifest_obj(**over):
+    from egta.contracts.manifest import compute_manifest_hash
+
+    base = {
+        "manifest_id": "m1", "created_at": datetime(2026, 1, 2, tzinfo=UTC),
+        "target_snapshot_id": "snap1", "model_config_hash": H, "prompt_hash": H,
+        "code_hash": "c" * 40, "policy_hash": H, "manifest_hash": H,
+        "variants": {"B0": {"m": 1}, "B1": {"m": 2}, "B2": {"m": 3}, "B3": {"m": 4}},
+        "metrics_rubric": {"token_cost": _rubric()["token_cost"]},
+        "quality_rubric": QualityRubric(
+            levels=["gold", "silver", "bronze"], double_blind=True,
+            third_party_adjudication=True, llm_judge_assist=False),
+    }
+    base.update(over)
+    m = ExperimentManifest(**base)
+    return m.model_copy(update={"manifest_hash": compute_manifest_hash(m)})
+
+
+def test_compare_runs_manifest_param_matches_complete():
+    m = _manifest_obj()
+    b = _summary(variant="B0", manifest_hash=m.manifest_hash, metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", manifest_hash=m.manifest_hash, metrics={"token_cost": 1.5})
+    r = compare_runs(b, e, _rubric(), manifest=m)
+    assert r.completion_status is CompletionStatus.COMPLETE
+
+
+def test_compare_runs_manifest_param_mismatch_incomplete():
+    m = _manifest_obj()
+    forged = m.model_copy(update={"manifest_hash": H2})  # != compute
+    b = _summary(variant="B0", manifest_hash=H2, metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", manifest_hash=H2, metrics={"token_cost": 1.5})
+    r = compare_runs(b, e, _rubric(), manifest=forged)
+    assert r.completion_status is CompletionStatus.INCOMPLETE
+    assert r.incomplete_reason is IncompleteReason.MANIFEST_MISMATCH
+    assert r.winner is None and r.baseline_win is False and r.enhanced_win is False
+
+
+def test_compare_runs_manifest_param_side_inconsistent_incomplete():
+    m = _manifest_obj()
+    b = _summary(variant="B0", manifest_hash=m.manifest_hash, metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", manifest_hash=H2, metrics={"token_cost": 1.5})  # differs
+    r = compare_runs(b, e, _rubric(), manifest=m)
+    assert r.completion_status is CompletionStatus.INCOMPLETE
+    assert r.incomplete_reason is IncompleteReason.MANIFEST_MISMATCH
+
+
+def test_manifest_check_precedes_missing_metric():
+    """Order: manifest → result/usage → rubric observation (D#1 counterexample)."""
+    m = _manifest_obj()
+    # sides disagree with manifest AND no metric observations; MANIFEST_MISMATCH wins
+    b = _summary(variant="B0", manifest_hash=H2)
+    e = _summary(variant="B1", manifest_hash=H2)
+    r = compare_runs(b, e, _rubric(), manifest=m)
+    assert r.incomplete_reason is IncompleteReason.MANIFEST_MISMATCH
+
+
+# --- D#4: no hardcoded pair/case; quality_labels propagated -----------------
+
+
+def test_run_pair_and_case_ids_explicit_not_hardcoded():
+    """run_pair_id/case_id come from inputs, not hardcoded 'pair'/'case'."""
+    b = _summary(variant="B0", run_id="runB0", metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", run_id="runB1", metrics={"token_cost": 1.5})
+    r = compare_runs(b, e, _rubric(), run_pair_id="PAIR-42", case_id="CASE-7")
+    assert r.run_pair_id == "PAIR-42"
+    assert r.case_id == "CASE-7"
+
+
+def test_quality_labels_propagated_without_forgery():
+    """Observed quality_labels are propagated verbatim (no fabrication)."""
+    labels = ["gold", "silver"]
+    b = _summary(variant="B0", metrics={"token_cost": 1.0}, quality_labels=labels)
+    e = _summary(variant="B1", metrics={"token_cost": 1.5}, quality_labels=["bronze"])
+    r = compare_runs(b, e, _rubric())
+    # result carries a quality_labels list consistent with inputs (not invented)
+    assert isinstance(r.quality_labels, list)
+    assert set(r.quality_labels) <= set(labels) | {"bronze"}

@@ -1,0 +1,32 @@
+{
+  "case_id": "E-10",
+  "purpose": "带 excerpt 的条目，content_hash 可由正文复算",
+  "source_type": "yahoo_news",
+  "raw_time_field": "providerPublishTime",
+  "time_granularity": "second",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "normal",
+  "items": [
+    {
+      "case_local_id": "E-10-1",
+      "source_type": "yahoo_news",
+      "source_uri": "yahoo-news://a71b09",
+      "raw_time_field": "providerPublishTime",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T08:40:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Apple said it expects services revenue to grow at a double-digit rate.",
+      "content_hash": "8d60d2d94ff518c635a75ee9255da9923049f24ed80853c6e98257c8171364a4",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-10-1"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}

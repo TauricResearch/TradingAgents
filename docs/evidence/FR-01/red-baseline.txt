@@ -1,0 +1,30 @@
+# Red baseline — INV-02 time-policy tests
+content_commit: 511ef7d2f059
+captured_at: 2026-11-21T16:12:51+08:00
+host: LAPTOP-3LECTOHG
+python: Python 3.12.16
+head: 511ef7d2f059
+note: the head advances only by docs-only commits after this content commit.
+
+$ python -m pytest test/offline/evidence -q --tb=line
+
+==================================== ERRORS ====================================
+__________ ERROR collecting test/offline/evidence/test_time_policy.py __________
+ImportError while importing test module '/home/lenovo/projects/EGTA-CS5351-Group20/test/offline/evidence/test_time_policy.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../miniconda3/envs/egta/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/offline/evidence/test_time_policy.py:7: in <module>
+    from ._target import TimeVerdict, is_admissible  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/offline/evidence/_target.py:7: in <module>
+    from egta.evidence.time_policy import TimeVerdict, is_admissible  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'egta'
+=========================== short test summary info ============================
+ERROR test/offline/evidence/test_time_policy.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.35s
+exit_code=2

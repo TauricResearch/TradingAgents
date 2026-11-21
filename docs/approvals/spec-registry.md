@@ -12,7 +12,7 @@
   AST count + (planned) hash check.
 - **Implementation/main branch command (required, gated):**
   `pytest tests` + `pytest -m spec test/offline/contracts`. The gate MUST verify
-  **exactly 188 spec cases actually ran** (collected==run==188); silently
+  **exactly the real-run passed count** (contracts 199 / E2 28; not hardcoded 188; run assertion); silently
   deselected/zero-selected ⇒ fail.
 - Explicit show-RED on spec branch: `pytest -m spec test/offline/contracts` →
   7 collection errors (`ModuleNotFoundError: egta`).
@@ -27,12 +27,12 @@ This PR prepares/records the verification inputs; **Admin D** must add the check
   (hash check of `aggregate_sha256` / `spec_bundle_sha256`).
 - Trace/AI-log presence check.
 - Implementation-PR required job: run `pytest -m spec test/offline/contracts`
-  (exactly 188 cases), verify impl branch descends from spec merge commit, verify test
+  (exactly 199 contracts / 28 E2 cases, real run, no skip/xfail), verify impl branch descends from spec merge commit, verify test
   aggregate hash == approved value, first impl commit after approval commit.
 - Add these to `protect-main` required status checks + CODEOWNERS review.
 
 ## Coverage
-- 7 test modules (9 files incl. `__init__.py`, `conftest.py`), **111 test functions**, **188 cases**.
+- 7 test modules (9 files incl. `__init__.py`, `conftest.py`); case count = actual `--collect-only` (gate uses the precise number; contract-change adds D#1/SequenceConflict/MISSING_METRIC cases).
 - `_InMemorySink` (test_audit.py) is a **reference double**; impl PR must add a
   real `SqliteAuditSink` integration test.
 
@@ -49,14 +49,30 @@ This PR prepares/records the verification inputs; **Admin D** must add the check
 - `py_compile` exit 0; AST = 111 functions.
 - `ruff check .` green.
 - Full spec-satisfying impl in `/tmp` → `pytest -m spec test/offline/contracts`
-  → **188 passed**.
+  → **199 contracts / 28 E2 passed**.
 
 ## Finalized (NOT PENDING)
 - `quality_rubric` = independent field at the same level as `metrics_rubric`.
 - `code_hash` / `policy_hash` / `manifest_hash` are in v1 and tested; code/policy
   mismatch → INCOMPLETE CODE_MISMATCH/POLICY_MISMATCH, no win.
-- `MISSING_USAGE` is a first-class `IncompleteReason` member (D resolved) and
-  tested (compare_runs unknown usage → INCOMPLETE/MISSING_USAGE, no win).
+- `MISSING_USAGE` and **`MISSING_METRIC`** are first-class `IncompleteReason`
+  members (D resolved). No observation for a rubric metric → compare_runs and
+  pair_report both INCOMPLETE/MISSING_METRIC; unknown usage → MISSING_USAGE; no win.
+- **D#1:** `compare_runs(..., manifest: ExperimentManifest | None = None)`; when
+  supplied, `compute_manifest_hash` must equal both sides' `manifest_hash` else
+  MANIFEST_MISMATCH. Check order: manifest → snapshot/model/prompt/code/policy →
+  result/usage → rubric observation. Direct +/− tests in contracts.
+- **D#6:** `verify_chain([])` OK; `verify_chain([], anchor=...)` → `ChainBroken`
+  (fail-closed) — tested in **contracts** `test_replay.py` (moved from E2).
+- **`SequenceConflict(AuditContractError)`** (run_id, sequence, existing_event_id,
+  incoming_event_id) for differing `(run_id, sequence)`. `DuplicateConflict` ONLY
+  for differing `(run_id, event_id)`; `AuditUnavailable` ONLY store/anchor
+  unavailable. Real mid-process failure → AuditUnavailable + rollback.
+- **D#4 (deferred winner only):** typed rubric validation, MISSING_METRIC
+  existence, operator/threshold applied (scored value = observed), quality_labels
+  propagated (no forgery), run_pair_id/case_id from inputs (no hardcoded
+  pair/case). Debt: winner/composite (owner E, due 2026-11-22T18:00+08:00,
+  verifier D; no winner shown before FR-05 reported).
 - Enforced (not deferred): RunEvent frozen + validate_assignment, `duration_ms>=0`,
   `OK` without `reason_code`, `BLOCKED` with `reason_code`, `schema_version`
   validation; `ExperimentManifest` frozen.
@@ -65,3 +81,13 @@ This PR prepares/records the verification inputs; **Admin D** must add the check
 
 ## PENDING
 - **None.** No PENDING (B) or PENDING (D) items remain.
+
+## Debt (CI) — two distinct items (do not conflate)
+- **Debt A — `test/offline/evidence/` (FR-01 evidence time-strategy / pack tests):**
+  **13** cases, not yet CI-gated. Add an exact-count gate (path `test/offline/evidence`)
+  once the evidence implementation lands. **Verifier: D.** Owner: E.
+- **Debt B — `test/offline/contracts/test_evidence_contracts.py` (B's evidence
+  contract spec):** **23** cases, this is **DEBT-FR01-CI** in
+  `docs/debt-register.md`. Gate it only when `EvidenceItem`/`EvidencePack` are
+  importable from `egta.contracts` (not `egta.evidence`) AND an `actual_cases`
+  record exists; expected from the record. **Verifier: A.** Owner: E.

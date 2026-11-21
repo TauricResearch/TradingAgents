@@ -42,7 +42,14 @@ def test_incomplete_reason_members():
     names = {r.name for r in IncompleteReason}
     assert {"MANIFEST_MISMATCH", "SNAPSHOT_MISMATCH", "MODEL_MISMATCH",
             "PROMPT_MISMATCH", "CODE_MISMATCH", "POLICY_MISMATCH",
-            "MISSING_RESULT", "MISSING_USAGE"} <= names
+            "MISSING_RESULT", "MISSING_USAGE", "MISSING_METRIC"} <= names
+
+
+def test_missing_metric_enum_member():
+    assert IncompleteReason.MISSING_METRIC is not None
+    r = _result(completion_status=CompletionStatus.INCOMPLETE,
+                incomplete_reason=IncompleteReason.MISSING_METRIC)
+    assert r.incomplete_reason is IncompleteReason.MISSING_METRIC
 
 
 def test_missing_usage_enum_member():

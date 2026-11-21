@@ -1,0 +1,37 @@
+{
+  "case_id": "E-30",
+  "purpose": "excerpt 在 hash 之后被改：拒绝入包并记完整性事件",
+  "source_type": "yahoo_news",
+  "raw_time_field": "providerPublishTime",
+  "time_granularity": "second",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "tampered_hash",
+  "items": [
+    {
+      "case_local_id": "E-30-1",
+      "source_type": "yahoo_news",
+      "source_uri": "yahoo-news://21c0be",
+      "raw_time_field": "providerPublishTime",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T08:00:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Apple cut its March-quarter build plans, the excerpt now claims.",
+      "content_hash": "d0ec95f5c95c5f25e5b03fbf152b50ea513563dfca913d78f2620c4da094847b",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [],
+    "excluded": [
+      {
+        "case_local_id": "E-30-1",
+        "reason_code": "INTEGRITY_VIOLATION",
+        "availability": "unavailable"
+      }
+    ],
+    "conflict_groups": [],
+    "outcome": "PACK",
+    "integrity_event": true
+  }
+}

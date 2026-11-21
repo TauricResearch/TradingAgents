@@ -1,0 +1,26 @@
+{
+  "case_id": "E-24",
+  "purpose": "provider 返回 429：标不可用并记 VENDOR_UNAVAILABLE，不得冒充新鲜数据",
+  "source_type": "yahoo_news",
+  "raw_time_field": "none",
+  "time_granularity": "none",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "rate_limited",
+  "items": [],
+  "provider_error": {
+    "status": 429,
+    "detail": "Too Many Requests"
+  },
+  "expected": {
+    "admitted": [],
+    "excluded": [
+      {
+        "case_local_id": "provider",
+        "reason_code": "VENDOR_UNAVAILABLE",
+        "availability": "unreachable"
+      }
+    ],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "case_id": "E-02",
+  "purpose": "SEC EDGAR 8-K 按申报日入包",
+  "source_type": "sec_edgar",
+  "raw_time_field": "filed",
+  "time_granularity": "day",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "normal",
+  "items": [
+    {
+      "case_local_id": "E-02-1",
+      "source_type": "sec_edgar",
+      "source_uri": "sec-edgar://CIK0000320193/0000320193-26-000010",
+      "raw_time_field": "filed",
+      "time_granularity": "day",
+      "published_at": "2026-11-09",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "8-K: current report filed on amendment to a supply agreement.",
+      "content_hash": "59ac9db1e44d22b26e4ba63ff6e0ffd49078c8efeeee0cd7b049c1c0ca71a686",
+      "raw_value": null,
+      "trust_label": "primary",
+      "form": "8-K",
+      "accession": "0000320193-26-000010"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-02-1"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}
