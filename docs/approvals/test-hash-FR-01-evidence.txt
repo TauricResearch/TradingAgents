@@ -87,6 +87,12 @@ Notes:
 - Clarification for D: E-24/E-25 (empty items, outcome PACK) and E-29 (admitted
   plus outcome ERROR) are pack-level expectations; they are carried as data and
   deliberately not constrained here.
+- ReasonCode acceptance (round 3, 2026-11-21): D accepted the documented B/D
+  ReasonCode mapping for this test spec, on the condition that the contracts
+  implementation PR lands before any EvidencePack implementation. No contracts
+  implementation PR is cited as existing; the stated status is "not opened yet
+  (2026-11-21)". If a reason code is renamed or redefined later, the affected
+  tests must be re-approved.
 - AI use: docs/ai-use-log.yaml (GATE-06).
 - If any file listed above changes after approval, the aggregate changes and
   approval is void.

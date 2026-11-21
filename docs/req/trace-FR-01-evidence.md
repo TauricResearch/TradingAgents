@@ -88,3 +88,21 @@ FUTURE_DATA because availability is a state and reason_code is a cause; this is
 a conservative exclusion, not a claim that the source was unreachable.
 
 The asserted fixture count stays 13, and the carried-as-data fixtures stay 18.
+
+## Round-3 review acceptance (2026-11-21)
+
+D accepted the documented B/D ReasonCode mapping for this test spec:
+
+> I accept the documented B/D ReasonCode mapping for this test spec; the contracts
+> implementation PR must land before any EvidencePack implementation.
+
+Consequences recorded here:
+
+- this spec keeps `FUTURE_DATA`, `EVIDENCE_MISSING` and `INVALID_TIME` under the
+  B/D mapping; no undefined code is asserted;
+- no contracts implementation PR is cited as existing; the status stays
+  "contracts implementation PR not opened yet (2026-11-21)";
+- `EvidencePack` implementation must wait until the contracts implementation PR
+  merges; this PR adds no `src/egta` code;
+- if that PR renames or redefines a reason code, the affected tests must be
+  re-approved before they are treated as binding.
