@@ -5,6 +5,7 @@ from tradingagents.agents.context import get_instrument_context_from_state, get_
 from tradingagents.agents.tools import (
     get_balance_sheet,
     get_cashflow,
+    get_company_dossier,
     get_fundamentals,
     get_income_statement,
     get_insider_transactions,
@@ -12,6 +13,7 @@ from tradingagents.agents.tools import (
 
 # The tools this analyst is offered; its tool node is built from the same tuple.
 TOOLS = (
+    get_company_dossier,
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
@@ -28,7 +30,10 @@ def create_fundamentals_analyst(llm):
         system_message = (
             "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements, and `get_insider_transactions` for recent insider buying and selling."
+            + " Start with `get_company_dossier`: it returns the company's profile, valuation and return ratios, multi-year annual and quarterly key financials with a ratio history, dividends, ownership structure (major shareholders, institutions, free float), insider trades, board and management, recent filings (SEC EDGAR, or KAP for Borsa Istanbul) and analyst consensus."
+            + " Then use `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for line-item detail, `get_fundamentals` for the vendor's overview, and `get_insider_transactions` for recent insider buying and selling."
+            + " Cover valuation versus profitability and growth, balance-sheet strength and cash generation, the dividend record, who owns and controls the company, and what recent filings and insider trades signal."
+            + " For Borsa Istanbul (.IS) companies, figures are in TRY: growth rates are nominal and include inflation (TMS 29 inflation accounting applies from 2023), so judge growth against Turkish inflation and prefer margins, returns and multiples."
             + get_language_instruction()
         )
 

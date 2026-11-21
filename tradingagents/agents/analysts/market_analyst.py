@@ -2,12 +2,18 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.analysts.turn import take_turn
 from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
-from tradingagents.agents.tools import get_indicators, get_stock_data, get_verified_market_snapshot
+from tradingagents.agents.tools import (
+    get_indicators,
+    get_stock_data,
+    get_strategy_indicator,
+    get_verified_market_snapshot,
+)
 
 # The tools this analyst is offered; its tool node is built from the same tuple.
 TOOLS = (
     get_stock_data,
     get_indicators,
+    get_strategy_indicator,
     get_verified_market_snapshot,
 )
 
@@ -44,6 +50,14 @@ Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
 - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names.
+
+Strategy indicators (get_strategy_indicator): call it once with strategy_summary for a one-line reading of every strategy indicator, then call up to 4 of the following that matter most for this setup, by exact name:
+- Value and volume: vwap_bands (rolling and anchored VWAP with σ bands), volume_profile (POC, value area, volume nodes), relative_volume (RVOL, up/down-day volume), volume_delta (estimated buying vs selling pressure).
+- Structure and levels: zigzag (swings, HH/HL/LH/LL structure), pivots (daily/weekly/monthly floor and Camarilla pivots), gaps (unfilled gaps), untested_levels (untested swing highs/lows), supply_demand (active supply/demand zones), fibonacci (retracements, extensions, multi-swing confluence).
+- Trend and momentum: supertrend, tma_bands, zero_lag_macd, dev_stops (volatility trailing stops), relative_strength (against the market benchmark), mtf_ichimoku (daily/weekly/monthly Ichimoku alignment, cloud entry and Kijun trailing stop), jfts_forces (JFTS AutoTrader legs, EMA-filter stops, pullback patterns and entry signals), unirenko (UniRenko trend/reversal bars with the prices that extend or turn the trend, plus prior-day high/low/open).
+- Patterns: candlestick_patterns (with how each pattern played out on this instrument), harmonic_patterns (Gartley/Bat/Butterfly/Crab/AB=CD and forming PRZs), harmonic_scanner (adds Shark and 5-0, confirmed/pending/potential status, PRZ, targets, stop and past outcomes), divergence (RSI/MACD regular and hidden).
+- Order flow (Gom Pro Pack, from hourly bars of about the last two years): gom_order_flow (per-session delta, imbalances, stacked-imbalance zones, unfinished auctions, COT, declining-volume reversals), gom_order_flow_levels (naked POCs, naked unfinished auctions, active imbalance zones near price), gom_cumulative_delta (cumulative delta OHLC, trend and divergence), gom_market_profile (daily/weekly/monthly POC, value area, VWAP, volume nodes).
+Use these levels as a map of where price may react, cite the indicator for every level you quote, and say when two independent indicators agree on a zone (confluence). They are computed from daily or hourly bars, so order-flow readings are estimates, not tape data.
 
 Before writing the final report, call get_verified_market_snapshot for this ticker and the current date, and treat it as the source of truth for any exact OHLCV, price-level, or indicator-value claim. If another tool's output conflicts with the verified snapshot, flag the discrepancy rather than inventing a reconciled number. Do not claim historical validation, support/resistance bounces, or exact percentage moves unless they are directly supported by tool output with concrete dates and prices.
 

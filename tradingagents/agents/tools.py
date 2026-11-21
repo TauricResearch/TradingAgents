@@ -12,6 +12,7 @@ from langgraph.prebuilt import InjectedState
 from tradingagents.dataflows.date_window import as_of, as_of_window
 from tradingagents.dataflows.errors import NoMarketDataError, VendorUnavailableError
 from tradingagents.dataflows.router import no_data_available, route_to_vendor, vendor_unavailable
+from tradingagents.dataflows.strategy_indicators import strategy_indicator_report
 from tradingagents.dataflows.vendors.yahoo.snapshot import build_verified_market_snapshot
 
 
@@ -70,6 +71,50 @@ def get_indicators(
 
 
 @tool
+def get_strategy_indicator(
+    symbol: Annotated[str, InjectedState("company_of_interest")],
+    indicator: Annotated[str, "strategy indicator name, e.g. 'strategy_summary', 'volume_profile', 'pivots'"],
+    curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
+    look_back_days: Annotated[int, "how many calendar days of events and rows to list"] = 60,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Retrieve a strategy indicator for the instrument under analysis, computed from
+    daily bars on or before curr_date (the gom_* order-flow set from hourly bars).
+    Start with 'strategy_summary' (one line per indicator), then call the ones
+    worth a closer look. Names:
+    strategy_summary, vwap_bands, volume_profile, zigzag, relative_volume,
+    relative_strength, volume_delta, pivots, zero_lag_macd, tma_bands, gaps,
+    untested_levels, candlestick_patterns, fibonacci, supply_demand,
+    harmonic_patterns, harmonic_scanner, divergence, dev_stops, supertrend,
+    mtf_ichimoku, jfts_forces, gom_order_flow, gom_order_flow_levels,
+    gom_cumulative_delta, gom_market_profile, unirenko.
+    Args:
+        indicator (str): One name from the list above; call once per indicator.
+        curr_date (str): The current trading date you are trading on, YYYY-mm-dd
+        look_back_days (int): Calendar days of events and series rows to list, default 60
+    Returns:
+        str: A Markdown report with the reading, key levels and supporting tables.
+    """
+    curr_date = as_of(curr_date, trade_date)
+    results = []
+    for name in [i.strip().lower() for i in indicator.split(",") if i.strip()]:
+        # An exception out of a tool would end the run.
+        try:
+            results.append(strategy_indicator_report(symbol, name, curr_date, look_back_days))
+        except ValueError as exc:
+            results.append(str(exc))
+        except VendorUnavailableError as exc:
+            results.append(vendor_unavailable("get_strategy_indicator", exc))
+        except NoMarketDataError as exc:
+            results.append(no_data_available(exc))
+        except Exception as exc:  # noqa: BLE001 — report it; do not end the run
+            results.append(f"DATA_UNAVAILABLE: {name} could not be computed ({type(exc).__name__}: {exc}). "
+                           "Do not estimate its values.")
+    return "\n\n".join(results) or "No strategy indicator name was given."
+
+
+@tool
 def get_verified_market_snapshot(
     symbol: Annotated[str, InjectedState("company_of_interest")],
     curr_date: Annotated[str, "the current trading date, YYYY-mm-dd"],
@@ -109,6 +154,40 @@ def get_fundamentals(
         str: A formatted report containing comprehensive fundamental data
     """
     return route_to_vendor("get_fundamentals", ticker, as_of(curr_date, trade_date))
+
+
+@tool
+def get_company_dossier(
+    ticker: Annotated[str, InjectedState("company_of_interest")],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Retrieve the company dossier for the stock under analysis: profile, valuation
+    and return ratios (P/E, P/B, EV/EBITDA, margins, ROE/ROA, leverage, liquidity,
+    growth), multi-year annual and quarterly key financials with a ratio history,
+    dividends, ownership structure (major shareholders, institutions, funds, free
+    float), insider trades, board and management, recent regulatory filings and
+    analyst consensus. US listings draw on Yahoo Finance and SEC EDGAR; Borsa
+    Istanbul (.IS) listings on Is Yatirim statements in TRY and KAP records.
+    Call this first; use the statement tools for line-item detail.
+    Args:
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+    Returns:
+        str: A Markdown brief of the company's fundamentals
+    """
+    from tradingagents.dataflows.company_data import dossier_report
+
+    try:
+        return dossier_report(ticker, as_of(curr_date, trade_date) or trade_date or None)
+    except ValueError as exc:   # not a company share (an index, a currency, a coin)
+        return f"NO_DATA_AVAILABLE: {exc}"
+    except NoMarketDataError as exc:
+        return no_data_available(exc)
+    except VendorUnavailableError as exc:
+        return vendor_unavailable("get_company_dossier", exc)
+    except Exception as exc:  # an exception out of a tool would end the run
+        return f"DATA_UNAVAILABLE: the company dossier could not be compiled ({type(exc).__name__}: {exc}). Use the statement tools."
 
 
 @tool
