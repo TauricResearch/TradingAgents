@@ -4,19 +4,28 @@
 # After approval, do NOT push this file (stale-approval trap).
 
 test_content_commit: a433d5aa8aee2329b79ceda28b9a048d800df4ab
+verification_head: f52868da423387452514c49114044cdc50608cf7
+docs_evidence_commit: 3d529edc1acd993e005cf660ea9af02a91114f4e
 
-files (per-file SHA-256, hashed from git blob content at test_content_commit):
+# test_content_commit: the commit that last changed the tests/trace/evidence content
+#   (the two test files below are byte-identical at a433d5a and docs_evidence_commit).
+# verification_head: the clean commit the verification commands were actually run on.
+# docs_evidence_commit: source for the per-file SHA-256 of docs + evidence below
+#   (created after a433d5a/f52868d; NOT all hashes derive from a433d5a).
+
+files (per-file SHA-256, from git blob at docs_evidence_commit 3d529edc1acd993e005cf660ea9af02a91114f4e):
   4618b25ac1d647ab2526e21251a2a1542e55ddd869967623501553801a4e8718  test/offline/contracts/test_evidence_contracts.py
   dba3966fc3f0c3e5c73980cabefcba0282f75f25f295bdc3e791a2d4e40af6e8  test/offline/contracts/conftest.py
-  545f664973151d680ee31e26f59fb4640dba8255641cfc1309efcc802ec274fe  docs/req/trace-FR-01-evidence-contracts.md
-  4fbdb2729b14f4b5661011f6066ac4ef45ff168da54e67ad6e3b91f448f90168  docs/evidence/FR-01-contracts/red-baseline.txt
-  4f894534d7eb3a14883e7a2bcf67434ac79b8f7dd83a807590c56f12e4373e6b  docs/evidence/FR-01-contracts/compile-ast.txt
-  b2913cf2204ef8bb56e433335efc6cc546aeaf869e2ace9ee1d85e2402f8cab7  docs/evidence/FR-01-contracts/ruff.txt
+  80e81260d98412d6b969a280079bb76dde7fabec23cfd7f932c99883a109cc1c  docs/req/evidence-contracts.md
+  80f5a7f070765dc431368f777b299386edd337bd6490c53f077ef6e1857b7554  docs/req/trace-FR-01-evidence-contracts.md
+  3429718920b94fce058b925ef052f143f6daf78f058e455974654019fa36f6e3  docs/evidence/FR-01-contracts/red-baseline.txt
+  5ab4a8d9708bb8d3b8c592761c8f04ed10c088352dcd24513ad21a0ad0799f88  docs/evidence/FR-01-contracts/compile-ast.txt
+  9f7d504075568491ab9ca2f0400d556a8873ef83eb441d1e7d15b31504e08e1f  docs/evidence/FR-01-contracts/ruff.txt
 
 aggregate_sha256 (sha256sum of the per-file lines above, sorted by path):
-  523b4bbdb33cba81f9c6eb9ea36c562c33e2a108c51d924607e8fdb61518255b
+  288af7d4d25d636378a58e23fada05c5124c5772be0e85c441767ccdc524f90c
 
-coverage: test file, conftest (runnable context), trace, and the three
-  FR-01-contracts evidence files. NOT included: docs/req/contracts-summary.md
-  (shared FR-05 file; its §7 evidence text lands in a433d5aa8aee2329b79ceda28b9a048d800df4ab but its
-  whole-file hash belongs to FR-05's spec_bundle_sha256, not #5).
+coverage (7 files): test file, conftest (runnable context), evidence-contracts.md,
+  trace, and the three FR-01-contracts evidence records. NOT included:
+  docs/req/contracts-summary.md (reverted to FR-05 baseline; its whole-file
+  hash belongs to FR-05's spec_bundle_sha256, not #5).
