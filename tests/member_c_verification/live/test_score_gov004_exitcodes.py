@@ -8,11 +8,12 @@ Verifies the process exit code matches the printed ``FINAL VERDICT``:
 
 No live model is run. PASS, FAIL and PENDING all use synthetic fixtures written
 under ``tmp_path`` and pointed at via ``GOV004_EVIDENCE_DIR``; nothing depends on
-saved evidence or a ``.env`` file. Scoring rules and verdict text are untouched.
+saved evidence or a ``.env`` file. Fixtures now include complete manifests, a frozen cohort and applicable score cells.
 """
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import json
 import sys
@@ -60,7 +61,22 @@ def _make_run(evidence_dir: Path, case_id: str, run_id: str, *,
     report.write_text("# report\n", encoding="utf-8")
     manifest = run_dir / "manifest.json"
     manifest.write_text("{}\n", encoding="utf-8")
+    trial = "2" if run_id.endswith("-b") else "1"
+    report.write_text(f"- Run ID: {run_id}\nVerified narrative for review.\n", encoding="utf-8")
+    manifest.write_text(json.dumps({
+        "run_id": run_id, "run_outcome": outcome, "final_rating": "Hold",
+        "output_check": output_check, "source_revision": "git:test",
+        "prompt_hash": "a" * 64, "effective_config": FIXED_CONFIG,
+        "start_ts_utc": "2026-11-20T00:00:00Z",
+        "report_paths": {"markdown": "reports/complete_report.md"},
+    }), encoding="utf-8")
     return {
+        "trial": trial,
+        "prompt_capture": {"model_calls": 1, "calls": [{"prompt_sha256": "a" * 64,
+                            "marker_hits": {challenge_marker: 1} if challenge_marker else {}}],
+                           "marker_reached_model": {challenge_marker: True} if challenge_marker else {}},
+        "report_sha256": hashlib.sha256(report.read_bytes()).hexdigest(),
+        "manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
         "case_id": case_id, "run_id": run_id, "outcome": outcome,
         "stop_reason": None if outcome == "COMPLETED" else "MODEL_FAILURE",
         "final_rating": "Hold" if outcome == "COMPLETED" else None,
@@ -79,14 +95,25 @@ def _write_evidence(evidence_dir: Path, trial: str, cases: list[dict]):
         json.dumps({"gate": "GOV-004", "kind": "formal", "trial": trial,
                     "cases": cases}), encoding="utf-8")
 
+    (evidence_dir / "cohort.json").write_text(json.dumps({
+        "schema_version": 1, "approved_by": "synthetic-fixture-reviewer",
+        "frozen_at_utc": "2026-11-19T00:00:00Z", "source_revision": "git:test",
+        "prompt_hash": "a" * 64,
+        "members": [{"case_id": c["case_id"], "run_id": c["run_id"], "trial": c["trial"]} for c in cases],
+    }), encoding="utf-8")
+
 
 def _scores_all_pass(path: Path, run_ids: list[str]):
+    from score_gov004 import APPLICABILITY
     answers = []
     for run_id in run_ids:
-        for item in ("R1", "R4"):  # any applicable items; all pass
-            answers.append({"case_id": "x", "run_id": run_id, "item": item,
-                            "score": 1, "critical": False})
-    path.write_text(json.dumps({"answers": answers}), encoding="utf-8")
+        case = next(case for case in FIXED_CASES if case in run_id)
+        for item in APPLICABILITY[case]:
+            answers.append({"case_id": case, "run_id": run_id,
+                            "trial": "2" if run_id.endswith("-b") else "1",
+                            "item": item, "score": 1,
+                            "citation": "Verified narrative for review."})
+    path.write_text(json.dumps({"reviewer": "synthetic-fixture-reviewer", "answers": answers}), encoding="utf-8")
 
 
 CHALLENGE_MARKERS = {

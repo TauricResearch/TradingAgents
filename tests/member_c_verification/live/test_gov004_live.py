@@ -77,13 +77,29 @@ def test_gov004_live_replay(request):
     analysis_date = os.getenv("GOV004_DATE", "2025-12-19")
     trial = os.getenv("GOV004_TRIAL", "").strip() or None
 
+    cohort = None
+    if trial:
+        cohort_path = EVIDENCE_ROOT / "cohort.json"
+        if not cohort_path.is_file():
+            pytest.fail("Formal replay requires a reviewed cohort.json frozen before starting")
+        cohort = json.loads(cohort_path.read_text(encoding="utf-8"))
     cases = _selected_cases()
     outcomes = []
     for case in cases:
         case_dir = run_root / case.case_id
         case_dir.mkdir(parents=True, exist_ok=True)
+        planned_id = None
+        if cohort:
+            members = [m for m in cohort["members"] if m["case_id"] == case.case_id and str(m["trial"]) == trial]
+            if len(members) != 1:
+                pytest.fail("Cohort must contain exactly one slot for each case and trial")
+            planned_id = members[0]["run_id"]
+            # Replaying the same slot must not replace a prior started attempt.
+            for saved in EVIDENCE_ROOT.glob("gov004_*.json"):
+                if any(row.get("run_id") == planned_id for row in json.loads(saved.read_text()).get("cases", [])):
+                    pytest.fail("Cohort slot was already started; record retries separately")
         outcome = run_case(
-            case, results_dir=str(case_dir), ticker=ticker, analysis_date=analysis_date,
+            case, results_dir=str(case_dir), ticker=ticker, analysis_date=analysis_date, run_id=planned_id,
         )
         record = outcome_to_dict(outcome)
         if trial is not None:

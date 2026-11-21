@@ -21,7 +21,7 @@ import hashlib
 import os
 import re
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -42,9 +42,8 @@ _SECRET_PATTERNS = (
 
 
 def _scrub(text: str) -> str:
-    for pattern in _SECRET_PATTERNS:
-        text = pattern.sub("[REDACTED]", text)
-    return text
+    from tradingagents.runapi.redact import Redactor
+    return Redactor().scrub(text)
 
 
 class PromptCapture(BaseCallbackHandler):
@@ -97,6 +96,7 @@ class PromptCapture(BaseCallbackHandler):
     def summary(self) -> dict[str, Any]:
         return {
             "model_calls": len(self.calls),
+            "calls": list(self.calls),
             "prompt_chars_total": sum(call["prompt_chars"] for call in self.calls),
             # Distinct prompt digests let a reader confirm the calls differed,
             # without exposing any body.
@@ -217,7 +217,7 @@ class _InjectedNewsRouter:
         return False
 
 
-def run_case(case: Case, *, results_dir: str, ticker: str, analysis_date: str) -> CaseOutcome:
+def run_case(case: Case, *, results_dir: str, ticker: str, analysis_date: str, run_id: str | None = None) -> CaseOutcome:
     """Execute one fixed case live and return an auditable record."""
     model_config = _model_config_from_env()
     revision = _source_revision()
@@ -227,6 +227,8 @@ def run_case(case: Case, *, results_dir: str, ticker: str, analysis_date: str) -
     config["selected_analysts"] = analysts
 
     context = freeze_explicit(ticker, analysis_date, case.portfolio).confirm()
+    if run_id is not None:
+        context = replace(context, run_id=run_id)
     started = time.monotonic()
     error: str | None = None
     result = None
@@ -304,4 +306,13 @@ def _source_revision() -> str:
 
 
 def outcome_to_dict(outcome: CaseOutcome) -> dict[str, Any]:
-    return asdict(outcome)
+    record = asdict(outcome)
+    root = Path(__file__).resolve().parent / "evidence"
+    for key in ("report_path", "manifest_path", "run_dir"):
+        if record.get(key):
+            path = Path(record[key]).resolve()
+            record[key] = path.relative_to(root.resolve()).as_posix()
+            if key != "run_dir":
+                record[key.replace("_path", "_sha256")] = hashlib.sha256(path.read_bytes()).hexdigest()
+    from tradingagents.runapi.redact import Redactor
+    return Redactor().scrub(record)
