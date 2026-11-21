@@ -1,6 +1,6 @@
 {
   "case_id": "E-31",
-  "purpose": "临界 admitted：date_only 日期恰等于 as_of 的 UTC 日期，as_of 为闭区间",
+  "purpose": "date_only 日期等于 as_of 的 UTC 日期，无法证明发布于 as_of 之前，保守排除；不得判为 INVALID_TIME",
   "source_type": "yfinance_bar",
   "raw_time_field": "Date",
   "time_granularity": "date_only",
@@ -27,12 +27,16 @@
     }
   ],
   "expected": {
-    "admitted": [
-      "E-31-1"
+    "admitted": [],
+    "excluded": [
+      {
+        "case_local_id": "E-31-1",
+        "reason_code": "FUTURE_DATA",
+        "availability": "unavailable"
+      }
     ],
-    "excluded": [],
     "conflict_groups": [],
-    "outcome": "PACK",
-    "note": "date_only 只给日期；该日包含 as_of，不得判为 INVALID_TIME 或 FUTURE_DATA"
+    "outcome": "REVIEW",
+    "note": "该日的全天 OHLC 在 as_of 之前不可能存在；日期无法证明早于 as_of，故保守排除"
   }
 }

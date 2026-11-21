@@ -1,4 +1,4 @@
-"""Tests for evidence time filtering, driven by the E-01..E-30 fixtures."""
+"""Tests for evidence time filtering, driven by the E-01..E-31 fixtures."""
 
 from datetime import UTC, datetime
 
@@ -141,10 +141,10 @@ def test_naive_as_of_rejected(frozen_now):
         )
 
 
-def test_date_only_equal_to_as_of_date_admitted(load_case, frozen_now, iter_items):
-    """as_of is a closed interval: a date-only value on the as-of UTC date is
-    admissible. D's review (PR #2 / PR #4 round) fixed this: a valid date-only
-    value is never INVALID_TIME."""
+def test_date_only_equal_to_as_of_date_excluded(load_case, frozen_now, iter_items):
+    """A date-only value is verifiable only when strictly earlier than the
+    as_of UTC date; a value on the same UTC date cannot be proven published
+    before as_of, so it is conservatively excluded. This is not INVALID_TIME."""
     case = load_case("E-31")
     item = iter_items(case)[0]
     verdict = is_admissible(
@@ -152,9 +152,20 @@ def test_date_only_equal_to_as_of_date_admitted(load_case, frozen_now, iter_item
         time_granularity=item["time_granularity"],
         as_of=_as_of_string(frozen_now),
     )
-    assert verdict.admissible is True
-    assert verdict.availability == "available"
-    assert verdict.reason_code is None
+    assert verdict.admissible is False
+    assert verdict.availability == "unavailable"
+    assert verdict.reason_code == "FUTURE_DATA"
+
+
+def test_day_granularity_equal_to_as_of_date_excluded(frozen_now):
+    verdict = is_admissible(
+        published_at="2026-11-11",
+        time_granularity="day",
+        as_of=_as_of_string(frozen_now),
+    )
+    assert verdict.admissible is False
+    assert verdict.availability == "unavailable"
+    assert verdict.reason_code == "FUTURE_DATA"
 
 
 def test_published_at_exactly_equal_to_as_of_admitted(frozen_now):

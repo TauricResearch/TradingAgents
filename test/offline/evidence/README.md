@@ -1,6 +1,6 @@
 # Offline evidence — time filtering (INV-02)
 
-Test spec for INV-02 evidence time filtering. `test_time_policy.py` holds 12
+Test spec for INV-02 evidence time filtering. `test_time_policy.py` holds 13
 test functions driven by the `E-01` … `E-31` fixtures.
 
 ## Scope
@@ -39,7 +39,12 @@ reproduces byte-identical files). `E-21-2` is the duplicate copy of
 
 ## Boundary rule
 
-`as_of` is a **closed** interval: an item whose `published_at` equals `as_of`
-exactly is admitted, and a `date_only` value on the as-of UTC date is admitted
-(fixture `E-31`, tests `test_date_only_equal_to_as_of_date_admitted` and
-`test_published_at_exactly_equal_to_as_of_admitted`).
+- An item whose `published_at` equals `as_of` **exactly** is admitted
+  (`test_published_at_exactly_equal_to_as_of_admitted`).
+- A `date_only` value **strictly earlier** than the as_of UTC date is admitted
+  (fixture `E-07`, `test_date_only_before_cutoff_admitted`).
+- A `date_only` or `day` value on the **same** UTC date as `as_of` cannot be
+  proven published before `as_of`, so it is excluded / unavailable with
+  `reason_code == "FUTURE_DATA"` — explicitly **not** `INVALID_TIME` (fixture
+  `E-31`, `test_date_only_equal_to_as_of_date_excluded` and
+  `test_day_granularity_equal_to_as_of_date_excluded`).

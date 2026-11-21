@@ -256,7 +256,7 @@ CASES.append({
 
 CASES.append({
     "case_id": "E-07",
-    "purpose": "行情 bar 只有 Date 无时刻；as_of 的 UTC 日期不早于该日即可用（同日或更早可用）",
+    "purpose": "行情 bar 只有 Date 无时刻；as_of 的 UTC 日期必须严格晚于该日才可用（date_only 规则）",
     "source_type": "yfinance_bar", "raw_time_field": "Date", "time_granularity": "date_only",
     "as_of": AS_OF, "provider_behavior": "normal",
     "items": [bar("E-07-1", "yfinance://AAPL/2026-11-10", "2026-11-10",
@@ -594,13 +594,14 @@ CASES.append({
 
 CASES.append({
     "case_id": "E-31",
-    "purpose": "临界 admitted：date_only 日期恰等于 as_of 的 UTC 日期，as_of 为闭区间",
+    "purpose": "date_only 日期等于 as_of 的 UTC 日期，无法证明发布于 as_of 之前，保守排除；不得判为 INVALID_TIME",
     "source_type": "yfinance_bar", "raw_time_field": "Date", "time_granularity": "date_only",
     "as_of": AS_OF, "provider_behavior": "boundary_equal",
     "items": [bar("E-31-1", "yfinance://AAPL/2026-11-11", "2026-11-11",
                   {"open": 229.87, "high": 231.20, "low": 228.90, "close": 230.55})],
-    "expected": {"admitted": ["E-31-1"], "excluded": [], "conflict_groups": [], "outcome": "PACK",
-                 "note": "date_only 只给日期；该日包含 as_of，不得判为 INVALID_TIME 或 FUTURE_DATA"},
+    "expected": {"admitted": [], "excluded": [{"case_local_id": "E-31-1",
+    "reason_code": "FUTURE_DATA"}], "conflict_groups": [], "outcome": "REVIEW",
+    "note": "该日的全天 OHLC 在 as_of 之前不可能存在；日期无法证明早于 as_of，故保守排除"},
 })
 
 

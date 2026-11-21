@@ -1,6 +1,6 @@
 {
   "case_id": "E-07",
-  "purpose": "行情 bar 只有 Date 无时刻；as_of 的 UTC 日期不早于该日即可用（同日或更早可用）",
+  "purpose": "行情 bar 只有 Date 无时刻；as_of 的 UTC 日期必须严格晚于该日才可用（date_only 规则）",
   "source_type": "yfinance_bar",
   "raw_time_field": "Date",
   "time_granularity": "date_only",
