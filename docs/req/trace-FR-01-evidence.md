@@ -60,13 +60,16 @@ the time-policy scope.
 
 ## Blocking dependencies
 
-1. **ReasonCode gap** — `INVALID_TIME`, `STALE_DATA`, `VENDOR_UNAVAILABLE`,
-   `INTEGRITY_VIOLATION`, `INVALID_CITATION` are not in the contracts
-   `ReasonCode` enum (B contracts PR: not opened yet (as of 2026-11-21); B
-   confirmed the public ReasonCode carries FUTURE_DATA, EVIDENCE_MISSING,
-   INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE, INVALID_CITATION,
-   INTEGRITY_VIOLATION, and None when admitted). B must add them or
-   define a canonical mapping before pack/reason-code assertions land.
+1. **ReasonCode source** — the codes this suite asserts (`FUTURE_DATA`,
+   `EVIDENCE_MISSING`, `INVALID_TIME`, and `None` when admitted) are all inside
+   the canonical set B confirmed in writing on 2026-11-21: FUTURE_DATA,
+   EVIDENCE_MISSING, INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE,
+   INVALID_CITATION, INTEGRITY_VIOLATION, plus None when admitted. The contracts
+   PR that lands them is not opened yet (as of 2026-11-21), so there is no
+   contracts file or commit to cite yet; when it lands, this item will cite it.
+   `STALE_DATA`, `VENDOR_UNAVAILABLE`, `INVALID_CITATION` and
+   `INTEGRITY_VIOLATION` appear only in carried-as-data fixtures and are never
+   asserted here.
 2. **EvidencePack contract** — pack fields and `pack_hash` are PENDING.
 3. **Approval** — D must approve this spec head before implementation starts.
 

@@ -3,7 +3,7 @@ content_commit: 511ef7d2f059
 captured_at: 2026-11-21T16:12:51+08:00
 host: LAPTOP-3LECTOHG
 python: Python 3.12.16
-head: 511ef7d
+head: 511ef7d2f059
 note: the head advances only by docs-only commits after this content commit.
 
 $ python -m pytest test/offline/evidence -q --tb=line

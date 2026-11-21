@@ -3,7 +3,7 @@
 # Structured record for the INV-02 time-policy test-first session (GATE-06),
 # per execution_plan §10.1. Facts only; unknown values are "unknown". This file
 # lives on the spec branch so the test/spec PR carries its own AI-use record;
-# the opencode transcript export stays local (it contains machine paths).
+# the redacted opencode transcript exports are committed under docs/evidence/FR-01/sessions/.
 
 schema_version: "1.0"
 project: EGTA-CS5351-Group20
@@ -57,7 +57,17 @@ sessions:
 
   - session_id: "A-2026-11-21-inv02-revision-after-d-review"
     student: "A / Du Yuxiang / yuxiangdu39"
-    agent_tool_model: "auxiliary only: analysis and prompt drafting, no file changes"
+    agent_tool_model: "Doubao Work assistant (agent) — file edits produced outside the OpenCode session"
+    compliance_note: >-
+      This phase edited conftest.py (UP017) and _target.py (noqa + re-raise) with
+      the assistant, outside OpenCode. Both files were deleted and rewritten in
+      full under OpenCode in this session on 2026-11-21 (see the ses_e06... entry);
+      the resulting bytes are identical to the committed state, so no content
+      commit was created and the approval hash binding is unaffected. The
+      fixtures and the test file listed below were later regenerated or rewritten
+      in that OpenCode session; no shipped file bytes originate from this entry
+      except the two files redone above.
+    provenance: "redone in OpenCode (byte-identical); see MUST-3.1 of D's round-2 review"
     time:
       - "2026-11-21T00:46:00+08:00"
     task_requirement_ids:
@@ -144,12 +154,19 @@ sessions:
         change: "py_compile exit 0 + AST count 13"
       - file: "docs/evidence/FR-01/ruff.txt"
         change: "ruff clean"
+      - file: "test/offline/evidence/conftest.py"
+        change: "deleted and rewritten in full for the provenance redo; byte-identical, no content change"
+      - file: "test/offline/evidence/_target.py"
+        change: "deleted and rewritten in full for the provenance redo; byte-identical, no content change"
     human_intervention:
       - category: "reviewer feedback applied"
         action: "D requested changes on head 2d5c3d6; A decided to conservatively exclude date-only and day values on the as_of UTC date instead of admitting them, mapping them to FUTURE_DATA"
         reason: "a daily bar dated on the as_of date carries full-day OHLC that cannot exist at 00:00Z; admitting it would leak lookahead"
       - category: "human approval"
         action: "A reviewed the diff and froze the content commit as 511ef7d2f059"
+      - category: "provenance correction"
+        action: "A confirmed that the 2026-11-21 00:47 edits to conftest.py and _target.py were produced outside OpenCode and had them redone in OpenCode; D's MUST-3.1 requires this or a written teacher exception"
+        reason: "GATE-06 / MUST-3: every change to tests must come from the course-mandated OpenCode session"
     verification_output:
       - cmd: "python -m pytest test/offline/evidence -q --tb=line"
         env: "egta"
@@ -163,9 +180,14 @@ sessions:
       - cmd: "python scripts/gen_evidence_fixtures.py && git diff --exit-code -- test/offline/evidence/fixtures"
         env: "egta"
         result: "regeneration byte-identical; git diff --exit-code exit 0"
+      - cmd: "git diff --exit-code -- test/offline/evidence/conftest.py test/offline/evidence/_target.py"
+        env: "git"
+        result: "exit 0 after the OpenCode rewrite — byte-identical, content unchanged at content commit 511ef7d2f059"
     cost: 0.0
     session_path: "docs/evidence/FR-01/sessions/2026-11-21-round2.json"
     export_sha256: "2789f82157c28b011a40eb77ebe40983fafa630d1385b093b459ddf727ebce18"
+    session_path_round3: "docs/evidence/FR-01/sessions/2026-11-21-round3-redo.json"
+    export_sha256_round3: "recorded in the commit message of the docs commit that adds this export"
 
   - session_id: "A-2026-11-20-fixtures-generator-prework"
     student: "A / Du Yuxiang / yuxiangdu39"

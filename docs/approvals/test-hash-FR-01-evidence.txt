@@ -76,13 +76,14 @@ Notes:
   value strictly earlier than the as_of UTC date is admitted; a date-only or day
   value on the same UTC date is excluded/unavailable with FUTURE_DATA and is not
   INVALID_TIME (fixture E-31).
-- Blocking dependency: INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE,
-  INTEGRITY_VIOLATION, INVALID_CITATION are not yet in the contracts ReasonCode
-  enum (B contracts PR: not opened yet (as of 2026-11-21); B confirmed the public
-  ReasonCode carries FUTURE_DATA, EVIDENCE_MISSING, INVALID_TIME, STALE_DATA,
-  VENDOR_UNAVAILABLE, INVALID_CITATION, INTEGRITY_VIOLATION, and None when
-  admitted). B must add them or publish a canonical mapping before
-  pack/reason-code assertions land.
+- ReasonCode source: the codes asserted here — FUTURE_DATA, EVIDENCE_MISSING,
+  INVALID_TIME, and None when admitted — are all inside the canonical set B
+  confirmed in writing on 2026-11-21 (FUTURE_DATA, EVIDENCE_MISSING,
+  INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE, INVALID_CITATION,
+  INTEGRITY_VIOLATION, plus None when admitted). The contracts PR that lands
+  them is not opened yet (as of 2026-11-21), so there is no contracts file or
+  commit to cite yet; when it lands, this bullet will cite it. The other four
+  codes appear only in carried-as-data fixtures and are not asserted here.
 - Clarification for D: E-24/E-25 (empty items, outcome PACK) and E-29 (admitted
   plus outcome ERROR) are pack-level expectations; they are carried as data and
   deliberately not constrained here.
