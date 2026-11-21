@@ -52,7 +52,8 @@ sessions:
         env: "egta (Python 3.12.16)"
         result: "ModuleNotFoundError: No module named 'egta' — RED by design"
     cost: "unknown"
-    session_path: "/tmp/A-session-raw-1.md (2,676 lines, 222,961 bytes; local only, not committed)"
+    session_path: "docs/evidence/FR-01/sessions/2026-11-21-round2.json"
+    note: "same OpenCode session (ses_e06c8e84affef3t3pM3drr0udP); the export covers both rounds — 77 messages, model CS5351/DeepSeek-V4-Flash, opencode CLI 1.18.34"
 
   - session_id: "A-2026-11-21-inv02-revision-after-d-review"
     student: "A / Du Yuxiang / yuxiangdu39"
@@ -163,7 +164,8 @@ sessions:
         env: "egta"
         result: "regeneration byte-identical; git diff --exit-code exit 0"
     cost: 0.0
-    session_path: "pending redacted export, see docs/evidence/FR-01/sessions/"
+    session_path: "docs/evidence/FR-01/sessions/2026-11-21-round2.json"
+    export_sha256: "2789f82157c28b011a40eb77ebe40983fafa630d1385b093b459ddf727ebce18"
 
   - session_id: "A-2026-11-20-fixtures-generator-prework"
     student: "A / Du Yuxiang / yuxiangdu39"
