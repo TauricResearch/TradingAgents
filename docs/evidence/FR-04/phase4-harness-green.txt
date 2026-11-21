@@ -1,0 +1,15 @@
+FR-04 comparison-harness self-check (review-response revision)
+================================
+Date: 2026-11-20T23:43:54+08:00
+Branch: spec/FR-04-risk-gate
+Test content commit: 9de822ff664546d0d741b00636702d176855105b
+Python: 3.12.15
+pytest: 9.2.0
+Command: python -m pytest test/offline/risk_gate/test_harness_selfcheck.py -q
+Interpretation: assert_case accepts a synthetic satisfying stub and rejects a
+synthetic violating stub, so the comparison harness is not vacuous.
+------------------------------------------------------------
+..                                                                       [100%]
+2 passed in 0.02s
+
+Exit code: 0
