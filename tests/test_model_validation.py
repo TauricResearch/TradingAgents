@@ -44,7 +44,7 @@ class ModelValidationTests(unittest.TestCase):
         self.assertIn("openai", str(caught[0].message))
 
     def test_openrouter_and_ollama_accept_custom_models_without_warning(self):
-        for provider in ("openrouter", "ollama"):
+        for provider in ("openrouter", "ollama", "llmtr"):
             client = DummyLLMClient(provider, "custom-model-name")
 
             with self.subTest(provider=provider):

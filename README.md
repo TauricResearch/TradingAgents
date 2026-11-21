@@ -170,6 +170,7 @@ export ZHIPU_CN_API_KEY=...        # GLM via BigModel (China, open.bigmodel.cn)
 export MINIMAX_API_KEY=...         # MiniMax (global, api.minimax.io)
 export MINIMAX_CN_API_KEY=...      # MiniMax (China, api.minimaxi.com)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export LLMTR_API_KEY=...           # LLMTR (https://llmtr.com/v1)
 export MISTRAL_API_KEY=...         # Mistral
 export MOONSHOT_API_KEY=...        # Kimi (Moonshot)
 export GROQ_API_KEY=...            # Groq
@@ -272,7 +273,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
+config["llm_provider"] = "openai"        # e.g. openai, google, anthropic, deepseek, groq, llmtr, ollama; openai_compatible covers any OpenAI-compatible endpoint (vLLM, LM Studio, llama.cpp, ...)
 config["deep_think_llm"] = "gpt-6-sol"    # Model for complex reasoning
 config["quick_think_llm"] = "gpt-6-luna"   # Model for quick tasks
 config["max_debate_rounds"] = 2

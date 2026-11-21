@@ -219,6 +219,7 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "groq": _CUSTOM_ONLY,
     "nvidia": _CUSTOM_ONLY,
+    "llmtr": _CUSTOM_ONLY,
     # Bedrock model IDs / cross-region inference profile IDs are user-specified.
     "bedrock": _CUSTOM_ONLY,
     # The plan's models are listed live from OpenAI once signed in.
