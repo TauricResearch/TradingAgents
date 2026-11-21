@@ -1,0 +1,16 @@
+FR-04 test-package static check (review-response revision)
+================================
+Date: 2026-11-20T23:43:54+08:00
+Branch: spec/FR-04-risk-gate
+Test content commit: 9de822ff664546d0d741b00636702d176855105b
+ruff: 0.17.6
+Command: python -m ruff check test/offline/risk_gate
+Command: python -m ruff check .
+Interpretation: no lint exemptions and no xfail/skip workaround were needed.
+------------------------------------------------------------
+All checks passed!
+
+Exit code (risk_gate): 0
+All checks passed!
+
+Exit code (repo): 0

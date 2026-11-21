@@ -1,0 +1,410 @@
+FR-04 Phase 4 red baseline (review-response revision)
+================================
+Date: 2026-11-20T23:43:54+08:00
+Branch: spec/FR-04-risk-gate
+Test content commit: 9de822ff664546d0d741b00636702d176855105b
+PR: https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2
+Python: 3.12.15
+pydantic: 2.14.4
+pytest: 9.2.0
+ruff: 0.17.6
+SQLite: 3.53.4
+Environment: conda egta
+Command: python -m pytest test/offline/risk_gate -q --tb=line
+Interpretation: 126 risk cases fail because src/egta/risk_gate is not implemented
+(Phase 5 not started). 13 meta-tests pass (11 manifest checks + 2 harness
+self-checks). This is the expected red test-first baseline, not xfail/skip and not
+a reported success.
+Coverage: NOT RUN (no implementation)
+------------------------------------------------------------
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF [ 51%]
+FFFFFFFFFFFFFFFFFFFF..FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF...........      [100%]
+=================================== FAILURES ===================================
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   AssertionError: risk_gate package is not implemented yet
+    assert False
+     +  where False = is_dir()
+     +    where is_dir = PosixPath('/home/zf/cs5351/EGTA-CS5351-Group20/src/egta/risk_gate').is_dir
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/test_security_boundaries.py:76: AssertionError: risk_gate package is not implemented yet
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/test_security_boundaries.py:98: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/test_security_boundaries.py:142: ModuleNotFoundError: No module named 'egta'
+E   AssertionError: risk_gate package is not implemented yet
+    assert False
+     +  where False = is_dir()
+     +    where is_dir = PosixPath('/home/zf/cs5351/EGTA-CS5351-Group20/src/egta/risk_gate').is_dir
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/test_security_boundaries.py:170: AssertionError: risk_gate package is not implemented yet
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/test_security_boundaries.py:289: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+E   ModuleNotFoundError: No module named 'egta'
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/risk_gate/conftest.py:57: ModuleNotFoundError: No module named 'egta'
+=========================== short test summary info ============================
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-01]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-02]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-03]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-04]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-05]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-06]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-07]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-08]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-09]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-10]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-11]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-12]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-13]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-14]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-15]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-16]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-17]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-18]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-19]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-20]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-21]
+FAILED test/offline/risk_gate/test_actions_quantities.py::test_actions_and_quantities[T-RISK-ACT-22]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-01]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-02]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-03]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-04]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-05]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-06]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-07]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-08]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-09]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-10]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-11]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-12]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-13]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-14]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-15]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-16]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-17]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-18]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-19]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-20]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-21]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-22]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-23]
+FAILED test/offline/risk_gate/test_atomicity_concurrency.py::test_atomicity_and_concurrency[T-RISK-ATM-24]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-01]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-02]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-03]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-04]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-05]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-06]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-07]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-08]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-09]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-10]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-11]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-12]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-13]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-14]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-15]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-16]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-17]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-18]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-19]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-20]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-21]
+FAILED test/offline/risk_gate/test_evidence_time_policy.py::test_evidence_time_and_policy[T-RISK-EVD-22]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-01]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-02]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-03]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-04]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-05]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-06]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-07]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-08]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-09]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-10]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-11]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-12]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-13]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-14]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-15]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-16]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-17]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-18]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-19]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-20]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-21]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-22]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-23]
+FAILED test/offline/risk_gate/test_funds_positions_costs.py::test_funds_positions_and_costs[T-RISK-FND-24]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-01]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-02]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-03]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-04]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-05]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-06]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-07]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-08]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-09]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-10]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-11]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-12]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-13]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-14]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-15]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-16]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-17]
+FAILED test/offline/risk_gate/test_identity_idempotency.py::test_identity_and_idempotency[T-RISK-IDM-18]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-01]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-02]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-03]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-04]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-05]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-06]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-07]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-08]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-09]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-10]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-11]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-12]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-13]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-14]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-15]
+FAILED test/offline/risk_gate/test_security_boundaries.py::test_security_boundaries[T-RISK-SEC-16]
+126 failed, 13 passed in 0.37s
+
+Exit code: 1

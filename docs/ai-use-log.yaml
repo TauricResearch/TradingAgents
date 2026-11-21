@@ -10,6 +10,20 @@ project: EGTA-CS5351-Group20
 role: A
 github_login: yuxiangdu39
 
+merge_note: >-
+  Merged with main (2fb2813) on 2026-11-21. This file now carries A's PR #4
+  sessions plus E's PR #3 sessions, preserved verbatim from main. D's record
+  remains the separate fragment docs/ai-use-log-D-fragment.yaml.
+merged_context:
+  source: "docs/ai-use-log.yaml @ 2fb2813 (E, PR #3, spec/FR-05-contracts)"
+  role: E
+  github_login: jianmin2004
+  spec_pr: 3
+  spec_branch: spec/FR-05-contracts
+  related:
+    pr_1: "original development record (Draft, changes requested); GATE-01 ordering defect (impl fff66d0 before tests 7df4489)"
+    debt_d2: "GATE-01 process debt (docs/debt-register.md on PR #1 branch); closes when this spec is approved and a descendant implementation PR lands"
+
 context:
   spec_pr: 4
   spec_branch: test/FR-01-evidence
@@ -57,67 +71,31 @@ sessions:
 
   - session_id: "A-2026-11-21-inv02-revision-after-d-review"
     student: "A / Du Yuxiang / yuxiangdu39"
-    agent_tool_model: "Doubao Work assistant (agent) — file edits produced outside the OpenCode session"
+    agent_tool_model: "Doubao Work assistant (agent) — auxiliary only: analysis and prompt drafting; any incidental edits were fully redone in OpenCode, no shipped bytes"
     compliance_note: >-
-      This phase edited conftest.py (UP017) and _target.py (noqa + re-raise) with
-      the assistant, outside OpenCode. Both files were deleted and rewritten in
-      full under OpenCode in this session on 2026-11-21 (see the ses_e06... entry);
-      the resulting bytes are identical to the committed state, so no content
-      commit was created and the approval hash binding is unaffected. The
-      fixtures and the test file listed below were later regenerated or rewritten
-      in that OpenCode session; no shipped file bytes originate from this entry
-      except the two files redone above.
-    provenance: "redone in OpenCode (byte-identical); see MUST-3.1 of D's round-2 review"
+      Auxiliary record only. At 2026-11-21 00:46-00:47 this assistant produced two
+      incidental edits (conftest.py UP017; _target.py noqa + re-raise). Both files
+      were then deleted and rewritten in full under the OpenCode session
+      ses_e06c8e84affef3t3pM3drr0udP, and no assistant-written byte remains in the
+      shipped tree. Every shipped test / generator / fixture / README / trace /
+      approval byte is owned by that OpenCode session, which carries the
+      generated_files list for this round.
+    provenance: "auxiliary only; all shipped bytes redone under OpenCode (MUST-3.1 / MUST-3.4 of D's reviews)"
     time:
       - "2026-11-21T00:46:00+08:00"
     task_requirement_ids:
       - INV-02
       - GATE-01
       - GATE-06
-    writable_path:
-      - "test/offline/evidence/"
-      - "scripts/"
-      - "docs/"
-    generated_files:
-      - file: "test/offline/evidence/conftest.py"
-        change: "ruff UP017: timezone.utc -> UTC"
-      - file: "test/offline/evidence/test_time_policy.py"
-        change: "ruff UP017; date-only same date now excluded; exact timestamp equality admitted"
-      - file: "test/offline/evidence/README.md"
-        change: "removed stale 'no test functions yet'; added scope (INV-02 only) and the boundary rule"
-      - file: "scripts/gen_evidence_fixtures.py"
-        change: "31 fixtures; E-21 duplicate gets E-21-2; new E-31 boundary-equal case"
-      - file: "test/offline/evidence/fixtures/E-21.json, E-31.json"
-        change: "regenerated deterministically"
-      - file: "docs/evidence/FR-01/red-baseline.txt"
-        change: "captured red run, exit 2"
-      - file: "docs/evidence/FR-01/compile-ast.txt"
-        change: "py_compile exit 0 + AST count 12"
-      - file: "docs/evidence/FR-01/ruff.txt"
-        change: "ruff clean"
-      - file: "docs/req/trace-FR-01-evidence.md"
-        change: "requirement-to-test trace + expected-red registry"
-      - file: "docs/ai-use-log.yaml"
-        change: "this record"
-      - file: "docs/approvals/test-hash-FR-01-evidence.txt"
-        change: "per-file and aggregate SHA-256 over tests, 31 fixtures and generator; three-field commit binding"
+    writable_path: []
+    generated_files: []   # none shipped from this entry; see ses_e06c8e84affef3t3pM3drr0udP
     human_intervention:
       - category: "human decision"
         action: "Chose route 1 (narrow PR #4 to INV-02) instead of adding 18 pack-level fixture tests."
         reason: "EvidencePack contract is not frozen; pack-level assertions would be rewritten."
         requirement_ids: ["INV-02", "FR-01"]
-    verification_output:
-      - cmd: "python -m pytest test/offline/evidence -q --tb=line"
-        env: "egta"
-        result: "exit 2, ModuleNotFoundError: No module named 'egta' (RED by design)"
-      - cmd: "python -m ruff check ."
-        env: "egta"
-        result: "All checks passed!"
-      - cmd: "python -m py_compile test/offline/evidence/*.py"
-        env: "egta"
-        result: "exit 0; AST count = 12 test functions"
     cost: "unknown"
-    session_path: "unknown"
+    session_path: "not applicable — auxiliary session, no exported transcript, no file bytes shipped"
 
   - session_id: "ses_e06c8e84affef3t3pM3drr0udP"
     student: "A / Du Yuxiang / yuxiangdu39"
@@ -208,7 +186,12 @@ sessions:
         change: "original generator and fixture set (commits ad7830a, bcab15c, 9a704d9, 6c6a9fd)"
       - file: "test/offline/evidence/fixtures/"
         change: "original 30/31 fixture files"
-    note: "no OpenCode session covers these commits; timestamps taken from commit metadata"
+    note: >-
+      These commits (ad7830a, bcab15c, 9a704d9, 6c6a9fd) predate the first
+      OpenCode session (2026-11-20T21:48+08:00). The current generator and
+      fixture bytes were re-executed under OpenCode in that session and are
+      byte-identical to these commits, so the shipped files are attributable
+      to the OpenCode session while the original commits are not.
     verification_output:
       - cmd: "python scripts/gen_evidence_fixtures.py"
         env: "egta"
@@ -216,3 +199,208 @@ sessions:
     cost: "unknown"
     session_path: "unknown"
 
+# --- E's PR #3 sessions, merged verbatim from main (2fb2813) ---
+  - session_id: "E-2026-11-20-spec-FR05-batchA"
+    student: "E / jianmin2004"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-20T18:29:03+08:00"   # commit 92a17e2 (actual)
+    task_requirement_ids:
+      - FR-05
+      - NFR-08
+      - NFR-09
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "test/offline/contracts/"
+      - "docs/"
+      - "pyproject.toml"     # only [tool.ruff.lint.isort] known-first-party
+    generated_files:
+      - file: "test/offline/contracts/test_events.py"
+        change: "fixed D.8 chain fixture (ev2 hashes its OWN content); added payload-binding, sequence-gap, duplicate-event_id tests; test-local ChainBroken/DuplicateConflict/PayloadMismatch (public placement pending D)"
+      - file: "test/offline/contracts/test_manifest.py"
+        change: "encoded B's decisions: four variants B0/B1/B2/B3 mandatory; MetricDef(7 fields) + QualityRubric; marked 'dependency not yet implemented' (expected RED)"
+      - file: "test/offline/contracts/test_metrics_serialization.py"
+        change: "new: NaN/inf -> null (DEFECT), non-JSON object late failure, positive roundtrip"
+      - file: "docs/req/trace-FR-05-contracts.md"
+        change: "removed false '--collect-only proves collectable'; per-test requirement mapping; existing vs new; links PR #1/DEBT-D2"
+      - file: "pyproject.toml"
+        change: "[tool.ruff.lint.isort] known-first-party = [\"egta\"] (D.3 fix; does not touch hashed test files)"
+      - file: "docs/ai-use-log.yaml"
+        change: "this record"
+      - file: "docs/approvals/test-hash-FR-05-contracts.txt"
+        change: "updated per-file + aggregate; three-field commit binding (test-content commit, reviewed PR head, merge commit); approver PENDING"
+    human_intervention:
+      - category: "human instruction / supervision (quality control)"
+        action: "Directed Batch A execution only (tests + docs, no src); required strict test-first, no xfail/skip; required D.8 fixture fix + payload-binding test."
+        reason: "Close GATE-01 gaps D raised in PR #3 review without pre-empting implementation."
+        requirement_ids: ["GATE-01", "FR-05"]
+      - category: "coordination (human side)"
+        action: "B replied with decisions (four variants B0-B3; MetricDef + QualityRubric); D's review lists required negatives; Batch B items (audit anchor/outbox->AuditSink, ChainBroken/DuplicateConflict public semantics, CI + red-test quarantine) deferred to D+E."
+        reason: "Spec must encode agreed decisions; some semantics pending cross-member confirmation."
+        requirement_ids: ["FR-05", "NFR-08"]
+    verification_output:
+      - cmd: "python -m ruff check ."
+        env: "egta (ruff 0.17.6)"
+        result: "All checks passed! (D.3 fixed)"
+      - cmd: "python -m py_compile test/offline/contracts/*.py"
+        env: "egta"
+        result: "exit 0; AST count = 30 test functions"
+      - cmd: "python -m pytest test/offline/contracts (spec branch, no src)"
+        env: "egta"
+        result: "3 collection errors (ModuleNotFoundError: egta.contracts) — RED by design"
+      - cmd: "against feature-branch src via PYTHONPATH (validation of test logic)"
+        env: "egta"
+        result: "events+serialization: 28 passed; manifest: 14 passed / 11 expected-RED (B2/B3 + rubric deps)"
+    cost: "unknown"
+    session_path: "unknown"
+    session_path_note: >-
+      The raw OpenCode transcript was not exported from this environment during
+      Batch A, so no path exists yet. It is intentionally recorded as "unknown"
+      rather than a fabricated path. Per the D5 process the transcript will be
+      exported from the coding agent and this field updated to the real file path
+      in docs/ai-use-log.yaml before the code/session freeze (G3).
+
+  - session_id: "E-2026-11-20-spec-FR05-batchB"
+    student: "E / jianmin2004"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-20T23:22:54+08:00"   # commit 602f6a3 (Batch B content commit, actual commit time)
+      - "2026-11-20T23:22:54+08:00"   # commit 602f6a3 (actual)
+    task_requirement_ids:
+      - FR-05
+      - NFR-08
+      - NFR-09
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "test/offline/contracts/"
+      - "docs/"
+      - "pyproject.toml"     # only pytest markers + ruff isort
+    generated_files:
+      - file: "docs/req/contracts-summary.md"
+        change: "spec definition of public audit/evaluation contracts per D (exceptions, Receipt 12 fields, AuditSink/AuditReader, verify/dedupe, CompletionStatus/IncompleteReason)"
+      - file: "test/offline/contracts/test_audit.py (new)"
+        change: "audit contract: exception signatures, Receipt 12 fields, tail-truncation+anchor, AuditSink idempotency, AuditReader.read"
+      - file: "test/offline/contracts/test_evaluation_result.py (new)"
+        change: "incomplete as STATUS (no raise); CompletionStatus/IncompleteReason members"
+      - file: "test/offline/contracts/test_comparison.py (new)"
+        change: "manifest mismatch -> INCOMPLETE, not a win (snapshot/model/prompt; code/policy PENDING B)"
+      - file: "test/offline/contracts/test_replay.py (new)"
+        change: "replay determinism + offline (no LLM/network) + dedupe"
+      - file: "test/offline/contracts/{test_events,test_manifest,test_metrics_serialization}.py"
+        change: "public audit imports; four variants B0-B3 + quality_rubric; metrics reject NaN/inf/object; pytestmark spec"
+      - file: "pyproject.toml"
+        change: "register 'spec' marker (+ strict markers already on)"
+      - file: "docs/approvals/spec-registry.md (new)"
+        change: "spec marker/enablement/expected-RED reason/hash/approval boundary"
+      - file: "docs/approvals/test-hash-FR-05-contracts.txt"
+        change: "test_content_commit + aggregate only; GitHub review commit_id authoritative; merge in external registry"
+      - file: "docs/req/trace-FR-05-contracts.md"
+        change: "mappings for 7 files (60 functions/90 cases); avoids overstatement"
+    human_intervention:
+      - category: "human instruction / supervision (quality control)"
+        action: "Approved Batch B plan with 4 corrections: strictly follow D's audit contract (AuditContractError base + exact exception signatures + Receipt 12 fields), incomplete as status not exception, quality_rubric independent field + PENDING B, code/policy hash PENDING B."
+        reason: "Ensure spec matches D's real definition, not a simplified version."
+        requirement_ids: ["FR-05", "NFR-08", "GATE-01"]
+    verification_output:
+      - cmd: "python -m pytest test/offline/contracts (spec branch, no src)"
+        env: "egta"
+        result: "7 collection errors (ModuleNotFoundError: egta) — RED by design"
+      - cmd: "python -m py_compile test/offline/contracts/*.py"
+        env: "egta"
+        result: "exit 0; AST = 60 test functions"
+      - cmd: "python -m ruff check ."
+        env: "egta"
+        result: "All checks passed!"
+      - cmd: "PYTHONPATH=/tmp/specimpl/src pytest test/offline/contracts (full spec-satisfying impl)"
+        env: "egta"
+        result: "90 passed — proves red is due to unimplemented contracts, not bad tests"
+    cost: "unknown"
+    session_path: "unknown"
+    session_path_note: >-
+      Same as Batch A: raw coding-agent transcript not yet exported in this
+      environment; recorded as "unknown", to be replaced with the real exported
+      path before G3 freeze per D5.
+
+  - session_id: "E-2026-11-21-spec-FR05-final"
+    student: "E / jianmin2004"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-21T11:43:29+08:00"   # commit 0c6b60a (final-round content commit, actual)
+    task_requirement_ids: [FR-05, NFR-08, NFR-09, GATE-01, GATE-06]
+    writable_path: ["test/offline/contracts/", "docs/", "pyproject.toml"]
+    generated_files:
+      - file: "docs/req/contracts-summary.md"
+        change: "D final-round: typed compare_runs/replay_events, ReplayState fields, EvaluationResult §5.1, manifest_hash, code/policy hash, MISSING_RESULT; MISSING_USAGE PENDING(D)"
+      - file: "test/offline/contracts/test_{events,audit,replay,evaluation_result,comparison,manifest,metrics_serialization}.py"
+        change: "immutability, sequence strictness, status↔reason, code/policy/manifest mismatch, ReplayState content, fail-closed, cross-run, quarantine; 95 fns/144 cases"
+      - file: "pyproject.toml"
+        change: "spec marker + default deselect 'not spec' (Option A quarantine)"
+      - file: "docs/approvals/spec-registry.md"
+        change: "quarantine Option A, CI files D must land, bundle hash"
+      - file: "docs/approvals/test-hash-FR-05-contracts.txt"
+        change: "aggregate + spec_bundle_sha256; content-commit binding"
+    human_intervention:
+      - category: "human instruction / supervision"
+        action: "Delivered D's 14-item final review + B confirmations; required exact audit signatures, ReplayState, typed compare_runs, immutability, quarantine Option A, no getattr/xfail/skip."
+        reason: "Freeze the spec to D's definition before approval."
+        requirement_ids: [FR-05, NFR-08, GATE-01]
+    verification_output:
+      - cmd: "pytest -m spec test/offline/contracts (spec branch, no src)"
+        env: "egta"
+        result: "7 collection errors (ModuleNotFoundError: egta) — RED by design"
+      - cmd: "pytest (default, testpaths=tests)"
+        env: "egta"
+        result: "1412 passed, 1 skipped — green; never touches spec"
+      - cmd: "py_compile test/offline/contracts/*.py"
+        env: "egta"
+        result: "exit 0; AST = 95 functions"
+      - cmd: "ruff check ."
+        env: "egta"
+        result: "All checks passed!"
+      - cmd: "PYTHONPATH=/tmp/specimpl/src pytest -m spec test/offline/contracts"
+        env: "egta"
+        result: "144 passed — proves red is due to unimplemented contracts"
+    cost: "unknown"
+    session_path: "unknown"
+    session_path_note: "Coding-agent transcript not yet exported here; 'unknown' (not fabricated). To be replaced with the real exported path before G3 freeze per D5."
+
+  - session_id: "E-2026-11-21-spec-FR05-converge"
+    student: "E / jianmin2004"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-21T12:55:00+08:00"   # convergence round (this session)
+    task_requirement_ids: [FR-05, NFR-08, NFR-09, GATE-01, GATE-06]
+    writable_path: ["test/offline/contracts/", "docs/", "pyproject.toml"]
+    generated_files:
+      - file: "test/offline/contracts/{test_comparison,test_manifest,test_evaluation_result}.py"
+        change: "RunSummary typed contract pos/neg; compute_manifest_hash normalization tests; manifest frozen; HOLD not CompletionStatus; MISSING_USAGE; variant propagation. Total 111 fns / 188 cases."
+      - file: "docs/req/contracts-summary.md, docs/req/trace-FR-05-contracts.md, docs/approvals/spec-registry.md"
+        change: "RunSummary def, HOLD semantics, hybrid read API, exact-188 gate, no PENDING; per-test trace"
+      - file: "docs/approvals/test-hash-FR-05-contracts.txt"
+        change: "3 hashes (content-commit/aggregate/bundle) recomputed"
+    human_intervention:
+      - category: "human instruction / supervision"
+        action: "D convergence (10 items): exact-188 gate not >=90, getattr/xfail/skip/testpaths-miss disabled, resolve all PENDING, hybrid read API kept, hash/PR consistency."
+        reason: "Final freeze to D acceptance criteria."
+        requirement_ids: [FR-05, NFR-08, GATE-01]
+    verification_output:
+      - cmd: "pytest -m spec test/offline/contracts (spec branch, no src)"
+        env: "egta"
+        result: "7 collection errors (ModuleNotFoundError: egta), exit 2 — RED"
+      - cmd: "pytest -q (default, testpaths=tests)"
+        env: "egta"
+        result: "1412 passed, 1 skipped, 1 deselected, exit 0"
+      - cmd: "py_compile test/offline/contracts/*.py"
+        env: "egta"
+        result: "exit 0; AST = 111 functions"
+      - cmd: "ruff check ."
+        env: "egta"
+        result: "All checks passed! (exit 0)"
+      - cmd: "PYTHONPATH=/tmp/specimpl/src pytest -m spec test/offline/contracts"
+        env: "egta"
+        result: "188 passed, exit 0 (/tmp impl is verification-only, NOT a repo implementation)"
+    cost: "unknown"
+    session_path: "unknown"
+    session_path_note: "Coding-agent transcript not yet exported here; 'unknown' (not fabricated). The G3 step previously provides the exported transcript; this field is updated then."

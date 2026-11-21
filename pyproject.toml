@@ -57,11 +57,18 @@ tradingagents = ["assets/*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers -m \"not integration\""
+# Quarantine (D item 8, Option A): the default run excludes integration AND the
+# test-first `spec` marker, so the RED spec does NOT break the default suite and
+# we do NOT rely on testpaths omission to hide it. The implementation/main branch
+# enables it explicitly with: `pytest -m spec test/offline/contracts` (required
+# in CI); the spec branch runs `pytest tests -m "not integration"` + py_compile/
+# AST/hash. `-m "spec"` selects only spec tests.
+addopts = "-ra --strict-markers -m \"not integration and not spec\""
 markers = [
     "unit: fast isolated unit tests",
     "integration: tests requiring external services; run only when asked for, with -m integration",
     "smoke: quick sanity-check tests",
+    "spec: test-first spec for FR-05 contracts; expected RED until the implementation lands (not a gate on the spec branch)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
@@ -87,3 +94,8 @@ ignore = ["E501"]
 # Keep multiple aliased names from one module in a single combined import block
 # (e.g. the vendor imports in router.py) instead of one statement per name.
 combine-as-imports = true
+# Treat the EGTA application (``src/egta``) as first-party so import sorting is
+# identical whether or not ``src/`` is installed/present. On test/spec branches
+# that carry only tests (no ``src/``), isort would otherwise classify
+# ``egta.contracts`` as third-party and fail I001 against the repo's own order.
+known-first-party = ["egta"]
