@@ -1,0 +1,57 @@
+# AI-use log — Member A fragment
+#
+# A-owned fragment prepared for later assembly into the team's docs/ai-use-log.yaml
+# (owned by E). Records only facts observed in these sessions. It is NOT a test
+# approval record and does NOT claim that any test, ADR, PR or implementation was
+# approved or hash-bound.
+
+schema_version: "1.0"
+project: EGTA-CS5351-Group20
+role: A
+github_login: yuxiangdu39
+date: 2026-11-21
+fragment_for: docs/ai-use-log.yaml
+
+sessions:
+  - session_id: "ses_e0251da54ffezXPgY1zbMflx8Y"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode 1.18.34 / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    time:
+      - "2026-11-21T18:36:50+08:00"   # session start; branch docs/req-registry verified at 2fb28136
+      - "2026-11-21T18:38:03+08:00"   # requirements.yaml and this fragment written
+      - "2026-11-21T18:38:15+08:00"   # single docs commit created
+    abandoned_sessions:
+      - session_id: "ses_e02536b24ffeLMdYIGwmYANJCx"
+        time: "2026-11-21T18:35:08+08:00 to 2026-11-21T18:35:17+08:00"
+        note: "opened and closed within nine seconds; no patch part, so no file was modified. Recorded here so the session list for this repository is complete."
+    task_requirement_ids:
+      - D1
+      - NFR-10
+      - GATE-03
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the single docs commit on docs/req-registry; see `git log -1` on that branch"
+        note: "38 entries (FR-01..05, NFR-01..10, INV-01..07, GOV-01..09, GATE-01..06, SUB-01); FR-01/INV-02/NFR-10 confirmed_by_owner, 29 draft_from_plan, 6 pending_owner_supply"
+      - file: "docs/ai-use-log-A-fragment.yaml"
+        commit: "same commit as above"
+        note: "this fragment"
+    human_intervention:
+      - type: provenance correction
+        when: "2026-11-21T18:48+08:00"
+        who: "assistant (Doubao Work), on the user's instruction"
+        what: "corrected this fragment's own metadata only: agent_tool_model to the value recorded in opencode.db, generated_files.commit (previously 'uncommitted in this log snapshot'), session_id (previously a self-made label 'A-2026-11-21-D1-registry'), session_path, and added the abandoned-session record. The content of docs/req/requirements.yaml was not changed."
+    verification_output:
+      - command: "acceptance checker run on branch docs/req-registry"
+        result: "all hard checks passed: 1 commit, 2 files, 38 entries, unique ids, every Must has verification and owner, plan numeric values present, no change to test/ src/ pyproject.toml/ docs/ai-use-log.yaml, origin/test/FR-01-evidence still 19da73a42c6d, no push"
+        evidence: "checker output"
+    implementation_status: "D1 skeleton only; 29 entries await owner confirmation, 6 await owner supply"
+    cost: "unknown"
+    session_path: "not exported; opencode session id above (docs-only PR, no export claimed)"
+    notes:
+      - "Docs only: no test, script, fixture, src/, pyproject.toml or CI change."
+      - "Read but did not modify test/FR-01-evidence; no checkout, rebase or push of it."
+      - "No approval or hash binding is claimed for any entry; the FR-01 evidence branch is not approved."
+      - "No push and no PR were performed in this session."
