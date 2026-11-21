@@ -1,5 +1,7 @@
 # Test Plan (Member C)
 
+> Remediation update 2026-11-21: current developer regression results and remaining F8/F9 acceptance limitations are recorded in `docs/reviews/remediation-2026-11-21.md`. Historical counts and claims below must not be treated as acceptance of the modified revision without independent review.
+
 Status: **living document.** Approved in principle by the human reviewer for this
 verification step. Records the independent offline acceptance tests that exist, how
 they are run, and what remains undone. It does **not** claim the semantic-evaluation

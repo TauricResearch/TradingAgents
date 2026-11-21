@@ -1,5 +1,7 @@
 # Verification Report (Member C)
 
+> Current acceptance status: historical GOV-004 PASS claims below are not independently auditable in this checkout and remain PENDING. The November 18 integration review supersedes unconditional acceptance claims. See `docs/verification/gov004-evidence-package.md` for corrected evidence requirements; fresh developer diagnostics do not constitute independent formal acceptance. Current regression results and limitations: `docs/reviews/remediation-2026-11-21.md`.
+
 Status: **current as of this verification step.** Records actual outcomes only.
 Nothing here is a claim beyond what the offline suite demonstrates; the semantic
 gate and CI governance gates are **not** verified (see §5).

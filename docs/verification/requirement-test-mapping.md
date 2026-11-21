@@ -1,5 +1,7 @@
 # Requirement → Test Mapping (for Member E)
 
+> Remediation update 2026-11-21: current developer regression results and remaining F8/F9 acceptance limitations are recorded in `docs/reviews/remediation-2026-11-21.md`. Historical counts and claims below must not be treated as acceptance of the modified revision without independent review.
+
 Status: C's current verification roll-up for E's shared `docs/architecture/trace-matrix.md`.
 Test IDs and evidence are C-owned and real; **implementation links are D's** and
 left as the existing `runapi/*` module references. Governance rows are marked by

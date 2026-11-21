@@ -1,5 +1,7 @@
 # Verification Constraints (Member C)
 
+> Current acceptance status: historical GOV-004 PASS claims below are not independently auditable in this checkout and remain PENDING. The November 18 integration review supersedes unconditional acceptance claims. See `docs/verification/gov004-evidence-package.md` for corrected evidence requirements; fresh developer diagnostics do not constitute independent formal acceptance. Current regression results and limitations: `docs/reviews/remediation-2026-11-21.md`.
+
 Status: **living document.** Records the verification constraints C owns and the
 exact checks, commands, criteria and evidence that must hold before changes are
 accepted. GOV-004 (semantic evaluation) is **PASS** under the confirmed scoring
