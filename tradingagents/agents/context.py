@@ -1,8 +1,11 @@
 """Prompt context shared by the agents: instrument identity, output language and portfolio."""
 
 import functools
+import json
 import logging
+import re
 from collections.abc import Mapping
+from math import ceil
 from typing import Any
 
 from tradingagents.dataflows.date_window import is_historical
@@ -212,7 +215,127 @@ def get_portfolio_context_from_state(state: Mapping[str, Any]) -> str:
     if isinstance(context, str) and context.strip():
         return context
     return (
+        "Holdings and cash were not provided; no account ownership is assumed.\n"
         "Portfolio context: not provided. You do not know the caller's current "
-        "holdings or cash, so do not assume a flat book; give direction and "
+        "holdings or cash. Do not imply that the caller owns, must trim, retain or exit a position. "
+        "Do not assume a flat book; give only explicitly conditional direction and "
         "sizing guidance in terms the caller can apply to their own position."
     )
+
+# Application-level context guard. Estimates are deliberately provider-neutral;
+# they bound assembled characters/4 and are not billing or aggregate run budgets.
+class ContextBudgetError(RuntimeError):
+    """Protected context cannot fit within the application estimate cap."""
+
+
+def estimate_context_tokens(text: str) -> int:
+    return ceil(len(text) / 4)
+
+
+def _message_role(message) -> str:
+    if isinstance(message, Mapping):
+        return str(message.get("role", "user")).casefold()
+    return str(getattr(message, "type", "user")).casefold()
+
+
+def _message_content(message):
+    if isinstance(message, Mapping):
+        return message.get("content")
+    return getattr(message, "content", None)
+
+
+def _with_message_content(message, content):
+    if isinstance(message, Mapping):
+        return {**message, "content": content}
+    if hasattr(message, "model_copy"):
+        return message.model_copy(update={"content": content})
+    return message.copy(update={"content": content}) if hasattr(message, "copy") else message
+
+
+def _trim_narrative(text: str, budget: int) -> str:
+    if len(text) <= budget:
+        return text
+    marker = "\n[… older context compacted …]\n"
+    if budget <= len(marker):
+        return text[-budget:] if budget > 0 else ""
+    return marker + text[-(budget - len(marker)):]
+
+
+def protect_context(text: str) -> str:
+    """Mark trusted instructions that compaction must preserve verbatim."""
+    return "<protected_context>\n" + text + "\n</protected_context>"
+
+
+def _protected_ranges(text: str):
+    spans = [(m.start(), m.end()) for m in re.finditer(
+        r"<protected_context>.*?</protected_context>", text, re.DOTALL)]
+    edge = min(512, len(text) // 3)
+    spans += [(0, edge), (len(text) - edge, len(text))]
+    merged = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def _compact_text(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    ranges = _protected_ranges(text)
+    protected = sum(end - start for start, end in ranges)
+    if protected > limit:
+        raise ContextBudgetError("Protected task context exceeds the configured context cap.")
+    remaining = limit - protected
+    narrative = len(text) - protected
+    parts, cursor = [], 0
+    for start, end in ranges + [(len(text), len(text))]:
+        fragment = text[cursor:start]
+        share = remaining * len(fragment) // narrative if narrative else 0
+        parts.extend((_trim_narrative(fragment, share), text[start:end]))
+        cursor = end
+    return "".join(parts)
+
+
+def bound_agent_prompt(prompt, context_cap_tokens: int | None = None,
+                       compaction_threshold_tokens: int | None = None):
+    """Bound fully assembled input using the current run config, preserving trusted blocks.
+
+    This is a character based estimate, not a provider tokenizer or total run budget.
+    Explicit arguments remain supported for callers and tests.
+    """
+    from tradingagents.dataflows.config import get_config
+    config = get_config()
+    cap_tokens = int(config.get("context_cap_tokens", 24000) if context_cap_tokens is None else context_cap_tokens)
+    threshold = int(config.get("compaction_threshold_tokens", 19200) if compaction_threshold_tokens is None else compaction_threshold_tokens)
+    if cap_tokens <= 0 or threshold <= 0:
+        raise ContextBudgetError("Context budget values must be positive.")
+    cap = cap_tokens * 4
+    target = min(threshold * 4, cap)
+    if isinstance(prompt, str):
+        protected = sum(b-a for a,b in _protected_ranges(prompt))
+        return _compact_text(prompt, min(cap, max(target, protected)))
+    if not isinstance(prompt, (list, tuple)):
+        return prompt
+    messages = list(prompt)
+    originals = [_message_content(m) for m in messages]
+    # Preserve provider content blocks unchanged, charging their serialized size.
+    # Dropping or flattening an image/tool block would change message semantics.
+    contents = [c if isinstance(c, str) else json.dumps(c, ensure_ascii=False)
+                for c in originals]
+    if sum(map(len, contents)) <= target:
+        return prompt
+    minima = [len(c) if _message_role(m) in {"system", "developer"} or not isinstance(original, str)
+              else sum(b-a for a,b in _protected_ranges(c))
+              for m,c,original in zip(messages, contents, originals, strict=True)]
+    protected = sum(minima)
+    if protected > cap:
+        raise ContextBudgetError("Protected task context exceeds the configured context cap.")
+    budget = max(target, protected) - protected
+    narrative = sum(len(c)-minimum for c,minimum in zip(contents,minima, strict=True))
+    for i,(message,content,minimum) in enumerate(zip(messages,contents,minima, strict=True)):
+        share = budget * (len(content)-minimum) // narrative if narrative else 0
+        if isinstance(originals[i], str):
+            messages[i] = _with_message_content(message, _compact_text(content, minimum + share))
+    return tuple(messages) if isinstance(prompt, tuple) else messages

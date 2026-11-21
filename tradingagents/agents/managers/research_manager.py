@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.context import (
+    get_instrument_context_from_state,
+    get_language_instruction,
+    protect_context,
+)
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
@@ -15,7 +19,10 @@ def create_research_manager(llm):
     structured_llm = bind_structured(llm, ResearchPlan, "Research Manager")
 
     def research_manager_node(state) -> dict:
-        instrument_context = get_instrument_context_from_state(state)
+        instrument_context = protect_context(get_instrument_context_from_state(state))
+        has_portfolio = bool((state.get("portfolio_context") or "").strip())
+        hold_meaning = ("maintain only an explicitly supplied nonzero target position; if flat, remain flat" if has_portfolio else
+                        "the evidence supports no new directional action; do not interpret Hold as maintaining an assumed position")
         history = state["investment_debate_state"].get("history", "")
 
         investment_debate_state = state["investment_debate_state"]
@@ -29,8 +36,8 @@ def create_research_manager(llm):
 **Rating Scale** (use exactly one):
 - **Buy**: Strong conviction in the bull thesis; recommend taking or growing the position
 - **Overweight**: Constructive view; recommend gradually increasing exposure
-- **Hold**: Balanced view; recommend maintaining the current position
-- **Underweight**: Cautious view; recommend trimming exposure
+- **Hold**: Balanced view; {hold_meaning}
+- **Underweight**: Cautious view; trim only an explicitly supplied existing long position, otherwise avoid entry
 - **Sell**: Strong conviction in the bear thesis; recommend exiting or avoiding the position
 
 The debate always contains conflicting arguments; deciding which side is stronger is the job, so conflict alone is not a reason to Hold. Commit to the side with the stronger case, sized by how decisively it wins. Choose Hold only when the evidence is still balanced after that weighing, or too thin to support a call; do not manufacture a direction to appear decisive. Weigh the bull and bear cases on their merits, independent of which side spoke first or last.

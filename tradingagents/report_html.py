@@ -245,20 +245,40 @@ def _run_details(final_state: dict, settings: dict | None) -> list[tuple[str, st
     return details
 
 
-def render_report(ticker: str, final_state: dict, settings: dict | None, parts) -> str:
-    """The report page: title and rating, what produced the run, contents, sections."""
+def render_report(ticker: str, final_state: dict, settings: dict | None, parts, *,
+                  body_markdown: str | None = None, run_metadata: dict | None = None) -> str:
+    """Render a report with escaped trusted run metadata and a checked body."""
     md = _markdown()
     rating = run_rating(final_state) if final_state.get("final_trade_decision") else ""
+    if run_metadata is not None:
+        rating = run_metadata.get("final_rating") or ""
     tone = _TONE.get(rating, "review")
-    date = final_state.get("trade_date", "")
+    date = final_state.get("trade_date", "") or (run_metadata or {}).get("analysis_date", "")
 
     title = f'<span class="ticker">{escape(ticker)}</span>'
     if rating:
         title += f' <span class="rating {tone}">{escape(rating)}</span>'
+    run_details = _run_details(final_state, settings)
+    if run_metadata:
+        for key, label in (
+            ("run_id", "Run ID"), ("input_mode", "Input mode"),
+            ("basename", "Portfolio file"), ("fingerprint_sha256", "Portfolio fingerprint"),
+            ("portfolio_as_of", "Portfolio as-of"), ("as_of_basis", "As-of basis"),
+            ("run_outcome", "Run outcome"), ("stop_reason", "Stop reason"),
+            ("output_check", "Output check"),
+        ):
+            value = run_metadata.get(key)
+            if value is not None:
+                run_details.append((label, escape(str(value))))
+        if run_metadata.get("findings"):
+            finding_text = "; ".join(
+                f"{item.get('rule')}: {item.get('detail')}" for item in run_metadata["findings"]
+            )
+            run_details.append(("Findings", escape(finding_text)))
     details = "".join(
         f'<div class="{"note" if label == "Memory log" else "detail"}">'
         f"<dt>{escape(label)}</dt><dd>{value}</dd></div>"
-        for label, value in _run_details(final_state, settings)
+        for label, value in run_details
     )
 
     contents, body = [], []
@@ -274,6 +294,11 @@ def render_report(ticker: str, final_state: dict, settings: dict | None, parts) 
         for m, (agent, _filename, text) in enumerate(written, 1):
             body.append(f'<h3 id="s{n}-{m}">{escape(agent)}</h3>\n{_render_agent_text(md, text)}')
         body.append("</section>")
+
+    if body_markdown is not None:
+        body = [f'<section id="s1"><h2>Analysis</h2>\n{_render_agent_text(md, body_markdown)}</section>']
+        contents = ['<li><a href="#s1"><span class="num">1</span> '
+                    '<span class="label">Analysis</span></a></li>']
 
     page_title = " ".join(x for x in (ticker, date, rating) if x)
     return f"""<!doctype html>

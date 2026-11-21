@@ -270,6 +270,8 @@ class TradingAgentsGraph:
             "max_debate_rounds": cfg.get("max_debate_rounds"),
             "max_risk_discuss_rounds": cfg.get("max_risk_discuss_rounds"),
             "output_language": cfg.get("output_language"),
+            "context_cap_tokens": cfg.get("context_cap_tokens", 24000),
+            "compaction_threshold_tokens": cfg.get("compaction_threshold_tokens", 19200),
             "data_vendors": dict(cfg.get("data_vendors") or {}),
             "tool_vendors": dict(cfg.get("tool_vendors") or {}),
         }
@@ -370,8 +372,21 @@ class TradingAgentsGraph:
             rating=run_rating(final_state),
         )
 
+    def run_transient(self, company_name, trade_date, asset_type: str = "stock", portfolio=None):
+        """Execute through the graph without writing legacy date-keyed state artifacts.
+
+        The shared run API owns final persistence; this method preserves the raw
+        propagate()/stream_run() compatibility path and checkpoint lifecycle.
+        """
+        trade_date = _validate_trade_date(trade_date)
+        with run_config(self.config), self.checkpoint_scope(company_name, trade_date,
+                                                            asset_type, portfolio) as thread_id_value:
+            return self._run_graph(company_name, trade_date, asset_type=asset_type,
+                                   checkpoint_thread_id=thread_id_value,
+                                   portfolio=portfolio, persist=False)
+
     def _run_graph(self, company_name, trade_date, asset_type: str = "stock",
-                   checkpoint_thread_id: str | None = None, portfolio=None):
+                   checkpoint_thread_id: str | None = None, portfolio=None, persist: bool = True):
         """Execute the graph and write the resulting state to disk and memory log."""
         init_agent_state = self.create_run_state(company_name, trade_date, asset_type, portfolio)
         args = self.propagator.get_graph_args()
@@ -397,10 +412,13 @@ class TradingAgentsGraph:
         else:
             final_state = self.graph.invoke(graph_input, **args)
 
-        self.record_decision(company_name, trade_date, final_state)
+        if persist:
+            self.record_decision(company_name, trade_date, final_state)
 
-        # Clear checkpoint on successful completion to avoid stale state.
-        self.clear_checkpoint_on_success(company_name, trade_date, asset_type, portfolio)
+        # The shared run boundary owns checkpoint cleanup after the report and
+        # manifest have been committed. Keep a checkpoint if publication fails.
+        if persist:
+            self.clear_checkpoint_on_success(company_name, trade_date, asset_type, portfolio)
 
         return final_state, run_rating(final_state)
 

@@ -123,6 +123,8 @@ def build_default_config() -> dict:
         # unbounded reasoning/output and hangs or trips a gateway idle timeout
         # (e.g. some deepseek-v4-flash deployments, #1204).
         "max_tokens": None,
+        "context_cap_tokens": 24000,
+        "compaction_threshold_tokens": 19200,
         # Checkpoint/resume: when True, LangGraph saves state after each node
         # so a crashed run can resume from the last successful step.
         "checkpoint_enabled": False,

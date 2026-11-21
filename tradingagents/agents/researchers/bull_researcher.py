@@ -1,7 +1,9 @@
 from tradingagents.agents.context import (
+    bound_agent_prompt,
     get_instrument_context_from_state,
     get_language_instruction,
     opponent_argument_or_opening,
+    protect_context,
     report_or_absent,
 )
 
@@ -19,7 +21,7 @@ def create_bull_researcher(llm):
         sentiment_report = report_or_absent(state["sentiment_report"], "sentiment")
         news_report = report_or_absent(state["news_report"], "news")
         fundamentals_report = report_or_absent(state["fundamentals_report"], "fundamentals")
-        instrument_context = get_instrument_context_from_state(state)
+        instrument_context = protect_context(get_instrument_context_from_state(state))
         asset_type = state.get("asset_type", "stock")
         target_label = "stock" if asset_type == "stock" else "asset"
         fundamentals_label = (
@@ -48,7 +50,7 @@ Last bear argument: {current_response}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
 """ + get_language_instruction()
 
-        response = llm.invoke(prompt)
+        response = llm.invoke(bound_agent_prompt(prompt))
 
         argument = f"Bull Analyst: {response.content}"
 

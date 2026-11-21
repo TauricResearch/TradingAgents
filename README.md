@@ -63,6 +63,29 @@ After so many requests from the community, Trading-R1 has officially launched!
 >
 > So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
 
+
+## CS5351 project architecture additions (2026-11-15)
+
+This repository extends the upstream TradingAgents workflow with a shared, auditable run boundary. The original TradingAgents overview and usage material below is retained; the original README before this project-specific update is archived at [`history/README-2026-11-15-original.md`](history/README-2026-11-15-original.md).
+
+### What changed in this project
+
+- The CLI now routes supported single-analysis runs through `tradingagents.runapi.execution.run_analysis_api`, which coordinates engine execution, output checks, outcome finalization, and artifact publication.
+- Portfolio input supports explicit selection or an explicit no-portfolio choice. The input service validates and freezes a run snapshot; consent and as-of metadata are handled before execution. For unattended CLI runs, provide either `--portfolio PATH` or `--without-portfolio`; `--portfolio-as-of YYYY-MM-DD` accompanies a portfolio file when required by the CLI.
+- Each run is isolated by run ID under the configured results directory (by default `~/.tradingagents/logs/<TICKER>/<RUN_ID>/`). It can contain `reports/complete_report.md`, an optional HTML report, `manifest.json`, and `events.jsonl`; legacy-compatible state and message logs may also be present.
+- Run results distinguish `COMPLETED` from `INCOMPLETE` and carry a stop reason when execution cannot produce a valid final result. Deterministic output checks, redaction, and staged publication are implemented in `tradingagents/runapi/`.
+- Agent context and report rendering were extended to carry the selected portfolio mode and safe provenance information through the analysis and report.
+
+### Useful project documents
+
+- [Selected requirements](docs/req/selected-requirements.md)
+- [Architecture blueprint](architecture-blueprint.md)
+- [Interface contracts](docs/architecture/interface-contracts.md)
+- [Architecture decision record](docs/architecture/adr/001-portfolio-aware-cli.md)
+- [Invariants and verification criteria](docs/architecture/invariants.md)
+
+These documents include proposed or draft decisions as well as implementation contracts. Check their status labels before treating a design item as approved or verified. The upstream low-level Python example later in this README calls `TradingAgentsGraph` directly; integrations that need the new run checks and audit artifacts should use the shared run API described in the interface contracts.
+
 ## TradingAgents Framework
 
 TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
