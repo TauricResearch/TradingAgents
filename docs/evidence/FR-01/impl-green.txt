@@ -1,0 +1,29 @@
+# Implementation green evidence — INV-02 time policy
+content_commit: 484a43d7701f8f85a6ee671ad73b61f629650bb4
+captured_at: 2026-11-21T21:30:17+08:00
+branch: impl/INV-02-time-policy
+python: Python 3.12.16
+worktree_dirty_src_test: 0 (0 = clean)
+
+$ python -m pytest test/offline/evidence -q --no-header -p no:cacheprovider
+.............                                                            [100%]
+13 passed in 0.03s
+
+$ python -m pytest tests -m "not integration" -q
+SKIPPED [1] tests/test_bedrock_provider.py:74: could not import 'langchain_aws': No module named 'langchain_aws'
+1412 passed, 1 skipped, 1 deselected, 24 warnings, 100 subtests passed in 17.04s
+
+$ python -m ruff check .
+All checks passed!
+
+$ python -m py_compile src/egta/evidence/*.py
+exit_code=0
+
+$ grep clock guards
+(none)
+
+$ grep contract-import guards
+(none)
+
+$ find src -name __init__.py
+src/egta/evidence/__init__.py

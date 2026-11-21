@@ -106,3 +106,14 @@ Consequences recorded here:
   merges; this PR adds no `src/egta` code;
 - if that PR renames or redefines a reason code, the affected tests must be
   re-approved before they are treated as binding.
+
+## Implementation (INV-02) — status
+
+- Branch / PR: `impl/INV-02-time-policy`
+- Implementation content commit: `484a43d7701f`
+- Files: `src/egta/evidence/__init__.py` (empty), `src/egta/evidence/time_policy.py`
+- Evidence: `docs/evidence/FR-01/impl-green.txt` (bound to the implementation content commit)
+- Tests: 13/13 green in `test/offline/evidence`; no test or fixture byte changed
+- Regression: `pytest tests -m "not integration"` -> 1412 passed, 1 skipped, 1 deselected
+- Guards: no clock access, no `egta.contracts` import, no `src/egta/__init__.py`
+- Scope: time policy only; `EvidenceItem` / `EvidencePack` / `RunSpec` untouched
