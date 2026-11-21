@@ -26,6 +26,7 @@ from egta.contracts.audit import (
     DuplicateConflict,
     PayloadMismatch,
     Receipt,
+    SequenceConflict,
     recompute_payload_hash,
     verify_chain,
 )
@@ -65,8 +66,15 @@ def test_audit_public_protocols_importable():
 
 
 def test_exceptions_share_base():
-    for cls in (ChainBroken, DuplicateConflict, PayloadMismatch, AuditUnavailable):
+    for cls in (ChainBroken, DuplicateConflict, PayloadMismatch, AuditUnavailable,
+                SequenceConflict):
         assert issubclass(cls, AuditContractError)
+
+
+def test_sequenceconflict_signature():
+    exc = SequenceConflict("r1", 0, "e0", "e1")
+    assert (exc.run_id, exc.sequence, exc.existing_event_id, exc.incoming_event_id) == (
+        "r1", 0, "e0", "e1")
 
 
 def test_chainbroken_signature():

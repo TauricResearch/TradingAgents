@@ -1,40 +1,29 @@
 PR/task: FR-05 contracts (test-first spec, test/spec ONLY — no implementation)
-branch:   spec/FR-05-contracts
+branch:   spec/E2-evaluation (official contract-change per D ruling)
 base:     main
 
-# --- Approval binding (D item 13) -------------------------------------------
-# Authoritative reviewed head = GitHub review commit_id (NOT stored here).
-# Merge commit recorded in external registry (docs/approvals/spec-registry.md) /
-# CI artifact / PR comment.
-# This file records ONLY: test_content_commit + aggregate_sha256 +
-# spec_bundle_sha256. Any change to tests/summary/trace/registry updates the
-# bundle hash and triggers re-review.
-# After approval, do NOT push this file (stale-approval trap).
+# Approval binding: authoritative reviewed head = GitHub review commit_id (not
+# stored). Merge commit in external registry/CI/PR comment. This file records
+# ONLY test_content_commit + aggregate + bundle. Do not push after approval.
 
-test_content_commit: 2591fd9419f5229adbce33afa013e5fb0145455a
+test_content_commit: 6f46aea71eb76d1104c0add3d1e129accebf955b
+actual_cases: 199            # pytest -m spec test/offline/contracts --collect-only
 
 files (per-file SHA-256):
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  test/offline/contracts/__init__.py
   dba3966fc3f0c3e5c73980cabefcba0282f75f25f295bdc3e791a2d4e40af6e8  test/offline/contracts/conftest.py
-  6f436a90fe2c3e7448191defdc98a041463f20edc49e28d478512bef62ee384c  test/offline/contracts/test_audit.py
-  1479cdabc429b6af226ddc60782c5d04ce43b7910a326bad219493c6bd929630  test/offline/contracts/test_comparison.py
-  ded1ce2fd36a19e41778b6d9266eba112caa4f04c55f4f77731b68ba50384d75  test/offline/contracts/test_evaluation_result.py
+  527aff88800869b8b91307e405690990336edab128f4678afcf0112d12703dd6  test/offline/contracts/test_audit.py
+  f797b813a8a26e1d5d39eda4f7b724e676b213c684cef5d587b0a1c8ec2f4b83  test/offline/contracts/test_comparison.py
+  0cdd47611fbc87ccc53737d51e85bf1df3347cf279fb892acbb5b5dc534bb287  test/offline/contracts/test_evaluation_result.py
   fbe799211ea6fae0cdd52f9f597baccae401400e8963415a92c9b9b747db65c1  test/offline/contracts/test_events.py
   5f21946a70bf91bc3aa4acd67630ba44cadc8a65c3619de83fb2b3b5a8dbec8d  test/offline/contracts/test_manifest.py
   799bedaf99dc518b393f3ce5099b046a722c5338cfd3204924857e5eb2276829  test/offline/contracts/test_metrics_serialization.py
-  c3d7b6bfbd66518388c105131dc34d7b45ce40ae4fe495b029360724282c1499  test/offline/contracts/test_replay.py
+  313793e9dcebfb210b57337385a0e36d8a54628d3ec4cd76e934559e56835ff4  test/offline/contracts/test_replay.py
 
-aggregate_sha256 (sha256sum of per-file lines, sorted by path):
-  cceac2889014b48e87a3d35f274ad72ba25707714114aad7fd70f37fa9cfe876
+aggregate_sha256 (tests, sorted by path):
+  9a322563fe813b342d855bdf7d0ab5e6aef5991752220649611c750363be6ccf
 
-spec_bundle_sha256 (tests + docs/req/contracts-summary.md +
-docs/req/trace-FR-05-contracts.md + docs/approvals/spec-registry.md, sorted):
-  7bc68cc836f47459ceb8109f90e6911fc5e22a1ee311107615a1aaa102a5afd7
+spec_bundle_sha256 (tests + contracts-summary.md + trace-FR-05-contracts.md + spec-registry.md, sorted):
+  dc8c7a9e87a55591d9b5168fa8bade3565d6c9c25d71ee69327609097856ea7e
 
 approved_by: D (@ZFebron491001) — PENDING (GitHub review commit_id authoritative)
-
-Notes:
-- 7 files, 95 test functions, 144 cases.
-- Tests RED on this branch by design (no src/). Some manifest/compare tests are
-  RED-dep until the implementation lands.
-- If any covered file changes after approval, both hashes change -> re-review.

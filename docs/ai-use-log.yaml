@@ -225,3 +225,45 @@ sessions:
     cost: "unknown"
     session_path: "unknown"
     session_path_note: "Coding-agent transcript not yet exported here; 'unknown' (not fabricated). The G3 step previously provides the exported transcript; this field is updated then."
+
+  - session_id: "E-2026-11-21-spec-E2-evaluation"
+    student: "E / jianmin2004"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-21T17:55:00+08:00"
+    task_requirement_ids: [FR-05, NFR-08, NFR-09, GATE-01, GATE-06]
+    context:
+      pr: 8
+      branch: spec/E2-evaluation
+      relates_to: ["PR #6 contracts (f1bfb9a, unmerged)"]
+    writable_path: ["test/offline/contracts/", "test/offline/evaluation/", "docs/"]
+    generated_files:
+      - file: "test/offline/contracts/{test_comparison,test_audit,test_evaluation_result,test_replay}.py"
+        change: "compare_runs(manifest=...) direct + manifest-before-metric order; SequenceConflict; MISSING_METRIC; verify_chain([],anchor) moved to contracts"
+      - file: "test/offline/evaluation/{test_report,test_metrics,test_sqlite_sink}.py"
+        change: "pair_report delegation; MISSING_METRIC; typed rubric via aggregate; SequenceConflict + real mid-process rollback; protocol isinstance/inspect"
+      - file: "docs/req/{contracts-summary,trace-FR-05-contracts,trace-E2-evaluation}.md, docs/approvals/{spec-registry-E2,test-hash-FR-05-contracts,test-hash-E2-evaluation}"
+        change: "contract changes + exact-N gate + hashes"
+    human_intervention:
+      - category: "human instruction / D ruling"
+        action: "Applied D's 5 rulings: contract-change in spec PR #8; B1(1) compare_runs authoritative; D#4 only deferred winner aggregation; UNIQUE->SequenceConflict; exact-N counts; GATE-06 log."
+        reason: "Ratify D's contract-change scope; strict test-first (no src)."
+        requirement_ids: [FR-05, GATE-01]
+    verification_output:
+      - cmd: "pytest -m spec test/offline/contracts --collect-only"
+        env: "egta (+/tmp throwaway impl, verification only)"
+        result: "197 collected; 197 passed vs throwaway impl"
+      - cmd: "pytest -m spec test/offline/evaluation --collect-only"
+        env: "egta (+/tmp)"
+        result: "30 collected; 30 passed vs throwaway impl"
+      - cmd: "ruff check test/offline/contracts test/offline/evaluation"
+        env: "egta"
+        result: "All checks passed!"
+    ci_debt:
+      note: "exact-N CI gate not yet implemented (no workflows on fork)."
+      owner: E
+      due: "2026-11-22T18:00+08:00"
+      verifier: D
+    cost: "unknown"
+    session_path: "unknown"
+    session_path_note: "Coding-agent transcript not exported; 'unknown' (not fabricated). Updated at G3."
