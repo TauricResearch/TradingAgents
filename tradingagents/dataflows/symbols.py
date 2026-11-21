@@ -36,6 +36,8 @@ _FOREX_CURRENCIES = frozenset(
         "USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD",
         "CNY", "CNH", "HKD", "SGD", "SEK", "NOK", "DKK", "PLN",
         "MXN", "ZAR", "TRY", "INR", "KRW", "BRL", "RUB", "THB",
+        # Gulf / MENA ISO-4217 currencies
+        "SAR", "AED", "QAR", "OMR", "KWD", "BHD", "EGP", "JOD",
     }
 )
 
@@ -65,6 +67,17 @@ _ALIASES = {
     "GER40": "^GDAXI", "GER30": "^GDAXI", "DE40": "^GDAXI",
     "UK100": "^FTSE", "JP225": "^N225", "JPN225": "^N225",
     "FRA40": "^FCHI", "EU50": "^STOXX50E", "HK50": "^HSI",
+    # Gulf / MENA & Borsa Istanbul Equities + Arabic Aliases
+    "ARAMCO": "2222.SR", "أرامكو": "2222.SR", "ارامكو": "2222.SR",
+    "ALRAJHI": "1120.SR", "الراجحي": "1120.SR",
+    "SABIC": "2010.SR", "سابك": "2010.SR",
+    "STC": "7010.SR", "اس تي سي": "7010.SR",
+    "QNB": "QNBK.QA", "بنك قطر الوطني": "QNBK.QA",
+    "OOREDOO": "ORDS.QA", "أوريدو": "ORDS.QA",
+    "OMANTEL": "OTEL.OM", "عمانتل": "OTEL.OM",
+    "BANKMUSCAT": "BKMB.OM", "بنك مسقط": "BKMB.OM",
+    "EMAAR": "EMAAR.AE", "إعمار": "EMAAR.AE",
+    "THYAO": "THYAO.IS", "ASELS": "ASELS.IS",
 }
 
 # HKEX codes as Yahoo spells them: the number zero-padded to 4 digits (#957).
@@ -175,6 +188,6 @@ def safe_ticker_component(value: str, *, max_len: int = 32) -> str:
     # The regex above allows '.', so values like '.', '..', '...' would pass,
     # and as a path component they traverse the parent directory. Reject any
     # value that's only dots.
-    if set(value) == {"."}:
-        raise ValueError(f"ticker cannot consist solely of dots: {value!r}")
+    if set(value) == {"."} or value.startswith(".") or ".." in value:
+        raise ValueError(f"ticker cannot start with a dot or contain '..': {value!r}")
     return value
