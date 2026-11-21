@@ -7,7 +7,7 @@ base:     main
 # 1) test-content commit  : the commit that last changed the test files' content
 # 2) reviewed PR head     : the exact head D reviews (final head before merge)
 # 3) merge commit         : created by GitHub when this PR merges (post-approval)
-test_content_commit:     a936cd6daee466680cc98861236f233abd0be282
+test_content_commit:     3380a741fb3829e6208273f37f60046ba15fb828
 reviewed_pr_head:        PENDING  # set to the final head D reviews
 merge_commit:            PENDING  # filled after merge (record-only; not pushed after approval)
 
@@ -18,8 +18,8 @@ merge_commit:            PENDING  # filled after merge (record-only; not pushed 
 # the approval is void.
 
 files (per-file SHA-256; tests + fixtures + generator):
-  5370ba434116934d865e0718cb55e1f09b0d3572734122e32ddfa03db2210516  scripts/gen_evidence_fixtures.py
-  d3e709f9078ad9247987317af5cd10223c030212d181f496627bc76f4a693b98  test/offline/evidence/README.md
+  578271345e26b02e04adc90d16f74d139e162cea2c29f0a9438f5093fb0d87a6  scripts/gen_evidence_fixtures.py
+  891a4cf0a1df58f6f8b529cc39da884b28756c6918e1f0c2aef2f4fb7ea40918  test/offline/evidence/README.md
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  test/offline/evidence/__init__.py
   780985d1dffa7690b64c490b9d8d3496385af97880eeb14e62bd671f9875ff50  test/offline/evidence/_target.py
   33bce2b99a852735b8493b4255ed921f371fd86cfed59c10b2e58a814cc00ab3  test/offline/evidence/conftest.py
@@ -29,7 +29,7 @@ files (per-file SHA-256; tests + fixtures + generator):
   382d4ed84309c44e9f1eb228522d239efa2fd366dd275a65d91109bfebce2a4d  test/offline/evidence/fixtures/E-04.json
   ee4f08441d6b8bbc2daba7a20e1f77eef019139300d3380a0a8ccbe7b8c0f0fd  test/offline/evidence/fixtures/E-05.json
   1d1eb6edd32e3479e8486b2b21d1ba2afd1377f3dda4de0ca34472199313aa6f  test/offline/evidence/fixtures/E-06.json
-  456394d34fb5a3bd47aa6db5b88c97dd74345e9ebff043d5e135d1a00e909b27  test/offline/evidence/fixtures/E-07.json
+  a18a3452bb3a1c86b8586168660dc7dd93ec28e443f432cc071677527d75b447  test/offline/evidence/fixtures/E-07.json
   3a6eba45ac269d866007e96bea70b7aecc45bab45713fb632b91f378c3241e21  test/offline/evidence/fixtures/E-08.json
   73f9895bd53a8789151e968c80f1086a74a5549005f6209e0ad10e725ea570df  test/offline/evidence/fixtures/E-09.json
   abc3000e89f5ffd19e63aabfa204722a1147517fcb7b80a81a7ac804ef2c7575  test/offline/evidence/fixtures/E-10.json
@@ -43,7 +43,7 @@ files (per-file SHA-256; tests + fixtures + generator):
   c35abf3d40f086c6ac4dcb9102caf17cc9e39793145a9f468d62c9603eecdaa5  test/offline/evidence/fixtures/E-18.json
   b66049e7b9cb9618cdba7efefc875e3fc181a0aa212ad0ad6f3f169604630076  test/offline/evidence/fixtures/E-19.json
   e00531cfe5fc4ee62d44b5b95a304f79fd57af91866b82662e08b39a002d0923  test/offline/evidence/fixtures/E-20.json
-  0f3a2e23548333ea3579378422a9b70513de3b952ca43c9be8458aa6ccaf95f2  test/offline/evidence/fixtures/E-21.json
+  38a12a6a505847326ebfc29008172b4255be5337bad85fe82cbbc0f2d5c665b6  test/offline/evidence/fixtures/E-21.json
   da5bbb3c8bb374ca4354897ea5abec8c322b897545fdf7cceff83e65c5e40162  test/offline/evidence/fixtures/E-22.json
   fff56cc05de308f308177d5d3626fa962c62e49ac8aec17e9460dcb614136c3c  test/offline/evidence/fixtures/E-23.json
   77e4e02049524359ab2d6ca47ffe3550e99f040a815cea243afacac1dadef435  test/offline/evidence/fixtures/E-24.json
@@ -57,7 +57,7 @@ files (per-file SHA-256; tests + fixtures + generator):
   b45512a615aa65f8407e0bc71836e077d6502925e83c31326445225ef37ef182  test/offline/evidence/test_time_policy.py
 
 aggregate_sha256 (sha256sum of the 37 per-file lines, sorted by path):
-  d3e7801dd6ef4849109ac2ae2775e3f39d47e65094cdfc1126cfce254a41dc77
+  13cef81bed5675ff32ef69f1c2038bcf522183ceb0257e16f3b6700f2f689e11
 
 approved_by: D (@ZFebron491001) — PENDING
 approved_at: PENDING
