@@ -446,3 +446,49 @@ sessions:
     cost: "unknown"
     session_path: "unknown"
     session_path_note: "Coding-agent transcript not exported; 'unknown' (not fabricated). Updated at G3."
+
+  - session_id: "A-2026-11-21-inv02-time-policy-impl"
+    opencode_session_id: "ses_e06c8e84affef3t3pM3drr0udP"
+    phase: "implementation (2026-11-21)"
+    student: "A / Du Yuxiang / yuxiangdu39"
+    agent_tool_model: "OpenCode / opencode CLI 1.18.34 / CS5351/DeepSeek-V4-Flash"
+    agent: "OpenCode"
+    tool: "opencode CLI"
+    model: "CS5351/DeepSeek-V4-Flash"
+    version: "1.18.34"
+    time:
+      - "2026-11-21T21:27:08+08:00"   # implementation content commit 484a43d
+    task_requirement_ids:
+      - INV-02
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "src/egta/evidence/"
+    generated_files:
+      - file: "src/egta/evidence/__init__.py"
+        change: "empty package marker"
+        commit: "484a43d7701f8f85a6ee671ad73b61f629650bb4"
+      - file: "src/egta/evidence/time_policy.py"
+        change: "INV-02 point-in-time admissibility to green (13 tests); no contract import, no clock access"
+        commit: "484a43d7701f8f85a6ee671ad73b61f629650bb4"
+    human_intervention:
+      - category: "human review / approval"
+        action: "Read the full implementation diff, ran the six guard commands, and typed the approval sentence in the OpenCode session before the commit."
+        reason: "GATE-01 test-first ordering and GATE-06 human-intervention evidence."
+        requirement_ids: ["INV-02", "GATE-01", "GATE-06"]
+    verification_output:
+      - cmd: "python -m pytest test/offline/evidence -q --no-header -p no:cacheprovider"
+        env: "egta (Python 3.12.16)"
+        result: "13 passed"
+      - cmd: "python -m pytest tests -m \"not integration\" -q"
+        env: "egta"
+        result: "1412 passed, 1 skipped, 1 deselected"
+      - cmd: "python -m ruff check ."
+        env: "egta"
+        result: "All checks passed!"
+      - cmd: "python -m py_compile src/egta/evidence/*.py"
+        env: "egta"
+        result: "exit 0"
+    cost: "unknown"
+    session_path: "docs/evidence/FR-01/sessions/2026-11-21-implementation.json"
+    export_sha256: "e053547ab49510674928a372f391e817abecb1295a25dda3b980ddc42c5e5cbf"
