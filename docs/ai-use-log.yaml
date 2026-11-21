@@ -447,7 +447,8 @@ sessions:
     session_path: "unknown"
     session_path_note: "Coding-agent transcript not exported; 'unknown' (not fabricated). Updated at G3."
 
-  - session_id: "ses_e06c8e84affef3t3pM3drr0udP"
+  - session_id: "A-2026-11-21-inv02-time-policy-impl"
+    opencode_session_id: "ses_e06c8e84affef3t3pM3drr0udP"
     phase: "implementation (2026-11-21)"
     student: "A / Du Yuxiang / yuxiangdu39"
     agent_tool_model: "OpenCode / opencode CLI 1.18.34 / CS5351/DeepSeek-V4-Flash"
