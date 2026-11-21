@@ -256,7 +256,7 @@ CASES.append({
 
 CASES.append({
     "case_id": "E-07",
-    "purpose": "行情 bar 只有 Date 无时刻；as_of 严格晚于该日才可用（date_only 规则）",
+    "purpose": "行情 bar 只有 Date 无时刻；as_of 的 UTC 日期不早于该日即可用（同日或更早可用）",
     "source_type": "yfinance_bar", "raw_time_field": "Date", "time_granularity": "date_only",
     "as_of": AS_OF, "provider_behavior": "normal",
     "items": [bar("E-07-1", "yfinance://AAPL/2026-11-10", "2026-11-10",
@@ -452,11 +452,11 @@ CASES.append({
     "items": [
         news("E-21-1", "yahoo-news://8f2c1d", "2026-11-10T13:05:00Z",
              "Apple supplier orders point to a stronger iPhone build in the March quarter."),
-        news("E-21-1-dup", "yahoo-news://8f2c1d", "2026-11-10T13:05:00Z",
+        news("E-21-2", "yahoo-news://8f2c1d", "2026-11-10T13:05:00Z",
              "Apple supplier orders point to a stronger iPhone build in the March quarter."),
     ],
     "expected": {"admitted": ["E-21-1"], "excluded": [], "conflict_groups": [], "outcome": "PACK",
-                 "note": "两个 item 内容完全相同；E-21-1-dup 是同一抓取的重复副本，去重后只应出现一次"},
+                 "note": "两个 item 内容完全相同；E-21-2 是同一抓取的重复副本，去重后只应出现一次"},
 })
 
 CASES.append({
