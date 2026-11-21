@@ -144,12 +144,59 @@ review_and_authorization_split:
     evidence: "interactive human instructions in this session"
   independent_test_approval:
     by: "A (@yuxiangdu39)"
-    status: "REQUESTED via PR #5; not yet granted in this session"
+    status: "REQUESTED via PR #5; A returned CHANGES_REQUESTED on 2982562 (2026-11-21T08:54:50Z). Not yet approved."
     note: "B's publication authorization is NOT A's test approval; the two are recorded separately."
 
+# -----------------------------------------------------------------------
+# Revision session — address A's CHANGES_REQUESTED on 2982562, rebase onto
+# main 2fb2813, revise spec to D's second INV-02 ruling (excluding #5 form).
+# -----------------------------------------------------------------------
+revision_sessions:
+  - session_id: "ses_e0451298bffeYlnqHo00GSewD2"
+    agent_tool_model: "OpenCode / opencode CLI / cityu/CS5351/DeepSeek-V4-Flash"
+    date: 2026-11-21
+    task_requirement_ids: [FR-01, INV-02, GATE-01]
+    scope: "PR #5 revision: E-31 excluded/unavailable, strict availability + normalization, tampered item constructible, non-empty excluded_items, as_of->cutoff, E-21 ids; trace + expected-RED + hash + contract summary; rebase onto main"
+    worktree: "/tmp/opencode/b-revise (local temporary worktree)"
+    branch: "rev/B-evidence-contracts-rebase (temporary; original spec/B-evidence-contracts kept as restore point)"
+    rebase:
+      from_commit: "29825627a8406378311cbf299becb7e6511b4934"
+      onto: "2fb28136aa1cd575ff5810f50dccd7b605b7c2a5"
+      result: "clean; conftest.py dropped from diff (byte-identical to main); 3 commits preserved"
+      range_diff_note: "content of 3 commits preserved; only the conftest addition disappeared"
+    directives_followed:
+      - "D second review of #4 (2d5c3d6): date-only same-UTC-date excluded/unavailable, reason not INVALID_TIME; fixture E-31 at 19da73a expects FUTURE_DATA/unavailable."
+      - "A PR #5 review (items 1-8) and A comment on E-21 ids (E-21-1/E-21-2 distinct; E-21-2 duplicate)."
+    generated_files:
+      - note: "test/offline/contracts/test_evidence_contracts.py revised: 23 test functions, pytestmark=pytest.mark.spec (E-31 pack items=[] + excluded entry; tampered constructible; non-empty excluded_items exact 3-field; E-21; as_of->cutoff)"
+      - note: "docs/req/trace-FR-01-evidence-contracts.md new (#5-specific; distinct from A's trace-FR-01-evidence.md)"
+      - note: "docs/evidence/FR-01-contracts/{red-baseline,compile-ast,ruff}.txt new"
+      - note: "docs/approvals/test-hash-FR-01-contracts.txt new (test_content_commit PENDING; not yet created)"
+      - note: "docs/req/contracts-summary.md: appended section 7 (evidence contracts) to the main version; shared with #8 (E) — see merge note"
+    verification_output:
+      - command: "py_compile test/offline/contracts/test_evidence_contracts.py"
+        exit_code: 0
+        result: "AST count 23 test_* functions"
+      - command: "ruff check ."
+        context: "rebased onto main 2fb2813 (known-first-party=['egta'])"
+        exit_code: 0
+        result: "All checks passed!"
+      - command: "python -m pytest -m spec test/offline/contracts/test_evidence_contracts.py -q --tb=line"
+        exit_code: 2
+        result: "Collection error: ModuleNotFoundError: No module named 'egta'. Zero executed (expected RED; no src/ on base)."
+    human_intervention:
+      - category: "intervention / approval"
+        action: "Chose rebase onto main in an isolated worktree, keeping the original branch as a restore point."
+        limit: "Local rebase + local unstaged revision; no commit/push/PR edit yet."
+      - category: "intervention / correction"
+        action: "Corrected the earlier report: pinned 19da73a E-31 excludes same-date date-only as unavailable/FUTURE_DATA; prior 'same-day admitted' wording superseded."
+    implementation_status: "NOT STARTED — three types delivered in a separate implementation PR (no number yet) after #5 merges; reason codes from E #6."
+    approval_status: "spec revision UNSTAGED and UNCOMMITTED; hash test_content_commit not yet set; awaiting human review."
+
 open_items:
-  - "Non-empty excluded_items element structure — not yet agreed; not asserted."
-  - "E-21 duplicate-item id alignment with A — pending; not asserted."
-  - "ReasonCode source currently egta.contracts.events; if moved to a top-level export, E must adjust both sides."
+  - "Non-empty excluded_items: 3-field shape agreed (case_local_id/availability/reason_code); top-level export name NOT frozen."
+  - "E-21 duplicate ids: E-21-1 and E-21-2 asserted distinct (A confirmed); dedupe belongs to A's module."
+  - "ReasonCode source: egta.contracts.events (E #6, unmerged, 13 codes)."
+  - "contracts-summary.md is shared with #8 (5e30376) which edits sections 1/2 and FR-05 hashes; #5 appends a new section 7. Merge needs auto-merge check; #5 does not carry #8 content."
   - "Gateway probe scripts exist only in a local /tmp directory; not reproducible from the repository."
   - "Raw session transcript path: unknown (not exported)."

@@ -1,0 +1,11 @@
+worktree_head: 1e0710558c0a018d9adc1122a501d5e7519d37f0
+worktree: /tmp/opencode/b-revise (rev/B-evidence-contracts-rebase)
+date: 2026-11-21T10:18:48Z
+command: python -m pytest -m spec test/offline/contracts/test_evidence_contracts.py -q --tb=line
+    from egta.contracts import EvidenceItem, EvidencePack, RunSpec
+E   ModuleNotFoundError: No module named 'egta'
+=========================== short test summary info ============================
+ERROR test/offline/contracts/test_evidence_contracts.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.07s
+exit: 2 (ModuleNotFoundError: egta; 0 executed; expected RED)

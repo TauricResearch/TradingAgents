@@ -8,11 +8,19 @@ and the shared ``ReasonCode``. On this branch there is no ``src/``
 implementation, so collection fails at import with ``ModuleNotFoundError`` --
 that is the intended test-first signal, not a defect in the tests.
 
-Scope is the TYPES, not the date-filtering algorithm. A owns the UTC closed-
-interval filter and its boundary tests (e.g. their fixture E-31). Here we only
-show that the public types can REPRESENT a date-only item admitted on the same
-UTC date as the cutoff, with ``availability="available"`` and
-``reason_code=None``.
+Scope is the TYPES, not the date-filtering algorithm. A (PR #4) owns the UTC
+filter and its boundary behaviour; here we only show that the public types can
+REPRESENT the agreed outcomes.
+
+Admissibility rules the tests below mirror (D's second review of PR #4, pinned
+fixture E-31 at ``19da73a``; the algorithm stays A's responsibility):
+
+- date-only, or ``time_granularity="day"``: admitted ONLY when the date is
+  strictly earlier than the ``as_of`` UTC date;
+- same UTC date as ``as_of``: excluded / ``availability="unavailable"`` with
+  ``reason_code="FUTURE_DATA"`` (not ``INVALID_TIME``) - a same-day full bar
+  cannot be proven published before ``as_of``;
+- exact timestamp equality (``published_at == as_of``): admitted.
 
 No ``skip``/``xfail`` and no in-test replacement types: if the public types are
 missing or stop enforcing a rule, these tests fail.
@@ -28,6 +36,12 @@ from pydantic import ValidationError
 
 from egta.contracts import EvidenceItem, EvidencePack, RunSpec
 from egta.contracts.events import ReasonCode
+
+# Opt-in spec marker: default `pytest` runs `tests/` only; this module is run
+# explicitly with `-m spec test/offline/contracts` so RED placement is explicit,
+# never hidden by testpaths omission. Requires the `spec` marker registration
+# (present on current main's pyproject.toml).
+pytestmark = pytest.mark.spec
 
 SHA = "a" * 64
 
@@ -243,6 +257,32 @@ def test_evidence_item_normal_sample_has_no_reason_and_conflict_group_defaults_n
     assert item.conflict_group is None
 
 
+# -- 3a. Content integrity: two-layer responsibility (A's item 3).
+
+
+def test_tampered_item_is_constructible_and_keeps_supplied_digest():
+    """``EvidenceItem`` does NOT cross-validate ``content_hash`` against ``excerpt``.
+
+    A's E-23-2 / E-30-1 are deliberate tampering fixtures: the excerpt was altered
+    while ``content_hash`` keeps the ORIGINAL digest, expecting ``INTEGRITY_VIOLATION``
+    at pack time. If the model enforced equality those fixtures could not be built.
+    So: the item is constructible, the supplied digest is preserved, and no
+    validation error is raised. This asserts CONSTRUCTION only - it does NOT mean
+    integrity was checked. The evidence module recomputes and compares the digest
+    when building the pack and reports ``INTEGRITY_VIOLATION`` on a mismatch.
+    """
+    original_digest = hashlib.sha256(b"original excerpt").hexdigest()
+    item = _evidence_item(
+        excerpt="excerpt altered after hashing",  # differs from original_digest
+        content_hash=original_digest,
+        availability="unavailable",
+        reason_code="INTEGRITY_VIOLATION",
+    )
+    # Constructed without cross-field validation, and the digest is unchanged.
+    assert item.content_hash == original_digest
+    assert item.content_hash != hashlib.sha256(item.excerpt.encode("utf-8")).hexdigest()
+
+
 # -- 3b. Reason codes: actually usable on an EvidenceItem, not just enum members.
 
 # A's fixture E-13 is a future item: availability="unavailable", reason FUTURE_DATA.
@@ -296,43 +336,151 @@ def test_evidence_pack_omitting_excluded_items_fails():
         )
 
 
+# -- 4b. Non-empty excluded_items: the agreed 3-field shape (A item 4).
+#    Entries are NOT EvidenceItem: no published_at, no full evidence_id.
+#    ``case_local_id == "provider"`` marks a provider-level failure.
+#    The public export name for this type is not frozen here; these tests
+#    exercise it only through ``EvidencePack(excluded_items=[...])``.
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        # A's E-23-2: tampered excerpt -> integrity violation.
+        {"case_local_id": "E-23-2", "availability": "unavailable", "reason_code": "INTEGRITY_VIOLATION"},
+        # A's E-24/25: provider-level failure; local id is literally "provider".
+        {"case_local_id": "provider", "availability": "unreachable", "reason_code": "VENDOR_UNAVAILABLE"},
+        # A's E-17-1: missing published_at.
+        {"case_local_id": "E-17-1", "availability": "unavailable", "reason_code": "EVIDENCE_MISSING"},
+        # A's E-26-1: stale.
+        {"case_local_id": "E-26-1", "availability": "stale", "reason_code": "STALE_DATA"},
+    ],
+    ids=["E-23-2", "provider", "E-17-1", "E-26-1"],
+)
+def test_evidence_pack_accepts_non_empty_excluded_entry(entry):
+    pack = _evidence_pack(excluded_items=[entry])
+    stored = pack.excluded_items[0]
+    # Access by attribute or mapping; the contract fixes the three field names.
+    as_map = stored if isinstance(stored, dict) else stored.model_dump()
+    assert as_map["case_local_id"] == entry["case_local_id"]
+    assert as_map["availability"] == entry["availability"]
+    assert as_map["reason_code"] == entry["reason_code"]
+
+
+def test_excluded_provider_entry_needs_no_published_at_or_evidence_id():
+    """A provider-level failure carries EXACTLY the three agreed fields."""
+    pack = _evidence_pack(
+        excluded_items=[
+            {"case_local_id": "provider", "availability": "unreachable", "reason_code": "VENDOR_UNAVAILABLE"}
+        ]
+    )
+    stored = pack.excluded_items[0]
+    as_map = stored if isinstance(stored, dict) else stored.model_dump()
+    assert set(as_map.keys()) == {"case_local_id", "availability", "reason_code"}
+
+
 # ---------------------------------------------------------------------------
-# 5. Date-only representation: same-UTC-date item can be a valid pack member.
-#    (The filtering algorithm and boundary belong to A; this asserts the TYPE.)
+# 5. Date-only same-UTC-date representation: excluded / unavailable, not
+#    INVALID_TIME (D's second review of #4; fixture E-31 at 19da73a).
+#    The filtering algorithm belongs to A; these assert the TYPE can carry
+#    the agreed excluded outcome and keeps day precision.
 # ---------------------------------------------------------------------------
 
 
-def test_date_only_item_on_cutoff_date_represented_as_available():
-    """A's E-31: a date-only bar whose date equals the as_of UTC date is admissible.
+def test_date_only_item_on_cutoff_date_represented_as_excluded():
+    """A's E-31 (19da73a): a date-only bar whose date equals the as_of UTC date
+    is conservatively excluded, so it is NOT an admitted item: ``items=[]`` and a
+    single ``excluded_items`` entry with ``case_local_id="E-31-1"``,
+    ``availability="unavailable"``, ``reason_code="FUTURE_DATA"`` (not
+    ``INVALID_TIME``).
 
-    The public type must be able to carry this as ``available`` with no reason
-    code. The decision that it IS admissible is A's filter; here we only show the
-    types can represent the admitted outcome without inventing a time.
+    The public type must be able to carry that pack shape; the decision that it IS
+    excluded is A's filter. Here we only show the types can represent it.
     """
     spec = _run_spec(as_of=_utc())
-    item = _evidence_item(
-        evidence_id="run01-E-31-1",
-        source_uri="yfinance://AAPL/2026-11-11",
-        published_at="2026-11-11",  # date-only, allowed on the item
-        availability="available",
-        reason_code=None,
-    )
     pack = EvidencePack(
         run_id=spec.run_id,
         snapshot_id=spec.snapshot_id,
-        items=[item],
-        excluded_items=[],
+        items=[],  # excluded, so no admitted item
+        excluded_items=[
+            {
+                "case_local_id": "E-31-1",
+                "availability": "unavailable",
+                "reason_code": "FUTURE_DATA",
+            }
+        ],
         cutoff=spec.as_of,
         pack_hash=SHA,
     )
-    assert pack.items[0].availability == "available"
-    assert pack.items[0].reason_code is None
+    assert pack.items == []
+    entry = pack.excluded_items[0]
+    as_map = entry if isinstance(entry, dict) else entry.model_dump()
+    assert as_map["case_local_id"] == "E-31-1"
+    assert as_map["availability"] == "unavailable"
+    assert as_map["reason_code"] == "FUTURE_DATA"
 
 
 def test_date_only_item_keeps_date_precision_in_public_json():
-    """The public JSON form keeps day precision: no invented time or offset."""
-    item = _evidence_item(published_at="2026-11-11", availability="available", reason_code=None)
+    """The public JSON form keeps day precision while carrying the excluded outcome.
+
+    Same-date date-only is excluded/unavailable with ``FUTURE_DATA``; the JSON
+    representation still keeps day precision (no invented time or offset).
+    """
+    item = _evidence_item(
+        published_at="2026-11-11", availability="unavailable", reason_code="FUTURE_DATA"
+    )
     assert item.model_dump(mode="json")["published_at"] == "2026-11-11"
+
+
+# ---------------------------------------------------------------------------
+# 5b. E-21 duplicate local ids: the TYPE can carry both; A's module dedupes.
+#     (A's confirmation: E-21-1 and E-21-2 are distinct local ids; E-21-2 is the
+#     duplicate copy of the same excerpt. Both map to full ids via run_id.)
+# ---------------------------------------------------------------------------
+
+
+def test_e21_duplicate_local_ids_are_distinct_and_construct():
+    spec = _run_spec(run_id="run01")
+    e21 = "Apple supplier orders point to a stronger quarter, report says."
+    item_1 = _evidence_item(
+        evidence_id=f"{spec.run_id}-E-21-1",
+        excerpt=e21,
+        availability="available",
+        reason_code=None,
+    )
+    item_2 = _evidence_item(
+        evidence_id=f"{spec.run_id}-E-21-2",
+        excerpt=e21,  # same excerpt, different local id
+        availability="available",
+        reason_code=None,
+    )
+    assert item_1.evidence_id == "run01-E-21-1"
+    assert item_2.evidence_id == "run01-E-21-2"
+    assert item_1.evidence_id != item_2.evidence_id
+    assert item_1.excerpt == item_2.excerpt
+    # Both are representable; deduping the duplicate is A's evidence module's job
+    # (its E-21 expected: admitted ["E-21-1"], duplicate dropped). NOT asserted
+    # here: the model itself must not dedupe.
+
+
+# ---------------------------------------------------------------------------
+# 5c. as_of -> cutoff mapping: the evidence module passes the run/fixture as_of
+#     into ``EvidencePack.cutoff`` (A item 5). This shows the type accepts it.
+# ---------------------------------------------------------------------------
+
+
+def test_pack_cutoff_carries_run_spec_as_of():
+    spec = _run_spec(as_of=datetime(2026, 11, 11, 0, 0, 0, tzinfo=UTC))
+    pack = EvidencePack(
+        run_id=spec.run_id,
+        snapshot_id=spec.snapshot_id,
+        items=[_evidence_item()],
+        excluded_items=[],
+        cutoff=spec.as_of,  # same instant, passed through by the evidence module
+        pack_hash=SHA,
+    )
+    assert pack.cutoff == spec.as_of
+    assert pack.cutoff.utcoffset().total_seconds() == 0
 
 
 # ---------------------------------------------------------------------------

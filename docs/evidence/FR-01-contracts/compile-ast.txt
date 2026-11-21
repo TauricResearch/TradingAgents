@@ -1,0 +1,6 @@
+worktree_head: 1e0710558c0a018d9adc1122a501d5e7519d37f0
+worktree: /tmp/opencode/b-revise
+date: 2026-11-21T10:18:54Z
+command: python -m py_compile test/offline/contracts/test_evidence_contracts.py
+exit: 0
+AST test_* count: 23
