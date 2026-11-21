@@ -7,19 +7,18 @@ base:     main
 # 1) test-content commit  : the commit that last changed the test files' content
 # 2) reviewed PR head     : the exact head D reviews (final head before merge)
 # 3) merge commit         : created by GitHub when this PR merges (post-approval)
-test_content_commit:     3380a741fb3829e6208273f37f60046ba15fb828
-reviewed_pr_head:        PENDING  # set to the final head D reviews
-merge_commit:            PENDING  # filled after merge (record-only; not pushed after approval)
+test_content_commit:     511ef7d2f059
+merge_commit:            PENDING  # recorded in an external registry or a PR comment after merge
 
-# Approval binds to: reviewed_pr_head == the last commit before merge, with the
-# aggregate hash below. GitHub review is the authoritative approval; this file
-# only records content binding. DO NOT push changes to this file (or the test
-# files, fixtures, or generator) after D approves — the aggregate changes and
-# the approval is void.
+# Approval binds to: the reviewed head is the commit_id recorded by reviewer D's
+# GitHub review; merge_commit is recorded in an external registry or a PR comment
+# after merge. GitHub review is the authoritative approval; this file only
+# records content binding. This file must not be pushed after approval.
+
 
 files (per-file SHA-256; tests + fixtures + generator):
-  578271345e26b02e04adc90d16f74d139e162cea2c29f0a9438f5093fb0d87a6  scripts/gen_evidence_fixtures.py
-  891a4cf0a1df58f6f8b529cc39da884b28756c6918e1f0c2aef2f4fb7ea40918  test/offline/evidence/README.md
+  0722aaec0003729c0381f486b0d7fe1b3605b493a906e48aa7814ba11a77323d  scripts/gen_evidence_fixtures.py
+  43bf95062bd9a3587b8fc3eb6a4f8915fbd1e9a050d307d3732b08f6d42c7ac3  test/offline/evidence/README.md
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  test/offline/evidence/__init__.py
   780985d1dffa7690b64c490b9d8d3496385af97880eeb14e62bd671f9875ff50  test/offline/evidence/_target.py
   33bce2b99a852735b8493b4255ed921f371fd86cfed59c10b2e58a814cc00ab3  test/offline/evidence/conftest.py
@@ -29,7 +28,7 @@ files (per-file SHA-256; tests + fixtures + generator):
   382d4ed84309c44e9f1eb228522d239efa2fd366dd275a65d91109bfebce2a4d  test/offline/evidence/fixtures/E-04.json
   ee4f08441d6b8bbc2daba7a20e1f77eef019139300d3380a0a8ccbe7b8c0f0fd  test/offline/evidence/fixtures/E-05.json
   1d1eb6edd32e3479e8486b2b21d1ba2afd1377f3dda4de0ca34472199313aa6f  test/offline/evidence/fixtures/E-06.json
-  a18a3452bb3a1c86b8586168660dc7dd93ec28e443f432cc071677527d75b447  test/offline/evidence/fixtures/E-07.json
+  9ac51e47de80d3648aaba2b327fed64b35a15af926bb49f71a71174f532473da  test/offline/evidence/fixtures/E-07.json
   3a6eba45ac269d866007e96bea70b7aecc45bab45713fb632b91f378c3241e21  test/offline/evidence/fixtures/E-08.json
   73f9895bd53a8789151e968c80f1086a74a5549005f6209e0ad10e725ea570df  test/offline/evidence/fixtures/E-09.json
   abc3000e89f5ffd19e63aabfa204722a1147517fcb7b80a81a7ac804ef2c7575  test/offline/evidence/fixtures/E-10.json
@@ -53,17 +52,17 @@ files (per-file SHA-256; tests + fixtures + generator):
   ceffb533a6bfdc8c21faada518253827984e733df256b52202ae92d1742dd140  test/offline/evidence/fixtures/E-28.json
   99cc9b34abf06a3c7d2656b710319b895bbf947ff21e8e77de1a21aee34ae406  test/offline/evidence/fixtures/E-29.json
   2e5c7969d17a6f7ada15cac8562fd44c04f4a7fc01176c201e84e7170e239b73  test/offline/evidence/fixtures/E-30.json
-  500f8f0110fc7fe47e16d3ae445a5b7c8fc72c787ada0b4ce83ed1bec553f86c  test/offline/evidence/fixtures/E-31.json
-  b45512a615aa65f8407e0bc71836e077d6502925e83c31326445225ef37ef182  test/offline/evidence/test_time_policy.py
+  9ae4237920b90d57018742e48af98fde6596812560a6aba9052a154209d13dd3  test/offline/evidence/fixtures/E-31.json
+  81eeb9bda393c58349720f03cd00e42a858d891a241848a2a468091b6d938492  test/offline/evidence/test_time_policy.py
 
 aggregate_sha256 (sha256sum of the 37 per-file lines, sorted by path):
-  13cef81bed5675ff32ef69f1c2038bcf522183ceb0257e16f3b6700f2f689e11
+  c665a953b9eba94bbd5e7f321395453036e2409528dcfff67f77e9a2b91f502d
 
 approved_by: D (@ZFebron491001) — PENDING
 approved_at: PENDING
 
 Notes:
-- Scope is INV-02 time filtering only. 12 tests in test_time_policy.py; 31
+- Scope is INV-02 time filtering only. 13 tests in test_time_policy.py; 31
   fixtures; generator included in the hash so the test oracle is covered.
   FR-01 pack-level tests (pack completeness, pack_hash, dedupe, conflict,
   citation, stale, provider errors, integrity) are deferred to a separate PR
@@ -71,14 +70,18 @@ Notes:
 - RED by design: `python -m pytest test/offline/evidence` exits 2 with
   `ModuleNotFoundError: No module named 'egta'`; no xfail/skip. Captured in
   docs/evidence/FR-01/red-baseline.txt. Syntax/AST proof: py_compile exit 0 and
-  12 test_* functions (docs/evidence/FR-01/compile-ast.txt). Lint clean:
+  13 test_* functions (docs/evidence/FR-01/compile-ast.txt). Lint clean:
   docs/evidence/FR-01/ruff.txt.
-- Boundary rule (from D's review): as_of is a closed interval. published_at ==
-  as_of is admitted, and a date_only value on the as-of UTC date is admitted
-  (fixture E-31). This replaces the earlier pending INVALID_TIME assertion.
+- Boundary rule: exact timestamp equality with as_of is admitted; a date-only
+  value strictly earlier than the as_of UTC date is admitted; a date-only or day
+  value on the same UTC date is excluded/unavailable with FUTURE_DATA and is not
+  INVALID_TIME (fixture E-31).
 - Blocking dependency: INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE,
   INTEGRITY_VIOLATION, INVALID_CITATION are not yet in the contracts ReasonCode
-  enum (B's PR #3). B must add them or publish a canonical mapping before
+  enum (B contracts PR: not opened yet (as of 2026-11-21); B confirmed the public
+  ReasonCode carries FUTURE_DATA, EVIDENCE_MISSING, INVALID_TIME, STALE_DATA,
+  VENDOR_UNAVAILABLE, INVALID_CITATION, INTEGRITY_VIOLATION, and None when
+  admitted). B must add them or publish a canonical mapping before
   pack/reason-code assertions land.
 - Clarification for D: E-24/E-25 (empty items, outcome PACK) and E-29 (admitted
   plus outcome ERROR) are pack-level expectations; they are carried as data and

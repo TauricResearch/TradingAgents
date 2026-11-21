@@ -6,7 +6,7 @@ descend from this spec's merge commit (GATE-01).
 
 ## What this branch is / is not
 
-- **Is**: INV-02 time-policy tests (`test_time_policy.py`, 12 test functions),
+- **Is**: INV-02 time-policy tests (`test_time_policy.py`, 13 test functions),
   the `E-01…E-31` fixture set, the generator, `docs/evidence/FR-01/`, and this
   trace.
 - **Is not**: `EvidenceItem` / `EvidencePack` construction, pack field
@@ -20,7 +20,7 @@ descend from this spec's merge commit (GATE-01).
 | Suite | Command | Expected result | Captured evidence |
 |---|---|---|---|
 | INV-02 time policy | `python -m pytest test/offline/evidence -q --tb=line` | exit 2, collection error (`ModuleNotFoundError: egta`); no xfail/skip | `docs/evidence/FR-01/red-baseline.txt` |
-| syntax / AST | `python -m py_compile test/offline/evidence/*.py` | exit 0; AST count = 12 `test_*` functions | `docs/evidence/FR-01/compile-ast.txt` |
+| syntax / AST | `python -m py_compile test/offline/evidence/*.py` | exit 0; AST count = 13 `test_*` functions | `docs/evidence/FR-01/compile-ast.txt` |
 | lint | `python -m ruff check .` | All checks passed | `docs/evidence/FR-01/ruff.txt` |
 
 ## Test function → requirement mapping
@@ -37,7 +37,8 @@ descend from this spec's merge commit (GATE-01).
 | `test_naive_timestamp_not_assumed_utc` | INV-02, NFR-10 | E-19 | no offset must never be assumed UTC |
 | `test_epoch_input_supported` | INV-02 | inline epoch | provider epoch seconds |
 | `test_naive_as_of_rejected` | INV-02 | inline | naive as_of raises ValueError |
-| `test_date_only_equal_to_as_of_date_admitted` | INV-02 | E-31 | closed interval: same UTC date admitted |
+| `test_date_only_equal_to_as_of_date_excluded` | INV-02 | E-31 | same UTC date excluded as unverifiable |
+| `test_day_granularity_equal_to_as_of_date_excluded` | INV-02 | inline, day granularity on the as_of UTC date | same UTC date excluded as unverifiable |
 | `test_published_at_exactly_equal_to_as_of_admitted` | INV-02 | inline | exact equality admitted, not FUTURE_DATA |
 
 ## Fixture coverage matrix
@@ -61,7 +62,26 @@ the time-policy scope.
 
 1. **ReasonCode gap** — `INVALID_TIME`, `STALE_DATA`, `VENDOR_UNAVAILABLE`,
    `INTEGRITY_VIOLATION`, `INVALID_CITATION` are not in the contracts
-   `ReasonCode` enum (B's PR #3, still `CHANGES_REQUESTED`). B must add them or
+   `ReasonCode` enum (B contracts PR: not opened yet (as of 2026-11-21); B
+   confirmed the public ReasonCode carries FUTURE_DATA, EVIDENCE_MISSING,
+   INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE, INVALID_CITATION,
+   INTEGRITY_VIOLATION, and None when admitted). B must add them or
    define a canonical mapping before pack/reason-code assertions land.
 2. **EvidencePack contract** — pack fields and `pack_hash` are PENDING.
 3. **Approval** — D must approve this spec head before implementation starts.
+
+## ReasonCode mapping (option B)
+
+- missing published_at -> EVIDENCE_MISSING
+- explicit future -> FUTURE_DATA
+- malformed or naive timestamp -> INVALID_TIME
+- date-only or day on the as_of UTC date -> FUTURE_DATA (conservative; the
+  day's full OHLC cannot exist at as_of, so this is future data, not an
+  unparsable timestamp)
+- admitted -> None
+
+A date-only value on the as_of UTC date is recorded as unavailable with
+FUTURE_DATA because availability is a state and reason_code is a cause; this is
+a conservative exclusion, not a claim that the source was unreachable.
+
+The asserted fixture count stays 13, and the carried-as-data fixtures stay 18.

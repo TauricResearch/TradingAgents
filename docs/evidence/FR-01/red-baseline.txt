@@ -1,8 +1,10 @@
 # Red baseline — INV-02 time-policy tests
-date_utc: 2026-11-20T16:46:31Z
+content_commit: 511ef7d2f059
+captured_at: 2026-11-21T16:12:51+08:00
 host: LAPTOP-3LECTOHG
 python: Python 3.12.16
-head: 5b2a706
+head: 511ef7d
+note: the head advances only by docs-only commits after this content commit.
 
 $ python -m pytest test/offline/evidence -q --tb=line
 
@@ -24,5 +26,5 @@ E   ModuleNotFoundError: No module named 'egta'
 =========================== short test summary info ============================
 ERROR test/offline/evidence/test_time_policy.py
 !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
-1 error in 0.14s
+1 error in 0.35s
 exit_code=2

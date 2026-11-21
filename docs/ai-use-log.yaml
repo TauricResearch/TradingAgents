@@ -16,13 +16,13 @@ context:
   scope: "INV-02 time filtering only; FR-01 pack-level tests deferred"
   related:
     pr_2: "D's FR-04 risk-gate spec; A is the approver (co-sign 510828a)"
-    contracts_v1: "B's PR #3, not frozen; ReasonCode gap blocks pack-level tests"
+    contracts_v1: "B contracts PR: not opened yet (as of 2026-11-21); B confirmed the public ReasonCode carries FUTURE_DATA, EVIDENCE_MISSING, INVALID_TIME, STALE_DATA, VENDOR_UNAVAILABLE, INVALID_CITATION, INTEGRITY_VIOLATION, and None when admitted"
     gate_01: "test-first: implementation must not start before D approves this spec"
 
 sessions:
   - session_id: "A-2026-11-20-inv02-time-policy"
     student: "A / Du Yuxiang / yuxiangdu39"
-    agent_tool_model: "OpenCode / opencode CLI / model: unknown"
+    agent_tool_model: "OpenCode / opencode CLI 1.18.34 / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
     time:
       - "2026-11-20T21:48:00+08:00"   # session start
       - "2026-11-20T21:58:00+08:00"   # session end
@@ -56,7 +56,7 @@ sessions:
 
   - session_id: "A-2026-11-21-inv02-revision-after-d-review"
     student: "A / Du Yuxiang / yuxiangdu39"
-    agent_tool_model: "Doubao Work assistant (agent) / human-directed"
+    agent_tool_model: "auxiliary only: analysis and prompt drafting, no file changes"
     time:
       - "2026-11-21T00:46:00+08:00"
     task_requirement_ids:
@@ -71,11 +71,11 @@ sessions:
       - file: "test/offline/evidence/conftest.py"
         change: "ruff UP017: timezone.utc -> UTC"
       - file: "test/offline/evidence/test_time_policy.py"
-        change: "ruff UP017; date-only == as_of now ADMITTED (E-31); added exact published_at == as_of test"
+        change: "ruff UP017; date-only same date now excluded; exact timestamp equality admitted"
       - file: "test/offline/evidence/README.md"
-        change: "removed stale 'no test functions yet'; added scope (INV-02 only) and the closed-interval boundary rule"
+        change: "removed stale 'no test functions yet'; added scope (INV-02 only) and the boundary rule"
       - file: "scripts/gen_evidence_fixtures.py"
-        change: "31 fixtures; E-21 duplicate gets E-21-1-dup; new E-31 boundary-equal case"
+        change: "31 fixtures; E-21 duplicate gets E-21-2; new E-31 boundary-equal case"
       - file: "test/offline/evidence/fixtures/E-21.json, E-31.json"
         change: "regenerated deterministically"
       - file: "docs/evidence/FR-01/red-baseline.txt"
@@ -89,7 +89,7 @@ sessions:
       - file: "docs/ai-use-log.yaml"
         change: "this record"
       - file: "docs/approvals/test-hash-FR-01-evidence.txt"
-        change: "per-file + aggregate over tests, fixtures and generator; three-field commit binding"
+        change: "per-file and aggregate SHA-256 over tests, 31 fixtures and generator; three-field commit binding"
     human_intervention:
       - category: "human decision"
         action: "Chose route 1 (narrow PR #4 to INV-02) instead of adding 18 pack-level fixture tests."
@@ -107,3 +107,88 @@ sessions:
         result: "exit 0; AST count = 12 test functions"
     cost: "unknown"
     session_path: "unknown"
+
+  - session_id: "ses_e06c8e84affef3t3pM3drr0udP"
+    student: "A / Du Yuxiang / yuxiangdu39"
+    agent_tool_model: "OpenCode / opencode CLI 1.18.34 / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    time: "2026-11-20T21:48:00+08:00 (session created, resumed for this round); 2026-11-21T16:12:38+08:00"
+    task_requirement_ids:
+      - INV-02
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "test/offline/evidence/"
+      - "scripts/"
+      - "docs/"
+    generated_files:
+      - file: "scripts/gen_evidence_fixtures.py"
+        change: "E-07 purpose fixed to strict-earlier; E-31 now conservatively excluded with FUTURE_DATA/REVIEW"
+      - file: "test/offline/evidence/fixtures/E-07.json"
+        change: "regenerated from generator"
+      - file: "test/offline/evidence/fixtures/E-31.json"
+        change: "regenerated from generator"
+      - file: "test/offline/evidence/test_time_policy.py"
+        change: "renamed to test_date_only_equal_to_as_of_date_excluded; added test_day_granularity_equal_to_as_of_date_excluded; 13 tests"
+      - file: "test/offline/evidence/README.md"
+        change: "test count 13; boundary rule rewritten"
+      - file: "docs/req/trace-FR-01-evidence.md"
+        change: "test count 13; mapping rows; ReasonCode mapping; B contracts wording"
+      - file: "docs/approvals/test-hash-FR-01-evidence.txt"
+        change: "reviewed-head wording; test_content_commit; boundary notes; HASHES marker"
+      - file: "docs/ai-use-log.yaml"
+        change: "this record"
+      - file: "docs/evidence/FR-01/red-baseline.txt"
+        change: "recaptured red run"
+      - file: "docs/evidence/FR-01/compile-ast.txt"
+        change: "py_compile exit 0 + AST count 13"
+      - file: "docs/evidence/FR-01/ruff.txt"
+        change: "ruff clean"
+    human_intervention:
+      - category: "reviewer feedback applied"
+        action: "D requested changes on head 2d5c3d6; A decided to conservatively exclude date-only and day values on the as_of UTC date instead of admitting them, mapping them to FUTURE_DATA"
+        reason: "a daily bar dated on the as_of date carries full-day OHLC that cannot exist at 00:00Z; admitting it would leak lookahead"
+      - category: "human approval"
+        action: "A reviewed the diff and froze the content commit as 511ef7d2f059"
+    verification_output:
+      - cmd: "python -m pytest test/offline/evidence -q --tb=line"
+        env: "egta"
+        result: "exit 2, ModuleNotFoundError: No module named 'egta' (RED by design)"
+      - cmd: "python -m py_compile test/offline/evidence/*.py"
+        env: "egta"
+        result: "exit 0; AST count = 13 test functions"
+      - cmd: "python -m ruff check ."
+        env: "egta"
+        result: "All checks passed!"
+      - cmd: "python scripts/gen_evidence_fixtures.py && git diff --exit-code -- test/offline/evidence/fixtures"
+        env: "egta"
+        result: "regeneration byte-identical; git diff --exit-code exit 0"
+    cost: 0.0
+    session_path: "pending redacted export, see docs/evidence/FR-01/sessions/"
+
+  - session_id: "A-2026-11-20-fixtures-generator-prework"
+    student: "A / Du Yuxiang / yuxiangdu39"
+    agent_tool_model: "unknown (not recorded)"
+    time:
+      - "2026-11-20T10:55:00+08:00"   # commit ad7830a
+      - "2026-11-20T19:14:00+08:00"   # commit bcab15c
+      - "2026-11-20T19:47:00+08:00"   # commit 9a704d9
+      - "2026-11-20T20:41:00+08:00"   # commit 6c6a9fd
+    task_requirement_ids:
+      - INV-02
+      - GATE-06
+    writable_path:
+      - "scripts/"
+      - "test/offline/evidence/"
+    generated_files:
+      - file: "scripts/gen_evidence_fixtures.py"
+        change: "original generator and fixture set (commits ad7830a, bcab15c, 9a704d9, 6c6a9fd)"
+      - file: "test/offline/evidence/fixtures/"
+        change: "original 30/31 fixture files"
+    note: "no OpenCode session covers these commits; timestamps taken from commit metadata"
+    verification_output:
+      - cmd: "python scripts/gen_evidence_fixtures.py"
+        env: "egta"
+        result: "generator and fixtures were re-executed under OpenCode in this session and reproduced byte-identical output, so the current files are attributable to this session while the original commits are not"
+    cost: "unknown"
+    session_path: "unknown"
+
