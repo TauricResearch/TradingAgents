@@ -1,0 +1,23 @@
+# Syntax / AST proof (spec is well-formed while red)
+content_commit: 511ef7d2f059
+captured_at: 2026-11-21T16:12:51+08:00
+note: the head advances only by docs-only commits after this content commit.
+
+$ python -m py_compile test/offline/evidence/*.py
+exit_code=0
+
+$ AST count of test_* functions in test_time_policy.py
+13
+test_future_items_excluded
+test_boundary_before_cutoff_admitted
+test_offset_normalized_to_utc
+test_date_only_before_cutoff_admitted
+test_day_granularity_future_excluded
+test_missing_published_at_records_reason
+test_malformed_time_is_invalid
+test_naive_timestamp_not_assumed_utc
+test_epoch_input_supported
+test_naive_as_of_rejected
+test_date_only_equal_to_as_of_date_excluded
+test_day_granularity_equal_to_as_of_date_excluded
+test_published_at_exactly_equal_to_as_of_admitted

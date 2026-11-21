@@ -1,0 +1,36 @@
+{
+  "case_id": "E-19",
+  "purpose": "有时刻但缺时区：不可假定为 UTC，标不可用",
+  "source_type": "stocktwits",
+  "raw_time_field": "created_at",
+  "time_granularity": "second",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "malformed_time",
+  "items": [
+    {
+      "case_local_id": "E-19-1",
+      "source_type": "stocktwits",
+      "source_uri": "stocktwits://msg/4711999",
+      "raw_time_field": "created_at",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T09:00:00",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Timestamp has no UTC offset, ordering against as_of is undefined.",
+      "content_hash": "7661c22c93449e4ae0491cbdbb68b71ffb897502dd7e0209472fcd9c2e9ab650",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [],
+    "excluded": [
+      {
+        "case_local_id": "E-19-1",
+        "reason_code": "INVALID_TIME",
+        "availability": "unavailable"
+      }
+    ],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}

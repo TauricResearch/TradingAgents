@@ -1,0 +1,32 @@
+{
+  "case_id": "E-04",
+  "purpose": "舆情帖子带秒级时间戳入包",
+  "source_type": "stocktwits",
+  "raw_time_field": "created_at",
+  "time_granularity": "second",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "normal",
+  "items": [
+    {
+      "case_local_id": "E-04-1",
+      "source_type": "stocktwits",
+      "source_uri": "stocktwits://msg/4712001",
+      "raw_time_field": "created_at",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T09:12:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Bullish: services margin looks like it is inflecting.",
+      "content_hash": "a8f649533d1995bc4cc5e050aa7c80a7c20d193c9bfe5bfd9a2bfdcc340c17d2",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-04-1"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}

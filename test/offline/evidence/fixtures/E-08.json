@@ -1,0 +1,46 @@
+{
+  "case_id": "E-08",
+  "purpose": "两来源同事件并存，不互相覆盖",
+  "source_type": "yahoo_news",
+  "raw_time_field": "pubDate",
+  "time_granularity": "minute",
+  "as_of": "2026-11-11T00:00:00Z",
+  "provider_behavior": "normal",
+  "items": [
+    {
+      "case_local_id": "E-08-1",
+      "source_type": "yahoo_news",
+      "source_uri": "yahoo-news://8f2c1d",
+      "raw_time_field": "providerPublishTime",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T13:05:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Apple supplier orders point to a stronger iPhone build in the March quarter.",
+      "content_hash": "8a5c877e7bde6728b73b49efbf3fda265ca8d4f51de74d1353b8715f8004fd94",
+      "raw_value": null,
+      "trust_label": "secondary"
+    },
+    {
+      "case_local_id": "E-08-2",
+      "source_type": "yahoo_news",
+      "source_uri": "reuters://2026-11-10/aapl-supplier-orders",
+      "raw_time_field": "pubDate",
+      "time_granularity": "second",
+      "published_at": "2026-11-10T13:20:00Z",
+      "fetched_at": "2026-11-11T00:05:00Z",
+      "excerpt": "Suppliers see Apple lifting March-quarter build plans, two people say.",
+      "content_hash": "52f53b7ad922c8f5a0b5df9c45b4c9687bf6814d7aa7b8263cd4eb127272bbed",
+      "raw_value": null,
+      "trust_label": "secondary"
+    }
+  ],
+  "expected": {
+    "admitted": [
+      "E-08-1",
+      "E-08-2"
+    ],
+    "excluded": [],
+    "conflict_groups": [],
+    "outcome": "PACK"
+  }
+}
