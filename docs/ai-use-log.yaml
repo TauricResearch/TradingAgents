@@ -535,9 +535,9 @@ sessions:
       - "docs/approvals/test-hash-FR-01-pack.txt (test content hash + actual_cases; reviewed head/merge PENDING)"
       - "docs/req/trace-FR-01-pack.md"
     spec_pr: 25
-    scope: "FR-01 pack-level outcomes only (INV-02 time filtering stays in test_time_policy.py); expected RED until B #21 + A implementation land"
+    scope: "FR-01 pack-level outcomes only (INV-02 time filtering stays in test_time_policy.py); rebased onto post-#21 main 141547a; RED is now ImportError InvalidCitation from egta.evidence (contracts merged), until A implementation lands"
     decisions_resolved_from_D_review:
-      - "pack_hash is computed by build_pack (64-hex, deterministic, content-bound); algorithm aligned to D recompute_evidence_hash — not frozen in this spec"
+      - "pack_hash is computed by build_pack; test_pack_hash_matches_risk_gate_canonical asserts equality with egta.risk_gate.canonical.recompute_evidence_hash (helper on main) — the equality test is the A->D proof, no ADR-004 invented"
       - "validate_claims accepts full evidence_id (<run_id>-<case_local_id>)"
       - "dangling citation raises concrete egta.evidence.InvalidCitation naming the bad id"
       - "E-22 conflict_group supplied by caller; equals supplied conflict_key"
@@ -549,8 +549,8 @@ sessions:
         reason: "GATE-01 test baseline correctness; cross-module contract freeze with D."
         requirement_ids: ["FR-01", "GATE-01", "GATE-06"]
     verification_output:
-      - cmd: "python -m pytest -m spec test/offline/evidence -q"
-        result: "33 errors (ImportError RED: egta.evidence lacks InvalidCitation; contracts #21 merged at 141547a), 13 deselected"
+      - cmd: "python -m pytest -o addopts=--strict-markers -m spec test/offline/evidence -q"
+        result: "33 errors (ImportError RED: InvalidCitation from egta.evidence; contracts merged at 141547a), 13 deselected; 20 functions / 33 cases"
       - cmd: "python -m pytest -m \"not spec\" test/offline/evidence -q"
         result: "13 passed, 33 deselected"
       - cmd: "python -m ruff check ."

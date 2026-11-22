@@ -5,42 +5,24 @@ base:     main
 # Approval binding: authoritative reviewed head = GitHub review commit_id.
 # This file records ONLY test_content_commit + per-file/aggregate test hashes.
 # approved_by is filled by D (approver) after review; the author must not fill it.
-#
-# NOTE (D review of #25): approval MUST bind to the head AFTER B's #21 merges,
-# because these tests import EvidenceItem/EvidencePack from egta.contracts. The
-# fields below are refreshed on the rebased head and the RED re-captured there.
-#
+
 # POST-#21 STATUS: B #21 merged to main as 141547a (evidence contracts available:
 # RunSpec/EvidenceItem/EvidencePack/ExcludedItem/Availability import from
 # egta.contracts). This branch is rebased onto 141547a; RED is now purely
 # "egta.evidence absent" (ImportError: InvalidCitation), not a contracts gap.
-# The test file hash below is UNCHANGED by the rebase.
+# test_pack.py now also includes test_pack_hash_matches_risk_gate_canonical, the
+# real A->D equality check against egta.risk_gate.canonical.recompute_evidence_hash
+# (already on main); no ADR-004 is invented.
 
-test_content_commit:     c3f7332c9a8bc4568a9efb0655c364bf0ea4c21a   # post-#21 rebased head on main 141547a
-actual_cases: 32           # pytest -m spec test/offline/evidence --collect-only (32 pack cases)
+test_content_commit:     cd0cb0c3453a935fe441651463253b65cb8bd669   # post-#21 head adding the D-alignment test
+actual_cases: 33           # pytest -m spec test/offline/evidence --collect-only (33 pack cases, 20 functions)
 # 13 time-policy tests remain in test_time_policy.py (INV-02) and are deselected here.
 
 files (per-file SHA-256):
-  93c7fbdb0d1e02dba8ecf47a18181565c49c85dd7488ada6b97b25ae24520703  test/offline/evidence/test_pack.py
+  819953290a5e16c864f19531e6e986bcbe31d921720ffafe935f5e9e8c74c19d  test/offline/evidence/test_pack.py
 
 aggregate_sha256 (pack test file):
-  ad03f8ee233c402e6468ebd4d4aab0c703b01fdf87cabd3a53d522534b607e94
+  819953290a5e16c864f19531e6e986bcbe31d921720ffafe935f5e9e8c74c19d
 
-reviewed_pr_head:        PENDING   # filled by D at review on the post-#21 rebased head
+reviewed_pr_head:        PENDING   # filled by D at review on this head
 merge_commit:            PENDING   # filled after merge
-
-# Frozen cross-module contracts (see docs/req/trace-FR-01-pack.md §Frozen):
-#   - pack_hash computed by build_pack (64-hex, deterministic, content-bound);
-#     algorithm must equal risk_gate.canonical.recompute_evidence_hash (ADR-004).
-#   - validate_claims accepts full evidence_id (<run_id>-<case_local_id>).
-#   - dangling citation raises egta.evidence.InvalidCitation naming the bad id.
-#   - E-22 conflict_group supplied by caller (equals conflict_key).
-#   - E-26: source_type == "cache" is always stale; fresh non-cache control admitted.
-#   - pack.items preserves input order.
-
-approved_by:             PENDING   # D (@ZFebron491001) — GitHub review commit_id authoritative
-approved_at:             PENDING
-
-# Blocking dependency: B #21 (egta.contracts evidence types) must merge into main
-# before this spec is approved as a GATE-01 baseline; if #21's shapes change, the
-# affected tests return to A for re-approval.
