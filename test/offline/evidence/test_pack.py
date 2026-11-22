@@ -8,7 +8,7 @@ contract types are already on main (B's PR #21 merged at ``141547a``). The
 implementation PR must descend from this spec's merge commit.
 
 Post-#21 the RED is ``ImportError: cannot import name 'InvalidCitation' from
-'egta.evidence'`` (32 errors / 19 functions / 32 cases), not a missing
+'egta.evidence'`` (33 errors / 20 functions / 33 cases), not a missing
 ``egta.contracts``.
 
 Import strategy: the contract/implementation imports are performed *inside* a

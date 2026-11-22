@@ -14,8 +14,8 @@ lands in a descendant PR that must descend from this spec's merge commit (GATE-0
 - **Depends on**: B's contracts PR #21 (`egta.contracts` exporting
   `Availability`/`EvidenceItem`/`EvidencePack`/`ExcludedItem`/`RunSpec`) and A's
   `egta.evidence` (`build_pack`, `validate_claims`, `InvalidCitation`).
-- **RED by design**: `pytest -m spec test/offline/evidence` → 32 errors from
-  `ImportError` (contracts not yet exporting evidence types on this base), no
+- **RED by design**: `pytest -m spec test/offline/evidence` → 33 errors from
+  `ImportError` (`InvalidCitation` missing from `egta.evidence`; contracts already merged at 141547a), no
   xfail/skip. `-m "not spec"` stays green (13 time-policy tests).
 
 ## Frozen cross-module contracts (resolved from D's review of #25)
