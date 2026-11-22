@@ -532,10 +532,12 @@ sessions:
         result: "Success: no issues found in 2 source files"
     git_output:
       - action: "git branch"
-        result: "feat/FR-04-governance-checkers from 6830926; local changes only"
-      - action: "git commit/push/PR"
-        result: "not performed; push/PR is human-only per docs/code-governance/mcp-tool-manifest.md"
-    implementation_status: "IMPLEMENTED + VERIFIED locally; awaiting human commit/push, A/E review and E CI integration"
+        result: "feat/FR-04-governance-checkers from 6830926"
+      - action: "git commit"
+        result: "7dca154b843fbe900a6aa25a9ca343322556888d (local only)"
+      - action: "git push/PR/merge"
+        result: "not performed; human-only per docs/code-governance/mcp-tool-manifest.md"
+    implementation_status: "IMPLEMENTED + VERIFIED + COMMITTED locally; awaiting human push/PR, A/E review and E CI integration"
     approval_links:
       - "Test baseline: PR #26, A approved head 5808f0a, merge 6830926, test content 0c5c2e7"
     repository_blockers:
