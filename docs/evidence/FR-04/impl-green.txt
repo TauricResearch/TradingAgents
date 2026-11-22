@@ -1,8 +1,9 @@
 FR-04 Phase 5 implementation verification
 =========================================
-Date: 2026-11-22T12:45:09+08:00
+Date: 2026-11-22T14:37:06+08:00
 Branch: feat/FR-04-risk-gate
-Code commit: dbebd1b5553f9e0d16bf7ac81a0ccb1f4ae9c909
+Initial implementation commit: dbebd1b5553f9e0d16bf7ac81a0ccb1f4ae9c909
+E review compatibility fix:    6bad1699c13ca0f7abf6ba1c2d577877977e7f83
 Test baseline: Test PR #17
   test_content_commit: d5cf2ea5a10ddc9fb7be7f91c17bfac80cd0c196
   aggregate_sha256:    8486182bae240e07d2ac7036b809756c401964d021a33e7ed45f2f7a75570b96
@@ -87,6 +88,34 @@ Test-driven clarifications documented
 - Exactly one outbox event per stored verdict (Phase.RISK_GATE), matching the
   duplicate/idempotency tests.
 
+D↔E contracts.audit compatibility (E review fix)
+------------------------------------------------
+E's review found that the outbox payload_hash was not byte-compatible with
+contracts.audit.recompute_payload_hash: the risk gate used a timestamp rendered as
+``+00:00`` while Pydantic's JSON model dump (and therefore contracts.audit) renders
+UTC as ``...Z``. E measured 618df15d... versus a159cae7... for the same event, so
+verify_payload/replay would reject a legitimate risk_gate event.
+
+Fix commit 6bad169:
+- outbox payload_hash uses contracts.audit-compatible canonicalization: JSON with
+  sorted keys and compact separators over the RunEvent fields excluding
+  payload_hash, with the timestamp rendered as ``...Z``;
+- the outbox stores the same ``...Z`` timestamp;
+- proposal/policy/evidence canonicalization is unchanged.
+
+Verification against E's actual contracts code (extracted from
+origin/impl/FR-05-contracts-v3, since contracts are not yet on main):
+- constructed contracts.events.RunEvent from the persisted outbox row;
+- contracts.audit.verify_payload(event) -> OK;
+- stored payload_hash == recomputed payload_hash =
+  eaa25281582252eeddd22a4d581fa25b4e99c71425f78c69888e4714b13f8955.
+
+Idempotency constraint confirmation (E nuance):
+- ``UNIQUE(proposal_hash)`` is intentional and single-column. proposal_hash covers
+  run_id, so it is at least as strict as ``(run_id, proposal_hash)``; a cross-run
+  collision would imply identical formal proposal content including the run id.
+  Documented in risk-policy.md §6.
+
 Interface limitations still pending
 -----------------------------------
 - src/egta/contracts is not on this branch; the local ReasonCode adapter mirrors the
@@ -102,5 +131,7 @@ CI status
 ---------
 The implementation PR's `offline spec suites (per-suite gate)` is expected to run the
 risk_gate suite and report `risk_gate: 139 passed`; the required checks are enforced
-on the default branch. This file records local verification; CI results are recorded
-separately on the PR.
+on the default branch. The earlier CI run passed on head 5419dd8 (risk_gate
+collect-only=139, passed=139). The compatibility fix commit requires a fresh CI run
+on the new head; this file records local verification and E's contracts verifier
+proof.
