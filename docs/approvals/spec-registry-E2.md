@@ -17,25 +17,27 @@
 - **D#1:** `compare_runs(..., manifest: ExperimentManifest | None = None)`;
   supplied manifest's `compute_manifest_hash` must equal both sides'
   `manifest_hash` → else INCOMPLETE/MANIFEST_MISMATCH. `RunSummary` unchanged.
-- **D#4:** rubric true-comparison **deferred** (debt: complete operator/threshold
-  winner scoring); required now = **no misleading COMPLETE** when rubric
-  observation metrics are missing (returns INCOMPLETE).
+- **D#4:** winner/composite scoring is deferred (DEBT-FR05-D4, owner E, due
+  2026-11-22 18:00, verifier D). **Required now and tested:** operator/threshold
+  scoring with per-side `THRESHOLD_VIOLATION` failures, `quality_labels` (source =
+  enhanced), and explicit `run_pair_id`/`case_id` propagation.
 - **D#6:** `verify_chain([])` OK; `verify_chain([], anchor=...)` → `ChainBroken`
   (fail-closed).
 
 ## Files & case counts (exact from `--collect-only`)
-- E2 collect-only (actual): **28 cases**. Contracts collect-only (actual): **199 cases**.
-- Gate = exactly the actual collected numbers (do not hardcode 188/29). E2 moved
+- E2 collect-only (actual): **28 cases**. Contracts collect-only (actual): **223 cases**.
+- Gate = exactly the actual collected numbers (do not hardcode; contracts 223 / E2 28). E2 moved
   D#6 `verify_chain([], anchor)` tests to `test/offline/contracts/test_replay.py`.
 - `test_replay.py` · `test_report.py` · `test_metrics.py` · `test_sqlite_sink.py`
-  (current E2 total 30; recount via `--collect-only`).
+  (current E2 total 28).
 
 ## Hash & approval
-- `docs/approvals/test-hash-E2-evaluation.txt` will hold `test_content_commit`,
+- `docs/approvals/test-hash-E2-evaluation.txt` holds `test_content_commit`,
   `aggregate_sha256`, `spec_bundle_sha256` (tests + trace + this registry).
 - Authoritative reviewed head = GitHub review `commit_id`; merge recorded
   externally. Do not push the approval file after approval.
 
 ## Dependencies
-- E2 impl depends on `egta.contracts.*` (Phase-1 PR #6). **E2 impl waits for #6
-  to merge**; this spec may proceed in parallel off `main`.
+- E2 impl depends on `egta.contracts.*` — the contracts implementation **#10**
+  (successor of #6). **E2 impl waits for #10 to merge**; this spec may proceed in
+  parallel off `main`.

@@ -148,21 +148,43 @@ scoring/verification). Comparability requires matching `target_snapshot_id`,
 `model_config_hash`, `prompt_hash`, `code_hash`, `policy_hash`. Any mismatch ⇒
 INCOMPLETE with the specific reason (SNAPSHOT/MODEL/PROMPT/CODE/POLICY_MISMATCH);
 a missing required variant/result ⇒ INCOMPLETE `MISSING_RESULT`; unknown usage ⇒
-INCOMPLETE `MISSING_USAGE`; no observed value for a rubric metric ⇒ INCOMPLETE
-`MISSING_METRIC`. Optional `manifest: ExperimentManifest | None = None`: when
+INCOMPLETE `MISSING_USAGE`; a rubric metric **not observed on BOTH sides** (either
+side missing it) ⇒ INCOMPLETE `MISSING_METRIC` (single-sided absence is not a
+COMPLETE comparison). An **illegal rubric** (entry not a `MetricDef`) is
+**rejected** (`ValidationError` only), never COMPLETE. Optional `manifest: ExperimentManifest | None = None`: when
 supplied, `compute_manifest_hash(manifest)` must equal **both** sides'
 `manifest_hash`, else INCOMPLETE `MANIFEST_MISMATCH`. Check order: manifest →
 snapshot/model/prompt/code/policy → result/usage → rubric observation (so the
 manifest counterexample still yields `MANIFEST_MISMATCH`). None of these count as
 a win. `variant` is propagated to `EvaluationResult.variant`.
 
-**D#4 scope:** winner/composite scoring is **deferred (debt)**; `winner`/
-`baseline_win`/`enhanced_win` stay `None`/`False` until debt closure (owner E,
-due 2026-11-22T18:00+08:00, verifier D; winner not reported before FR-05 is
-reported). Required now: typed rubric validation (`TypeAdapter(dict[str,
-MetricDef])`), observation existence (`MISSING_METRIC`), and applying
-operator/threshold per metric (scored value = the **observed** value, not the
-threshold).
+**D#4 scope (NOT the old "deferral" conflict):** `compare_runs` **MUST** use the
+**observed** value (never the threshold as the metric) and **MUST** apply each
+`MetricDef.operator`/`threshold` to the observed values, recording any breach in
+`failures`; it **MUST** validate the rubric (`TypeAdapter(dict[str, MetricDef])`,
+illegal → **raise `ValidationError`** (only) ) and **MUST** require the metric on **both** sides
+(`MISSING_METRIC` otherwise). The **only deferred part is the final
+winner/composite score**: `winner`/`baseline_win`/`enhanced_win` stay `None`/
+`False` until DEBT-FR05-D4 closes (owner E, due 2026-11-22T18:00+08:00, verifier
+D; winner not reported before FR-05 is reported).
+
+**Threshold handling (D-decided, Option Y):** `compare_runs` evaluates each rubric
+metric on **each side separately** (never `{**base, **enh}`):
+- both present & **within** threshold → `COMPLETE`, `incomplete_reason=None`,
+  `failures=[]`, `winner=None`, both `*_win=False`;
+- **one** side exceeds → `REVIEW`, `incomplete_reason=None`, `winner=None`, one
+  failure recorded for the breaching side;
+- **both** sides exceed → `REVIEW`, `failures` has ≥2 (one baseline + one
+  enhanced);
+- one side lacks the metric → `INCOMPLETE/MISSING_METRIC`;
+- illegal rubric → `ValidationError` (only; no ValueError/TypeError tolerance).
+- **Failure format** (one violation per side):
+  `THRESHOLD_VIOLATION:<metric>:<side>:observed=<v>:operator=<op>:threshold=<t>`
+  e.g. `THRESHOLD_VIOLATION:token_cost:baseline:observed=3.0:operator=lte:threshold=2.0`.
+- **`quality_labels` source = ENHANCED** (consistent with `result.variant=enhanced`
+  and the observed metrics), propagated verbatim from the enhanced `RunSummary`.
+- `THRESHOLD_VIOLATION` is **NOT** an `IncompleteReason` member (it is a
+  `failures` string; the status is `REVIEW`).
 
 ---
 

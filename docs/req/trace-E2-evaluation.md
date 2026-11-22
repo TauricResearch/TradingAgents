@@ -5,7 +5,7 @@ in a **descendant implementation PR** after this spec merges. Tests only here;
 no `src/`. RED via `ModuleNotFoundError: egta.evaluation.*`.
 
 Dependencies (reused, not redefined): `egta.contracts.{audit,evaluation,events,manifest}`
-(the Phase-1 contract PR #6). E2 implementation waits for #6 to merge.
+(the contracts implementation **#10**, successor of #6). E2 implementation waits for #10 to merge.
 
 ## Scope changes folded in (from D's PR #6 review)
 - **D#3 sink placement:** `contracts/audit.py` keeps only
@@ -17,12 +17,16 @@ Dependencies (reused, not redefined): `egta.contracts.{audit,evaluation,events,m
   is supplied, `compute_manifest_hash(manifest)` must equal **both** sides'
   `manifest_hash`, else INCOMPLETE/MANIFEST_MISMATCH. `RunSummary` unchanged.
   Covered by `test_report.py`.
-- **D#4 rubric comparison — DEFERRED (D-allowed):** winner scoring from observed
-  `RunSummary.metrics` vs `MetricDef.operator`/`threshold` is deferred. **Debt:**
-  complete operator/threshold winner scoring. **Required now:** `compare_runs`
-  must NOT return a misleading COMPLETE when rubric observation metrics are
-  missing — it returns INCOMPLETE. Covered by
-  `test_no_rubric_observation_metrics_not_misleading_complete`.
+- **D#4 rubric comparison (NOT deferred except winner):** `compare_runs` MUST use
+  observed values (not threshold) and apply `MetricDef.operator`/`threshold`,
+  recording breaches in `failures`; MUST validate the rubric (illegal → reject);
+  MUST require each metric on BOTH sides (single-sided → INCOMPLETE/MISSING_METRIC).
+  Only the final winner/composite is deferred (DEBT-FR05-D4, closing-pending).
+  Covered by `test_report.py` + `test/offline/contracts/test_comparison.py`
+  single-sided/illegal-rubric/observed-value tests. Threshold handling (D Option
+  Y): within → COMPLETE/failures=[]; one/both exceed → REVIEW with per-side
+  `THRESHOLD_VIOLATION:<metric>:<side>:observed=<v>:operator=<op>:threshold=<t>`
+  failures (≥2 when both); THRESHOLD_VIOLATION is not an IncompleteReason.
 - **D#6 empty chain + anchor (fail-closed):** `verify_chain([])` (no anchor) → OK;
   `verify_chain([], anchor=...)` → `ChainBroken`. Covered by `test_replay.py`
   (empty-chain anchor) and the contracts layer.
@@ -74,7 +78,7 @@ Dependencies (reused, not redefined): `egta.contracts.{audit,evaluation,events,m
 | `test_fail_closed_no_partial_write` | fail-closed | NFR-08 |
 | `test_reader_sorted_and_scoped` | reader sorting/scope | NFR-09 |
 
-Cases total (actual via --collect-only): **28** (E2). Contracts: **199**. D#6 empty-chain+anchor tests are in `test/offline/contracts/test_replay.py` (moved per D).
+Cases total (actual via --collect-only): **28** (E2). Contracts: **223**. D#6 empty-chain+anchor tests are in `test/offline/contracts/test_replay.py` (moved per D).
 
 ## Approval
 D (@ZFebron491001) under GATE-01; author no self-review. Binding in
