@@ -323,3 +323,220 @@ def test_quality_labels_propagated_without_forgery():
     # result carries a quality_labels list consistent with inputs (not invented)
     assert isinstance(r.quality_labels, list)
     assert set(r.quality_labels) <= set(labels) | {"bronze"}
+
+
+# ===========================================================================
+# Follow-up spec (spec/FR-05-compare-fixes): D#1/#2/#4 hardening.
+# These assertions must FAIL on the current #10 implementation (false-green) and
+# PASS on a corrected implementation.
+# ===========================================================================
+
+
+# --- A. Single-sided missing metric -> INCOMPLETE/MISSING_METRIC -----------
+
+
+def test_single_sided_missing_baseline_only_is_missing_metric():
+    """Baseline observes token_cost, enhanced does NOT -> INCOMPLETE/MISSING_METRIC."""
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})
+    e = _summary(variant="B1")  # no observation
+    r = compare_runs(b, e, _rubric())
+    assert r.completion_status is CompletionStatus.INCOMPLETE
+    assert r.incomplete_reason is IncompleteReason.MISSING_METRIC
+    assert r.winner is None and r.baseline_win is False and r.enhanced_win is False
+
+
+def test_single_sided_missing_enhanced_only_is_missing_metric():
+    """Enhanced observes token_cost, baseline does NOT -> INCOMPLETE/MISSING_METRIC."""
+    b = _summary(variant="B0")  # no observation
+    e = _summary(variant="B1", metrics={"token_cost": 1.5})
+    r = compare_runs(b, e, _rubric())
+    assert r.completion_status is CompletionStatus.INCOMPLETE
+    assert r.incomplete_reason is IncompleteReason.MISSING_METRIC
+    assert r.winner is None
+
+
+def test_both_sides_present_is_complete():
+    """Both sides observe the metric -> COMPLETE (positive retained)."""
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", metrics={"token_cost": 1.5})
+    r = compare_runs(b, e, _rubric())
+    assert r.completion_status is CompletionStatus.COMPLETE
+
+
+# --- B. Typed rubric validation (illegal rubric rejected) ------------------
+
+
+def test_illegal_rubric_flat_dict_rejected():
+    """A rubric entry that is not a MetricDef (flat dict) must be rejected."""
+    from pydantic import ValidationError
+
+    bad = {"token_cost": {"operator": "lte", "threshold": 2.0}}  # missing fields
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", metrics={"token_cost": 1.5})
+    with pytest.raises(ValidationError):
+        compare_runs(b, e, bad)
+
+
+def test_illegal_rubric_non_metricdef_object_rejected():
+    """A non-MetricDef value (arbitrary object) must be rejected, not COMPLETE."""
+    from pydantic import ValidationError
+
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", metrics={"token_cost": 1.5})
+    with pytest.raises(ValidationError):
+        compare_runs(b, e, {"token_cost": object()})
+
+
+# --- B. Observed value, not threshold ---------------------------------------
+
+
+def test_compare_runs_scores_observed_value_not_threshold():
+    """The scored value reflects observed data (not the rubric threshold)."""
+    b = _summary(variant="B0", metrics={"token_cost": 0.5})
+    e = _summary(variant="B1", metrics={"token_cost": 1.25})
+    r = compare_runs(b, e, _rubric())  # threshold 2.0
+    assert r.completion_status is CompletionStatus.COMPLETE
+    assert r.metrics["token_cost"] == 1.25
+    assert r.metrics["token_cost"] != _rubric()["token_cost"].threshold
+
+
+# --- C. Strong field assertions (failures / quality_labels / ids) ----------
+
+
+def test_run_pair_and_case_ids_are_really_propagated():
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", metrics={"token_cost": 1.5})
+    r = compare_runs(b, e, _rubric(), run_pair_id="PAIR-XYZ", case_id="CASE-42")
+    assert r.run_pair_id == "PAIR-XYZ"
+    assert r.case_id == "CASE-42"
+    assert r.run_pair_id != "pair" and r.case_id != "case"  # not hardcoded
+
+
+def test_quality_labels_propagated_strong():
+    """quality_labels source = ENHANCED (result.variant=enhanced / observed metrics); baseline differs to prove source."""
+    baseline_labels = ["gold", "silver"]
+    enhanced_labels = ["bronze", "platinum"]
+    b = _summary(variant="B0", metrics={"token_cost": 1.0}, quality_labels=baseline_labels)
+    e = _summary(variant="B1", metrics={"token_cost": 1.5}, quality_labels=enhanced_labels)
+    r = compare_runs(b, e, _rubric())
+    assert r.variant == "B1"
+    assert r.quality_labels == enhanced_labels          # from ENHANCED (option A)
+    assert r.quality_labels != baseline_labels          # not baseline; source proven
+
+
+def test_failures_field_present_and_list():
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})
+    e = _summary(variant="B1", metrics={"token_cost": 1.5})
+    r = compare_runs(b, e, _rubric())
+    assert isinstance(r.failures, list)
+
+
+# --- D contract: threshold handling (Option Y, D-decided) -------------------
+#   both present & WITHIN threshold      -> COMPLETE, failures=[], winner=None
+#   ONE side exceeds                     -> REVIEW, failures has 1 violation
+#   BOTH sides exceed                    -> REVIEW, failures >= 2 (one per side)
+#   one side lacks metric                -> INCOMPLETE/MISSING_METRIC
+#   illegal rubric                       -> ValidationError
+#   failure format (one per violating side):
+#     THRESHOLD_VIOLATION:<metric>:<side>:observed=<v>:operator=<op>:threshold=<t>
+#   THRESHOLD_VIOLATION is NOT an IncompleteReason.
+
+_FMT = "THRESHOLD_VIOLATION:{metric}:{side}:observed={observed}:operator={op}:threshold={threshold}"
+
+
+def test_both_within_threshold_is_complete_no_failures():
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})   # <= 2.0 (within)
+    e = _summary(variant="B1", metrics={"token_cost": 1.5})   # <= 2.0 (within)
+    r = compare_runs(b, e, _rubric())
+    assert r.completion_status is CompletionStatus.COMPLETE
+    assert r.incomplete_reason is None
+    assert r.failures == []
+    assert r.winner is None and r.baseline_win is False and r.enhanced_win is False
+
+
+def test_one_side_exceeds_is_review_with_one_failure():
+    b = _summary(variant="B0", metrics={"token_cost": 1.0})   # within
+    e = _summary(variant="B1", metrics={"token_cost": 3.0})   # exceeds lte 2.0
+    r = compare_runs(b, e, _rubric())
+    assert r.completion_status is CompletionStatus.REVIEW
+    assert r.incomplete_reason is None   # REVIEW != INCOMPLETE
+    assert r.winner is None and r.baseline_win is False and r.enhanced_win is False
+    expected = _FMT.format(metric="token_cost", side="enhanced", observed="3.0",
+                           op="lte", threshold="2.0")
+    assert expected in r.failures
+    assert len(r.failures) == 1
+
+
+def test_one_side_exceeds_baseline_is_review():
+    b = _summary(variant="B0", metrics={"token_cost": 5.0})   # exceeds
+    e = _summary(variant="B1", metrics={"token_cost": 1.0})   # within
+    r = compare_runs(b, e, _rubric())
+    assert r.completion_status is CompletionStatus.REVIEW
+    expected = _FMT.format(metric="token_cost", side="baseline", observed="5.0",
+                           op="lte", threshold="2.0")
+    assert expected in r.failures
+    assert len(r.failures) == 1
+
+
+def test_both_sides_exceed_is_review_with_two_failures():
+    b = _summary(variant="B0", metrics={"token_cost": 5.0})   # exceeds
+    e = _summary(variant="B1", metrics={"token_cost": 9.0})   # exceeds
+    r = compare_runs(b, e, _rubric())
+    assert r.completion_status is CompletionStatus.REVIEW
+    assert r.incomplete_reason is None
+    assert r.winner is None and r.baseline_win is False and r.enhanced_win is False
+    assert len(r.failures) >= 2
+    assert _FMT.format(metric="token_cost", side="baseline", observed="5.0",
+                       op="lte", threshold="2.0") in r.failures
+    assert _FMT.format(metric="token_cost", side="enhanced", observed="9.0",
+                       op="lte", threshold="2.0") in r.failures
+
+
+def test_threshold_violation_not_in_incomplete_reason():
+    """THRESHOLD_VIOLATION must NOT be an IncompleteReason member."""
+    assert "THRESHOLD_VIOLATION" not in {r.name for r in IncompleteReason}
+
+
+# --- A5: operator coverage + boundaries (D contract) ------------------------
+# lte 2.0: obs==2.0 passes; lt 2.0: obs==2.0 fails; gte/gt equal-boundary mirror.
+# Each failing side yields the exact THRESHOLD_VIOLATION format.
+
+def _rubric_op(op: str, threshold: float):
+    return {"token_cost": MetricDef(
+        metric="token_cost", operator=op, threshold=threshold,
+        verification="pytest", source="budget", aggregation="median", unit="USD")}
+
+
+@pytest.mark.parametrize(
+    "op,observed,expected_status",
+    [
+        ("eq", 2.0, "COMPLETE"),   # equal passes
+        ("eq", 2.5, "REVIEW"),     # not equal fails
+        ("lte", 2.0, "COMPLETE"),  # == boundary passes
+        ("lte", 2.5, "REVIEW"),
+        ("gte", 2.0, "COMPLETE"),  # == boundary passes
+        ("gte", 1.5, "REVIEW"),
+        ("lt", 2.0, "REVIEW"),     # == boundary FAILS (strict)
+        ("lt", 1.5, "COMPLETE"),
+        ("gt", 2.0, "REVIEW"),     # == boundary FAILS (strict)
+        ("gt", 2.5, "COMPLETE"),
+    ],
+)
+def test_operator_boundaries(op, observed, expected_status):
+    rubric = _rubric_op(op, 2.0)
+    # both sides same observed value -> both pass or both fail together
+    b = _summary(variant="B0", metrics={"token_cost": observed})
+    e = _summary(variant="B1", metrics={"token_cost": observed})
+    r = compare_runs(b, e, rubric)
+    if expected_status == "COMPLETE":
+        assert r.completion_status is CompletionStatus.COMPLETE
+        assert r.failures == []
+    else:
+        assert r.completion_status is CompletionStatus.REVIEW
+        assert r.incomplete_reason is None
+        assert r.winner is None and r.baseline_win is False and r.enhanced_win is False
+        # both sides fail (same observed) -> exactly two violations, correct format
+        assert len(r.failures) == 2
+        for side in ("baseline", "enhanced"):
+            assert (f"THRESHOLD_VIOLATION:token_cost:{side}:observed={observed}"
+                    f":operator={op}:threshold=2.0") in r.failures

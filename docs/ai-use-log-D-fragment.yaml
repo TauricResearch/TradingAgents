@@ -211,3 +211,59 @@ sessions:
       - "No self-approval, merge, contract edit, CI edit or human-only file edit was performed."
       - "The 126 failures are expected red, not xfail/skip."
       - "The hash record is prepared but NOT signed by the agent."
+
+  - session_id: "D-2026-11-22-FR04-cutoff-fix"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    time:
+      - "2026-11-22T00:28:04+08:00"   # test-content commit d5cf2ea
+      - "2026-11-22T00:28:23+08:00"   # approval record / log update
+    task_requirement_ids:
+      - FR-04
+      - GATE-01
+      - GATE-06
+    writable_path:
+      - "test/offline/risk_gate/fakes.py"
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt"
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: approve
+        what: "Authorized a one-line Test PR for the base evidence cutoff fixture fix, with A re-approval"
+        evidence: "interactive approval: 授权提交 Test PR（推荐）"
+        limit: "Not an approval of the new test hash; A must independently re-approve"
+    changes:
+      - "base_evidence_pack cutoff -600s -> -30s to align with make_evidence default"
+      - "no expected outcome or test count changes; EVD-05 remains REVIEW; base valid"
+    verification_output:
+      - command: "python -m pytest test/offline/risk_gate -q --tb=line"
+        exit_code: 1
+        result: "126 failed, 13 passed — expected red (egta absent); no xfail/skip"
+        evidence: "local session output"
+      - command: "python -m pytest test/offline/risk_gate/test_spec_manifest.py test/offline/risk_gate/test_harness_selfcheck.py -q"
+        exit_code: 0
+        result: "13 passed"
+        evidence: "local session output"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+        evidence: "local session output"
+    git_output:
+      - action: "git commit"
+        result: "d5cf2ea5a10ddc9fb7be7f91c17bfac80cd0c196 (test content)"
+      - action: "git push"
+        result: "origin/spec/FR-04-cutoff-fix"
+    implementation_status: "NOT STARTED — waiting for A re-approval of the new test baseline"
+    test_pr: "PENDING — FR-04 cutoff-fix Test PR"
+    test_pr_state: "OPEN — A re-approval required"
+    approval_links:
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt (approved_by: PENDING; supersedes PR #2 baseline)"
+    repository_blockers:
+      - "A must re-approve the new aggregate hash 8486182b..."
+      - "Old approval 510828a/11cfc96 does not cover the cutoff-fix baseline."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No implementation code was written."
+      - "No test expectation changes; only the base pack cutoff fixture."
+      - "The 126 failures are expected red, not xfail/skip."
+      - "The hash record is prepared but NOT signed by the agent."

@@ -286,7 +286,7 @@ def base_evidence_pack() -> FakeEvidencePack:
         "snapshot_id": "snap-1",
         "items": (item,),
         "excluded_items": (),
-        "cutoff": _dt(-600),
+        "cutoff": _dt(-30),
     }
     return FakeEvidencePack(**fields, pack_hash=sha256_hex(fields))
 
