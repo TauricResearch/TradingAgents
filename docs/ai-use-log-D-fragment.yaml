@@ -267,3 +267,77 @@ sessions:
       - "No test expectation changes; only the base pack cutoff fixture."
       - "The 126 failures are expected red, not xfail/skip."
       - "The hash record is prepared but NOT signed by the agent."
+
+  - session_id: "D-2026-11-22-FR04-implementation"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    time:
+      - "2026-11-22T12:44:22+08:00"   # code commit dbebd1b
+      - "2026-11-22T12:45:09+08:00"   # evidence/log update
+    task_requirement_ids:
+      - FR-04
+      - NFR-04
+      - NFR-05
+      - NFR-09
+      - INV-01
+      - INV-04
+      - INV-06
+      - INV-07
+      - D8
+      - GATE-02
+      - GATE-05
+      - GATE-06
+    writable_path:
+      - "src/egta/risk_gate/"
+      - "docs/evidence/FR-04/impl-green.txt"
+      - "docs/architecture/risk-policy.md"
+      - "docs/architecture/adr/003-risk-authority.md"
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: approve
+        what: "Authorized autonomous Phase 5 implementation after the approved test baseline"
+        evidence: "interactive approval: 允许你自主执行"
+        limit: "Implementation PR still requires E code-owner and A independent review; no self-approval"
+    changes:
+      - "implemented src/egta/risk_gate: models, canonical, policy, rules, ledger, service"
+      - "139 approved tests pass; no test/contract/CI/human-only changes"
+      - "documented SELL concentration exemption and concurrent STALE_PORTFOLIO status"
+    verification_output:
+      - command: "python -m pytest test/offline/risk_gate -q"
+        exit_code: 0
+        result: "139 passed"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m mypy src/egta/risk_gate"
+        exit_code: 0
+        result: "Success: no issues found in 7 source files"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m pytest tests -m 'not integration' -q"
+        exit_code: 0
+        result: "1412 passed, 1 skipped (langchain_aws missing), 1 deselected, 100 subtests"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m coverage run --source=src/egta/risk_gate -m pytest test/offline/risk_gate -q"
+        exit_code: 0
+        result: "92% total line coverage; policy.py 80% (NFR-06 100% security-branch coverage not claimed)"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+    git_output:
+      - action: "git commit"
+        result: "dbebd1b5553f9e0d16bf7ac81a0ccb1f4ae9c909 (implementation)"
+    implementation_status: "IMPLEMENTED + VERIFIED locally; implementation PR pending E/A review"
+    test_pr: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/17"
+    test_pr_state: "MERGED"
+    approval_links:
+      - "PR #17 A approved head 1fd6d29; merge commit b245bdb; aggregate 8486182b"
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt (record-only #19 pending)"
+    repository_blockers:
+      - "Implementation PR requires E code-owner review and A independent review."
+      - "Shared contracts/ticker/product policy remain pending for final integration."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No test, contract, CI, CODEOWNERS or human-only file was changed."
+      - "Coverage: 92% total; policy.py 80%; 100% security-branch coverage is NOT claimed."
+      - "CI offline gate is expected to report risk_gate: 139 passed on the implementation PR."

@@ -1,0 +1,106 @@
+FR-04 Phase 5 implementation verification
+=========================================
+Date: 2026-11-22T12:45:09+08:00
+Branch: feat/FR-04-risk-gate
+Code commit: dbebd1b5553f9e0d16bf7ac81a0ccb1f4ae9c909
+Test baseline: Test PR #17
+  test_content_commit: d5cf2ea5a10ddc9fb7be7f91c17bfac80cd0c196
+  aggregate_sha256:    8486182bae240e07d2ac7036b809756c401964d021a33e7ed45f2f7a75570b96
+  A approval head:    1fd6d29bef6396ea7b2152d56e7070101ef5c86b
+  test merge commit:  b245bdb9095f018cecf8b19419479fc6c2957395
+  approval record:   docs/approvals/test-hash-FR-04-risk-gate.txt
+  record-only PR:    #19 (fields are being recorded; A's GitHub approval is authoritative)
+Environment: Python 3.12.15, pytest 9.2.0, ruff 0.17.6, mypy 2.4.1, SQLite 3.53.4
+Implementation: src/egta/risk_gate/ (7 files, 1329 lines)
+  models.py, canonical.py, policy.py, rules.py, ledger.py, service.py, __init__.py
+
+Verification commands and results
+---------------------------------
+1) python -m pytest test/offline/risk_gate -q
+   exit 0
+   139 passed in 0.61s
+   (126 risk cases + 11 manifest meta-tests + 2 harness self-tests)
+
+2) python -m pytest -o addopts=--strict-markers -q -rsx test/offline/risk_gate
+   exit 0
+   139 passed in 0.61s
+   (matches the CI offline gate pytest invocation)
+
+3) python -m ruff check .
+   exit 0
+   All checks passed!
+
+4) python -m mypy src/egta/risk_gate
+   exit 0
+   Success: no issues found in 7 source files
+
+5) python -m pytest tests -m "not integration" -q
+   exit 0
+   1412 passed, 1 skipped, 1 deselected, 24 warnings, 100 subtests passed in 11.93s
+   The one skip is the upstream optional dependency test:
+   tests/test_bedrock_provider.py:74 — langchain_aws not installed. It is not an
+   FR-04 failure and is reported as skipped, not passed.
+
+6) python -m coverage run --source=src/egta/risk_gate -m pytest test/offline/risk_gate -q
+   exit 0
+   139 passed in 0.83s
+   coverage report:
+     __init__.py    4 stmts   0 miss  100%
+     canonical.py  63 stmts   6 miss   90%
+     ledger.py     67 stmts   2 miss   97%
+     models.py     47 stmts   0 miss  100%
+     policy.py     85 stmts  17 miss   80%
+     rules.py     217 stmts  22 miss   90%
+     service.py   110 stmts   3 miss   97%
+     TOTAL        593 stmts  50 miss   92%
+
+Coverage note (honest limitation)
+---------------------------------
+Overall line coverage is 92%, meeting the NFR-06 overall >=85% target. Per-file
+policy.py coverage is 80%; the 100% security-rule branch-coverage target is NOT
+claimed. The uncovered policy branches are defensive invalid-field combinations not
+represented in the approved 139-case baseline. Adding tests for them would change the
+approved test baseline and requires A re-approval, so it is recorded as follow-up debt
+rather than silently changing tests in this implementation PR.
+
+Implementation scope
+--------------------
+- Added only src/egta/risk_gate/ and the D-owned risk-policy/ADR clarifications.
+- No test files, contracts, CI/workflow, CODEOWNERS, rulesets, .opencode or human-only
+  files were changed.
+- No LLM/network/broker access in the gate.
+- Decimal-only money path; SQLite BEGIN IMMEDIATE; duplicate proposal_hash lookup
+  before version validation; one outbox event per stored verdict; verdict/ledger/
+  outbox in one transaction; fail-closed audit/storage handling.
+
+Test-driven clarifications documented
+-------------------------------------
+- The 20% concentration cap applies to position-increasing BUY orders. SELL is
+  risk-reducing and exempt from the concentration cap, while the 10% notional cap
+  still applies to both BUY and SELL (pinned by ACT-15/FND-23 and FND-22).
+- A stale caller snapshot whose proposal version matches the DB is
+  REJECTED/STALE_PORTFOLIO. A proposal that loses a concurrent portfolio-version
+  race returns the distinct status STALE_PORTFOLIO; no ledger write (pinned by
+  ATM-01 vs ATM-07/ATM-09).
+- HOLD requires a valid evidence pack; claims are optional because no order is
+  created. BUY/SELL require at least one claim with resolvable evidence.
+- Exactly one outbox event per stored verdict (Phase.RISK_GATE), matching the
+  duplicate/idempotency tests.
+
+Interface limitations still pending
+-----------------------------------
+- src/egta/contracts is not on this branch; the local ReasonCode adapter mirrors the
+  shared 13-value contracts-v1 vocabulary. E's contracts implementation must land for
+  final integration.
+- AdvisoryProposal/EvidencePack/RiskVerdict/PortfolioSnapshot/AuditSink are still
+  provisional/test-backed; no public contract was edited.
+- Instrument identity (ticker) is still a test-fixture gap-filler; C/B must freeze it.
+- Product price freshness, fee, slippage, base currency and policy version remain
+  PENDING; unconfigured/invalid policy is rejected as BLOCKED/INCOMPATIBLE_STATE.
+
+CI status
+---------
+The implementation PR's `offline spec suites (per-suite gate)` is expected to run the
+risk_gate suite and report `risk_gate: 139 passed`; the required checks are enforced
+on the default branch. This file records local verification; CI results are recorded
+separately on the PR.
