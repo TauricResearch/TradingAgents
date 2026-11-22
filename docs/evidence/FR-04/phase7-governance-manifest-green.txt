@@ -1,0 +1,14 @@
+Phase 7 governance test manifest self-check
+===========================================
+Date: 2026-11-22T16:07:44+08:00
+Branch: spec/FR-04-governance-tools
+Test content commit: PENDING (this spec commit)
+Command: python -m pytest test/offline/governance/test_spec_manifest.py -q
+Interpretation: the 32-case governance manifest is unique, category-counted,
+requirement-covered and wired to the two behavioural modules while the tools are
+absent.
+------------------------------------------------------------
+......                                                                   [100%]
+6 passed in 0.01s
+
+Exit code: 0

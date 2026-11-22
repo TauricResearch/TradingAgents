@@ -83,11 +83,21 @@ for B/E review, not an approved public contract.
 | Sole support unreachable | `REVIEW` | `VENDOR_UNAVAILABLE` | none |
 | Sole support stale | `REVIEW` | `STALE_DATA` | none |
 | Future-dated price/evidence | `REJECTED` | `FUTURE_DATA` | none |
-| Stale portfolio version | `REJECTED` | `STALE_PORTFOLIO` | none |
+| Stale caller snapshot (proposal version matches DB) | `REJECTED` | `STALE_PORTFOLIO` | none |
+| Proposal loses a concurrent portfolio-version race | `STALE_PORTFOLIO` | `STALE_PORTFOLIO` | none |
 | Policy missing/inactive/expired | `BLOCKED` | `INCOMPATIBLE_STATE` | none |
 | Audit or storage unavailable | `BLOCKED` | `AUDIT_UNAVAILABLE` | rollback |
 | Duplicate proposal hash | stored verdict | original reason | none |
 | Budget/deadline exhausted | `INCOMPLETE` (B, outside gate) | `BUDGET_DENIED` | none |
+
+The 20% concentration cap is a position-increasing (BUY) control. A SELL is
+risk-reducing and exempt from the concentration cap; the 10% notional cap still
+applies to both BUY and SELL.
+
+A proposal that loses a concurrent `portfolio_version` race returns the distinct
+status `STALE_PORTFOLIO`; a stale caller snapshot whose proposal version still
+matches the DB returns `REJECTED/STALE_PORTFOLIO`. Neither writes the ledger. This
+distinction is pinned by the approved ATM-01 and ATM-07/ATM-09 tests.
 
 Hash/identity rule: malformed hash syntax is `INVALID_OUTPUT`; a well-formed hash
 that does not match the recomputed content or binds a different run/snapshot/policy
@@ -104,6 +114,12 @@ evidence availability value.
 `APPROVED` -> `OK`, `REJECTED` -> `BLOCKED`, `REVIEW` -> `REVIEW`, `BLOCKED` ->
 `BLOCKED`; `INCOMPLETE` is app/budget-level, not a risk verdict. If contracts v1
 chooses differently, the mapping is deferred to that contract.
+
+Outbox `payload_hash` uses contracts.audit canonicalization: canonical JSON of the
+RunEvent fields excluding `payload_hash`, compact sorted keys, UTC timestamps with a
+trailing `Z`. This is required so E's `verify_payload`/replay accepts risk_gate
+events. The `UNIQUE(proposal_hash)` idempotency key is intentional: the hash includes
+`run_id`, so it is at least as strict as `(run_id, proposal_hash)`.
 
 The offline suite injects `price_freshness_seconds=240`, `fee_bps=10` and
 `slippage_bps=0` as **test-only** fixture parameters. They are not approved product

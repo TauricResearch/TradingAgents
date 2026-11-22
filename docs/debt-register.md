@@ -20,3 +20,14 @@ Owner: E · Verifier: A
 > `case_id` locks). Debt status is **not** changed here; it will be marked
 > closed **only after** D confirms this spec + #10 is implemented to it (D's
 > decision pending).
+
+## Follow-up debts (from #18 / v3 review — semantics to spec/test in a later spec PR)
+
+| ID | Category | Description | Status |
+|---|---|---|---|
+| DEBT-V3-SEM-1 | Spec/contract semantics | `replay_events([])` (empty input) fail-closed behaviour is undefined — should it raise `ChainBroken` (cf. `verify_chain([], anchor)`)? Specify + test in a follow-up spec PR. | Open |
+| DEBT-V3-SEM-2 | Security/ordering semantics | `SqliteAuditSink.append` does not call `verify_payload` first; a bad `payload_hash` should be rejected before persistence. Specify + test in a follow-up spec PR. | Open |
+| DEBT-V3-SEM-3 | Robustness | `Receipt` idempotency key `f"{run_id}:{event_id}"` can collide (e.g. ids containing `:`); use a structured/escaped key. Specify + test. | Open |
+| DEBT-V3-NFR06 | Coverage evidence | NFR-06 coverage evidence (business-line coverage ≥85%, security-branch 100%) not yet produced for the v3 implementation. | Open |
+
+All: **Owner: E · Verifier: D.**

@@ -1,0 +1,276 @@
+Phase 7 governance checker test-first red baseline
+==================================================
+Date: 2026-11-22T16:07:44+08:00
+Branch: spec/FR-04-governance-tools
+Test content commit: PENDING (this spec commit)
+Implementation: NOT PRESENT — tools/check_permissions.py and tools/check_approval.py
+                are intentionally absent in this Test PR.
+Python: 3.12.15
+pytest: 9.2.0
+Command: python -m pytest test/offline/governance -q --tb=line
+Expected: 32 behavioural cases fail because the checkers are absent; the 6
+manifest meta-tests pass. No xfail/skip is used. This is the test-first red
+baseline for A review, not a reported PASS.
+------------------------------------------------------------
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF......                                   [100%]
+=================================== FAILURES ===================================
+E   AssertionError: T-GOV-APPR-01: expected exit 0, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 0
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   0 = ApprovalCase(test_id='T-GOV-APPR-01', requirement_ids=('GATE-01', 'NFR-07'), description='valid approval record and im...cted_exit=0, expected_code=None, json_output=False, classification='positive', failure_mode='valid approval must pass').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-01: expected exit 0, got 2
+E   AssertionError: T-GOV-APPR-02: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-02', requirement_ids=('GATE-01', 'NFR-07'), description='missing approval record', sc...='RECORD_MISSING', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-02: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-03: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-03', requirement_ids=('GATE-01', 'NFR-07'), description='approval still pending', sce...APPROVAL_PENDING', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-03: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-04: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-04', requirement_ids=('GATE-01', 'NFR-07'), description='self approval', scenario='se...e='SELF_APPROVAL', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-04: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-05: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-05', requirement_ids=('GATE-01', 'NFR-07'), description='requirement id not in regist...UIREMENT_UNKNOWN', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-05: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-06: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-06', requirement_ids=('GATE-01', 'NFR-07'), description='requirements registry missin...REGISTRY_MISSING', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-06: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-07: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-07', requirement_ids=('GATE-01', 'NFR-07'), description='per-file test hash mismatch'...e='HASH_MISMATCH', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-07: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-08: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-08', requirement_ids=('GATE-01', 'NFR-07'), description='aggregate test hash mismatch...GREGATE_MISMATCH', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-08: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-09: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-09', requirement_ids=('GATE-01', 'NFR-07'), description='implementation base does not...EST_BASE_MISSING', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-09: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-10: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-10', requirement_ids=('GATE-01', 'NFR-07'), description='implementation modifies appr...code='TEST_DRIFT', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-10: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-11: expected exit 0, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 0
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   0 = ApprovalCase(test_id='T-GOV-APPR-11', requirement_ids=('GATE-01', 'NFR-07'), description='valid JSON output', scenario...ed_exit=0, expected_code=None, json_output=True, classification='positive', failure_mode='valid JSON report must pass').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-11: expected exit 0, got 2
+E   AssertionError: T-GOV-APPR-12: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-12', requirement_ids=('GATE-01', 'NFR-07'), description='reviewed head missing', scen...='RECORD_INVALID', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-12: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-13: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-13', requirement_ids=('GATE-01', 'NFR-07'), description='approved_by missing', scenar...='RECORD_INVALID', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-13: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-14: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-14', requirement_ids=('GATE-01', 'NFR-07'), description='aggregate field missing', sc...='RECORD_INVALID', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-14: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-15: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-15', requirement_ids=('GATE-01', 'NFR-07'), description='implementation adds an unapp...code='TEST_DRIFT', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-15: expected exit 1, got 2
+E   AssertionError: T-GOV-APPR-16: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_ap... can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_approval.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = ApprovalCase(test_id='T-GOV-APPR-16', requirement_ids=('GATE-01', 'NFR-07'), description='reviewed head is not an ance...WED_HEAD_MISSING', json_output=False, classification='negative', failure_mode='unverifiable approval must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_approval.py:170: AssertionError: T-GOV-APPR-16: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-01: expected exit 0, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 0
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   0 = PermissionCase(test_id='T-GOV-PERM-01', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='allowed risk_gate fi...exit=0, expected_code=None, json_output=False, classification='positive', failure_mode='allowed module file must pass').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-01: expected exit 0, got 2
+E   AssertionError: T-GOV-PERM-02: expected exit 0, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 0
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   0 = PermissionCase(test_id='T-GOV-PERM-02', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='allowed D-owned risk...ected_exit=0, expected_code=None, json_output=False, classification='positive', failure_mode='allowed D doc must pass').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-02: expected exit 0, got 2
+E   AssertionError: T-GOV-PERM-03: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-03', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='other module source ...='PATH_NOT_ALLOWED', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-03: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-04: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-04', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='human-only rules fil...d_code='HUMAN_ONLY', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-04: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-05: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-05', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='CI workflow change',...de='PROTECTED_PATH', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-05: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-06: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-06', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='contracts change', r...CONTRACT_PROTECTED', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-06: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-07: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-07', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='approval record chan...APPROVAL_PROTECTED', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-07: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-08: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-08', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='cross-module private...ROSS_MODULE_IMPORT', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-08: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-09: expected exit 0, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 0
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   0 = PermissionCase(test_id='T-GOV-PERM-09', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='allowed contracts im...=0, expected_code=None, json_output=False, classification='positive', failure_mode='public contracts import must pass').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-09: expected exit 0, got 2
+E   AssertionError: T-GOV-PERM-10: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-10', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='dotenv credential re...EDENTIAL_REFERENCE', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-10: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-11: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-11', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='ssh credential path ...EDENTIAL_REFERENCE', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-11: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-12: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-12', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='delete human-only fi...d_code='HUMAN_ONLY', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-12: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-13: expected exit 0, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 0
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   0 = PermissionCase(test_id='T-GOV-PERM-13', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='human role edits rul...e, json_output=False, classification='positive', failure_mode='human-maintained rules may be edited by the human role').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-13: expected exit 0, got 2
+E   AssertionError: T-GOV-PERM-14: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-14', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='verify role edits so...='ROLE_NOT_ALLOWED', json_output=False, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-14: expected exit 1, got 2
+E   AssertionError: T-GOV-PERM-15: expected exit 0, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 0
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   0 = PermissionCase(test_id='T-GOV-PERM-15', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='clean diff', role='b...expected_exit=0, expected_code=None, json_output=False, classification='positive', failure_mode='no changes must pass').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-15: expected exit 0, got 2
+E   AssertionError: T-GOV-PERM-16: expected exit 1, got 2
+      /home/zf/miniconda3/envs/egta/bin/python: can't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory
+
+    assert 2 == 1
+     +  where 2 = CompletedProcess(args=['/home/zf/miniconda3/envs/egta/bin/python', '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_pe...n't open file '/home/zf/cs5351/EGTA-CS5351-Group20/tools/check_permissions.py': [Errno 2] No such file or directory\n").returncode
+     +  and   1 = PermissionCase(test_id='T-GOV-PERM-16', requirement_ids=('GATE-02', 'NFR-07', 'D3'), description='JSON violation outpu...e='PATH_NOT_ALLOWED', json_output=True, classification='negative', failure_mode='unauthorized change must be rejected').expected_exit
+/home/zf/cs5351/EGTA-CS5351-Group20/test/offline/governance/test_permissions.py:23: AssertionError: T-GOV-PERM-16: expected exit 1, got 2
+=========================== short test summary info ============================
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-01]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-02]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-03]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-04]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-05]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-06]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-07]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-08]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-09]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-10]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-11]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-12]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-13]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-14]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-15]
+FAILED test/offline/governance/test_approval.py::test_approval[T-GOV-APPR-16]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-01]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-02]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-03]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-04]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-05]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-06]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-07]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-08]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-09]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-10]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-11]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-12]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-13]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-14]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-15]
+FAILED test/offline/governance/test_permissions.py::test_permissions[T-GOV-PERM-16]
+32 failed, 6 passed in 1.51s
+
+Exit code: 1

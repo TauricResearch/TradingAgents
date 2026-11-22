@@ -492,3 +492,30 @@ sessions:
     cost: "unknown"
     session_path: "docs/evidence/FR-01/sessions/2026-11-21-implementation.json"
     export_sha256: "e053547ab49510674928a372f391e817abecb1295a25dda3b980ddc42c5e5cbf"
+
+  - session_id: "E-impl-FR05-contracts-v3"
+    student: "E / jianmin2004"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    pr: 18
+    branch: impl/FR-05-contracts-v3
+    time:
+      - "2026-11-22T11:48:31+08:00"   # commit 37fb477 (contracts v3)
+      - "2026-11-22T11:48:54+08:00"   # commit 798e9f5 (E2 v3)
+    task_requirement_ids: [FR-05, NFR-08, NFR-09, GATE-01, GATE-06]
+    writable_path: ["src/egta/contracts/", "src/egta/evaluation/"]
+    generated_files:
+      - "src/egta/contracts/* (events/manifest/audit reused from v2; evaluation.py rewritten per #12 223: per-side MISSING_METRIC, operators eq/lte/gte/lt/gt+Option Y, enhanced labels, explicit ids)"
+      - "src/egta/evaluation/* (replay/report/metrics/sink — real SqliteAuditSink + fail-closed rollback)"
+    commits: ["37fb477", "798e9f5"]
+    human_intervention:
+      - "D 3 mandatory + 5 suggestions feedback; handled (GATE-06 log, merge main, debt kept Open); semantics suggestions recorded as follow-up debt (not changed in this PR)."
+      - "B custodian review of contracts scope."
+    verification_output:
+      - "contracts 223 passed (collect 223)"
+      - "E2 28 passed (collect 28)"
+      - "upstream 1412 passed, 1 skipped, 1 deselected"
+      - "ruff clean; mypy src/egta 0 errors"
+      - "GATE-01: first impl 37fb477 11:48 > #12 merge 66f17b9 11:43; ancestry=0"
+    cost: "unknown"
+    session_path: "unknown"
+    session_path_note: "To be exported before G3; recorded 'unknown' (not fabricated)."
