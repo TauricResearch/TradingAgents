@@ -4,7 +4,10 @@
 # /home/lenovo/refs/execution_plan_261111.md and are NOT yet confirmed by their
 # owners. A assembles the registry but does not define other members' acceptance
 # criteria. Confirmed: FR-01, INV-02, NFR-10 (owner A); FR-02, NFR-01, INV-03 and
-# GOV-02 (owner B, 2026-11-22). The remaining entries stay drafts until their owner replies.
+# GOV-02 (owner B, 2026-11-22); FR-04, NFR-05, INV-01, INV-04, INV-06, INV-07 and
+# NFR-04 (owner D, 2026-11-22, PR #9 comment). NFR-07/NFR-09/GATE-01..04/GATE-06 are
+# D-confirmed but stay draft until the E co-owner confirms. Remaining entries stay
+# drafts until their owner replies.
 # This file is validated by docs/req/req-schema.json (on the schema PR, not on main yet).
 
 schema_version: "1.0"
@@ -78,7 +81,7 @@ requirements:
       unit: count
       verification: "of 100 risk/boundary cases the number of illegally executed suggestions is 0; resubmitting the same proposal is booked only once; safety rules cannot be changed by prompt or model output; negative cases cover negative quantity, insufficient funds, over position, expired approval and audit-write failure"
     evidence: ["T-RISK-01", "T-RISK-02", "T-RISK-03", "blocked_by_rule", "duplicate_prevented", "ledger_commit"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: FR-05
@@ -168,7 +171,7 @@ requirements:
       unit: count
       verification: "fake clock + restart tests; after timeout output BLOCKED/INCOMPLETE without masking the failure (tool timeout 30 s, LLM timeout 90 s, run deadline 300 s)"
     evidence: ["T-RISK-02", "duplicate_prevented"]
-    status: draft_from_plan  # B side confirmed 2026-11-22 (PR #9 comment); D (co-owner) has not confirmed this entry yet
+    status: confirmed_by_owner
     supplied_by: "B+D"
 
   - id: NFR-05
@@ -186,7 +189,7 @@ requirements:
       unit: count
       verification: "permission-denial tests, malicious evidence set, and scan report (security set >=50 cases; secret-scan positives 0; injection-induced safety escapes 0)"
     evidence: ["permission-denial", "malicious evidence set", "scan report"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: NFR-06
@@ -222,7 +225,7 @@ requirements:
       unit: percent
       verification: "CI and PR verification; the approver cannot be the implementer's agent"
     evidence: ["gate_status", "approval_missing", "ai_log_missing"]
-    status: draft_from_plan
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
     supplied_by: "E+D"
 
   - id: NFR-08
@@ -258,7 +261,7 @@ requirements:
       unit: count
       verification: "event schema, completeness checks and failure tests"
     evidence: ["run_id", "risk_verdict", "proposal_hash", "event_gap"]
-    status: draft_from_plan
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
     supplied_by: "E+D"
 
   - id: NFR-10
@@ -294,7 +297,7 @@ requirements:
       unit: count
       verification: "unapproved/forged verdict tests; on violation roll back the transaction, return BLOCKED and record a security event"
     evidence: ["T-INV-01", "risk_verdict", "ledger_commit"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: INV-02
@@ -348,7 +351,7 @@ requirements:
       unit: count
       verification: "restart/duplicate-request tests"
     evidence: ["T-RISK-02", "duplicate_prevented"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: INV-05
@@ -384,7 +387,7 @@ requirements:
       unit: count
       verification: "disk-full/write-failure tests"
     evidence: ["T-RISK-03", "ledger_commit"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: INV-07
@@ -394,7 +397,7 @@ requirements:
     source: ["§4.4 invariant table", "NFR-05"]
     tradeoff: "Block export/commit; if already leaked, revoke the key and record the incident."
     owner: D
-    component: risk_gate
+    component: adapters
     fit_criterion:
       metric: secret_leaks
       operator: "eq"
@@ -402,7 +405,7 @@ requirements:
       unit: count
       verification: "manual injection of a canary secret and scan"
     evidence: ["scan report"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: GOV-01
@@ -576,13 +579,13 @@ requirements:
     owner: "E+D"
     component: governance
     fit_criterion:
-      metric: gate_status
+      metric: unblocked_gate_failures
       operator: "eq"
       threshold: 0
       unit: count
       verification: "six-intentional-failure-PR CI artifacts show the gate blocks; approval_missing and ai_log_missing are recorded"
     evidence: ["CI artifact", "gate_status", "approval_missing"]
-    status: draft_from_plan
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
     supplied_by: "E+D"
 
   - id: GATE-02
@@ -600,7 +603,7 @@ requirements:
       unit: count
       verification: "intentional bad imports / unauthorized import PRs are rejected by CI; static checks run per commit"
     evidence: ["CI artifact", "gate_status"]
-    status: draft_from_plan
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
     supplied_by: "E+D"
 
   - id: GATE-03
@@ -618,7 +621,7 @@ requirements:
       unit: count
       verification: "intentional bad-schema PR is blocked by CI; id uniqueness, resolvable references, every Must has test/component/monitor, all invariant thresholds zero-tolerance"
     evidence: ["CI artifact", "gate_status"]
-    status: draft_from_plan
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
     supplied_by: "E+D"
 
   - id: GATE-04
@@ -636,7 +639,7 @@ requirements:
       unit: count
       verification: "intentional wrong-prompt PR fails the semantic gate; results bound to commit SHA"
     evidence: ["CI artifact", "gate_status"]
-    status: draft_from_plan
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
     supplied_by: "E+D"
 
   - id: GATE-05
@@ -672,7 +675,7 @@ requirements:
       unit: count
       verification: "intentional missing-AI-log PR is blocked by CI; the log links changed files, session, tool/model and test evidence"
     evidence: ["CI artifact", "ai_log_missing"]
-    status: draft_from_plan
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
     supplied_by: "E+D"
 
   - id: SUB-01

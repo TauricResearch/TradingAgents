@@ -127,3 +127,33 @@ sessions:
     notes:
       - "PRD and schema reference requirement ids only; requirements.yaml remains the single source of truth."
       - "#15 is docs-only; the GATE-03 checker and its real-schema tests are PR #30/#31."
+
+  - session_id: "N/A - no opencode session; assistant script run through bash"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode CLI / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    time:
+      - "2026-11-22T17:20+08:00"   # D confirmation batch read from PR #9 comment
+      - "2026-11-22T17:30+08:00"   # transcriptions applied and schema-validated
+    task_requirement_ids: [D1, GATE-03]
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    source_of_values:
+      - "PR #9 comment by ZFebron491001 (D), 2026-11-22T09:16:06Z, batch at #9 head 90b9496"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the D-transcription commit on docs/req-registry; see `git log -1` on that branch"
+        note: "Transcribed ONLY D-supplied values: FR-04/NFR-05/INV-01/INV-04/INV-06/INV-07 and NFR-04 (B+D, all sides confirmed) -> confirmed_by_owner; INV-07 component risk_gate -> adapters (D's stated reason: adapter/export enforcement); GATE-01 metric gate_status -> unblocked_gate_failures (D's stated reason: zero-tolerance counts bypasses, gate_status is not countable). NFR-07/NFR-09/GATE-01..04/GATE-06 are D-confirmed but stay draft_from_plan (annotated in status) until the E co-owner confirms."
+    normalisation: []
+    human_intervention:
+      - type: transcription rule
+        who: "A (yuxiangdu39)"
+        when: "2026-11-22T17:28+08:00"
+        what: "No acceptance criterion inferred on D's behalf: shared E+D entries stay draft because E has not confirmed; D-side confirmation recorded in the status comment only."
+    verification_output:
+      - command: "jsonschema Draft202012Validator(docs/req/req-schema.json).validate(docs/req/requirements.yaml)"
+        result: "0 schema errors; 38 entries; 14 confirmed_by_owner / 19 draft_from_plan / 5 pending_owner_supply"
+    cost: "unknown"
+    notes:
+      - "Docs only: requirements.yaml and this fragment."
+      - "No approval claimed for entries whose E co-owner has not replied."
