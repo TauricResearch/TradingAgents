@@ -202,7 +202,8 @@ sessions:
 # --- E's PR #3 sessions, merged verbatim from main (2fb2813) ---
   - session_id: "E-2026-11-20-spec-FR05-batchA"
     student: "E / jianmin2004"
-    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    agent_tool_model: "OpenCode / opencode CLI 1.19.5 / CS5351-DeepSeek-V4-Flash"
+    test_approval: "docs/approvals/test-hash-FR-05-contracts.txt (@ZFebron491001 GATE-01, PR #3)"
     time:
       - "2026-11-20T18:29:03+08:00"   # commit 92a17e2 (actual)
     task_requirement_ids:
@@ -253,17 +254,13 @@ sessions:
         env: "egta"
         result: "events+serialization: 28 passed; manifest: 14 passed / 11 expected-RED (B2/B3 + rubric deps)"
     cost: "unknown"
-    session_path: "unknown"
-    session_path_note: >-
-      The raw OpenCode transcript was not exported from this environment during
-      Batch A, so no path exists yet. It is intentionally recorded as "unknown"
-      rather than a fabricated path. Per the D5 process the transcript will be
-      exported from the coding agent and this field updated to the real file path
-      in docs/ai-use-log.yaml before the code/session freeze (G3).
-
+    session_path: "transcripts/61069361-ZHOU-Jianmin.md"
+    export_sha256: "533e63760cd17c74f6fa26a9c9ad0c6d9c77ddea1fe83453a109a0a6db66112a"
+    final_binding: "PR #3 @ 2fb2813"
   - session_id: "E-2026-11-20-spec-FR05-batchB"
     student: "E / jianmin2004"
-    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    agent_tool_model: "OpenCode / opencode CLI 1.19.5 / CS5351-DeepSeek-V4-Flash"
+    test_approval: "docs/approvals/test-hash-FR-05-contracts.txt (@ZFebron491001 GATE-01, PR #3)"
     time:
       - "2026-11-20T23:22:54+08:00"   # commit 602f6a3 (Batch B content commit, actual commit time)
       - "2026-11-20T23:22:54+08:00"   # commit 602f6a3 (actual)
@@ -317,15 +314,13 @@ sessions:
         env: "egta"
         result: "90 passed — proves red is due to unimplemented contracts, not bad tests"
     cost: "unknown"
-    session_path: "unknown"
-    session_path_note: >-
-      Same as Batch A: raw coding-agent transcript not yet exported in this
-      environment; recorded as "unknown", to be replaced with the real exported
-      path before G3 freeze per D5.
-
+    session_path: "transcripts/61069361-ZHOU-Jianmin.md"
+    export_sha256: "533e63760cd17c74f6fa26a9c9ad0c6d9c77ddea1fe83453a109a0a6db66112a"
+    final_binding: "PR #3 @ 2fb2813"
   - session_id: "E-2026-11-21-spec-FR05-final"
     student: "E / jianmin2004"
-    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    agent_tool_model: "OpenCode / opencode CLI 1.19.5 / CS5351-DeepSeek-V4-Flash"
+    test_approval: "docs/approvals/test-hash-FR-05-contracts.txt (@ZFebron491001 GATE-01, PR #3)"
     time:
       - "2026-11-21T11:43:29+08:00"   # commit 0c6b60a (final-round content commit, actual)
     task_requirement_ids: [FR-05, NFR-08, NFR-09, GATE-01, GATE-06]
@@ -363,12 +358,13 @@ sessions:
         env: "egta"
         result: "144 passed — proves red is due to unimplemented contracts"
     cost: "unknown"
-    session_path: "unknown"
-    session_path_note: "Coding-agent transcript not yet exported here; 'unknown' (not fabricated). To be replaced with the real exported path before G3 freeze per D5."
-
+    session_path: "transcripts/61069361-ZHOU-Jianmin.md"
+    export_sha256: "533e63760cd17c74f6fa26a9c9ad0c6d9c77ddea1fe83453a109a0a6db66112a"
+    final_binding: "PR #3 @ 2fb2813"
   - session_id: "E-2026-11-21-spec-FR05-converge"
     student: "E / jianmin2004"
-    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    agent_tool_model: "OpenCode / opencode CLI 1.19.5 / CS5351-DeepSeek-V4-Flash"
+    test_approval: "docs/approvals/test-hash-FR-05-contracts.txt (@ZFebron491001 GATE-01, PR #12)"
     time:
       - "2026-11-21T12:55:00+08:00"   # convergence round (this session)
     task_requirement_ids: [FR-05, NFR-08, NFR-09, GATE-01, GATE-06]
@@ -402,12 +398,13 @@ sessions:
         env: "egta"
         result: "188 passed, exit 0 (/tmp impl is verification-only, NOT a repo implementation)"
     cost: "unknown"
-    session_path: "unknown"
-    session_path_note: "Coding-agent transcript not yet exported here; 'unknown' (not fabricated). The G3 step previously provides the exported transcript; this field is updated then."
-
+    session_path: "transcripts/61069361-ZHOU-Jianmin.md"
+    export_sha256: "533e63760cd17c74f6fa26a9c9ad0c6d9c77ddea1fe83453a109a0a6db66112a"
+    final_binding: "PR #12 @ 66f17b9"
   - session_id: "E-2026-11-21-spec-E2-evaluation"
     student: "E / jianmin2004"
-    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    agent_tool_model: "OpenCode / opencode CLI 1.19.5 / CS5351-DeepSeek-V4-Flash"
+    test_approval: "docs/approvals/test-hash-E2-evaluation.txt (@ZFebron491001 GATE-01, PR #8)"
     time:
       - "2026-11-21T17:55:00+08:00"
     task_requirement_ids: [FR-05, NFR-08, NFR-09, GATE-01, GATE-06]
@@ -444,9 +441,9 @@ sessions:
       due: "2026-11-22T18:00+08:00"
       verifier: D
     cost: "unknown"
-    session_path: "unknown"
-    session_path_note: "Coding-agent transcript not exported; 'unknown' (not fabricated). Updated at G3."
-
+    session_path: "transcripts/61069361-ZHOU-Jianmin.md"
+    export_sha256: "533e63760cd17c74f6fa26a9c9ad0c6d9c77ddea1fe83453a109a0a6db66112a"
+    final_binding: "PR #8 @ e4d32aa"
   - session_id: "A-2026-11-21-inv02-time-policy-impl"
     opencode_session_id: "ses_e06c8e84affef3t3pM3drr0udP"
     phase: "implementation (2026-11-21)"
@@ -495,7 +492,8 @@ sessions:
 
   - session_id: "E-impl-FR05-contracts-v3"
     student: "E / jianmin2004"
-    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    agent_tool_model: "OpenCode / opencode CLI 1.19.5 / CS5351-DeepSeek-V4-Flash"
+    test_approval: "docs/approvals/test-hash-FR-05-contracts.txt + test-hash-E2-evaluation.txt (@ZFebron491001 GATE-01, PR #18)"
     pr: 18
     branch: impl/FR-05-contracts-v3
     time:
@@ -517,5 +515,6 @@ sessions:
       - "ruff clean; mypy src/egta 0 errors"
       - "GATE-01: first impl 37fb477 11:48 > #12 merge 66f17b9 11:43; ancestry=0"
     cost: "unknown"
-    session_path: "unknown"
-    session_path_note: "To be exported before G3; recorded 'unknown' (not fabricated)."
+    session_path: "transcripts/61069361-ZHOU-Jianmin.md"
+    export_sha256: "533e63760cd17c74f6fa26a9c9ad0c6d9c77ddea1fe83453a109a0a6db66112a"
+    final_binding: "PR #18 @ 10ee52d"
