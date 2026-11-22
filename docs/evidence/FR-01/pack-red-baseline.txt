@@ -1,11 +1,12 @@
-# FR-01 pack spec — expected RED (test-first), post-#21
-# branch test/FR-01-pack, rebased onto main 141547a (B #21 evidence contracts merged)
-# recorded 2026-11-22T11:45:47Z
-## pytest -o addopts="--strict-markers" -m spec test/offline/evidence -q
-exit=1   # 32 errors, 13 deselected
-## raw ImportError (first occurrence) — contracts now import; only egta.evidence is absent
-E       ImportError: cannot import name 'InvalidCitation' from 'egta.evidence' (/tmp/opencode/wt25r/src/egta/evidence/__init__.py)
-## contracts importable proof (separate command)
-   from egta.contracts import RunSpec, EvidenceItem, EvidencePack, ExcludedItem, Availability -> OK
-## summary
-13 deselected, 32 errors in 0.35s
+# FR-01 pack spec — expected RED (post-#21, test-first)
+# branch test/FR-01-pack, base origin/main 141547a87f67
+# recorded 2026-11-22T12:32:34Z
+## pytest -o addopts=--strict-markers -m spec test/offline/evidence -q
+ERROR test/offline/evidence/test_pack.py::test_pack_hash_is_content_bound - I...
+ERROR test/offline/evidence/test_pack.py::test_pack_hash_matches_risk_gate_canonical
+ERROR test/offline/evidence/test_pack.py::test_pack_items_preserve_input_order
+ERROR test/offline/evidence/test_pack.py::test_admitted_content_hash_matches_excerpt
+13 deselected, 33 errors in 0.47s
+
+## first real ImportError (E line)
+E       ImportError: cannot import name 'InvalidCitation' from 'egta.evidence' (/home/lenovo/projects/EGTA-CS5351-Group20/src/egta/evidence/__init__.py)

@@ -2,10 +2,14 @@
 
 This is the **spec / test-first** artifact (GATE-01). It fixes the observable
 behaviour of ``egta.evidence.pack.build_pack`` and ``validate_claims`` before any
-implementation exists. It must stay RED on the spec branch: ``egta.contracts``
-does not yet export ``EvidenceItem`` / ``EvidencePack`` (B's PR #21) and
-``egta.evidence.pack`` does not exist (A's implementation PR, which must descend
-from this spec's merge commit).
+implementation exists. It stays RED on the spec branch because ``egta.evidence``
+does not yet provide ``InvalidCitation`` / ``egta.evidence.pack`` — the evidence
+contract types are already on main (B's PR #21 merged at ``141547a``). The
+implementation PR must descend from this spec's merge commit.
+
+Post-#21 the RED is ``ImportError: cannot import name 'InvalidCitation' from
+'egta.evidence'`` (32 errors / 19 functions / 32 cases), not a missing
+``egta.contracts``.
 
 Import strategy: the contract/implementation imports are performed *inside* a
 session-scoped fixture, not at module import. That keeps the module collectable
@@ -23,8 +27,13 @@ Frozen decisions (resolved from D's review of #25):
 
 * ``pack_hash`` is **computed by ``build_pack``**, never supplied by the caller.
   It is a 64-hex digest, deterministic for identical input, and content-bound
-  (changing an item changes it). The exact algorithm is NOT frozen here; it must
-  match D's ``egta.risk_gate.canonical.recompute_evidence_hash`` (see ADR-004).
+  (changing an item changes it). It must equal A's ``build_pack`` output being
+  identical to ``egta.risk_gate.canonical.recompute_evidence_hash(pack)`` over
+  the pack's ``evidence_fields`` — this is asserted by
+  ``test_pack_hash_matches_risk_gate_canonical`` (a real A->D integration check
+  against the helper already on main), not merely by "some deterministic
+  digest". The concrete algorithm is frozen by that equality; if the shared
+  helper changes, this test and the implementation must change together.
 * ``validate_claims`` accepts **full** evidence ids
   (``<run_id>-<case_local_id>``), matching the risk gate's index
   (``risk_gate/rules.py``) — not the fixture's case-local ids.
@@ -64,10 +73,11 @@ pytestmark = pytest.mark.spec
 def pack_api():
     """Import the contract types and the (to-be-implemented) pack API once.
 
-    RED on the spec branch: this raises ``ImportError`` because ``egta.contracts``
-    does not export the evidence types yet (B #21 unmerged) and
-    ``egta.evidence.pack`` does not exist (A implementation unmerged). Importing
-    here rather than at module scope keeps ``-m "not spec"`` collection clean.
+    RED on the spec branch: this raises ``ImportError`` because ``egta.evidence``
+    does not provide ``InvalidCitation`` and ``egta.evidence.pack`` does not
+    exist yet (A implementation unmerged). The contract types themselves are
+    already importable (B #21 merged). Importing here rather than at module scope
+    keeps ``-m "not spec"`` collection clean.
     """
     from egta.contracts import (  # noqa: F401
         Availability,
@@ -414,6 +424,20 @@ def test_pack_hash_is_content_bound(pack_api, load_case, frozen_now):
     mutated_items[0]["excerpt"] = mutated_items[0]["excerpt"] + " (tampered)"
     mutated = api.build_pack(run_spec, mutated_items)
     assert mutated.pack_hash != baseline.pack_hash
+
+
+def test_pack_hash_matches_risk_gate_canonical(pack_api, load_case, frozen_now):
+    # A->D integration: build_pack's pack_hash MUST equal D's canonical helper
+    # over the pack's evidence_fields, otherwise the risk gate rejects the pack
+    # as INTEGRITY_VIOLATION (risk_gate/rules.py recomputes and compares).
+    # This calls the helper that already lives on main, so it is a real
+    # cross-module check, not just "some deterministic digest".
+    api = pack_api
+    from egta.risk_gate.canonical import recompute_evidence_hash
+
+    for case_id in ("E-01", "E-07", "E-22", "E-23"):
+        _case, _run_spec_, pack = _build(api, load_case, frozen_now, case_id)
+        assert pack.pack_hash == recompute_evidence_hash(pack), case_id
 
 
 def test_pack_items_preserve_input_order(pack_api, load_case, frozen_now):

@@ -24,7 +24,7 @@ lands in a descendant PR that must descend from this spec's merge commit (GATE-0
 |---|---|---|
 | `pack_hash` provenance | **Computed by `build_pack`**, never caller-supplied | D's risk gate (`risk_gate/rules.py`) recomputes `recompute_evidence_hash(pack)` and rejects a mismatch as `INTEGRITY_VIOLATION`; a caller-supplied hash cannot match |
 | `pack_hash` properties | 64-hex, deterministic (same input → same digest), content-bound (mutated item → different digest) | Testable without freezing the algorithm |
-| `pack_hash` algorithm | NOT frozen here; must equal `egta.risk_gate.canonical.recompute_evidence_hash` over `evidence_fields` | Extraction of a shared helper / ADR-004 before the implementation PR |
+| `pack_hash` algorithm | **Frozen by executable equality**: `pack.pack_hash == egta.risk_gate.canonical.recompute_evidence_hash(pack)` (helper already on main), asserted by `test_pack_hash_matches_risk_gate_canonical` over E-01/E-07/E-22/E-23 | No ADR-004 needed: the equality test against the existing canonical helper is the integration proof, not a "must equal" claim |
 | claim evidence id form | **Full** `<run_id>-<case_local_id>` | Risk gate indexes claims by full `evidence_id` (`risk_gate/rules.py` `_check_claims`) |
 | dangling citation error | Concrete `egta.evidence.InvalidCitation` carrying `ReasonCode.INVALID_CITATION`; message names the bad id | No `pytest.raises(Exception)` |
 | E-22 `conflict_group` | Caller supplies `conflict_key`; item group equals that key | No underivable label frozen |
@@ -52,6 +52,7 @@ lands in a descendant PR that must descend from this spec's merge commit (GATE-0
 | `test_pack_hash_is_computed_hex64` | FR-01 | E-01 | build-computed 64-hex |
 | `test_pack_hash_is_deterministic` | FR-01 | E-01 | same input → same digest |
 | `test_pack_hash_is_content_bound` | FR-01 | E-01 mutated | changed content → changed digest |
+| `test_pack_hash_matches_risk_gate_canonical` | FR-01 (A→D integration) | E-01, E-07, E-22, E-23 | `pack.pack_hash == egta.risk_gate.canonical.recompute_evidence_hash(pack)` via the helper already on main |
 | `test_pack_items_preserve_input_order` | FR-01 | E-22 | input order preserved |
 | `test_admitted_content_hash_matches_excerpt` | FR-01, NFR-08 | E-01 | content_hash == sha256(excerpt) |
 
@@ -67,8 +68,11 @@ lands in a descendant PR that must descend from this spec's merge commit (GATE-0
 - **B #21 merged to main `141547a`**: `RunSpec`/`EvidenceItem`/`EvidencePack`/
   `ExcludedItem`/`Availability` now import from `egta.contracts`; this branch is
   rebased onto `141547a` and the RED re-captured — it is now purely "egta.evidence
-  absent" (`ImportError: InvalidCitation`), not a contracts gap. `test_pack.py`
-  hash unchanged by the rebase.
+  absent" (`ImportError: InvalidCitation`), not a contracts gap. The test file was
+  updated to add `test_pack_hash_matches_risk_gate_canonical` (the real A→D
+  equality check against the canonical helper on main) and to correct the
+  post-#21 docstrings; per-file/aggregate hashes and `test_content_commit` are
+  rebound below.
 - Remaining before approval: D re-review on this post-#21 head; fill
   `reviewed_pr_head` / `merge_commit` after merge. The implementation PR (A) must
   descend from this spec's merge commit and provide `egta.evidence.InvalidCitation`
