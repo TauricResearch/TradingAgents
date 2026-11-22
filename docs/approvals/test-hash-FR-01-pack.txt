@@ -1,0 +1,34 @@
+PR/task: FR-01 EvidencePack pack-level spec (test-first spec, test/spec ONLY — no implementation)
+branch:   test/FR-01-pack
+base:     main
+
+# Approval binding: authoritative reviewed head = GitHub review commit_id.
+# This file records ONLY test_content_commit + per-file/aggregate test hashes.
+# approved_by is filled by D (approver) after review; the author must not fill it.
+
+# POST-#21 STATUS: B #21 merged to main as 141547a (evidence contracts available:
+# RunSpec/EvidenceItem/EvidencePack/ExcludedItem/Availability import from
+# egta.contracts). This branch is rebased onto 141547a; RED is now purely
+# "egta.evidence absent" (ImportError: InvalidCitation), not a contracts gap.
+# test_pack.py now also includes test_pack_hash_matches_risk_gate_canonical, the
+# real A->D equality check against egta.risk_gate.canonical.recompute_evidence_hash
+# (already on main); no ADR-004 is invented.
+#
+# REBASE NOTE (2026-11-22): branch rebased onto main 81f25f5 (post-#38) to clear
+# the merge conflict; test_pack.py content/hash is UNCHANGED (75fc9d...) and the
+# RED re-reproduces as 33 errors / 20 functions / 33 cases. Post-#38, D's
+# canonical._normalize handles date-only, so E-07's equality test is satisfiable.
+# test_content_commit is the rebased commit that last touched test_pack.py.
+
+test_content_commit:     168ce87   # rebased commit; same test content as 24c4906 (hash 75fc9d); counts 33/20
+actual_cases: 33           # pytest -m spec test/offline/evidence --collect-only (33 pack cases, 20 functions)
+# 13 time-policy tests remain in test_time_policy.py (INV-02) and are deselected here.
+
+files (per-file SHA-256):
+  75fc9dc5bbdf6a69fcc439a7f2c0a71ea2b01c7bf15e5c1567ed9fa574aaecac  test/offline/evidence/test_pack.py
+
+aggregate_sha256 (pack test file):
+  75fc9dc5bbdf6a69fcc439a7f2c0a71ea2b01c7bf15e5c1567ed9fa574aaecac
+
+reviewed_pr_head:        PENDING   # filled by D at review on this head
+merge_commit:            PENDING   # filled after merge

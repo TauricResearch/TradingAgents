@@ -1,0 +1,12 @@
+# FR-01 pack spec — expected RED (post-#21, test-first)
+# branch test/FR-01-pack, base origin/main 141547a87f67
+# recorded 2026-11-22T12:32:34Z
+## pytest -o addopts=--strict-markers -m spec test/offline/evidence -q
+ERROR test/offline/evidence/test_pack.py::test_pack_hash_is_content_bound - I...
+ERROR test/offline/evidence/test_pack.py::test_pack_hash_matches_risk_gate_canonical
+ERROR test/offline/evidence/test_pack.py::test_pack_items_preserve_input_order
+ERROR test/offline/evidence/test_pack.py::test_admitted_content_hash_matches_excerpt
+13 deselected, 33 errors in 0.47s
+
+## first real ImportError (E line)
+E       ImportError: cannot import name 'InvalidCitation' from 'egta.evidence' (/home/lenovo/projects/EGTA-CS5351-Group20/src/egta/evidence/__init__.py)

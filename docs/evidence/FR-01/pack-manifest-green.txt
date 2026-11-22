@@ -1,0 +1,5 @@
+# FR-01 pack spec — non-spec suite stays green (post-#21)
+# recorded 2026-11-22T12:40:00Z
+## pytest -o addopts="--strict-markers" -m 'not spec' test/offline/evidence -q
+exit=0
+13 passed, 33 deselected in 0.09s
