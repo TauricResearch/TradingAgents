@@ -13,16 +13,23 @@ PR:       #17 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/17
 # REVIEW. The one-line fixture fix aligns the base pack to -30s; expected outcomes
 # and the 139-test count are unchanged.
 #
-# Current approval: Test PR #17, A approved head 1fd6d29, merged b245bdb; the
-# test aggregate below is unchanged. Previous approval (historical): PR #2,
-# reviewed 510828a, merged 11cfc96, superseded by the cutoff fixture fix.
-test_content_commit:     d5cf2ea5a10ddc9fb7be7f91c17bfac80cd0c196
-reviewed_pr_head:        1fd6d29bef6396ea7b2152d56e7070101ef5c86b
-merge_commit:            b245bdb9095f018cecf8b19419479fc6c2957395
+# Date-only canonical fix (2026-11-22, #38): canonical.py now handles
+# datetime.date; test_evidence_time_policy.py T-RISK-EVD-05 gains a date-only
+# canonical equality check. Per-file hash + aggregate re-signed by A; 139 unchanged.
+# Amendment binding uses the test-content commit 276a020 for both test_content_commit
+# and reviewed_pr_head; A's implementation review is on the #38 PR head. merge_commit
+# remains PENDING until #38 merges.
+#
+# Current approval: date-only amendment #38 (test content 276a020); historical
+# approval: Test PR #17, A approved head 1fd6d29, merged b245bdb.
+test_content_commit:     276a0208a4571bcb1bd5d25cfded193556a98e67
+reviewed_pr_head:        276a0208a4571bcb1bd5d25cfded193556a98e67
+merge_commit:            PENDING (#38)
 
 # Approval binds to: the GitHub review on reviewed_pr_head and the test aggregate
 # hash below. GitHub review is the authoritative approval; this file records
-# content binding. The cutoff-fix Test PR #17 is merged.
+# content binding. The historical cutoff-fix Test PR #17 is merged; the date-only
+# amendment is under #38.
 
 case_inventory:
   risk_cases: 126            # 119 behavioural + 7 static inspection
@@ -40,7 +47,7 @@ files (per-file SHA-256):
   deaf0b0a916872c97c764790afb8166d3f948b980395ee4c8bde0869b771fcc7  test/offline/risk_gate/fakes.py
   ce984bf2c27c4f69d8861dbb2c443eaef72751cedff22a214d1a46a18599e99b  test/offline/risk_gate/test_actions_quantities.py
   b729f6598c88e38c5e7abd0fe781ff77da0de1b45de7213a9e4824af1526d5c8  test/offline/risk_gate/test_atomicity_concurrency.py
-  ba079a6fb0e40c8caf19dd6077586fb0b59313f07924f7bee296a1ea58c2f074  test/offline/risk_gate/test_evidence_time_policy.py
+  eae1f93c1403c15bfc5d9a6e5f69c5687158719beb8212e892e1095fddff00eb  test/offline/risk_gate/test_evidence_time_policy.py
   edfaf3110b921aa386d81cdc51645859724924723b6a332bc480d239df29d6bd  test/offline/risk_gate/test_funds_positions_costs.py
   0d5f55f594dee4d3eb21de76b0cdb4905a7d5b884b0887d749a657da37e1160c  test/offline/risk_gate/test_harness_selfcheck.py
   a32458a94d490d97469976ed83f2013a558826c0b77b167602a1dae28149d97b  test/offline/risk_gate/test_identity_idempotency.py
@@ -48,10 +55,11 @@ files (per-file SHA-256):
   b8f64a699b1cbd2de2898d59cf1f1c9f52c0f48b1c5286a87b37be2a90a4481e  test/offline/risk_gate/test_spec_manifest.py
 
 aggregate_sha256 (sha256sum of per-file lines, sorted by path):
-  8486182bae240e07d2ac7036b809756c401964d021a33e7ed45f2f7a75570b96
+  f3c45de208b87b6ddee54d132648a29443cb46ac4f9219be465a9634350fcca2
 
 approved_by:             A (Du Yuxiang, @yuxiangdu39)
-approved_at:             2026-11-22T03:30:09Z
+# A's date-only re-sign is dated 2026-11-22; the exact GitHub review timestamp on #38 is authoritative.
+approved_at:             2026-11-22
 
 # --- Review-response record (B1–B6) ------------------------------------------
 # B1 reason codes: EVD-19 -> INVALID_CITATION; EVD-02 -> INTEGRITY_VIOLATION;
