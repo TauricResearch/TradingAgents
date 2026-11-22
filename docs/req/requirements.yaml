@@ -5,9 +5,10 @@
 # owners. A assembles the registry but does not define other members' acceptance
 # criteria. Confirmed: FR-01, INV-02, NFR-10 (owner A); FR-02, NFR-01, INV-03 and
 # GOV-02 (owner B, 2026-11-22); FR-04, NFR-05, INV-01, INV-04, INV-06, INV-07 and
-# NFR-04 (owner D, 2026-11-22, PR #9 comment). NFR-07/NFR-09/GATE-01..04/GATE-06 are
-# D-confirmed but stay draft until the E co-owner confirms. Remaining entries stay
-# drafts until their owner replies.
+# NFR-04 (owner D, 2026-11-22, PR #9 comment); GOV-03, GOV-09 (owner D, existence
+# criteria). NFR-07/NFR-09/GATE-01..04/GATE-06 are D-confirmed but stay draft until
+# the E co-owner confirms. NFR-02 (B+E) is B-confirmed but stays draft (E pending).
+# Remaining entries stay drafts until their owner replies.
 # This file is validated by docs/req/req-schema.json (on the schema PR, not on main yet).
 
 schema_version: "1.0"
@@ -453,13 +454,13 @@ requirements:
     owner: D
     component: governance
     fit_criterion:
-      metric: d3_artefact_present
-      operator: "gte"
-      threshold: null
+      metric: d3_required_artifacts_present
+      operator: "exists"
+      threshold: true
       unit: null
-      verification: "confirm each D3 artifact exists (plan does not name a concrete command)"
+      verification: "PASS iff a repository review finds root AGENTS.md and all five documented items: structural constraints, MCP tool manifest, permission rules, human-only rules, and project covenant."
     evidence: ["AGENTS.md", "human-only rules", "MCP manifest"]
-    status: pending_owner_supply
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: GOV-04
@@ -561,13 +562,13 @@ requirements:
     owner: D
     component: governance
     fit_criterion:
-      metric: d9_artefact_present
-      operator: "gte"
-      threshold: null
+      metric: d9_required_instructions_present
+      operator: "exists"
+      threshold: true
       unit: null
-      verification: "confirm root Prompt.md contains the plan/stop-for-approval/human-gate instructions (plan does not name a concrete command)"
+      verification: "PASS iff static root Prompt.md requires a plan before any implementation, an explicit stop for human approval of that plan, and separate human approvals before implementation and before verification."
     evidence: ["Prompt.md"]
-    status: pending_owner_supply
+    status: confirmed_by_owner
     supplied_by: "D"
 
   - id: GATE-01

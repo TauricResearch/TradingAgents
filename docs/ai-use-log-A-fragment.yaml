@@ -157,3 +157,28 @@ sessions:
     notes:
       - "Docs only: requirements.yaml and this fragment."
       - "No approval claimed for entries whose E co-owner has not replied."
+
+  - session_id: "N/A - no opencode session; assistant script run through bash"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode CLI / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    time:
+      - "2026-11-22T17:45+08:00"   # back-fill of the two untouched owner replies
+    task_requirement_ids: [D1, GATE-03]
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    source_of_values:
+      - "PR #9 comment 7075616405 by ZFebron491001 (D): GOV-03 / GOV-09 fit_criterion"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the GOV-03/GOV-09 transcription commit on docs/req-registry"
+        note: "Transcribed D's exact GOV-03/GOV-09 fit_criterion (operator=exists, threshold=true, metric d3_required_artifacts_present / d9_required_instructions_present) and flipped to confirmed_by_owner. These require the #15 schema bump adding operator=exists + boolean threshold; landed there first (5adba44)."
+    normalisation:
+      - "B's NFR-02 stays draft_from_plan: B confirmed his side, E (co-owner) has not. No half-row is flipped."
+      - "E's GOV-04/GOV-07/GOV-08 remain pending_owner_supply: 'confirmed' without a criterion (threshold null) is not transcribable."
+    verification_output:
+      - command: "jsonschema.validate(requirements.yaml, req-schema.json @ #15 5adba44)"
+        result: "0 schema errors; 38 entries; 16 confirmed_by_owner / 19 draft_from_plan / 3 pending_owner_supply"
+    cost: "unknown"
+    notes:
+      - "Completes the back-fill of all transcribable owner confirmations on #9."
