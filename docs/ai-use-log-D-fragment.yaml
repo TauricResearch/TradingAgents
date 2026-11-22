@@ -559,3 +559,65 @@ sessions:
       - "The #26 per-file and aggregate hashes are evidence, not an approval record; A's GitHub approval remains authoritative."
       - "AGENTS.md is a proposed D3 policy artifact and requires human review; Prompt.md is still missing, so GOV-09 is not claimed."
       - "Push and PR creation were performed under explicit human authorization; no GitHub review, approval or merge was submitted."
+
+  - session_id: "D-2026-11-22-FR04-date-only-canonical"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    opencode_session_id: "ses_dfd91c6a0ffeGCYpCzxK7KuCWM"
+    time:
+      - "2026-11-22T20:45:00+08:00"   # RED regression before fix
+      - "2026-11-22T20:54:10+08:00"   # GREEN fix, evidence and log
+    task_requirement_ids:
+      - FR-04
+      - FR-01
+      - NFR-09
+      - INV-06
+      - GATE-01
+    writable_path:
+      - "src/egta/risk_gate/canonical.py"
+      - "test/offline/risk_gate/test_evidence_time_policy.py"
+      - "docs/evidence/FR-04/date-only-canonical-fix.txt"
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: redirect
+        what: "A reported PR #25 E-07 date-only failure and requested D-side canonical support plus a D regression test"
+        evidence: "A message: canonical date-only blocker; keep E-07 and equality test; add D-side date-only risk-gate test"
+        limit: "D fixed canonical.py and added the regression; A must re-approve the changed test hash. The agent did not edit the approval record."
+    changes:
+      - "canonical.py now normalizes datetime.date to an ISO date string after the datetime branch, preserving datetime precedence"
+      - "T-RISK-EVD-05 now also checks date-only canonical bytes and hash equality with the equivalent ISO-string pack"
+      - "added date-only evidence with red/green outputs and the new test hash/aggregate for A's re-approval"
+    verification_output:
+      - command: "python -m pytest test/offline/risk_gate/test_evidence_time_policy.py -q -k EVD-05 --tb=short (before fix)"
+        exit_code: 1
+        result: "TypeError: cannot canonicalize <class 'datetime.date'> (expected RED)"
+      - command: "python -m pytest test/offline/risk_gate/test_evidence_time_policy.py -q -k EVD-05 --tb=short (after fix)"
+        exit_code: 0
+        result: "1 passed, 21 deselected"
+      - command: "python -m pytest test/offline/risk_gate -q"
+        exit_code: 0
+        result: "139 passed"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+      - command: "python -m mypy src/egta/risk_gate"
+        exit_code: 0
+        result: "Success: no issues found in 7 source files"
+    git_output:
+      - action: "test-first commit"
+        result: "276a020 (date-only regression, expected RED)"
+      - action: "fix commit"
+        result: "in the same branch after 276a020; PR pending"
+    implementation_status: "FIXED + VERIFIED; A must re-approve the changed FR-04 test hash and update the approval record"
+    approval_links:
+      - "A PR #25: https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/25"
+    repository_blockers:
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt still binds the old test hash; A must update the per-file hash and aggregate and re-approve."
+      - "The risk_gate expected count remains 139; no CI count change is required."
+      - "A must rebind #25 to current main and confirm E-07 plus the equality test on the new D canonical."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No frozen test was deleted or skipped; the existing EVD-05 case gained the date-only canonical assertion."
+      - "The approval record was not edited by the agent; A's independent re-approval remains authoritative."
+      - "The date-only branch is based on main before the open #37 D-log closeout PR; the final D-log merge order must keep both entries."
