@@ -1,0 +1,22 @@
+worktree_head: f52868da423387452514c49114044cdc50608cf7
+worktree: /tmp/opencode/b-revise (rev/B-evidence-contracts-rebase)
+captured_at_utc: 2026-11-21T13:46:48Z
+command: python -m pytest -m spec test/offline/contracts/test_evidence_contracts.py -q --tb=line
+
+
+==================================== ERRORS ====================================
+______ ERROR collecting test/offline/contracts/test_evidence_contracts.py ______
+ImportError while importing test module '/tmp/opencode/b-revise/test/offline/contracts/test_evidence_contracts.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/home/cosine/.local/share/uv/python/cpython-3.12.16-linux-x86_64-gnu/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test/offline/contracts/test_evidence_contracts.py:37: in <module>
+    from egta.contracts import EvidenceItem, EvidencePack, RunSpec
+E   ModuleNotFoundError: No module named 'egta'
+=========================== short test summary info ============================
+ERROR test/offline/contracts/test_evidence_contracts.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.08s
+exit: 2 (ModuleNotFoundError: egta; 0 collected, 0 executed; expected RED)
