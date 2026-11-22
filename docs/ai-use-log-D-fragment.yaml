@@ -413,3 +413,4 @@ sessions:
       - "No test, contract, CI, CODEOWNERS or human-only file was changed."
       - "E's contracts code was used read-only from impl/FR-05-contracts-v3 for compatibility verification."
       - "The earlier CI run passed on 5419dd8; the new head needs a fresh CI run."
+      - "After E PR #18 merged, contracts.audit is on main; verify_payload re-ran OK on main."

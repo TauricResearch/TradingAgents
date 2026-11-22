@@ -110,6 +110,11 @@ origin/impl/FR-05-contracts-v3, since contracts are not yet on main):
 - stored payload_hash == recomputed payload_hash =
   eaa25281582252eeddd22a4d581fa25b4e99c71425f78c69888e4714b13f8955.
 
+Post-#18 re-verification: after E's contracts PR #18 merged on main (`10ee52d`),
+contracts.audit is available on main. Re-ran `verify_payload` against the persisted
+outbox event using main contracts: OK; stored == recomputed. The earlier
+branch extraction from `impl/FR-05-contracts-v3` is superseded by main.
+
 Idempotency constraint confirmation (E nuance):
 - ``UNIQUE(proposal_hash)`` is intentional and single-column. proposal_hash covers
   run_id, so it is at least as strict as ``(run_id, proposal_hash)``; a cross-run
@@ -118,9 +123,10 @@ Idempotency constraint confirmation (E nuance):
 
 Interface limitations still pending
 -----------------------------------
-- src/egta/contracts is not on this branch; the local ReasonCode adapter mirrors the
-  shared 13-value contracts-v1 vocabulary. E's contracts implementation must land for
-  final integration.
+- E's contracts/evaluation PR #18 is now merged on main (`10ee52d`); the shared
+  contracts are available. risk_gate retains its local ReasonCode adapter for the
+  frozen 13-value vocabulary; final integration may import the shared enum. No
+  contract file was edited by this PR.
 - AdvisoryProposal/EvidencePack/RiskVerdict/PortfolioSnapshot/AuditSink are still
   provisional/test-backed; no public contract was edited.
 - Instrument identity (ticker) is still a test-fixture gap-filler; C/B must freeze it.
@@ -132,6 +138,6 @@ CI status
 The implementation PR's `offline spec suites (per-suite gate)` is expected to run the
 risk_gate suite and report `risk_gate: 139 passed`; the required checks are enforced
 on the default branch. The earlier CI run passed on head 5419dd8 (risk_gate
-collect-only=139, passed=139). The compatibility fix commit requires a fresh CI run
-on the new head; this file records local verification and E's contracts verifier
-proof.
+collect-only=139, passed=139). After the compatibility fix and main/PR #18 sync,
+the final head requires a fresh CI run; this file records local verification and
+E's contracts verifier proof against main.
