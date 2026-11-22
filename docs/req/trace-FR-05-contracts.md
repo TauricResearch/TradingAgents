@@ -5,11 +5,11 @@ Requirement-to-test trace. **Spec/test only.** Implementation
 descendant implementation PR. Contract definitions: `docs/req/contracts-summary.md`.
 Related: **PR #1** (original record; DEBT-D2).
 
-**Status:** 7 test modules (9 files), **111 test functions → 188 cases**. RED here: imports of
+**Status:** 7 test modules (9 files), **136 test functions → 223 cases** (test_comparison: 34 functions incl. operator boundaries). RED here: imports of
 `egta.contracts.audit`/`evaluation` fail (`ModuleNotFoundError`). Quarantine (D
 item 8, Option A): default `pytest` collects only `tests/` (green); the spec is
 run explicitly on the impl branch via `pytest -m spec test/offline/contracts`
-(required, gate on ≥90 cases) — we do NOT rely on testpaths omission to hide it.
+(required, gate exactly 223 cases) — we do NOT rely on testpaths omission to hide it.
 `_InMemorySink` in `test_audit.py` is a **reference double**; the impl PR must add
 a real `SqliteAuditSink` integration test. `compare_runs`/`replay_events` are
 defined in `egta.contracts.evaluation` (see contracts-summary §2).
@@ -26,7 +26,7 @@ defined in `egta.contracts.evaluation` (see contracts-summary §2).
 - `test_evaluation_result.py` (10) — CompletionStatus/IncompleteReason members;
   manifest_hash required; typed metrics/quality_labels/failures; INCOMPLETE⇔reason,
   COMPLETE⇔None; winner fields. → FR-05, NFR-09
-- `test_comparison.py` (5) — typed inputs (reject dict); snapshot/model/prompt/
+- `test_comparison.py` (34 functions) — typed inputs (reject dict); snapshot/model/prompt/
   code/policy + manifest_hash mismatch → INCOMPLETE specific reason, no win;
   MISSING_RESULT; rubric used. → FR-05
 - `test_replay.py` (8) — ReplayState fields/content; determinism; order-indep;
@@ -60,10 +60,12 @@ independent `quality_rubric` + typed `metrics_rubric`. Stated once per contract.
   manifest's `compute_manifest_hash` must equal both sides' `manifest_hash` →
   else MANIFEST_MISMATCH; check order manifest → snapshot/model/prompt/code/
   policy → result/usage → rubric observation.
-- **D#4 deferral (debt):** winner/composite scoring deferred (owner E, due
-  2026-11-22T18:00+08:00, verifier D); required now = typed rubric validation,
-  `MISSING_METRIC` existence check, operator/threshold applied (scored value =
-  observed value, not threshold). Winner not reported before FR-05 is reported.
+- **D#4 (winner deferred only; threshold = Option Y):** winner/composite scoring
+  deferred (owner E, due 2026-11-22T18:00+08:00, verifier D). Required now and
+  tested: typed rubric validation (`ValidationError` only), `MISSING_METRIC`,
+  observed-value scoring (not threshold), and **threshold breach → REVIEW with
+  per-side `THRESHOLD_VIOLATION` failures** (within → COMPLETE/failures=[]);
+  `quality_labels` source = enhanced. Winner not reported before FR-05 is reported.
 - **D#6 (contracts):** `verify_chain([])` OK; `verify_chain([], anchor=...)` →
   `ChainBroken` (fail-closed) — tested here in contracts.
 

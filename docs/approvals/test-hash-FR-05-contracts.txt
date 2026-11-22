@@ -1,19 +1,19 @@
 PR/task: FR-05 contracts (test-first spec, test/spec ONLY — no implementation)
-branch:   spec/E2-evaluation (official contract-change per D ruling)
+branch:   spec/FR-05-compare-fixes (follow-up contract-change per D#1/#2/#4)
 base:     main
 
 # Approval binding: authoritative reviewed head = GitHub review commit_id (not
 # stored). Merge commit in external registry/CI/PR comment. This file records
 # ONLY test_content_commit + aggregate + bundle. Do not push after approval.
 
-test_content_commit: 6f46aea71eb76d1104c0add3d1e129accebf955b
-actual_cases: 199            # pytest -m spec test/offline/contracts --collect-only
+test_content_commit: a05e24611093449b7973e3ddbb9e69e511ec069e
+actual_cases: 223            # pytest -m spec test/offline/contracts --collect-only
 
 files (per-file SHA-256):
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  test/offline/contracts/__init__.py
   dba3966fc3f0c3e5c73980cabefcba0282f75f25f295bdc3e791a2d4e40af6e8  test/offline/contracts/conftest.py
   527aff88800869b8b91307e405690990336edab128f4678afcf0112d12703dd6  test/offline/contracts/test_audit.py
-  f797b813a8a26e1d5d39eda4f7b724e676b213c684cef5d587b0a1c8ec2f4b83  test/offline/contracts/test_comparison.py
+  47a89d26bc8e3da6edf1165e0f942ce0c21fc73d20d9094ef454cd0df87c9990  test/offline/contracts/test_comparison.py
   0cdd47611fbc87ccc53737d51e85bf1df3347cf279fb892acbb5b5dc534bb287  test/offline/contracts/test_evaluation_result.py
   fbe799211ea6fae0cdd52f9f597baccae401400e8963415a92c9b9b747db65c1  test/offline/contracts/test_events.py
   5f21946a70bf91bc3aa4acd67630ba44cadc8a65c3619de83fb2b3b5a8dbec8d  test/offline/contracts/test_manifest.py
@@ -21,9 +21,10 @@ files (per-file SHA-256):
   313793e9dcebfb210b57337385a0e36d8a54628d3ec4cd76e934559e56835ff4  test/offline/contracts/test_replay.py
 
 aggregate_sha256 (tests, sorted by path):
-  9a322563fe813b342d855bdf7d0ab5e6aef5991752220649611c750363be6ccf
+  ca792f1e9e9dc0abbc57973a8efeb415fa3d6b615f1cb3b960067d4d70b0d960
 
 spec_bundle_sha256 (tests + contracts-summary.md + trace-FR-05-contracts.md + spec-registry.md, sorted):
-  dc8c7a9e87a55591d9b5168fa8bade3565d6c9c25d71ee69327609097856ea7e
+  bcffb7e6fd0e99dbe1a07b60b6d497bd0cfa19a175a3d9bed8d19ff5883d3b59
 
+# E2 unchanged by this PR: aggregate 0aed4cf4... (28 cases) — see test-hash-E2-evaluation.txt.
 approved_by: D (@ZFebron491001) — PENDING (GitHub review commit_id authoritative)

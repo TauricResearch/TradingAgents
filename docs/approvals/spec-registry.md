@@ -12,7 +12,7 @@
   AST count + (planned) hash check.
 - **Implementation/main branch command (required, gated):**
   `pytest tests` + `pytest -m spec test/offline/contracts`. The gate MUST verify
-  **exactly the real-run passed count** (contracts 199 / E2 28; not hardcoded 188; run assertion); silently
+  **exactly the real-run passed count** (contracts 223 / E2 28; not hardcoded; run assertion); silently
   deselected/zero-selected ⇒ fail.
 - Explicit show-RED on spec branch: `pytest -m spec test/offline/contracts` →
   7 collection errors (`ModuleNotFoundError: egta`).
@@ -27,7 +27,7 @@ This PR prepares/records the verification inputs; **Admin D** must add the check
   (hash check of `aggregate_sha256` / `spec_bundle_sha256`).
 - Trace/AI-log presence check.
 - Implementation-PR required job: run `pytest -m spec test/offline/contracts`
-  (exactly 199 contracts / 28 E2 cases, real run, no skip/xfail), verify impl branch descends from spec merge commit, verify test
+  (exactly 223 contracts / 28 E2 cases, real run, no skip/xfail), verify impl branch descends from spec merge commit, verify test
   aggregate hash == approved value, first impl commit after approval commit.
 - Add these to `protect-main` required status checks + CODEOWNERS review.
 
@@ -46,10 +46,10 @@ This PR prepares/records the verification inputs; **Admin D** must add the check
 
 ## Verification evidence (this round)
 - Spec branch: `pytest -m spec test/offline/contracts` → 7 collection errors (RED).
-- `py_compile` exit 0; AST = 111 functions.
+- `py_compile` exit 0; AST = 136 functions.
 - `ruff check .` green.
 - Full spec-satisfying impl in `/tmp` → `pytest -m spec test/offline/contracts`
-  → **199 contracts / 28 E2 passed**.
+  → **223 contracts / 28 E2 passed**.
 
 ## Finalized (NOT PENDING)
 - `quality_rubric` = independent field at the same level as `metrics_rubric`.
@@ -68,7 +68,7 @@ This PR prepares/records the verification inputs; **Admin D** must add the check
   incoming_event_id) for differing `(run_id, sequence)`. `DuplicateConflict` ONLY
   for differing `(run_id, event_id)`; `AuditUnavailable` ONLY store/anchor
   unavailable. Real mid-process failure → AuditUnavailable + rollback.
-- **D#4 (deferred winner only):** typed rubric validation, MISSING_METRIC
+- **D#4 (winner deferred only; threshold = Option Y):** threshold breach → REVIEW + `failures` (per-side `THRESHOLD_VIOLATION`), `quality_labels` source = **enhanced**; typed rubric validation, MISSING_METRIC
   existence, operator/threshold applied (scored value = observed), quality_labels
   propagated (no forgery), run_pair_id/case_id from inputs (no hardcoded
   pair/case). Debt: winner/composite (owner E, due 2026-11-22T18:00+08:00,
