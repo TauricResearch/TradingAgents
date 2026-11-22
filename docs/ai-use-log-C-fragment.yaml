@@ -1,0 +1,84 @@
+# AI-use log — Member C fragment
+#
+# This is a C-owned fragment prepared for later assembly into the team's
+# docs/ai-use-log.yaml (owned by E). It records only facts observed in this
+# session. It is NOT an approval record and does NOT claim that Prompt.md,
+# GOV-09, any test, PR or implementation was approved by D or anyone else.
+#
+# Identity fields not observable in this session are written as "unknown";
+# do not infer or fabricate them. No credentials are recorded.
+
+schema_version: "1.0"
+project: EGTA-CS5351-Group20
+role: C
+github_login: wawfggqq 
+date: 2026-11-23
+fragment_for: docs/ai-use-log.yaml
+
+sessions:
+  - session_id: "unknown (not exposed by this environment)"
+   student: "C / Yuan Weizhi"
+    agent_tool_model: "OpenCode / deepseek/deepseek-flash(reasoning effort: Max)"
+    time:
+      - "2026-11-23T00:36:20+08:00"
+      - "2026-11-23T00:37:47+08:00"
+    task_requirement_ids:
+      - GOV-09
+    writable_path:
+      - "Prompt.md"
+      - "docs/ai-use-log-C-fragment.yaml"
+    generated_files:
+      - file: "Prompt.md"
+        change: >-
+          Created static root startup prompt for D9 with read-first startup,
+          plan-first traceability to requirements.yaml ids, interface-contract
+          impact, scope boundaries, test strategy, and three explicit human gates.
+        note: "Owner C; D9 acceptance by D remains pending. This is not an approval."
+      - file: "docs/ai-use-log-C-fragment.yaml"
+        change: "Created the C-owned AI-use log fragment for this prompt change."
+    human_intervention:
+      - category: "human decision / scope"
+        action: >-
+          Selected C ownership with D acceptance for Prompt.md and declined
+          updating the stale AGENTS.md / permission-model.md "Prompt.md missing"
+          references in this change.
+        evidence: "interactive question response in this session"
+        limit: >-
+          Documentation scope only; not an approval of Prompt.md content;
+          D9 acceptance remains pending.
+      - category: "human instruction / authorization"
+        action: >-
+          Instructed creation of ./Prompt.md and required surfacing AGENTS.md
+          conflicts before writing.
+        evidence: "user task message in this session"
+        limit: >-
+          Authorizes writing Prompt.md and this log fragment; no commit, push,
+          PR, merge or self-approval.
+    verification_output:
+      - command: >-
+          python3 -c "from pathlib import Path; t=Path('Prompt.md').read_text(encoding='utf-8'); req=['AGENTS.md','docs/req/requirements.yaml','接口契约','范围边界','测试策略','停止点 1（硬闸口）','停止点 2（实现前硬闸口）','停止点 3（验证前硬闸口）','不得无人值守','GOV-09']; order=['开工第一件事','计划先行','停止点 1（硬闸口）','测试/规格阶段','停止点 2（实现前硬闸口）','实现与自我验证','独立验证与完成声明','停止点 3（验证前硬闸口）']; missing=[s for s in req if s not in t]; pos=[t.index(s) for s in order]; ok=not missing and pos==sorted(pos); print('missing=',missing,'order_ok=',pos==sorted(pos),'bytes=',len(t.encode()),'lines=',len(t.splitlines())); raise SystemExit(0 if ok else 1)"
+        exit_code: 0
+        result: "missing= [] order_ok= True bytes= 8979 lines= 153"
+        evidence: "session output (raw session not exported)"
+      - command: >-
+          python3 -c "import importlib.util,sys; from pathlib import Path; spec=importlib.util.spec_from_file_location('check_permissions',Path('tools/check_permissions.py')); mod=importlib.util.module_from_spec(spec); sys.modules[spec.name]=mod; spec.loader.exec_module(mod); print('build-c:',mod._path_violation('build-c','Prompt.md')); print('build-d:',mod._path_violation('build-d','Prompt.md')); raise SystemExit(0 if mod._path_violation('build-c','Prompt.md') is None and mod._path_violation('build-d','Prompt.md')=='PATH_NOT_ALLOWED' else 1)"
+        exit_code: 0
+        result: "build-c: None; build-d: PATH_NOT_ALLOWED"
+        evidence: "session output (raw session not exported)"
+      - command: >-
+          python3 -c "import yaml; from pathlib import Path; d=yaml.safe_load(Path('docs/ai-use-log-C-fragment.yaml').read_text(encoding='utf-8')); assert d['role']=='C' and d['sessions'][0]['task_requirement_ids']==['GOV-09']; print('YAML_OK: role=C, requirement=GOV-09, generated files declared')"
+        exit_code: 0
+        result: "YAML_OK: role=C, requirement=GOV-09, generated files declared"
+        evidence: "session output (raw session not exported)"
+      - command: >-
+          python3 -c "import importlib.util,sys; from pathlib import Path; spec=importlib.util.spec_from_file_location('check_permissions',Path('tools/check_permissions.py')); mod=importlib.util.module_from_spec(spec); sys.modules[spec.name]=mod; spec.loader.exec_module(mod); paths=['Prompt.md','docs/ai-use-log-C-fragment.yaml']; verdicts={p:mod._path_violation('build-c',p) for p in paths}; print('build-c paths:',verdicts); raise SystemExit(0 if all(v is None for v in verdicts.values()) else 1)"
+        exit_code: 0
+        result: "build-c paths: {'Prompt.md': None, 'docs/ai-use-log-C-fragment.yaml': None}"
+        evidence: "session output (raw session not exported)"
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No pytest or ruff is installed in the system Python 3.14.4; this is a docs-only change and no test suite was run."
+      - "No secrets, approvals, hashes, CI runs or runtime enforcement are claimed."
+      - "Identity fields are unknown; C or the human owner must supply them without inference."
+      - "Prompt.md is untracked at the time of this record; no commit, push, PR or merge was performed."
