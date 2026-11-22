@@ -133,11 +133,11 @@
             "properties": {
               "fit_criterion": {
                 "properties": {
-                  "threshold": { "type": "integer", "minimum": 0 }
+                  "threshold": { "type": ["integer", "boolean"], "minimum": 0 }
                 }
               }
             },
-            "$comment": "Everything not waiting for a value must have a numeric threshold."
+            "$comment": "Everything not waiting for a value must have a threshold: an integer, or boolean true only for operator=exists (enforced in fit_criterion)."
           }
         },
         {
@@ -169,11 +169,11 @@
         },
         "operator": {
           "type": "string",
-          "enum": ["gte", "lte", "eq", "gt", "lt", "neq"],
-          "$comment": "Zero tolerance is expressed as eq with threshold 0; there is no separate operator."
+          "enum": ["gte", "lte", "eq", "gt", "lt", "neq", "exists"],
+          "$comment": "Zero tolerance is expressed as eq with threshold 0. 'exists' is a presence check whose threshold is the boolean true."
         },
         "threshold": {
-          "type": ["integer", "null"],
+          "type": ["integer", "boolean", "null"],
           "minimum": 0
         },
         "unit": {
@@ -186,7 +186,19 @@
           "minLength": 15,
           "$comment": "A command, a test id, or a review step. Not 'manual check'."
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "operator": { "const": "exists" } }, "required": ["operator"] },
+          "then": { "properties": { "threshold": { "const": true } } },
+          "$comment": "operator=exists requires threshold=true."
+        },
+        {
+          "if": { "properties": { "threshold": { "type": "boolean" } }, "required": ["threshold"] },
+          "then": { "properties": { "operator": { "const": "exists" } } },
+          "$comment": "A boolean threshold is only valid with operator=exists."
+        }
+      ]
     },
     "owner_list": {
       "type": "string",
