@@ -1,27 +1,28 @@
 PR/task: FR-04 deterministic risk gate + paper ledger (test-first spec, test/spec ONLY — no implementation)
 branch:   spec/FR-04-cutoff-fix
 base:     main
-PR:       original #2; superseded by the FR-04 cutoff-fix Test PR
+PR:       #17 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/17
 
 # --- Commit binding (three distinct fields; same convention as FR-05) ----------
 # 1) test-content commit  : the commit that last changed the test files' content
-# 2) reviewed PR head     : the exact head A approves (final head before merge)
-# 3) merge commit         : created by GitHub when this PR merges (post-approval)
+# 2) reviewed PR head     : the exact head A approved (final head before merge)
+# 3) merge commit         : created by GitHub when this PR merged (post-approval)
 #
 # Post-merge fixture correction (2026-11-22): base_evidence_pack used -600s while
 # make_evidence defaults to -30s and EVD-05 expects cutoff -120s/price -60s to be
 # REVIEW. The one-line fixture fix aligns the base pack to -30s; expected outcomes
 # and the 139-test count are unchanged.
 #
-# Previous approval (superseded): PR #2, reviewed 510828a, merged 11cfc96,
-# approved_by A. That approval does NOT cover the new aggregate hash below.
+# Current approval: Test PR #17, A approved head 1fd6d29, merged b245bdb; the
+# test aggregate below is unchanged. Previous approval (historical): PR #2,
+# reviewed 510828a, merged 11cfc96, superseded by the cutoff fixture fix.
 test_content_commit:     d5cf2ea5a10ddc9fb7be7f91c17bfac80cd0c196
-reviewed_pr_head:        PENDING  # A must approve the cutoff-fix Test PR head
-merge_commit:            PENDING  # filled after the cutoff-fix Test PR merges
+reviewed_pr_head:        1fd6d29bef6396ea7b2152d56e7070101ef5c86b
+merge_commit:            b245bdb9095f018cecf8b19419479fc6c2957395
 
 # Approval binds to: the GitHub review on reviewed_pr_head and the test aggregate
-# hash below. GitHub review is the authoritative approval; this file only records
-# content binding. This is a new test baseline; A must re-approve the new hash.
+# hash below. GitHub review is the authoritative approval; this file records
+# content binding. The cutoff-fix Test PR #17 is merged.
 
 case_inventory:
   risk_cases: 126            # 119 behavioural + 7 static inspection
@@ -49,8 +50,8 @@ files (per-file SHA-256):
 aggregate_sha256 (sha256sum of per-file lines, sorted by path):
   8486182bae240e07d2ac7036b809756c401964d021a33e7ed45f2f7a75570b96
 
-approved_by:             PENDING
-approved_at:             PENDING
+approved_by:             A (Du Yuxiang, @yuxiangdu39)
+approved_at:             2026-11-22T03:30:09Z
 
 # --- Review-response record (B1–B6) ------------------------------------------
 # B1 reason codes: EVD-19 -> INVALID_CITATION; EVD-02 -> INTEGRITY_VIOLATION;
