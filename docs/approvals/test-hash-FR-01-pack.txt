@@ -14,15 +14,15 @@ base:     main
 # real A->D equality check against egta.risk_gate.canonical.recompute_evidence_hash
 # (already on main); no ADR-004 is invented.
 
-test_content_commit:     cd0cb0c3453a935fe441651463253b65cb8bd669   # post-#21 head adding the D-alignment test
+test_content_commit:     24c49065d2e73c9f314198e37bd844a133bbc208   # post-#21 head; counts corrected to 33/20
 actual_cases: 33           # pytest -m spec test/offline/evidence --collect-only (33 pack cases, 20 functions)
 # 13 time-policy tests remain in test_time_policy.py (INV-02) and are deselected here.
 
 files (per-file SHA-256):
-  819953290a5e16c864f19531e6e986bcbe31d921720ffafe935f5e9e8c74c19d  test/offline/evidence/test_pack.py
+  75fc9dc5bbdf6a69fcc439a7f2c0a71ea2b01c7bf15e5c1567ed9fa574aaecac  test/offline/evidence/test_pack.py
 
 aggregate_sha256 (pack test file):
-  819953290a5e16c864f19531e6e986bcbe31d921720ffafe935f5e9e8c74c19d
+  75fc9dc5bbdf6a69fcc439a7f2c0a71ea2b01c7bf15e5c1567ed9fa574aaecac
 
 reviewed_pr_head:        PENDING   # filled by D at review on this head
 merge_commit:            PENDING   # filled after merge
