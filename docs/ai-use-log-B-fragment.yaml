@@ -98,7 +98,8 @@ sessions:
     scope: "Spec tests for shared evidence contracts (RunSpec / EvidenceItem / EvidencePack + canonical ReasonCode); no src implementation"
     branch: "spec/B-evidence-contracts"
     base: "main"
-    test_commit: "e1cb6add88c5a0eaa877f6570be36ad875d22a31"
+    initial_test_commit: "e1cb6add88c5a0eaa877f6570be36ad875d22a31"
+    final_test_content_commit: "a433d5aa8aee2329b79ceda28b9a048d800df4ab"
     writable_path:
       - "test/offline/contracts/"
     generated_files:
@@ -107,7 +108,10 @@ sessions:
         note: "puts src/ on sys.path (same pattern as E's contract tests); no pyproject change"
       - file: "test/offline/contracts/test_evidence_contracts.py"
         commit: "e1cb6ad"
-        note: "18 test functions: public import + construction sample, required-field checks, availability, reason codes, date-only JSON precision (E-31)"
+        note: "initial 18 test functions; superseded by the final 23-test revision at a433d5a"
+      - file: "test/offline/contracts/test_evidence_contracts.py"
+        commit: "a433d5a"
+        note: "final 23 test functions; byte-identical through 3d529ed/291db39/efbcb5e"
     verification_output:
       - command: "~/.venvs/cs5351-egta-b1/bin/python -m ruff check test/offline/contracts/conftest.py test/offline/contracts/test_evidence_contracts.py"
         exit_code: 0
@@ -144,8 +148,8 @@ review_and_authorization_split:
     evidence: "interactive human instructions in this session"
   independent_test_approval:
     by: "A (@yuxiangdu39)"
-    status: "REQUESTED via PR #5; A returned CHANGES_REQUESTED on 2982562 (2026-11-21T08:54:50Z). Not yet approved."
-    note: "B's publication authorization is NOT A's test approval; the two are recorded separately."
+    status: "APPROVED at efbcb5e on 2026-11-21T14:03:43Z (GATE-01 test spec approval; test content a433d5a). A returned CHANGES_REQUESTED on 2982562 and f52868d before that approval."
+    note: "B's publication authorization is NOT A's test approval; the two are recorded separately. The post-approval main sync changes docs/base only; the test bytes are unchanged, and A re-approval is requested for the new head because a push dismisses stale reviews."
 
 # -----------------------------------------------------------------------
 # Revision session — address A's CHANGES_REQUESTED on 2982562, rebase onto
@@ -171,8 +175,8 @@ revision_sessions:
       - note: "test/offline/contracts/test_evidence_contracts.py revised: 23 test functions, pytestmark=pytest.mark.spec (E-31 pack items=[] + excluded entry; tampered constructible; non-empty excluded_items exact 3-field; E-21; as_of->cutoff)"
       - note: "docs/req/trace-FR-01-evidence-contracts.md new (#5-specific; distinct from A's trace-FR-01-evidence.md)"
       - note: "docs/evidence/FR-01-contracts/{red-baseline,compile-ast,ruff}.txt new"
-      - note: "docs/approvals/test-hash-FR-01-contracts.txt new (test_content_commit PENDING; not yet created)"
-      - note: "docs/req/contracts-summary.md: appended section 7 (evidence contracts) to the main version; shared with #8 (E) — see merge note"
+      - note: "docs/approvals/test-hash-FR-01-contracts.txt created: test_content_commit a433d5a; verification_head f52868d; per-file SHA-256 + aggregate 288af7d4…"
+      - note: "docs/req/evidence-contracts.md new (standalone); docs/req/contracts-summary.md left unchanged from its main baseline to avoid changing FR-05's spec bundle"
     verification_output:
       - command: "py_compile test/offline/contracts/test_evidence_contracts.py"
         exit_code: 0
@@ -190,13 +194,28 @@ revision_sessions:
         limit: "Local rebase + local unstaged revision; no commit/push/PR edit yet."
       - category: "intervention / correction"
         action: "Corrected the earlier report: pinned 19da73a E-31 excludes same-date date-only as unavailable/FUTURE_DATA; prior 'same-day admitted' wording superseded."
-    implementation_status: "NOT STARTED — three types delivered in a separate implementation PR (no number yet) after #5 merges; reason codes from E #6."
-    approval_status: "spec revision UNSTAGED and UNCOMMITTED; hash test_content_commit not yet set; awaiting human review."
+    implementation_status: "NOT STARTED — three types delivered in a separate implementation PR after #5 merges; ReasonCode comes from E's active contracts PR #18 (v3) / #10 (v2); PR #6 is closed."
+    approval_status: "APPROVED by A at efbcb5e on 2026-11-21T14:03:43Z (test content a433d5a); post-approval main sync requests A re-approval; D code-owner review pending."
+
+final_review:
+  reviewed_head_before_sync: "efbcb5e157b3c3997aca275439807c70aa44119f"
+  test_content_commit: "a433d5aa8aee2329b79ceda28b9a048d800df4ab"
+  approval: "A (@yuxiangdu39) APPROVED at efbcb5e on 2026-11-21T14:03:43Z; re-approval requested after the post-approval main sync because a push dismisses stale reviews. Test bytes are unchanged."
+  main_synced_to: "b245bdb (via the PR branch; no conflict)"
+  docs_refresh: "ReasonCode source now cites E's active contracts PRs (#18/#10); provider_error placement documented in RunEvent/audit; trace evidence-binding paragraph cleaned; no test bytes changed."
+  actual_cases: 65
+  actual_cases_note: "pytest --collect-only -m spec with stub types (implementation absent); the exact count is also recorded in docs/approvals/test-hash-FR-01-contracts.txt for the future CI gate."
+  ci: "GitHub Actions was green on efbcb5e; rerun is required after the sync. FR-01 spec is not yet in the offline gate (DEBT-FR01-CI)."
+  outstanding:
+    - "A re-approval on the post-sync head"
+    - "D code-owner review on the post-sync head"
+    - "FR-01 CI gate after the implementation types exist (DEBT-FR01-CI)"
 
 open_items:
-  - "Non-empty excluded_items: 3-field shape agreed (case_local_id/availability/reason_code); top-level export name NOT frozen."
+  - "Non-empty excluded_items: 3-field shape agreed (case_local_id/availability/reason_code); top-level export name NOT frozen; provider_error detail lives in RunEvent/audit."
   - "E-21 duplicate ids: E-21-1 and E-21-2 asserted distinct (A confirmed); dedupe belongs to A's module."
-  - "ReasonCode source: egta.contracts.events (E #6, unmerged, 13 codes)."
-  - "contracts-summary.md is shared with #8 (5e30376) which edits sections 1/2 and FR-05 hashes; #5 appends a new section 7. Merge needs auto-merge check; #5 does not carry #8 content."
+  - "ReasonCode source: egta.contracts.events, 13 codes; E's active contracts PRs #18 (v3) / #10 (v2); PR #6 is closed."
+  - "Resolved: contracts-summary.md is unchanged; the evidence contract lives in docs/req/evidence-contracts.md and is bound by this PR's record."
+  - "actual_cases = 65 (23 test functions; parametrized expansions); FR-01 CI gate remains DEBT-FR01-CI."
   - "Gateway probe scripts exist only in a local /tmp directory; not reproducible from the repository."
   - "Raw session transcript path: unknown (not exported)."

@@ -16,7 +16,8 @@ after #5 is approved and merged; that PR has **no number yet**. Until it lands,
 `from egta.contracts import RunSpec, EvidenceItem, EvidencePack` raises
 `ModuleNotFoundError` at collection — that is the intended RED, not a broken spec.
 The shared `ReasonCode` is provided by E's contracts (`egta.contracts.events`,
-extended to 13 codes in #6, still unmerged).
+extended to 13 codes by E's active contracts implementation PRs (#18 v3 / #10
+v2; PR #6 is closed).
 
 ### `RunSpec` (plan §5.1)
 Required keys (all required; values may be checked separately): `schema_version,
@@ -72,6 +73,11 @@ fields and **no** `published_at` or full `evidence_id`:
 The tests exercise this shape only through `EvidencePack(excluded_items=[...])`;
 the top-level export name for the excluded-entry type is **not frozen** here.
 
+Provider error detail (for example A's `provider_error` `status`/`detail` in
+E-24/E-25) is **not** part of the three-field pack entry. The evidence module
+records that detail in the `RunEvent`/audit payload; the pack carries only the
+admission-relevant `case_local_id`, `availability`, and `reason_code`.
+
 ### UTC date boundary (owned by A, mirrored by these types)
 From D's second review of PR #4 (fixture E-31 at `19da73a`):
 
@@ -86,7 +92,7 @@ The filter algorithm and its behaviour tests remain A's (PR #4). #5 only shows
 the public types can REPRESENT these outcomes, including day precision.
 
 ### ReasonCode
-Tests reference `egta.contracts.events.ReasonCode`. E's #6 (unmerged) carries the
-13 codes including `INVALID_TIME`, `STALE_DATA`, `VENDOR_UNAVAILABLE`,
-`INVALID_CITATION`, `INTEGRITY_VIOLATION`; the six shared codes in
-`test_existing_shared_codes_remain` all exist there.
+Tests reference `egta.contracts.events.ReasonCode`. E's active contracts PRs
+(#18 v3 / #10 v2; #6 is closed) carry the 13 codes including `INVALID_TIME`,
+`STALE_DATA`, `VENDOR_UNAVAILABLE`, `INVALID_CITATION`, `INTEGRITY_VIOLATION`;
+the six shared codes in `test_existing_shared_codes_remain` all exist there.

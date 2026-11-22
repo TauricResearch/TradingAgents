@@ -1,8 +1,8 @@
 # Trace — FR-01 evidence contracts (test-first spec, PR #5)
 
 Requirement-to-test trace for `test/offline/contracts/test_evidence_contracts.py`.
-**Spec/test only. No `src/`.** The three public types (`RunSpec`, `EvidenceItem`,
-`EvidencePack`) are delivered by a **separate implementation PR** (B) after this
+**Spec/test only. This PR adds no `src/`.** The three public types (`RunSpec`,
+`EvidenceItem`, `EvidencePack`) are delivered by a **separate implementation PR** (B) after this
 spec is approved and merged; that PR has no number yet. Contract definitions:
 `docs/req/evidence-contracts.md` (standalone; `docs/req/contracts-summary.md` is
 left unchanged from its `main` baseline).
@@ -19,9 +19,9 @@ here overwrites A's trace or A's approval record.
   (`-m "not integration and not spec"`) never collects it; it is run explicitly
   with `-m spec test/offline/contracts`. The `spec` marker is registered on current
   `main`'s `pyproject.toml`.
-- RED on this branch by design: `from egta.contracts import ...` raises
-  `ModuleNotFoundError` at collection. Nothing imports the types until the
-  implementation PR lands.
+- RED on this branch by design: `from egta.contracts import ...` raises a
+  collection error because the evidence types are not implemented yet. Nothing
+  imports the types until the implementation PR lands.
 
 ## Coverage matrix (FR-01 → test → fixture / responsibility)
 
@@ -38,8 +38,8 @@ here overwrites A's trace or A's approval record.
 | 9 | `test_tampered_item_is_constructible_and_keeps_supplied_digest` | FR-01, A item 3 | E-23-2 / E-30-1 | B (construct); A (recompute/report) |
 | 10 | `test_evidence_item_accepts_reason_code_from_fixture` (3 params) | FR-01 | E-13/E-18/E-17/E-20 | B |
 | 11 | `test_evidence_item_rejects_misspelled_reason_code` | FR-01 | ReasonCode | B |
-| 12 | `test_evidence_reason_codes_are_public` (7 params) | FR-01 | 7 evidence codes | B tests / E (#6 enum) |
-| 13 | `test_existing_shared_reason_codes_remain` (6 params) | FR-01 | 6 shared codes | B tests / E (#6 enum) |
+| 12 | `test_evidence_reason_codes_are_public` (7 params) | FR-01 | 7 evidence codes | B tests / E (#18 enum) |
+| 13 | `test_existing_shared_reason_codes_remain` (6 params) | FR-01 | 6 shared codes | B tests / E (#18 enum) |
 | 14 | `test_evidence_pack_explicit_empty_excluded_items_is_valid` | FR-01 | A item 4 | B |
 | 15 | `test_evidence_pack_omitting_excluded_items_fails` | FR-01 | A item 4 | B |
 | 16 | `test_evidence_pack_accepts_non_empty_excluded_entry` (4 params) | FR-01, A item 4 | E-23-2 / provider / E-17-1 / E-26-1 | B |
@@ -71,22 +71,18 @@ here overwrites A's trace or A's approval record.
 | lint (full repo) | `ruff check .` | All checks passed | `docs/evidence/FR-01-contracts/ruff.txt` |
 
 The full-repo `ruff check .` depends on `pyproject.toml` `known-first-party =
-["egta"]` present on current `main` (`2fb2813`); on the pre-rebase base the same
-file would sort `egta` as third-party and fail I001. This branch is rebased onto
-`2fb2813`, so the check matches CI.
+["egta"]` present on current `main`; this branch is synced with `main`, so the
+check matches CI.
 
-## Baseline HEAD vs tested worktree
+## Evidence binding
 
-The captured evidence in `docs/evidence/FR-01-contracts/` records the **worktree
-HEAD** at capture time separately from the **tested working-tree content**. During
-the revision the worktree content differed from its HEAD (edits were not yet
-committed), so the recorded `worktree_head` is the commit the files descended from,
-not necessarily a commit that contains the tested bytes. The authoritative binding
-is the content commit recorded as `test_content_commit` in
-`docs/approvals/test-hash-FR-01-contracts.txt`, with per-file SHA-256 of the tested
-files. The `ModuleNotFoundError: No module named 'egta'` result is an observation of
-**this environment and base** (no `src/egta` present); it is not a promise that the
-exception type stays identical after other PRs merge.
+The three records in `docs/evidence/FR-01-contracts/` were captured at clean
+commit `f52868d`. The test file is byte-identical at the test-content commit
+`a433d5a`, the evidence commit, the reviewed head `efbcb5e`, and the post-main
+sync head (`4618b25a…`). The approval record binds `test_content_commit
+a433d5a`, `verification_head f52868d`, and the per-file SHA-256 values. The exact
+collection-error text is environment/base-specific; the required RED signal is
+"collection error, zero executed", not a particular missing module name.
 
 ## Acceptance after implementation (not met now)
 
