@@ -43,17 +43,25 @@ It asserts:
 - the date-only pack hash equals the hash of the same pack with the ISO date
   string, so A's date-only `build_pack` and D's recomputation converge.
 
-Approval-record impact (A action required)
-------------------------------------------
-The test file changed, so the FR-04 test hash record must be re-bound by A. The
-agent did not edit `docs/approvals/test-hash-FR-04-risk-gate.txt`.
+Approval-record update (A-directed)
+-----------------------------------
+A independently recomputed the new values and explicitly directed D to update the
+FR-04 approval record on #38. A's GitHub review on #38 remains authoritative; D
+applied the verified values and did not self-approve.
 
-Changed per-file hash:
+Updated per-file hash:
   eae1f93c1403c15bfc5d9a6e5f69c5687158719beb8212e892e1095fddff00eb  test/offline/risk_gate/test_evidence_time_policy.py
 
-New aggregate over all risk_gate test files (sorted by path):
+Updated aggregate over all risk_gate test files (sorted by path):
   f3c45de208b87b6ddee54d132648a29443cb46ac4f9219be465a9634350fcca2
 
-The expected risk_gate test count remains 139, so no CI expected-count change is
-needed. A must update/re-sign the approval record before this PR can be treated
-as GATE-01 complete.
+The record now binds test_content_commit and reviewed_pr_head to the stable test
+commit 276a020; merge_commit is PENDING #38. The expected risk_gate test count
+remains 139, so no CI expected-count change is needed.
+
+Approval-checker verification:
+  python tools/check_approval.py \
+    --record docs/approvals/test-hash-FR-04-risk-gate.txt \
+    --implementation-base 276a020 --implementation-head HEAD \
+    --registry docs/req/requirements.yaml --author ZFebron491001
+  -> OK: approval record verified

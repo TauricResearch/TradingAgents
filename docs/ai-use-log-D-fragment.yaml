@@ -319,6 +319,9 @@ sessions:
       - command: "python -m mypy src/egta/risk_gate"
         exit_code: 0
         result: "Success: no issues found in 7 source files"
+      - command: "python tools/check_approval.py --record docs/approvals/test-hash-FR-04-risk-gate.txt --implementation-base 276a020 --implementation-head HEAD --registry docs/req/requirements.yaml --author ZFebron491001"
+        exit_code: 0
+        result: "OK: approval record verified (per-file hash and new aggregate match)"
         evidence: "docs/evidence/FR-04/impl-green.txt"
       - command: "python -m pytest tests -m 'not integration' -q"
         exit_code: 0
@@ -577,16 +580,22 @@ sessions:
       - "src/egta/risk_gate/canonical.py"
       - "test/offline/risk_gate/test_evidence_time_policy.py"
       - "docs/evidence/FR-04/date-only-canonical-fix.txt"
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt"
       - "docs/ai-use-log-D-fragment.yaml"
     human_intervention:
       - type: redirect
         what: "A reported PR #25 E-07 date-only failure and requested D-side canonical support plus a D regression test"
         evidence: "A message: canonical date-only blocker; keep E-07 and equality test; add D-side date-only risk-gate test"
-        limit: "D fixed canonical.py and added the regression; A must re-approve the changed test hash. The agent did not edit the approval record."
+        limit: "D fixed canonical.py and added the regression."
+      - type: approve
+        what: "A independently recomputed the new per-file hash and aggregate and explicitly directed D to update the FR-04 approval record on #38"
+        evidence: "A message: exact per-file/aggregate values; re-signed by A; 139 unchanged"
+        limit: "A's GitHub review on #38 remains authoritative; D applied the verified values and did not self-approve."
     changes:
       - "canonical.py now normalizes datetime.date to an ISO date string after the datetime branch, preserving datetime precedence"
       - "T-RISK-EVD-05 now also checks date-only canonical bytes and hash equality with the equivalent ISO-string pack"
-      - "added date-only evidence with red/green outputs and the new test hash/aggregate for A's re-approval"
+      - "added date-only evidence with red/green outputs and the new test hash/aggregate"
+      - "updated the FR-04 approval record per A's independently verified values; test_content_commit/reviewed_pr_head use the stable test commit 276a020 and merge_commit is PENDING #38"
     verification_output:
       - command: "python -m pytest test/offline/risk_gate/test_evidence_time_policy.py -q -k EVD-05 --tb=short (before fix)"
         exit_code: 1
@@ -607,17 +616,19 @@ sessions:
       - action: "test-first commit"
         result: "276a020 (date-only regression, expected RED)"
       - action: "fix commit"
-        result: "in the same branch after 276a020; PR pending"
-    implementation_status: "FIXED + VERIFIED; A must re-approve the changed FR-04 test hash and update the approval record"
+        result: "95d6bb9; implementation PR #38"
+    implementation_status: "FIXED + VERIFIED; approval record updated per A's verified values; A/E review of #38 pending"
     approval_links:
       - "A PR #25: https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/25"
+      - "D fix PR #38: https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/38"
+      - "A re-sign values for #38: per-file eae1f93c..., aggregate f3c45de2..."
     repository_blockers:
-      - "docs/approvals/test-hash-FR-04-risk-gate.txt still binds the old test hash; A must update the per-file hash and aggregate and re-approve."
+      - "A/E must review #38 at the new head after the approval-record update."
       - "The risk_gate expected count remains 139; no CI count change is required."
       - "A must rebind #25 to current main and confirm E-07 plus the equality test on the new D canonical."
     cost: "unknown"
     session_path: "unknown (raw session not exported yet)"
     notes:
       - "No frozen test was deleted or skipped; the existing EVD-05 case gained the date-only canonical assertion."
-      - "The approval record was not edited by the agent; A's independent re-approval remains authoritative."
+      - "The approval record was updated at A's explicit direction with A's independently recomputed values; A's GitHub review remains authoritative."
       - "The date-only branch is based on main before the open #37 D-log closeout PR; the final D-log merge order must keep both entries."
