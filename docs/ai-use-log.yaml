@@ -518,3 +518,43 @@ sessions:
     session_path: "transcripts/61069361-ZHOU-Jianmin.md"
     export_sha256: "533e63760cd17c74f6fa26a9c9ad0c6d9c77ddea1fe83453a109a0a6db66112a"
     final_binding: "PR #18 @ 10ee52d"
+
+  - session_id: "A-2026-11-22-FR01-pack-spec"
+    student: "A / Du Yuxiang / yuxiangdu39"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    pr: 25
+    branch: test/FR-01-pack
+    time:
+      - "2026-11-22T07:53:43Z"   # initial spec commit c27c80f
+      - "2026-11-22T10:00:00Z"   # D review response revision
+    task_requirement_ids: [FR-01, INV-02, GATE-01, GATE-03, GATE-06]
+    writable_path: ["test/offline/evidence/", "docs/evidence/FR-01/", "docs/req/trace-FR-01-pack.md", "docs/approvals/"]
+    generated_files:
+      - "test/offline/evidence/test_pack.py (pack-level spec: admission, field mapping, dedupe, conflict, integrity, provider, stale, citation, pack_hash)"
+      - "docs/evidence/FR-01/pack-red-baseline.txt, phase7-style red/manifest/ruff evidence"
+      - "docs/approvals/test-hash-FR-01-pack.txt (test content hash + actual_cases; reviewed head/merge PENDING)"
+      - "docs/req/trace-FR-01-pack.md"
+    spec_pr: 25
+    scope: "FR-01 pack-level outcomes only (INV-02 time filtering stays in test_time_policy.py); expected RED until B #21 + A implementation land"
+    decisions_resolved_from_D_review:
+      - "pack_hash is computed by build_pack (64-hex, deterministic, content-bound); algorithm aligned to D recompute_evidence_hash — not frozen in this spec"
+      - "validate_claims accepts full evidence_id (<run_id>-<case_local_id>)"
+      - "dangling citation raises concrete egta.evidence.InvalidCitation naming the bad id"
+      - "E-22 conflict_group supplied by caller; equals supplied conflict_key"
+      - "E-26 staleness frozen as source_type == cache always stale + fresh non-cache control"
+      - "pack.items preserves input order"
+    human_intervention:
+      - category: "human review / approval"
+        action: "D requested changes on c27c80f; A accepted and revised the spec (pack_hash, evidence-id convention, conflict/stale rules, field mapping); D re-review pending."
+        reason: "GATE-01 test baseline correctness; cross-module contract freeze with D."
+        requirement_ids: ["FR-01", "GATE-01", "GATE-06"]
+    verification_output:
+      - cmd: "python -m pytest -m spec test/offline/evidence -q"
+        result: "33 errors (ImportError RED: egta.evidence lacks InvalidCitation; contracts #21 merged at 141547a), 13 deselected"
+      - cmd: "python -m pytest -m \"not spec\" test/offline/evidence -q"
+        result: "13 passed, 33 deselected"
+      - cmd: "python -m ruff check ."
+        result: "All checks passed!"
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet; recorded 'unknown', not fabricated)"
+

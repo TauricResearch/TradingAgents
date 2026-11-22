@@ -1,0 +1,5 @@
+# FR-01 pack spec — ruff (full repo)
+# recorded 2026-11-22T09:09:05Z
+## python -m ruff check .
+exit=0
+All checks passed!

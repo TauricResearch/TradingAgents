@@ -19,21 +19,36 @@ data". Pure time filtering (E-13..E-20, E-27, E-28, E-31) is already asserted by
 ``test_time_policy.py`` and is not re-tested here; a small representative slice is
 re-checked through the pack API to prove time filtering is wired in.
 
+Frozen decisions (resolved from D's review of #25):
+
+* ``pack_hash`` is **computed by ``build_pack``**, never supplied by the caller.
+  It is a 64-hex digest, deterministic for identical input, and content-bound
+  (changing an item changes it). The exact algorithm is NOT frozen here; it must
+  match D's ``egta.risk_gate.canonical.recompute_evidence_hash`` (see ADR-004).
+* ``validate_claims`` accepts **full** evidence ids
+  (``<run_id>-<case_local_id>``), matching the risk gate's index
+  (``risk_gate/rules.py``) — not the fixture's case-local ids.
+* A dangling citation raises the concrete ``egta.evidence.InvalidCitation``
+  (a ``ReasonCode.INVALID_CITATION`` error), and the message names the bad id.
+* E-22 ``conflict_group`` is supplied explicitly by the caller; the test asserts
+  the group equals the supplied key (no underivable label is frozen).
+* E-26 staleness is frozen as "``source_type == 'cache'`` is always stale"
+  (no freshness threshold in this spec), with a fresh non-cache control.
+* ``pack.items`` preserves input order (admitted items only).
+
 Fixture -> assertion map:
 
     normal admit    E-01 E-02 E-03 E-04 E-05 E-06 E-08 E-09 E-10 E-12
+    field mapping   E-01 E-07 E-10 (raw -> EvidenceItem source_uri/published_at/
+                    fetched_at/excerpt/trust_label/content_hash)
     time wired in   E-07 (date-only admitted), E-16/E-17 (future/undated excluded)
     dedupe          E-21  (only E-21-1 survives; E-21-2 neither admitted nor excluded)
-    conflict        E-22  (both retained, same non-empty conflict_group)
+    conflict        E-22  (both retained, same caller-supplied conflict_group)
     tampered        E-23  (E-23-2 excluded INTEGRITY_VIOLATION, E-23-1 kept),
                     E-30  (single item excluded INTEGRITY_VIOLATION)
     provider fail   E-24, E-25 (items=[], provider exclusion VENDOR_UNAVAILABLE/unreachable)
     stale cache     E-26  (item excluded STALE_DATA/stale, never available)
-    citation        E-29  (pack builds, validate_claims raises INVALID_CITATION)
-
-Non-frozen decisions deferred to reviewer (see PR description): the exact
-``conflict_group`` label for E-22 and the ``pack_hash`` algorithm (this spec passes
-a fixed 64-hex placeholder and only asserts it is carried through unchanged).
+    citation        E-29  (pack builds, validate_claims raises InvalidCitation)
 """
 
 from __future__ import annotations
@@ -43,10 +58,6 @@ from datetime import date
 import pytest
 
 pytestmark = pytest.mark.spec
-
-# A fixed, well-formed 64-hex placeholder. The algorithm is not frozen by the
-# contract (#5); this spec only asserts the value is carried through unchanged.
-PLACEHOLDER_PACK_HASH = "0" * 64
 
 
 @pytest.fixture(scope="session")
@@ -66,6 +77,7 @@ def pack_api():
         RunSpec,
     )
     from egta.contracts.events import ReasonCode  # noqa: F401
+    from egta.evidence import InvalidCitation  # noqa: F401
     from egta.evidence.pack import build_pack, validate_claims  # noqa: F401
 
     class _Api:
@@ -78,6 +90,7 @@ def pack_api():
     api.ExcludedItem = ExcludedItem
     api.RunSpec = RunSpec
     api.ReasonCode = ReasonCode
+    api.InvalidCitation = InvalidCitation
     api.build_pack = staticmethod(build_pack)
     api.validate_claims = staticmethod(validate_claims)
     return api
@@ -99,6 +112,10 @@ def _run_spec(api, frozen_now, case: dict):
     )
 
 
+def _full_id(run_spec, case_local_id: str) -> str:
+    return f"{run_spec.run_id}-{case_local_id}"
+
+
 def _admitted_local_ids(pack, run_spec) -> list[str]:
     prefix = f"{run_spec.run_id}-"
     return [item.evidence_id[len(prefix):] for item in pack.items]
@@ -107,7 +124,7 @@ def _admitted_local_ids(pack, run_spec) -> list[str]:
 def _build(api, load_case, frozen_now, case_id: str, *, conflict_key=None):
     case = load_case(case_id)
     run_spec = _run_spec(api, frozen_now, case)
-    kwargs = {"pack_hash": PLACEHOLDER_PACK_HASH}
+    kwargs = {}
     if "provider_error" in case:
         kwargs["provider_error"] = case["provider_error"]
     if conflict_key is not None:
@@ -118,7 +135,7 @@ def _build(api, load_case, frozen_now, case_id: str, *, conflict_key=None):
 
 
 # --------------------------------------------------------------------------- #
-# Normal admission
+# Normal admission + raw -> EvidenceItem field mapping
 # --------------------------------------------------------------------------- #
 
 NORMAL_CASES = ["E-01", "E-02", "E-03", "E-04", "E-05", "E-06", "E-08", "E-09", "E-10", "E-12"]
@@ -135,13 +152,45 @@ def test_normal_items_admitted(pack_api, load_case, frozen_now, case_id):
     assert pack.run_id == run_spec.run_id
     assert pack.snapshot_id == run_spec.snapshot_id
     assert pack.cutoff == run_spec.as_of
-    assert pack.pack_hash == PLACEHOLDER_PACK_HASH
 
     for item in pack.items:
         assert isinstance(item, api.EvidenceItem)
         assert item.availability == api.Availability.AVAILABLE
         # INV-02: an admitted item carries no refusal code.
         assert item.reason_code is None
+
+
+FIELD_MAPPING_CASES = ["E-01", "E-07", "E-10"]
+
+
+@pytest.mark.parametrize("case_id", FIELD_MAPPING_CASES)
+def test_raw_fields_map_to_evidence_item(pack_api, load_case, frozen_now, case_id):
+    """FR-01 core: every traceability field survives raw -> EvidenceItem intact."""
+    api = pack_api
+    case, run_spec, pack = _build(api, load_case, frozen_now, case_id)
+
+    raw_by_local = {raw["case_local_id"]: raw for raw in case["items"]}
+    assert pack.items, case_id
+    for item in pack.items:
+        local = item.evidence_id[len(run_spec.run_id) + 1:]
+        raw = raw_by_local[local]
+        assert item.evidence_id == _full_id(run_spec, local)
+        assert item.source_uri == raw["source_uri"]
+        assert item.fetched_at == datetimes(api, raw["fetched_at"])
+        # date-only fixtures keep day precision; timestamp fixtures keep the instant
+        assert item.published_at == datetimes(api, raw["published_at"])
+        assert item.excerpt == raw["excerpt"]
+        assert item.trust_label == raw["trust_label"]
+        assert item.content_hash == raw["content_hash"]
+
+
+def datetimes(api, raw_value):
+    """Normalize a fixture timestamp exactly as the contract exposes it."""
+    if isinstance(raw_value, str) and len(raw_value) == 10:
+        return date.fromisoformat(raw_value)
+    from datetime import datetime
+
+    return datetime.fromisoformat(raw_value.replace("Z", "+00:00"))
 
 
 # --------------------------------------------------------------------------- #
@@ -188,20 +237,30 @@ def test_duplicate_keeps_canonical(pack_api, load_case, frozen_now):
 
 
 # --------------------------------------------------------------------------- #
-# Conflict (E-22)
+# Conflict (E-22) — caller supplies the group key, no underivable label frozen
 # --------------------------------------------------------------------------- #
 
 def test_conflicting_items_share_group(pack_api, load_case, frozen_now):
     api = pack_api
-    case, run_spec, pack = _build(api, load_case, frozen_now, "E-22")
+    conflict_key = "aapl-revenue-2026Q3"
+    case, run_spec, pack = _build(
+        api, load_case, frozen_now, "E-22", conflict_key=conflict_key
+    )
     # Both retained, never silently overwritten.
     assert _admitted_local_ids(pack, run_spec) == ["E-22-1", "E-22-2"]
     groups = [item.conflict_group for item in pack.items]
-    assert all(g is not None and g != "" for g in groups)
-    assert groups[0] == groups[1]
-    # The fixture fixes the expected group label; assert it exactly.
-    expected_group = case["expected"]["conflict_groups"][0]["conflict_group"]
-    assert groups[0] == expected_group
+    # The caller-supplied key is what the items carry; the derivation rule is not
+    # frozen, so we assert exactly the value we passed in.
+    assert all(g == conflict_key for g in groups)
+
+
+def test_non_conflicting_has_no_group(pack_api, load_case, frozen_now):
+    api = pack_api
+    _case, _run_spec_, pack = _build(
+        api, load_case, frozen_now, "E-01", conflict_key="unused-key"
+    )
+    # A single item is never grouped, even if a conflict_key parameter is passed.
+    assert pack.items[0].conflict_group is None
 
 
 # --------------------------------------------------------------------------- #
@@ -250,7 +309,7 @@ def test_provider_failure_becomes_provider_exclusion(pack_api, load_case, frozen
 
 
 # --------------------------------------------------------------------------- #
-# Stale cache (E-26)
+# Stale cache (E-26) — frozen rule: source_type == "cache" is always stale
 # --------------------------------------------------------------------------- #
 
 def test_offline_cache_is_stale(pack_api, load_case, frozen_now):
@@ -267,8 +326,25 @@ def test_offline_cache_is_stale(pack_api, load_case, frozen_now):
     assert stale.reason_code == api.ReasonCode.STALE_DATA
 
 
+def test_fresh_non_cache_item_is_admitted(pack_api, load_case, frozen_now):
+    """Boundary: staleness is keyed on ``source_type == 'cache'``, not age.
+
+    A recent, non-cache item must be admitted even though its timestamps are
+    otherwise identical in shape to E-26 — proving the rule is not "old == stale".
+    """
+    case = load_case("E-26")
+    item = dict(case["items"][0])
+    item["source_type"] = "yahoo_news"
+    item["case_local_id"] = "E-26-fresh"
+    api = pack_api
+    run_spec = _run_spec(api, frozen_now, case)
+    pack = api.build_pack(run_spec, [item])
+    assert _admitted_local_ids(pack, run_spec) == ["E-26-fresh"]
+    assert pack.items[0].availability == api.Availability.AVAILABLE
+
+
 # --------------------------------------------------------------------------- #
-# Citation validation (E-29)
+# Citation validation (E-29) — full evidence_id convention, concrete error
 # --------------------------------------------------------------------------- #
 
 def test_dangling_citation_rejected(pack_api, load_case, frozen_now):
@@ -276,38 +352,82 @@ def test_dangling_citation_rejected(pack_api, load_case, frozen_now):
     case = load_case("E-29")
     run_spec = _run_spec(api, frozen_now, case)
     # The pack itself builds: E-29-1 is a well-formed admitted item.
-    pack = api.build_pack(run_spec, case["items"], pack_hash=PLACEHOLDER_PACK_HASH)
+    pack = api.build_pack(run_spec, case["items"])
     assert _admitted_local_ids(pack, run_spec) == case["expected"]["admitted"]
 
-    # The claim cites a case_local_id that does not exist; validation must fail
-    # explicitly rather than dropping the dangling id.
-    claim = case["claim"]
-    with pytest.raises(Exception) as excinfo:
+    # Claims cite FULL evidence ids (<run_id>-<case_local_id>), matching the risk
+    # gate's index. A dangling full id must fail explicitly, naming the bad id.
+    dangling = _full_id(run_spec, "E-99-does-not-exist")
+    claim = {
+        "claim_id": "C-29",
+        "text": case["claim"]["text"],
+        "evidence_ids": [_full_id(run_spec, "E-29-1"), dangling],
+    }
+    with pytest.raises(api.InvalidCitation) as excinfo:
         api.validate_claims(pack, [claim])
     assert api.ReasonCode.INVALID_CITATION.value in str(excinfo.value)
+    assert dangling in str(excinfo.value)
 
 
 def test_valid_citation_passes(pack_api, load_case, frozen_now):
     api = pack_api
     case = load_case("E-29")
     run_spec = _run_spec(api, frozen_now, case)
-    pack = api.build_pack(run_spec, case["items"], pack_hash=PLACEHOLDER_PACK_HASH)
+    pack = api.build_pack(run_spec, case["items"])
 
-    # A claim that cites only the real case_local_id resolves cleanly (no raise).
-    good_claim = {"claim_id": "C-ok", "text": "t", "evidence_ids": ["E-29-1"]}
+    # A claim that cites only the real full evidence id resolves cleanly.
+    good_claim = {
+        "claim_id": "C-ok",
+        "text": "t",
+        "evidence_ids": [_full_id(run_spec, "E-29-1")],
+    }
     api.validate_claims(pack, [good_claim])
 
 
 # --------------------------------------------------------------------------- #
-# Contract-shape guards (fail fast if B's #21 shape drifts)
+# pack_hash is build-computed, deterministic, content-bound (not caller-supplied)
 # --------------------------------------------------------------------------- #
 
-def test_pack_hash_is_carried_unchanged(pack_api, load_case, frozen_now):
+def _is_hex64(value) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(
+        c in "0123456789abcdef" for c in value
+    )
+
+
+def test_pack_hash_is_computed_hex64(pack_api, load_case, frozen_now):
     api = pack_api
     _case, _run_spec_, pack = _build(api, load_case, frozen_now, "E-01")
-    # The contract does not define the algorithm; the pack must carry what it is given.
-    assert pack.pack_hash == PLACEHOLDER_PACK_HASH
+    assert _is_hex64(pack.pack_hash), pack.pack_hash
 
+
+def test_pack_hash_is_deterministic(pack_api, load_case, frozen_now):
+    api = pack_api
+    _, _, first = _build(api, load_case, frozen_now, "E-01")
+    _, _, second = _build(api, load_case, frozen_now, "E-01")
+    assert first.pack_hash == second.pack_hash
+
+
+def test_pack_hash_is_content_bound(pack_api, load_case, frozen_now):
+    api = pack_api
+    case, run_spec, baseline = _build(api, load_case, frozen_now, "E-01")
+    mutated_items = [dict(raw) for raw in case["items"]]
+    mutated_items[0]["excerpt"] = mutated_items[0]["excerpt"] + " (tampered)"
+    mutated = api.build_pack(run_spec, mutated_items)
+    assert mutated.pack_hash != baseline.pack_hash
+
+
+def test_pack_items_preserve_input_order(pack_api, load_case, frozen_now):
+    api = pack_api
+    case, run_spec, pack = _build(api, load_case, frozen_now, "E-22")
+    # Admitted items keep the fixture (input) order, not a sorted/derived order.
+    assert _admitted_local_ids(pack, run_spec) == [
+        raw["case_local_id"] for raw in case["items"]
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# Contract-shape guard
+# --------------------------------------------------------------------------- #
 
 def test_admitted_content_hash_matches_excerpt(pack_api, load_case, frozen_now):
     import hashlib

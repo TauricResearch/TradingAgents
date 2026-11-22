@@ -1,0 +1,40 @@
+PR/task: FR-01 EvidencePack pack-level spec (test-first spec, test/spec ONLY — no implementation)
+branch:   test/FR-01-pack
+base:     main
+
+# Approval binding: authoritative reviewed head = GitHub review commit_id.
+# This file records ONLY test_content_commit + per-file/aggregate test hashes.
+# approved_by is filled by D (approver) after review; the author must not fill it.
+#
+# NOTE (D review of #25): approval MUST bind to the head AFTER B's #21 merges,
+# because these tests import EvidenceItem/EvidencePack from egta.contracts. The
+# fields below are refreshed on the rebased head and the RED re-captured there.
+
+test_content_commit:     90bd6caa097b2ad6a264fa0d18412e3d21255cee
+actual_cases: 32           # pytest -m spec test/offline/evidence --collect-only (32 pack cases)
+# 13 time-policy tests remain in test_time_policy.py (INV-02) and are deselected here.
+
+files (per-file SHA-256):
+  93c7fbdb0d1e02dba8ecf47a18181565c49c85dd7488ada6b97b25ae24520703  test/offline/evidence/test_pack.py
+
+aggregate_sha256 (pack test file):
+  ad03f8ee233c402e6468ebd4d4aab0c703b01fdf87cabd3a53d522534b607e94
+
+reviewed_pr_head:        PENDING   # filled by D at review on the post-#21 rebased head
+merge_commit:            PENDING   # filled after merge
+
+# Frozen cross-module contracts (see docs/req/trace-FR-01-pack.md §Frozen):
+#   - pack_hash computed by build_pack (64-hex, deterministic, content-bound);
+#     algorithm must equal risk_gate.canonical.recompute_evidence_hash (ADR-004).
+#   - validate_claims accepts full evidence_id (<run_id>-<case_local_id>).
+#   - dangling citation raises egta.evidence.InvalidCitation naming the bad id.
+#   - E-22 conflict_group supplied by caller (equals conflict_key).
+#   - E-26: source_type == "cache" is always stale; fresh non-cache control admitted.
+#   - pack.items preserves input order.
+
+approved_by:             PENDING   # D (@ZFebron491001) — GitHub review commit_id authoritative
+approved_at:             PENDING
+
+# Blocking dependency: B #21 (egta.contracts evidence types) must merge into main
+# before this spec is approved as a GATE-01 baseline; if #21's shapes change, the
+# affected tests return to A for re-approval.
