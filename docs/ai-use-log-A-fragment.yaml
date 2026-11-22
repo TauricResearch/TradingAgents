@@ -182,3 +182,54 @@ sessions:
     cost: "unknown"
     notes:
       - "Completes the back-fill of all transcribable owner confirmations on #9."
+
+  - session_id: "ses_2026-11-22-d1-check-requirements"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-22T16:20+08:00"   # checker implementation + first tests
+      - "2026-11-22T17:10+08:00"   # round-1 fixes after D review of #27
+      - "2026-11-22T18:40+08:00"   # split into spec #30 + impl #31; id-type + real-schema tests
+    task_requirement_ids:
+      - NFR-10
+      - GATE-03
+      - GATE-06
+    writable_path:
+      - "tools/check_requirements.py"
+      - "test/offline/requirements/"
+      - "pyproject.toml"
+      - ".github/workflows/ci.yml"
+      - ".github/CODEOWNERS"
+      - "docs/req/trace-D1-check-requirements.md"
+      - "docs/approvals/test-hash-D1-check-requirements.txt"
+    pr:
+      spec: 30
+      impl: 31
+    generated_files:
+      - "tools/check_requirements.py (schema layer via jsonschema + semantic layer: unique ids, resolvable refs, Must component+verification, invariant zero tolerance, id-prefix-to-type linkage)"
+      - "test/offline/requirements/test_check_requirements.py (20 functions / 24 cases, incl. id-type linkage and 4 real-schema regression cases)"
+      - "docs/req/trace-D1-check-requirements.md"
+      - "docs/approvals/test-hash-D1-check-requirements.txt"
+      - "pyproject.toml (dev extras: jsonschema, PyYAML) — impl"
+      - ".github/workflows/ci.yml (requirements suite wired, EXPECT_REQUIREMENTS 24) — impl"
+      - ".github/CODEOWNERS (tools/check_requirements.py + test/offline/requirements/) — impl"
+    human_intervention:
+      - type: review response
+        when: "2026-11-22T17:10+08:00"
+        who: "A (yuxiangdu39)"
+        what: "Addressed D's request-changes on #27 (7 items) and #15 (id-type linkage): exact-fullmatch ref parsing, non-string-id guard, schema-layer tests, PyYAML dev dep, CI wiring, CODEOWNERS, trace, AI-use; split the mixed PR into spec #30 + impl #31 per GATE-01."
+      - type: ordering decision
+        when: "2026-11-22T18:40+08:00"
+        who: "A (yuxiangdu39)"
+        what: "Real-schema regression tests placed in the checker spec (#30) per D's #15 item 6; merge order #15 -> #30 -> #31 so the 4 real-schema cases resolve against #15's schema."
+    verification_output:
+      - "spec #30: pytest test/offline/requirements -q -> 24 failed (tool + schema absent, collection OK) — expected RED"
+      - "impl #31: pytest test/offline/requirements -q -> 24 passed (with #15 schema)"
+      - "impl e2e: python tools/check_requirements.py --registry <#9> --schema <#15> -> OK, exit 0"
+      - "impl negative: FR-01 + type governance -> exit 1 'does not match its id prefix'"
+      - "CI offline gate: requirements: collect-only=24 expected=24 -> OK"
+      - "ruff clean; upstream pytest -> 1412 passed, 1 skipped"
+    implementation_status: "spec #30 (tests only) + impl #31 (tool + CI + CODEOWNERS)"
+    cost: "unknown"
+    notes:
+      - "This session covers PR #30 and #31; recorded here in the A fragment (not the main log) to keep A's AI-use in one place per the fragment convention."
