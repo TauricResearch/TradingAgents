@@ -1,25 +1,27 @@
 PR/task: FR-04 deterministic risk gate + paper ledger (test-first spec, test/spec ONLY — no implementation)
-branch:   spec/FR-04-risk-gate
+branch:   spec/FR-04-cutoff-fix
 base:     main
-PR:       #2 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/2
+PR:       original #2; superseded by the FR-04 cutoff-fix Test PR
 
 # --- Commit binding (three distinct fields; same convention as FR-05) ----------
 # 1) test-content commit  : the commit that last changed the test files' content
-# 2) reviewed PR head     : the exact head A approved (final head before merge)
-# 3) merge commit         : created by GitHub when this PR merged (post-approval)
+# 2) reviewed PR head     : the exact head A approves (final head before merge)
+# 3) merge commit         : created by GitHub when this PR merges (post-approval)
 #
-# Post-merge record-only update (2026-11-21): A approved 510828a. That co-sign
-# commit changed only this approval record; the test files and aggregate hash
-# below are unchanged. This update records the approval head and merge commit.
-# It is a post-merge record, not a change to the approved PR branch.
-test_content_commit:     9de822ff664546d0d741b00636702d176855105b
-reviewed_pr_head:        510828a65f0a1eec921349038a9a4449ef359199
-merge_commit:            11cfc96e7dae901706547c0ffc4bdf2cf7fc1bd8
+# Post-merge fixture correction (2026-11-22): base_evidence_pack used -600s while
+# make_evidence defaults to -30s and EVD-05 expects cutoff -120s/price -60s to be
+# REVIEW. The one-line fixture fix aligns the base pack to -30s; expected outcomes
+# and the 139-test count are unchanged.
+#
+# Previous approval (superseded): PR #2, reviewed 510828a, merged 11cfc96,
+# approved_by A. That approval does NOT cover the new aggregate hash below.
+test_content_commit:     d5cf2ea5a10ddc9fb7be7f91c17bfac80cd0c196
+reviewed_pr_head:        PENDING  # A must approve the cutoff-fix Test PR head
+merge_commit:            PENDING  # filled after the cutoff-fix Test PR merges
 
 # Approval binds to: the GitHub review on reviewed_pr_head and the test aggregate
 # hash below. GitHub review is the authoritative approval; this file only records
-# content binding. This record-only update does not change the approved test
-# files or the aggregate hash.
+# content binding. This is a new test baseline; A must re-approve the new hash.
 
 case_inventory:
   risk_cases: 126            # 119 behavioural + 7 static inspection
@@ -34,7 +36,7 @@ files (per-file SHA-256):
   d1aca0dd758a6ab6b22f2e55bc46125b1953511bb73aa739b5fa1b6326d37586  test/offline/risk_gate/_crash_child.py
   19ee89ac53db75d05ce2ea15fdf509d73def76e32bd5c6f22c1a8fb456d3e655  test/offline/risk_gate/cases.py
   8ad8b76947e819ad8b5759e370cd945dfdf70efd238a91017fa31222c2d92b48  test/offline/risk_gate/conftest.py
-  14b8bab06921ef114f02f28938e4b9ab9dd0cca9d117eef4cc35c5a590f7d13c  test/offline/risk_gate/fakes.py
+  deaf0b0a916872c97c764790afb8166d3f948b980395ee4c8bde0869b771fcc7  test/offline/risk_gate/fakes.py
   ce984bf2c27c4f69d8861dbb2c443eaef72751cedff22a214d1a46a18599e99b  test/offline/risk_gate/test_actions_quantities.py
   b729f6598c88e38c5e7abd0fe781ff77da0de1b45de7213a9e4824af1526d5c8  test/offline/risk_gate/test_atomicity_concurrency.py
   ba079a6fb0e40c8caf19dd6077586fb0b59313f07924f7bee296a1ea58c2f074  test/offline/risk_gate/test_evidence_time_policy.py
@@ -45,10 +47,10 @@ files (per-file SHA-256):
   b8f64a699b1cbd2de2898d59cf1f1c9f52c0f48b1c5286a87b37be2a90a4481e  test/offline/risk_gate/test_spec_manifest.py
 
 aggregate_sha256 (sha256sum of per-file lines, sorted by path):
-  1885986e8cd3b31627f7417fe003d7001f0d3a7f50f0b7c716b27d8b9cb45b2e
+  8486182bae240e07d2ac7036b809756c401964d021a33e7ed45f2f7a75570b96
 
-approved_by:             A (Du Yuxiang, @yuxiangdu39)
-approved_at:             2026-11-20T16:03:26Z
+approved_by:             PENDING
+approved_at:             PENDING
 
 # --- Review-response record (B1–B6) ------------------------------------------
 # B1 reason codes: EVD-19 -> INVALID_CITATION; EVD-02 -> INTEGRITY_VIOLATION;
