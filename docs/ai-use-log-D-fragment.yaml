@@ -563,6 +563,81 @@ sessions:
       - "AGENTS.md is a proposed D3 policy artifact and requires human review; Prompt.md is still missing, so GOV-09 is not claimed."
       - "Push and PR creation were performed under explicit human authorization; no GitHub review, approval or merge was submitted."
 
+  - session_id: "D-2026-11-22-D1-D4-merge-closeout"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    opencode_session_id: "ses_dfd91c6a0ffeGCYpCzxK7KuCWM"
+    time:
+      - "2026-11-22T20:36:59+08:00"   # #23 merged
+      - "2026-11-22T20:38:42+08:00"   # #29 merged
+      - "2026-11-22T20:40:31+08:00"   # #9 merged
+      - "2026-11-22T20:41:17+08:00"   # closeout log/evidence
+    task_requirement_ids:
+      - FR-04
+      - FR-05
+      - GATE-01
+      - GATE-03
+      - GATE-06
+      - D3
+      - D4
+      - GOV-03
+    writable_path:
+      - "docs/ai-use-log-D-fragment.yaml"
+      - "docs/evidence/FR-04/phase7-governance-green.txt"
+    human_intervention:
+      - type: approve
+        what: "Authorized autonomous closeout after A/E completed their assigned steps: merge approved PRs, review #9, and record final state"
+        evidence: "interactive approval: 这些A与E对应完成，请你开始逐项执行任务"
+        limit: "No self-approval; #15 was not approved; no review was submitted without an independent approval."
+    changes:
+      - "merged #23 df3d64e after D/A approvals; verified contracts 223, evaluation 28, risk_gate 139 and budget N/A; DEBT-FR05-D4 closed and #10 closed"
+      - "merged #29 d375b7a after A/E approvals on fe197a6; branch updated to df3d64e and approvals remained valid; AGENTS.md and governance checkers are on main"
+      - "reviewed and approved #9 e5dad3f; merged dc59be1 after verifying D entries, GOV-03/GOV-09 criteria and schema compatibility"
+      - "recorded merged heads and remaining blockers in the D log and Phase 7 evidence"
+    verification_output:
+      - command: "#23 offline gate run 45021369196"
+        exit_code: 0
+        result: "contracts 223/223 OK; evaluation 28/28 OK; risk_gate 139/139 OK; budget N/A"
+      - command: "#29 CI run 45023246672"
+        exit_code: 0
+        result: "7/7 checks successful"
+      - command: "#9 CI run 45023374986"
+        exit_code: 0
+        result: "7/7 checks successful"
+      - command: "main CI run 45023510507 on dc59be1"
+        exit_code: 0
+        result: "7/7 checks successful"
+      - command: "python -m pytest test/offline/governance -q on main dc59be1"
+        exit_code: 0
+        result: "38 passed"
+      - command: "python tools/check_permissions.py --base df3d64e --head d375b7a --role build-d"
+        exit_code: 0
+        result: "OK: no permission violations on the #29 merge diff"
+      - command: "validate #9 registry against #15 schema head 5adba44"
+        exit_code: 0
+        result: "0 schema errors across 38 requirements"
+    git_output:
+      - action: "GitHub merges"
+        result: "#23 df3d64e8695b8f35864520a0c3ce48b0432d9cda; #29 d375b7ae211d0aedbe4a352f814e37bd2993c760; #9 dc59be13ffe664214006de0cf89dfa6c96be3ca1"
+      - action: "main head"
+        result: "dc59be13ffe664214006de0cf89dfa6c96be3ca1"
+    implementation_status: "D1 registry, D3 AGENTS and governance checkers merged; D4 debt closed; #15 still blocked; E CI wiring and Prompt/.opencode remain"
+    approval_links:
+      - "PR #23 merged df3d64e; D and A approved 1dabad1"
+      - "PR #29 merged d375b7a; A approved fe197a6; E approved fe197a6"
+      - "PR #9 merged dc59be1; D approved e5dad3f"
+    repository_blockers:
+      - "#15 still has D CHANGES_REQUESTED: PRD by_component INV-07, stale review record and final status remain; A must fix."
+      - "Prompt.md and .opencode/rules.md remain missing; GOV-09 cannot PASS and .opencode/rules.md is human-only."
+      - "E must wire the governance checkers into CI; D reverse-block verification is pending that wiring."
+      - "ADR-003 and risk-policy remain PROPOSED pending human approval or an explicit debt record."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "D approvals were submitted only after independent implementation review; no self-approval."
+      - "The #29 approvals remained bound to the updated head e66aed8 after the branch update."
+      - "No frozen test, approval record, contract or CODEOWNERS file was edited during closeout."
+      - "Main CI run 45023510507 on dc59be1 passed 7/7 after the #9 merge."
   - session_id: "D-2026-11-22-FR04-date-only-canonical"
     student: "D / ZFebron491001"
     agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"

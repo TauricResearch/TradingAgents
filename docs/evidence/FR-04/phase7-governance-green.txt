@@ -3,6 +3,7 @@ Phase 7 governance checker implementation verification
 Date: 2026-11-22T17:10:00+08:00
 Branch: feat/FR-04-governance-checkers
 PR: #29 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/29
+Merged: d375b7ae211d0aedbe4a352f814e37bd2993c760 (2026-11-22T20:38:42+08:00)
 Base: 6830926c44e7a16bae0cac1992f43a6aac8b26f6
 Test baseline: PR #26
   test_content_commit: 0c5c2e7 (governance tests; 5808f0a changed evidence whitespace only)
@@ -40,9 +41,15 @@ Verification commands and results
    exit 0
    Success: no issues found in 2 source files
 
+7) Post-merge verification on main dc59be1:
+   python -m pytest test/offline/governance -q -> 38 passed
+   python tools/check_permissions.py --base df3d64e --head d375b7a --role build-d -> OK
+   #29 CI run 45023246672 -> 7/7 checks successful
+
 Scope
 -----
-- Adds only the two independent checkers and their verification evidence.
+- Adds the two independent checkers, the root AGENTS.md D3 entry point, the
+  permission-model status update and this verification evidence.
 - Does not change the approved governance tests, contracts, CI, approval records,
   CODEOWNERS, or runtime risk_gate code.
 - The checkers use git history and hashes, not PR prose; violations have stable
