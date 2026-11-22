@@ -1,0 +1,12 @@
+Phase 7 governance test-package static check
+============================================
+Date: 2026-11-22T16:07:44+08:00
+Branch: spec/FR-04-governance-tools
+Test content commit: PENDING (this spec commit)
+ruff: 0.17.6
+Command: python -m ruff check .
+Interpretation: test/offline/governance is lint-clean; no xfail/skip workaround.
+------------------------------------------------------------
+All checks passed!
+
+Exit code: 0
