@@ -271,4 +271,146 @@ sessions:
       - "No test expectation changes; only the base pack cutoff fixture."
       - "The 126 failures are expected red, not xfail/skip."
       - "The hash record is prepared but NOT signed by the agent."
-      - "A re-approved head 1fd6d29; PR #17 merged b245bdb; record-only update in progress."
+      - "A re-approved head 1fd6d29; PR #17 merged b245bdb; record-only PR #19 merged 0ab1c823b62f6cc75c96463f46a72a81da56ed9b."
+
+  - session_id: "D-2026-11-22-FR04-implementation"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    time:
+      - "2026-11-22T12:44:22+08:00"   # code commit dbebd1b
+      - "2026-11-22T12:45:09+08:00"   # evidence/log update
+    task_requirement_ids:
+      - FR-04
+      - NFR-04
+      - NFR-05
+      - NFR-09
+      - INV-01
+      - INV-04
+      - INV-06
+      - INV-07
+      - D8
+      - GATE-02
+      - GATE-05
+      - GATE-06
+    writable_path:
+      - "src/egta/risk_gate/"
+      - "docs/evidence/FR-04/impl-green.txt"
+      - "docs/architecture/risk-policy.md"
+      - "docs/architecture/adr/003-risk-authority.md"
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: approve
+        what: "Authorized autonomous Phase 5 implementation after the approved test baseline"
+        evidence: "interactive approval: 允许你自主执行"
+        limit: "Implementation PR still requires E code-owner and A independent review; no self-approval"
+    changes:
+      - "implemented src/egta/risk_gate: models, canonical, policy, rules, ledger, service"
+      - "139 approved tests pass; no test/contract/CI/human-only changes"
+      - "documented SELL concentration exemption and concurrent STALE_PORTFOLIO status"
+    verification_output:
+      - command: "python -m pytest test/offline/risk_gate -q"
+        exit_code: 0
+        result: "139 passed"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m mypy src/egta/risk_gate"
+        exit_code: 0
+        result: "Success: no issues found in 7 source files"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m pytest tests -m 'not integration' -q"
+        exit_code: 0
+        result: "1412 passed, 1 skipped (langchain_aws missing), 1 deselected, 100 subtests"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m coverage run --source=src/egta/risk_gate -m pytest test/offline/risk_gate -q"
+        exit_code: 0
+        result: "92% total line coverage; policy.py 80% (NFR-06 100% security-branch coverage not claimed)"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+    git_output:
+      - action: "git commit"
+        result: "dbebd1b5553f9e0d16bf7ac81a0ccb1f4ae9c909 (implementation)"
+    implementation_status: "IMPLEMENTED + VERIFIED locally; implementation PR pending E/A review"
+    test_pr: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/17"
+    test_pr_state: "MERGED"
+    approval_links:
+      - "PR #17 A approved head 1fd6d29; merge commit b245bdb; aggregate 8486182b"
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt (record-only #19 pending)"
+    repository_blockers:
+      - "Implementation PR requires E code-owner review and A independent review."
+      - "Shared contracts/ticker/product policy remain pending for final integration."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No test, contract, CI, CODEOWNERS or human-only file was changed."
+      - "Coverage: 92% total; policy.py 80%; 100% security-branch coverage is NOT claimed."
+      - "CI offline gate is expected to report risk_gate: 139 passed on the implementation PR."
+
+  - session_id: "D-2026-11-22-FR04-e-review-fix"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    time:
+      - "2026-11-22T14:36:53+08:00"   # compatibility fix commit 6bad169
+      - "2026-11-22T14:37:06+08:00"   # evidence/log update
+    task_requirement_ids:
+      - FR-04
+      - NFR-09
+      - INV-06
+      - GATE-02
+      - GATE-05
+      - GATE-06
+    writable_path:
+      - "src/egta/risk_gate/canonical.py"
+      - "src/egta/risk_gate/ledger.py"
+      - "docs/architecture/risk-policy.md"
+      - "docs/architecture/adr/003-risk-authority.md"
+      - "docs/evidence/FR-04/impl-green.txt"
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: redirect
+        what: "E code-owner review found the outbox payload_hash was not byte-compatible with contracts.audit (timestamp +00:00 vs Z); D asked for a targeted fix"
+        evidence: "PR #20 E review comment (2026-11-22T06:05:43Z)"
+        limit: "E and A must re-review the new head; author must not self-approve"
+    changes:
+      - "outbox payload_hash now uses contracts.audit canonicalization (sorted compact JSON, UTC timestamp Z)"
+      - "outbox stores the same Z timestamp; stored events are accepted by contracts.audit.verify_payload"
+      - "documented that UNIQUE(proposal_hash) is intentional because proposal_hash covers run_id"
+    verification_output:
+      - command: "python -m pytest test/offline/risk_gate -q"
+        exit_code: 0
+        result: "139 passed after the compatibility fix"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "python -m mypy src/egta/risk_gate"
+        exit_code: 0
+        result: "Success: no issues found in 7 source files"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+      - command: "contracts.audit.verify_payload on the persisted outbox event (contracts code from origin/impl/FR-05-contracts-v3)"
+        exit_code: 0
+        result: "OK; stored == recomputed payload_hash = eaa25281582252eeddd22a4d581fa25b4e99c71425f78c69888e4714b13f8955"
+        evidence: "docs/evidence/FR-04/impl-green.txt"
+    git_output:
+      - action: "git commit"
+        result: "6bad1699c13ca0f7abf6ba1c2d577877977e7f83 (compatibility fix)"
+      - action: "pull request"
+        result: "PR #20 updated; new head requires E/A re-review"
+    implementation_status: "FIXED + VERIFIED locally; awaiting E/A review of the new head"
+    test_pr: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/17"
+    test_pr_state: "MERGED"
+    approval_links:
+      - "PR #17 A approved head 1fd6d29; merge commit b245bdb; aggregate 8486182b"
+      - "PR #20 E review comment resolved by commit 6bad169; re-review pending"
+    repository_blockers:
+      - "E code-owner approval and A independent approval of the new PR #20 head."
+      - "Shared contracts/ticker/product policy remain pending for final integration."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No test, contract, CI, CODEOWNERS or human-only file was changed."
+      - "E's contracts code was used read-only from impl/FR-05-contracts-v3 for compatibility verification."
+      - "The earlier CI run passed on 5419dd8; the new head needs a fresh CI run."
+      - "After E PR #18 merged, contracts.audit is on main; verify_payload re-ran OK on main."
