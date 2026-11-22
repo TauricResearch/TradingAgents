@@ -6,12 +6,12 @@
 schema_version: '1.0'
 document: prd
 owner: A
-status: draft_for_review
-review_status: changes_addressed_pending_re_review
+status: reviewed
+review_status: round_2_addressed_pending_d_approval
 review_record:
   reviewer: D (@ZFebron491001)
   review_pr: 15
-  round: 1
+  round: 2
   outcome: changes_requested
   addressed:
   - id: item-1
@@ -26,14 +26,20 @@ review_record:
     what: explicit governance list (no alias reuse), by_owner index added, evidence text updated
   - id: item-6
     what: real-schema negative tests added to the checker suite (PR #30/#31); GATE-03 dependency text corrected
+  - id: round2-1
+    what: "PRD by_component INV-07 moved from risk_gate to adapters to match merged #9 (dc59be1); all 38 ids re-checked against the registry"
+  - id: round2-2
+    what: "review_record.reverified_against.registry_head updated c745d17 -> dc59be1 (current merged #9 commit); 38-entry validation re-run"
+  - id: round2-3
+    what: "status draft_for_review -> reviewed; round-2 review record added"
   reverified_against:
-    # Re-validated on the latest #9 head (D confirmations transcribed) so the PRD
-    # index does not drift when the registry advances between review rounds.
+    # Re-validated against the MERGED #9 (dc59be1) so the PRD index does not drift.
     registry_pr: 9
-    registry_head: c745d17
+    registry_head: dc59be1
     schema_validation: "0 errors; 38 entries"
+    by_component_crossref: "all 38 ids resolved; by_component matches registry.component with 0 mismatches (INV-07 now under adapters)"
     by_owner_crossref: "all 38 ids resolved; by_owner matches registry.owner with 0 mismatches"
-  next: D re-review after round-1 fixes; status moves to reviewed on approval
+  next: D re-review; status is 'reviewed' pending D's approval
 source_of_truth: docs/req/requirements.yaml
 product:
   name: Evidence-Governed TradingAgents
@@ -378,6 +384,8 @@ requirement_index:
     submission:
     - SUB-01
   by_component:
+    adapters:
+    - INV-07
     budget:
     - FR-02
     - INV-03
@@ -420,7 +428,6 @@ requirement_index:
     - INV-01
     - INV-04
     - INV-06
-    - INV-07
     - NFR-05
     submission:
     - SUB-01
