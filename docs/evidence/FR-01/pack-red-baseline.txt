@@ -1,10 +1,11 @@
-# FR-01 pack spec — expected RED (test-first)
-# branch test/FR-01-pack, based on main 6830926 (merged main incl #18/#20/#26)
-# recorded 2026-11-22T09:08:58Z
+# FR-01 pack spec — expected RED (test-first), post-#21
+# branch test/FR-01-pack, rebased onto main 141547a (B #21 evidence contracts merged)
+# recorded 2026-11-22T11:45:47Z
 ## pytest -o addopts="--strict-markers" -m spec test/offline/evidence -q
 exit=1   # 32 errors, 13 deselected
-## raw ImportError (first occurrence)
-E       ImportError: cannot import name 'Availability' from 'egta.contracts' (/tmp/opencode/wt25c/src/egta/contracts/__init__.py)
-
+## raw ImportError (first occurrence) — contracts now import; only egta.evidence is absent
+E       ImportError: cannot import name 'InvalidCitation' from 'egta.evidence' (/tmp/opencode/wt25r/src/egta/evidence/__init__.py)
+## contracts importable proof (separate command)
+   from egta.contracts import RunSpec, EvidenceItem, EvidencePack, ExcludedItem, Availability -> OK
 ## summary
-13 deselected, 32 errors in 0.36s
+13 deselected, 32 errors in 0.35s

@@ -62,9 +62,14 @@ lands in a descendant PR that must descend from this spec's merge commit (GATE-0
 - `docs/evidence/FR-01/pack-ruff.txt` — ruff.
 - `docs/approvals/test-hash-FR-01-pack.txt` — per-file + aggregate test hash.
 
-## Pending before approval (D's conditions)
+## Post-#21 status
 
-- Bind approval to the post-#21 head; re-capture RED once #21 merges and the
-  contracts export exists on base; if #21's shape changes, affected tests return
-  to A for re-approval.
-- Fill `reviewed_pr_head` / `merge_commit` in the approval record.
+- **B #21 merged to main `141547a`**: `RunSpec`/`EvidenceItem`/`EvidencePack`/
+  `ExcludedItem`/`Availability` now import from `egta.contracts`; this branch is
+  rebased onto `141547a` and the RED re-captured — it is now purely "egta.evidence
+  absent" (`ImportError: InvalidCitation`), not a contracts gap. `test_pack.py`
+  hash unchanged by the rebase.
+- Remaining before approval: D re-review on this post-#21 head; fill
+  `reviewed_pr_head` / `merge_commit` after merge. The implementation PR (A) must
+  descend from this spec's merge commit and provide `egta.evidence.InvalidCitation`
+  + `build_pack`/`validate_claims`.

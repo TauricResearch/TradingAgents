@@ -9,8 +9,14 @@ base:     main
 # NOTE (D review of #25): approval MUST bind to the head AFTER B's #21 merges,
 # because these tests import EvidenceItem/EvidencePack from egta.contracts. The
 # fields below are refreshed on the rebased head and the RED re-captured there.
+#
+# POST-#21 STATUS: B #21 merged to main as 141547a (evidence contracts available:
+# RunSpec/EvidenceItem/EvidencePack/ExcludedItem/Availability import from
+# egta.contracts). This branch is rebased onto 141547a; RED is now purely
+# "egta.evidence absent" (ImportError: InvalidCitation), not a contracts gap.
+# The test file hash below is UNCHANGED by the rebase.
 
-test_content_commit:     90bd6caa097b2ad6a264fa0d18412e3d21255cee
+test_content_commit:     c3f7332c9a8bc4568a9efb0655c364bf0ea4c21a   # post-#21 rebased head on main 141547a
 actual_cases: 32           # pytest -m spec test/offline/evidence --collect-only (32 pack cases)
 # 13 time-policy tests remain in test_time_policy.py (INV-02) and are deselected here.
 
