@@ -7,6 +7,26 @@ schema_version: '1.0'
 document: prd
 owner: A
 status: draft_for_review
+review_status: changes_addressed_pending_re_review
+review_record:
+  reviewer: D (@ZFebron491001)
+  review_pr: 15
+  round: 1
+  outcome: changes_requested
+  addressed:
+  - id: item-1
+    what: anchored id/owner/metric patterns with ^...$ and added negatives
+  - id: item-2
+    what: id-prefix-to-type conditionals added to the schema
+  - id: item-3
+    what: split development-time (ST-05) and runtime (ST-06) AI actors; UC-03/UC-04 use ST-06
+  - id: item-4
+    what: GAP-03 and G3 map to FR-03/NFR-03, not NFR-06
+  - id: item-5
+    what: explicit governance list (no alias reuse), by_owner index added, evidence text updated
+  - id: item-6
+    what: real-schema negative tests added to the checker suite (PR #30/#31); GATE-03 dependency text corrected
+  next: D re-review after round-1 fixes; status moves to reviewed on approval
 source_of_truth: docs/req/requirements.yaml
 product:
   name: Evidence-Governed TradingAgents
@@ -39,7 +59,7 @@ problem:
       shown to converge.
     addressed_by:
     - FR-03
-    - NFR-06
+    - NFR-03
   - id: GAP-04
     description: Nothing between an advisory and the paper ledger is deterministic; an unapproved proposal can still
       mutate state.
@@ -76,7 +96,7 @@ stakeholders:
   name: Course reviewers and instructor
   interest: Needs evidence that the work was supervised, that gates actually blocked, and that the enhancement is
     reproducible.
-  requirement_ids: &id001
+  requirement_ids:
   - GOV-01
   - GOV-02
   - GOV-03
@@ -106,6 +126,16 @@ stakeholders:
   - GOV-03
   - GOV-05
   - GATE-06
+- id: ST-06
+  name: Runtime analysis agent (the financial-analysis/advice model run by the system)
+  interest: Produces analysis and advisory proposals with no file-write, risk-exemption or ledger-write
+    authority; its output is only an input to deterministic control. Distinct from ST-05 per execution_plan
+    §6.1 (development-time coding agent vs runtime financial analysis agent).
+  requirement_ids:
+  - FR-01
+  - FR-03
+  - FR-04
+  - INV-05
 objectives:
 - id: G1
   goal: Every conclusion can be traced to concrete data, with time filtering that cannot peek past the as-of instant.
@@ -123,7 +153,7 @@ objectives:
   goal: Discussion terminates on a checkable condition rather than a fixed round count.
   requirement_ids:
   - FR-03
-  - NFR-06
+  - NFR-03
 - id: G4
   goal: No proposal reaches the paper ledger without passing deterministic risk control and the audit trail.
   requirement_ids:
@@ -200,8 +230,8 @@ use_cases:
   postcondition: The ledger still balances and no call was made that could not be paid for.
 - id: UC-03
   title: Consume an evidence pack as a downstream module
-  actor: ST-03
-  trigger: A deliberation or advisory module needs the evidence behind a claim.
+  actor: ST-06
+  trigger: The deliberation or advisory module needs the evidence behind a claim.
   requirement_ids:
   - FR-01
   - FR-03
@@ -213,7 +243,7 @@ use_cases:
   postcondition: No consumer needs to know how evidence was fetched, and no tampered excerpt passes.
 - id: UC-04
   title: Block a proposal that fails deterministic risk control
-  actor: ST-05
+  actor: ST-06
   trigger: An advisory proposal asks to change the paper ledger.
   requirement_ids:
   - FR-04
@@ -321,7 +351,16 @@ requirement_index:
     - INV-05
     - INV-06
     - INV-07
-    governance: *id001
+    governance:
+    - GOV-01
+    - GOV-02
+    - GOV-03
+    - GOV-04
+    - GOV-05
+    - GOV-06
+    - GOV-07
+    - GOV-08
+    - GOV-09
     gate:
     - GATE-01
     - GATE-02
@@ -378,6 +417,55 @@ requirement_index:
     - NFR-05
     submission:
     - SUB-01
+  by_owner:
+    A:
+    - FR-01
+    - NFR-10
+    - INV-02
+    - GOV-01
+    - SUB-01
+    A+E:
+    - GOV-05
+    - GOV-08
+    B:
+    - FR-02
+    - NFR-01
+    - INV-03
+    - GOV-02
+    B+D:
+    - NFR-04
+    B+E:
+    - NFR-02
+    C:
+    - FR-03
+    - INV-05
+    C+E:
+    - NFR-03
+    D:
+    - FR-04
+    - NFR-05
+    - INV-01
+    - INV-04
+    - INV-06
+    - INV-07
+    - GOV-03
+    - GOV-09
+    E:
+    - FR-05
+    - NFR-06
+    - NFR-08
+    - GOV-04
+    - GOV-06
+    - GOV-07
+    - GATE-05
+    E+D:
+    - NFR-07
+    - NFR-09
+    - GATE-01
+    - GATE-02
+    - GATE-03
+    - GATE-04
+    - GATE-06
 traceability:
   registry: docs/req/requirements.yaml
   schema: docs/req/req-schema.json

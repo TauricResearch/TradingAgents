@@ -28,8 +28,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "(FR|NFR|INV|GOV|GATE|SUB)-[0-9]{2}",
-          "$comment": "Uniqueness is checked semantically, not here."
+          "pattern": "^(FR|NFR|INV|GOV|GATE|SUB)-[0-9]{2}$",
+          "$comment": "Anchored so XFR-01, FR-011 and ' FR-01' are rejected. Uniqueness and id->type linkage are checked semantically (schema conditional below + checker)."
         },
         "type": {
           "type": "string",
@@ -78,6 +78,31 @@
         "fit_criterion": { "$ref": "#/$defs/fit_criterion" }
       },
       "allOf": [
+        {
+          "if": { "properties": { "id": { "pattern": "^FR-" } }, "required": ["id"] },
+          "then": { "properties": { "type": { "const": "functional" } } },
+          "$comment": "ID prefix and type are linked so the PRD by_type index cannot misclassify an entry (D review of #15 item 2)."
+        },
+        {
+          "if": { "properties": { "id": { "pattern": "^NFR-" } }, "required": ["id"] },
+          "then": { "properties": { "type": { "const": "nonfunctional" } } }
+        },
+        {
+          "if": { "properties": { "id": { "pattern": "^INV-" } }, "required": ["id"] },
+          "then": { "properties": { "type": { "const": "invariant" } } }
+        },
+        {
+          "if": { "properties": { "id": { "pattern": "^GOV-" } }, "required": ["id"] },
+          "then": { "properties": { "type": { "const": "governance" } } }
+        },
+        {
+          "if": { "properties": { "id": { "pattern": "^GATE-" } }, "required": ["id"] },
+          "then": { "properties": { "type": { "const": "gate" } } }
+        },
+        {
+          "if": { "properties": { "id": { "pattern": "^SUB-" } }, "required": ["id"] },
+          "then": { "properties": { "type": { "const": "submission" } } }
+        },
         {
           "if": { "properties": { "priority": { "enum": ["Should", "Could"] } }, "required": ["priority"] },
           "then": {
@@ -139,8 +164,8 @@
       "properties": {
         "metric": {
           "type": "string",
-          "pattern": "[a-z][a-z0-9_]*",
-          "$comment": "lower_snake_case name of the measured quantity."
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "$comment": "lower_snake_case name of the measured quantity. Anchored so 'x y' / 'Alice' are rejected."
         },
         "operator": {
           "type": "string",
@@ -165,8 +190,8 @@
     },
     "owner_list": {
       "type": "string",
-      "pattern": "(A|B|C|D|E)(\\+(A|B|C|D|E))*",
-      "$comment": "Single owner 'B', or a joint obligation 'A+E'. Roles only, never names, so the registry survives roster changes."
+      "pattern": "^(A|B|C|D|E)(\\+(A|B|C|D|E))*$",
+      "$comment": "Single owner 'B', or a joint obligation 'A+E'. Roles only, never names, so the registry survives roster changes. Anchored so 'Alice' / 'A+Z' are rejected."
     }
   }
 }
