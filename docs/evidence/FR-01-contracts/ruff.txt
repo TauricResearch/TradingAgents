@@ -1,0 +1,6 @@
+worktree_head: f52868da423387452514c49114044cdc50608cf7
+worktree: /tmp/opencode/b-revise
+captured_at_utc: 2026-11-21T13:46:43Z
+command: python -m ruff check .
+All checks passed!
+exit: 0
