@@ -26,6 +26,13 @@ review_record:
     what: explicit governance list (no alias reuse), by_owner index added, evidence text updated
   - id: item-6
     what: real-schema negative tests added to the checker suite (PR #30/#31); GATE-03 dependency text corrected
+  reverified_against:
+    # Re-validated on the latest #9 head (D confirmations transcribed) so the PRD
+    # index does not drift when the registry advances between review rounds.
+    registry_pr: 9
+    registry_head: c745d17
+    schema_validation: "0 errors; 38 entries"
+    by_owner_crossref: "all 38 ids resolved; by_owner matches registry.owner with 0 mismatches"
   next: D re-review after round-1 fixes; status moves to reviewed on approval
 source_of_truth: docs/req/requirements.yaml
 product:
