@@ -1,0 +1,184 @@
+# AI-use log — Member A fragment
+#
+# A-owned fragment prepared for later assembly into the team's docs/ai-use-log.yaml
+# (owned by E). Records only facts observed in these sessions. It is NOT a test
+# approval record and does NOT claim that any test, ADR, PR or implementation was
+# approved or hash-bound.
+
+schema_version: "1.0"
+project: EGTA-CS5351-Group20
+role: A
+github_login: yuxiangdu39
+date: 2026-11-21
+fragment_for: docs/ai-use-log.yaml
+
+sessions:
+  - session_id: "ses_e0251da54ffezXPgY1zbMflx8Y"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode 1.18.34 / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    time:
+      - "2026-11-21T18:36:50+08:00"   # session start; branch docs/req-registry verified at 2fb28136
+      - "2026-11-21T18:38:03+08:00"   # requirements.yaml and this fragment written
+      - "2026-11-21T18:38:15+08:00"   # single docs commit created
+    abandoned_sessions:
+      - session_id: "ses_e02536b24ffeLMdYIGwmYANJCx"
+        time: "2026-11-21T18:35:08+08:00 to 2026-11-21T18:35:17+08:00"
+        note: "opened and closed within nine seconds; no patch part, so no file was modified. Recorded here so the session list for this repository is complete."
+    task_requirement_ids:
+      - D1
+      - NFR-10
+      - GATE-03
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the single docs commit on docs/req-registry; see `git log -1` on that branch"
+        note: "38 entries (FR-01..05, NFR-01..10, INV-01..07, GOV-01..09, GATE-01..06, SUB-01); FR-01/INV-02/NFR-10 confirmed_by_owner, 29 draft_from_plan, 6 pending_owner_supply"
+      - file: "docs/ai-use-log-A-fragment.yaml"
+        commit: "same commit as above"
+        note: "this fragment"
+    human_intervention:
+      - type: provenance correction
+        when: "2026-11-21T18:48+08:00"
+        who: "assistant (Doubao Work), on the user's instruction"
+        what: "corrected this fragment's own metadata only: agent_tool_model to the value recorded in opencode.db, generated_files.commit (previously 'uncommitted in this log snapshot'), session_id (previously a self-made label 'A-2026-11-21-D1-registry'), session_path, and added the abandoned-session record. The content of docs/req/requirements.yaml was not changed."
+    verification_output:
+      - command: "acceptance checker run on branch docs/req-registry"
+        result: "all hard checks passed: 1 commit, 2 files, 38 entries, unique ids, every Must has verification and owner, plan numeric values present, no change to test/ src/ pyproject.toml/ docs/ai-use-log.yaml, origin/test/FR-01-evidence still 19da73a42c6d, no push"
+        evidence: "checker output"
+    implementation_status: "D1 skeleton only; 29 entries await owner confirmation, 6 await owner supply"
+    cost: "unknown"
+    session_path: "not exported; opencode session id above (docs-only PR, no export claimed)"
+    notes:
+      - "Docs only: no test, script, fixture, src/, pyproject.toml or CI change."
+      - "Read but did not modify test/FR-01-evidence; no checkout, rebase or push of it."
+      - "No approval or hash binding is claimed for any entry; the FR-01 evidence branch is not approved."
+      - "No push and no PR were performed in this session."
+
+  - session_id: "N/A - no opencode session; assistant script run through WSL bash"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "Doubao Work assistant, bash/WSL scripting (no opencode TUI)"
+    time:
+      - "2026-11-22T16:55+08:00"   # PR #9 owner replies read; branch rebased onto main 6830926
+      - "2026-11-22T17:12+08:00"   # transcriptions applied and schema-validated
+    task_requirement_ids:
+      - D1
+      - GATE-03
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    source_of_values:
+      - "PR #9 comment 7075146925, author cosine-Y (B), 2026-11-22T06:08:02Z"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the transcription commit on docs/req-registry; see `git log -1` on that branch"
+        note: "Transcribed ONLY owner-supplied values: FR-02/NFR-01/INV-03 -> confirmed_by_owner; GOV-02 threshold 11, unit count, verification rewritten in the owner's wording. NFR-02 (B+E) and NFR-04 (B+D) stay draft because the co-owner has not replied. No entry outside B's scope was touched."
+    normalisation:
+      - "GOV-02 unit: the owner wrote 'distinct required D2 items'; stored as unit: count with the meaning kept in the verification text, because the schema's unit enum has no free-text value."
+    human_intervention:
+      - type: transcription rule
+        when: "2026-11-22T17:10+08:00"
+        who: "A (yuxiangdu39)"
+        what: "No acceptance criterion is inferred on an owner's behalf: shared-owner entries stay draft, and E's GOV-04/07/08 replies ('confirmed' with no criterion) were NOT transcribed."
+    verification_output:
+      - command: "jsonschema Draft202012Validator(docs/req/req-schema.json).validate(docs/req/requirements.yaml)"
+        result: "0 schema errors; 38 entries; 7 confirmed_by_owner / 26 draft_from_plan / 5 pending_owner_supply"
+    implementation_status: "registry transcription only; no test, src/ or CI change"
+    cost: "unknown"
+    notes:
+      - "Docs only: requirements.yaml and this fragment."
+      - "Branch rebased onto origin/main 6830926 before the edit; pushed with --force-with-lease."
+      - "No approval is claimed for any entry B or D supplied on another member's behalf."
+
+  - session_id: "ses_2026-11-22-d1-prd-schema"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-22T15:27+08:00"   # PR #15 opened (prd.yaml + req-schema.json)
+      - "2026-11-22T18:05+08:00"   # round-1 fixes after D review (schema anchoring + PRD consistency)
+    task_requirement_ids:
+      - D1
+      - NFR-10
+      - GATE-03
+    writable_path:
+      - "docs/req/prd.yaml"
+      - "docs/req/req-schema.json"
+      - "docs/ai-use-log-A-fragment.yaml"
+    pr: 15
+    branch: docs/req-schema-prd
+    generated_files:
+      - file: "docs/req/req-schema.json"
+        note: "JSON Schema (draft 2020-12) for requirements.yaml; round-1 fix anchored id/owner/metric patterns with ^...$ and added id-prefix-to-type conditionals (D review items 1-2)."
+      - file: "docs/req/prd.yaml"
+        note: "machine-readable PRD; round-1 fix split ST-05 (coding agent) from ST-06 (runtime analysis agent), remapped GAP-03/G3 to FR-03/NFR-03, replaced the *id001 alias with an explicit governance list, added by_owner and a review_record (D review items 3-5)."
+    human_intervention:
+      - type: review response
+        when: "2026-11-22T18:05+08:00"
+        who: "A (yuxiangdu39)"
+        what: "Addressed D's round-1 CHANGES_REQUESTED on PR #15: anchored patterns, id-type conditionals, actor split, objective-id correction, doc finalisation. Real-schema negative regression tests live in the checker spec (PR #30) per the merge-order decision."
+    verification_output:
+      - command: "python -c 'import json,jsonschema; jsonschema.Draft202012Validator.check_schema(json.load(open(\"docs/req/req-schema.json\")))'"
+        result: "schema is a valid draft 2020-12 schema"
+      - command: "prd cross-reference check vs requirements.yaml (#9 90b9496)"
+        result: "0 unknown refs; all 38 ids covered by by_type/by_component/by_owner; by_type/by_component/by_owner values match the registry"
+    implementation_status: "docs only (PRD + schema); no test, src/ or CI change"
+    cost: "unknown"
+    notes:
+      - "PRD and schema reference requirement ids only; requirements.yaml remains the single source of truth."
+      - "#15 is docs-only; the GATE-03 checker and its real-schema tests are PR #30/#31."
+
+  - session_id: "N/A - no opencode session; assistant script run through bash"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode CLI / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    time:
+      - "2026-11-22T17:20+08:00"   # D confirmation batch read from PR #9 comment
+      - "2026-11-22T17:30+08:00"   # transcriptions applied and schema-validated
+    task_requirement_ids: [D1, GATE-03]
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    source_of_values:
+      - "PR #9 comment by ZFebron491001 (D), 2026-11-22T09:16:06Z, batch at #9 head 90b9496"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the D-transcription commit on docs/req-registry; see `git log -1` on that branch"
+        note: "Transcribed ONLY D-supplied values: FR-04/NFR-05/INV-01/INV-04/INV-06/INV-07 and NFR-04 (B+D, all sides confirmed) -> confirmed_by_owner; INV-07 component risk_gate -> adapters (D's stated reason: adapter/export enforcement); GATE-01 metric gate_status -> unblocked_gate_failures (D's stated reason: zero-tolerance counts bypasses, gate_status is not countable). NFR-07/NFR-09/GATE-01..04/GATE-06 are D-confirmed but stay draft_from_plan (annotated in status) until the E co-owner confirms."
+    normalisation: []
+    human_intervention:
+      - type: transcription rule
+        who: "A (yuxiangdu39)"
+        when: "2026-11-22T17:28+08:00"
+        what: "No acceptance criterion inferred on D's behalf: shared E+D entries stay draft because E has not confirmed; D-side confirmation recorded in the status comment only."
+    verification_output:
+      - command: "jsonschema Draft202012Validator(docs/req/req-schema.json).validate(docs/req/requirements.yaml)"
+        result: "0 schema errors; 38 entries; 14 confirmed_by_owner / 19 draft_from_plan / 5 pending_owner_supply"
+    cost: "unknown"
+    notes:
+      - "Docs only: requirements.yaml and this fragment."
+      - "No approval claimed for entries whose E co-owner has not replied."
+
+  - session_id: "N/A - no opencode session; assistant script run through bash"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode CLI / CS5351/DeepSeek-V4-Flash (provider custom-foundry)"
+    time:
+      - "2026-11-22T17:45+08:00"   # back-fill of the two untouched owner replies
+    task_requirement_ids: [D1, GATE-03]
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    source_of_values:
+      - "PR #9 comment 7075616405 by ZFebron491001 (D): GOV-03 / GOV-09 fit_criterion"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the GOV-03/GOV-09 transcription commit on docs/req-registry"
+        note: "Transcribed D's exact GOV-03/GOV-09 fit_criterion (operator=exists, threshold=true, metric d3_required_artifacts_present / d9_required_instructions_present) and flipped to confirmed_by_owner. These require the #15 schema bump adding operator=exists + boolean threshold; landed there first (5adba44)."
+    normalisation:
+      - "B's NFR-02 stays draft_from_plan: B confirmed his side, E (co-owner) has not. No half-row is flipped."
+      - "E's GOV-04/GOV-07/GOV-08 remain pending_owner_supply: 'confirmed' without a criterion (threshold null) is not transcribable."
+    verification_output:
+      - command: "jsonschema.validate(requirements.yaml, req-schema.json @ #15 5adba44)"
+        result: "0 schema errors; 38 entries; 16 confirmed_by_owner / 19 draft_from_plan / 3 pending_owner_supply"
+    cost: "unknown"
+    notes:
+      - "Completes the back-fill of all transcribable owner confirmations on #9."

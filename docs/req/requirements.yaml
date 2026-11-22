@@ -1,0 +1,698 @@
+# Requirement registry (D1) — single source of truth for requirement facts.
+# prd.yaml references these ids rather than restating them.
+# Entries with status: draft_from_plan are faithful transcriptions of
+# /home/lenovo/refs/execution_plan_261111.md and are NOT yet confirmed by their
+# owners. A assembles the registry but does not define other members' acceptance
+# criteria. Confirmed: FR-01, INV-02, NFR-10 (owner A); FR-02, NFR-01, INV-03 and
+# GOV-02 (owner B, 2026-11-22); FR-04, NFR-05, INV-01, INV-04, INV-06, INV-07 and
+# NFR-04 (owner D, 2026-11-22, PR #9 comment); GOV-03, GOV-09 (owner D, existence
+# criteria). NFR-07/NFR-09/GATE-01..04/GATE-06 are D-confirmed but stay draft until
+# the E co-owner confirms. NFR-02 (B+E) is B-confirmed but stays draft (E pending).
+# Remaining entries stay drafts until their owner replies.
+# This file is validated by docs/req/req-schema.json (on the schema PR, not on main yet).
+
+schema_version: "1.0"
+requirements:
+  - id: FR-01
+    type: functional
+    statement: "Evidence Pack: every analysis output carries an evidence pack with source, publication time, fetch time, content hash and claim references, so a user can trace key conclusions to concrete data rather than only reading narrative."
+    priority: Must
+    source: ["§3.2 FR table", "INV-02"]
+    tradeoff: null
+    owner: A
+    component: evidence
+    fit_criterion:
+      metric: evidence_field_and_citation_completeness_rate
+      operator: "gte"
+      threshold: 100
+      unit: percent
+      verification: "pytest test/offline/evidence -m \"not integration\", including the FR-01 pack test PR that asserts evidence-field and citation completeness on the 30 fixed data scenarios and the admission rule published_at <= as_of (this spec PR asserts the INV-02 time policy only)"
+    evidence: ["E-01..E-31", "test_time_policy.py", "docs/req/trace-FR-01-evidence.md", "docs/approvals/test-hash-FR-01-evidence.txt"]
+    status: confirmed_by_owner
+    supplied_by: "A"
+
+  - id: FR-02
+    type: functional
+    statement: "Budgeted Run: after a user selects a budget, the system performs global resource admission before any call, and when resources are insufficient it stops or degrades and outputs the reason and consumption."
+    priority: Must
+    source: ["§3.2 FR table", "INV-03"]
+    tradeoff: null
+    owner: B
+    component: budget
+    fit_criterion:
+      metric: calls_executed_without_prior_reserve
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "fake provider: every call (including parallel, retry, compression) is reserved before execution; new calls when budget is insufficient = 0; negative cases cover concurrent budget contention, retry-after-timeout and unknown pricing config"
+    evidence: ["T-BUD-01", "T-BUD-02", "reserved/actual/unknown_usage", "budget_denied"]
+    status: confirmed_by_owner
+    supplied_by: "B"
+
+  - id: FR-03
+    type: functional
+    statement: "Structured Deliberation: convert free discussion into a stateful protocol of independent proposals -> merge/dedupe -> evidence evaluation -> counterargument challenge -> summary, showing supporting/opposing grounds and unresolved conflicts."
+    priority: Must
+    source: ["§3.2 FR table", "INV-05"]
+    tradeoff: null
+    owner: C
+    component: deliberation
+    fit_criterion:
+      metric: fixtures_obeying_phase_transitions
+      operator: "eq"
+      threshold: 30
+      unit: count
+      verification: "30 discussion fixtures all obey phase transitions; each round's proposal holds claim/evidence/counterargument fields; at most 2 challenge rounds, and a repeat round with no new evidence stops early; negative cases cover skipped phases, unsupported proposals and injected instructions"
+    evidence: ["T-DEL-01", "EVAL-QUALITY-01", "phase_transition", "unsupported_claim_rate"]
+    status: draft_from_plan
+    supplied_by: "C"
+
+  - id: FR-04
+    type: functional
+    statement: "Deterministic Risk Gate + Paper Ledger: after a user sets a paper account and limits, an LLM suggestion forms a paper order only after passing deterministic checks, and every rejection reason is shown."
+    priority: Must
+    source: ["§3.2 FR table", "INV-01", "INV-04", "INV-06"]
+    tradeoff: null
+    owner: D
+    component: risk_gate
+    fit_criterion:
+      metric: illegal_suggestions_executed
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "of 100 risk/boundary cases the number of illegally executed suggestions is 0; resubmitting the same proposal is booked only once; safety rules cannot be changed by prompt or model output; negative cases cover negative quantity, insufficient funds, over position, expired approval and audit-write failure"
+    evidence: ["T-RISK-01", "T-RISK-02", "T-RISK-03", "blocked_by_rule", "duplicate_prevented", "ledger_commit"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: FR-05
+    type: functional
+    statement: "Comparison & Audit Report: for the same case, compare the baseline, the enhanced version and ablations, showing quality, token, cost, latency and risk blocking; replay structured events and trace them to requirements and tests."
+    priority: Must
+    source: ["§3.2 FR table", "NFR-08", "NFR-09"]
+    tradeoff: null
+    owner: E
+    component: evaluation
+    fit_criterion:
+      metric: fixed_scenarios_producing_paired_reports
+      operator: "eq"
+      threshold: 30
+      unit: count
+      verification: "30 fixed scenarios can generate paired reports; a missing comparison result is explicitly shown as incomplete and not counted as a win; replay verifies hash and schema and retains the same terminal state; negative cases cover tampered logs, mixed comparison across data snapshots and missing usage"
+    evidence: ["T-EVAL-01", "T-EVAL-02", "incomplete_pairs", "event_gap", "manifest_mismatch"]
+    status: draft_from_plan
+    supplied_by: "E"
+
+  - id: NFR-01
+    type: nonfunctional
+    statement: "Each run is subject to the triple constraints max_total_tokens, max_cost_usd and max_calls; the default candidate is 80,000 tokens, 2 USD and 24 calls; it is configurable but must be frozen into the run record; no over-budget admission."
+    priority: Must
+    source: ["§3.3 NFR table", "FR-02"]
+    tradeoff: null
+    owner: B
+    component: budget
+    fit_criterion:
+      metric: max_total_tokens
+      operator: "lte"
+      threshold: 80000
+      unit: tokens
+      verification: "atomic-reserve stress test; actual usage and estimate reported separately (default candidate also 2 USD max_cost_usd and 24 max_calls, configurable and frozen to the run record)"
+    evidence: ["reserved/actual/unknown_usage", "budget_denied"]
+    status: confirmed_by_owner
+    supplied_by: "B"
+
+  - id: NFR-02
+    type: nonfunctional
+    statement: "Under the same model, input and analyst roles, the enhanced version's cumulative token median drops >=25% relative to the baseline and end-to-end latency median drops >=20%, while quality still satisfies NFR-03."
+    priority: Should
+    source: ["§3.3 NFR table", "NFR-03"]
+    tradeoff: "If cost reduction and quality cannot both be achieved, keep quality and honestly report the unmet performance target; do not delete failing samples."
+    owner: "B+E"
+    component: evaluation
+    fit_criterion:
+      metric: token_median_reduction
+      operator: "gte"
+      threshold: 25
+      unit: percent
+      verification: "paired experiment of 30 scenarios x 3 runs per config, reporting p50/p95 and distributions (latency median reduction >=20%)"
+    evidence: ["p50/p95", "token", "latency"]
+    status: draft_from_plan  # B side confirmed 2026-11-22 (PR #9 comment); E (co-owner) has not confirmed this entry yet
+    supplied_by: "B+E"
+
+  - id: NFR-03
+    type: nonfunctional
+    statement: "Human scoring of core-claim evidence entailment is >=90%, the proportion of valid citation ids is 100%, and the support rate drops by no more than 5 percentage points relative to the baseline."
+    priority: Must
+    source: ["§3.3 NFR table", "FR-03"]
+    tradeoff: null
+    owner: "C+E"
+    component: deliberation
+    fit_criterion:
+      metric: evidence_entailment_rate
+      operator: "gte"
+      threshold: 90
+      unit: percent
+      verification: "pre-annotated set, two-person independent blind scoring plus dispute adjudication (valid citation id ratio 100%; support rate drop <=5 percentage points)"
+    evidence: ["EVAL-QUALITY-01", "unsupported_claim_rate"]
+    status: draft_from_plan
+    supplied_by: "C+E"
+
+  - id: NFR-04
+    type: nonfunctional
+    statement: "Across 100 timeout, 429, crash and restart injections there are no duplicate paper orders; recovery does not reuse version-incompatible state; each tool call times out at 30 s, each LLM call at 90 s, and a single run deadline is 300 s."
+    priority: Must
+    source: ["§3.3 NFR table", "FR-04"]
+    tradeoff: null
+    owner: "B+D"
+    component: budget
+    fit_criterion:
+      metric: duplicate_paper_orders
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "fake clock + restart tests; after timeout output BLOCKED/INCOMPLETE without masking the failure (tool timeout 30 s, LLM timeout 90 s, run deadline 300 s)"
+    evidence: ["T-RISK-02", "duplicate_prevented"]
+    status: confirmed_by_owner
+    supplied_by: "B+D"
+
+  - id: NFR-05
+    type: nonfunctional
+    statement: "The fixed security set has at least 50 cases, with 0 successful unauthorized tool/path accesses, 0 positive secret-scan findings, and 0 injection-induced safety escapes in executable proposals."
+    priority: Must
+    source: ["§3.3 NFR table", "INV-05", "INV-07"]
+    tradeoff: null
+    owner: D
+    component: risk_gate
+    fit_criterion:
+      metric: unauthorized_access_successes
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "permission-denial tests, malicious evidence set, and scan report (security set >=50 cases; secret-scan positives 0; injection-induced safety escapes 0)"
+    evidence: ["permission-denial", "malicious evidence set", "scan report"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: NFR-06
+    type: nonfunctional
+    statement: "New code has 0 cross-module import violations, the five modules' public contracts pass at 100%, new business-code line coverage is >=85%, and safety-rule branch coverage is 100%."
+    priority: Must
+    source: ["§3.3 NFR table", "GATE-02"]
+    tradeoff: "Coverage does not replace negative tests."
+    owner: E
+    component: evaluation
+    fit_criterion:
+      metric: new_business_line_coverage
+      operator: "gte"
+      threshold: 85
+      unit: percent
+      verification: "static architecture checks, contract tests, coverage (safety-rule branch coverage 100%; cross-module import violations 0; public contract pass rate 100%), per module owner"
+    evidence: ["check_architecture", "contract tests", "coverage"]
+    status: draft_from_plan
+    supplied_by: "E"
+
+  - id: NFR-07
+    type: nonfunctional
+    statement: "100% of code/prompt changes have approved tests, a corresponding AI-use log and session evidence; every feature has at least one negative test reviewed by a non-implementer."
+    priority: Must
+    source: ["§3.3 NFR table", "GATE-06"]
+    tradeoff: null
+    owner: "E+D"
+    component: governance
+    fit_criterion:
+      metric: governed_change_rate
+      operator: "gte"
+      threshold: 100
+      unit: percent
+      verification: "CI and PR verification; the approver cannot be the implementer's agent"
+    evidence: ["gate_status", "approval_missing", "ai_log_missing"]
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
+    supplied_by: "E+D"
+
+  - id: NFR-08
+    type: nonfunctional
+    statement: "The offline suite is fully network-disabled and yields the same result across 3 consecutive runs in a clean environment; each experiment has input, code, model, prompt, rule and snapshot versions."
+    priority: Must
+    source: ["§3.3 NFR table", "FR-05"]
+    tradeoff: null
+    owner: E
+    component: evaluation
+    fit_criterion:
+      metric: consecutive_identical_offline_runs
+      operator: "eq"
+      threshold: 3
+      unit: count
+      verification: "network blocking and manifest verification"
+    evidence: ["manifest_mismatch", "event_gap"]
+    status: draft_from_plan
+    supplied_by: "E"
+
+  - id: NFR-09
+    type: nonfunctional
+    statement: "Each phase emits run_id/phase/status/duration/reason; every paper-ledger change is linked to a risk_verdict and proposal hash; unknown cost must not be displayed as 0."
+    priority: Must
+    source: ["§3.3 NFR table", "FR-04", "INV-06"]
+    tradeoff: null
+    owner: "E+D"
+    component: evaluation
+    fit_criterion:
+      metric: unknown_cost_shown_as_zero
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "event schema, completeness checks and failure tests"
+    evidence: ["run_id", "risk_verdict", "proposal_hash", "event_gap"]
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
+    supplied_by: "E+D"
+
+  - id: NFR-10
+    type: nonfunctional
+    statement: "After a requirement change, the corresponding rules, architecture and tests and trace are updated in the same sprint; no open Must remains at commit time."
+    priority: Must
+    source: ["§3.3 NFR table", "GATE-03"]
+    tradeoff: null
+    owner: A
+    component: governance
+    fit_criterion:
+      metric: unclosed_must_requirements_at_commit
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "requirement diff check, review memo, release checklist (documented in docs/req/trace-FR-01-evidence.md, which maps test_offset_normalized_to_utc and test_naive_timestamp_not_assumed_utc to NFR-10)"
+    evidence: ["docs/req/trace-FR-01-evidence.md", "docs/ai-use-log-A-fragment.yaml"]
+    status: confirmed_by_owner
+    supplied_by: "A"
+
+  - id: INV-01
+    type: invariant
+    statement: "Any proposal that has not passed deterministic risk control must not change the paper ledger."
+    priority: Must
+    source: ["§4.4 invariant table", "FR-04"]
+    tradeoff: "When audit or risk control is unavailable, sacrifice availability and refuse execution."
+    owner: D
+    component: risk_gate
+    fit_criterion:
+      metric: unauthorized_ledger_mutations
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "unapproved/forged verdict tests; on violation roll back the transaction, return BLOCKED and record a security event"
+    evidence: ["T-INV-01", "risk_verdict", "ledger_commit"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: INV-02
+    type: invariant
+    statement: "Data published after the analysis as_of time is not used."
+    priority: Must
+    source: ["§4.4 invariant table", "FR-01"]
+    tradeoff: "Exclude the data; if key evidence is insufficient, return REVIEW."
+    owner: A
+    component: evidence
+    fit_criterion:
+      metric: future_items_admitted
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "python -m pytest test/offline/evidence -q --tb=line (13 test functions over fixtures E-01..E-31; a date-only value is admitted only when its date is strictly earlier than the as_of UTC date, exact timestamp equality is admitted, a date-only/day value on the same UTC date is excluded with FUTURE_DATA and never INVALID_TIME)"
+    evidence: ["E-01..E-31", "test_time_policy.py", "docs/approvals/test-hash-FR-01-evidence.txt"]
+    status: confirmed_by_owner
+    supplied_by: "A"
+
+  - id: INV-03
+    type: invariant
+    statement: "Every external model call first obtains a budget reservation."
+    priority: Must
+    source: ["§4.4 invariant table", "FR-02"]
+    tradeoff: "Refuse the call and terminate new inference."
+    owner: B
+    component: budget
+    fit_criterion:
+      metric: calls_without_reservation
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "concurrency and retry tests"
+    evidence: ["T-BUD-01", "T-BUD-02"]
+    status: confirmed_by_owner
+    supplied_by: "B"
+
+  - id: INV-04
+    type: invariant
+    statement: "The same proposal produces only one ledger change."
+    priority: Must
+    source: ["§4.4 invariant table", "FR-04"]
+    tradeoff: "Return the already-committed result without double-charging."
+    owner: D
+    component: risk_gate
+    fit_criterion:
+      metric: duplicate_ledger_changes
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "restart/duplicate-request tests"
+    evidence: ["T-RISK-02", "duplicate_prevented"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: INV-05
+    type: invariant
+    statement: "External text cannot change system rules or tool permissions."
+    priority: Must
+    source: ["§4.4 invariant table", "FR-03", "NFR-05"]
+    tradeoff: "Isolate that evidence/response and record the rejection reason."
+    owner: C
+    component: deliberation
+    fit_criterion:
+      metric: external_text_rule_changes
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "injection and tool-privilege tests"
+    evidence: ["malicious evidence set", "permission-denial"]
+    status: draft_from_plan
+    supplied_by: "C"
+
+  - id: INV-06
+    type: invariant
+    statement: "Paper execution and its audit record are committed atomically."
+    priority: Must
+    source: ["§4.4 invariant table", "FR-04", "NFR-09"]
+    tradeoff: "Roll back the whole transaction and stop execution."
+    owner: D
+    component: risk_gate
+    fit_criterion:
+      metric: non_atomic_ledger_audit_commits
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "disk-full/write-failure tests"
+    evidence: ["T-RISK-03", "ledger_commit"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: INV-07
+    type: invariant
+    statement: "Secrets do not enter prompts, reports, commits or session exports."
+    priority: Must
+    source: ["§4.4 invariant table", "NFR-05"]
+    tradeoff: "Block export/commit; if already leaked, revoke the key and record the incident."
+    owner: D
+    component: adapters
+    fit_criterion:
+      metric: secret_leaks
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "manual injection of a canary secret and scan"
+    evidence: ["scan report"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: GOV-01
+    type: governance
+    statement: "Deliverable D1: the PRD, requirement registry and schema, where every requirement has ID/type/statement/priority/fit criterion/source/tradeoff."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D1"]
+    tradeoff: null
+    owner: A
+    component: governance
+    fit_criterion:
+      metric: requirements_with_full_fields
+      operator: "eq"
+      threshold: 38
+      unit: count
+      verification: "python tools/check_requirements.py"
+    evidence: ["docs/req/requirements.yaml"]
+    status: draft_from_plan
+    supplied_by: "A"
+
+  - id: GOV-02
+    type: governance
+    statement: "Deliverable D2: blueprint, ADR, invariants, trace matrix, memory, permission, runtime policy, candidate evaluation, plus evaluation logbook/risk list/option ledger."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D2"]
+    tradeoff: null
+    owner: B
+    component: governance
+    fit_criterion:
+      metric: d2_artefact_sections_present
+      operator: "gte"
+      threshold: 11
+      unit: count
+      verification: "review the docs/architecture artefacts and confirm each of the 11 D2 items named in the statement is present: blueprint, ADR, invariants, trace matrix, memory, permission, runtime policy, candidate evaluation, evaluation logbook, risk list, option ledger (plan does not name a concrete command; B defined the 11-item count via PR #9 comment)"
+    evidence: ["docs/architecture/"]
+    status: confirmed_by_owner
+    supplied_by: "B"
+
+  - id: GOV-03
+    type: governance
+    statement: "Deliverable D3: root AGENTS, structural constraints, MCP manifest, permissions, human-only rules and project covenant."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D3"]
+    tradeoff: null
+    owner: D
+    component: governance
+    fit_criterion:
+      metric: d3_required_artifacts_present
+      operator: "exists"
+      threshold: true
+      unit: null
+      verification: "PASS iff a repository review finds root AGENTS.md and all five documented items: structural constraints, MCP tool manifest, permission rules, human-only rules, and project covenant."
+    evidence: ["AGENTS.md", "human-only rules", "MCP manifest"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: GOV-04
+    type: governance
+    statement: "Deliverable D4: verification constraints, per-PR review memos, debt register, bug diary and three-layer verification."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D4"]
+    tradeoff: null
+    owner: E
+    component: governance
+    fit_criterion:
+      metric: d4_artefact_present
+      operator: "gte"
+      threshold: null
+      unit: null
+      verification: "confirm review memos, debt register and bug diary exist (plan does not name a concrete command)"
+    evidence: ["docs/review-memo.md"]
+    status: pending_owner_supply
+    supplied_by: "E"
+
+  - id: GOV-05
+    type: governance
+    statement: "Deliverable D5: five complete raw sessions plus intervention annotations and a session phase index (one transcript per member)."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D5"]
+    tradeoff: null
+    owner: "A+E"
+    component: governance
+    fit_criterion:
+      metric: complete_transcripts
+      operator: "eq"
+      threshold: 5
+      unit: count
+      verification: "confirm five transcripts named <student-id>-<student-name>.md exist with intervention annotations (plan does not name a concrete command)"
+    evidence: ["session transcripts"]
+    status: draft_from_plan
+    supplied_by: "A+E"
+
+  - id: GOV-06
+    type: governance
+    statement: "Deliverable D6: a single Report.md with the five members' identities, contribution weights, each person's 300-500 word reflection and process metrics."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D6"]
+    tradeoff: null
+    owner: E
+    component: governance
+    fit_criterion:
+      metric: report_reflections
+      operator: "eq"
+      threshold: 5
+      unit: count
+      verification: "confirm Report.md contains five 300-500 word reflections and contribution weights (plan does not name a concrete command)"
+    evidence: ["Report.md"]
+    status: draft_from_plan
+    supplied_by: "E"
+
+  - id: GOV-07
+    type: governance
+    statement: "Deliverable D7: the GitHub repository with real commit history, CI/CD blocking, branch protection and README."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D7"]
+    tradeoff: null
+    owner: E
+    component: repo
+    fit_criterion:
+      metric: d7_artefact_present
+      operator: "gte"
+      threshold: null
+      unit: null
+      verification: "confirm branch protection, CI blocking and README on GitHub (plan does not name a concrete command)"
+    evidence: ["GitHub repository", "CI workflow"]
+    status: pending_owner_supply
+    supplied_by: "E"
+
+  - id: GOV-08
+    type: governance
+    statement: "Deliverable D8: src/ new application source, test/offline/ and test/live/, preserving upstream provenance, with each member's module."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D8"]
+    tradeoff: null
+    owner: "A+E"
+    component: repo
+    fit_criterion:
+      metric: d8_artefact_present
+      operator: "gte"
+      threshold: null
+      unit: null
+      verification: "confirm src/ and test/offline, test/live exist with upstream provenance retained (plan does not name a concrete command)"
+    evidence: ["src/", "test/offline/", "test/live/"]
+    status: pending_owner_supply
+    supplied_by: "A+E"
+
+  - id: GOV-09
+    type: governance
+    statement: "Deliverable D9: a static root Prompt.md that plans first, stops for human approval, and has human gates for both implementation and verification."
+    priority: Must
+    source: ["§2.3 D1-D9 mapping", "D9"]
+    tradeoff: null
+    owner: D
+    component: governance
+    fit_criterion:
+      metric: d9_required_instructions_present
+      operator: "exists"
+      threshold: true
+      unit: null
+      verification: "PASS iff static root Prompt.md requires a plan before any implementation, an explicit stop for human approval of that plan, and separate human approvals before implementation and before verification."
+    evidence: ["Prompt.md"]
+    status: confirmed_by_owner
+    supplied_by: "D"
+
+  - id: GATE-01
+    type: gate
+    statement: "Test approval: all implementation changes use a two-phase PR (test/spec PR reviewed and merged first, then implementation PR referencing it); the protected-branch approval record includes test hash, requirement ID, approver and commit, and CI verifies the implementation branch builds on the approved test commit with the first implementation commit after it and tests untampered."
+    priority: Must
+    source: ["§6.5 gate table", "D4", "GATE-06"]
+    tradeoff: null
+    owner: "E+D"
+    component: governance
+    fit_criterion:
+      metric: unblocked_gate_failures
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "six-intentional-failure-PR CI artifacts show the gate blocks; approval_missing and ai_log_missing are recorded"
+    evidence: ["CI artifact", "gate_status", "approval_missing"]
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
+    supplied_by: "E+D"
+
+  - id: GATE-02
+    type: gate
+    statement: "Static/security: lint/type/dependency on every commit, and changes to risk_gate/, budget/, contracts, adapters, prompts, permissions, CI and rules trigger contract/security/API-surface/permission checks plus ADR and human review."
+    priority: Must
+    source: ["§6.5 gate table", "D7"]
+    tradeoff: null
+    owner: "E+D"
+    component: governance
+    fit_criterion:
+      metric: security_path_changes_without_review
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "intentional bad imports / unauthorized import PRs are rejected by CI; static checks run per commit"
+    evidence: ["CI artifact", "gate_status"]
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
+    supplied_by: "E+D"
+
+  - id: GATE-03
+    type: gate
+    statement: "Schema: on all PRs, validate YAML against JSON Schema and check references, trace completeness, priority and metric structure."
+    priority: Must
+    source: ["§6.5 gate table", "D1"]
+    tradeoff: null
+    owner: "E+D"
+    component: governance
+    fit_criterion:
+      metric: schema_validation_failures_admitted
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "intentional bad-schema PR is blocked by CI; id uniqueness, resolvable references, every Must has test/component/monitor, all invariant thresholds zero-tolerance"
+    evidence: ["CI artifact", "gate_status"]
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
+    supplied_by: "E+D"
+
+  - id: GATE-04
+    type: gate
+    statement: "Semantic: for runtime prompt/model/context-assembly/behavior config changes, re-invoke the candidate model on the fixed evaluation set and judge it; ordinary cached replay cannot replace semantic verification for new prompt/model, and threshold failure blocks."
+    priority: Must
+    source: ["§6.5 gate table", "NFR-03"]
+    tradeoff: null
+    owner: "E+D"
+    component: governance
+    fit_criterion:
+      metric: semantic_threshold_failures_admitted
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "intentional wrong-prompt PR fails the semantic gate; results bound to commit SHA"
+    evidence: ["CI artifact", "gate_status"]
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
+    supplied_by: "E+D"
+
+  - id: GATE-05
+    type: gate
+    statement: "Regression: all existing offline tests and new tests pass; upstream existing suites run in the locked environment; live suites run in a controlled runner as evidence for changes/releases that need them, and previously passing tests cannot be deleted to evade regression."
+    priority: Must
+    source: ["§6.5 gate table", "D8"]
+    tradeoff: null
+    owner: E
+    component: governance
+    fit_criterion:
+      metric: regression_failures_admitted
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "intentional regression-bug PR is blocked by CI; full offline suite must pass"
+    evidence: ["CI artifact", "gate_status"]
+    status: draft_from_plan
+    supplied_by: "E"
+
+  - id: GATE-06
+    type: gate
+    statement: "AI-use log: code, test, script or prompt changes must have this PR's structured record linking changed files, session, tool/model, human intervention and test evidence; whitespace-only edits are not accepted."
+    priority: Must
+    source: ["§6.5 gate table", "D5"]
+    tradeoff: null
+    owner: "E+D"
+    component: governance
+    fit_criterion:
+      metric: ai_log_missing
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "intentional missing-AI-log PR is blocked by CI; the log links changed files, session, tool/model and test evidence"
+    evidence: ["CI artifact", "ai_log_missing"]
+    status: draft_from_plan  # D side confirmed 2026-11-22 (PR #9); E side still needed
+    supplied_by: "E+D"
+
+  - id: SUB-01
+    type: submission
+    statement: "Submit the project ZIP and a 10-minute video delivered independently of the ZIP; the ZIP contains no video, API key, environment secret or private account information."
+    priority: Must
+    source: ["§2.3 submission note", "§12.3 release checklist"]
+    tradeoff: null
+    owner: A
+    component: submission
+    fit_criterion:
+      metric: secrets_or_video_in_zip
+      operator: "eq"
+      threshold: 0
+      unit: count
+      verification: "secret scan and ZIP inspection confirm no video, API key, environment secret or private credential; the video is delivered separately"
+    evidence: ["cs5351-submission-v1.zip", "secret scan report", "10-minute video"]
+    status: draft_from_plan
+    supplied_by: "A"
