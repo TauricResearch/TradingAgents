@@ -1,0 +1,57 @@
+:root {
+  color-scheme: light dark;
+  --page: #f3f5f4;
+  --card: #fff;
+  --ink: #17211d;
+  --muted: #64716b;
+  --line: #dce3df;
+  --accent: #087a59;
+  --error: #b4372f;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #111916;
+    --card: #1b2621;
+    --ink: #e6eee9;
+    --muted: #a4b2aa;
+    --line: #36443c;
+    --accent: #37c697;
+    --error: #ff847b;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); }
+.shell { max-width: 46rem; margin: 0 auto; padding: 4rem 1.25rem 3rem; }
+.eyebrow { color: var(--accent); font-size: .75rem; font-weight: 750; letter-spacing: .12em; }
+h1 { margin: .25rem 0; font-size: clamp(2.2rem, 8vw, 3.5rem); letter-spacing: -.05em; }
+h2 { margin: 0; font-size: 1.3rem; }
+.intro, .muted, footer { color: var(--muted); }
+.intro { margin: .5rem 0 2rem; }
+.card { padding: clamp(1.25rem, 5vw, 2rem); background: var(--card); border: 1px solid var(--line); border-radius: 1rem; }
+.muted { margin: .25rem 0 1.5rem; font-size: .9rem; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+label, legend { font-weight: 650; }
+input:not([type="checkbox"]) {
+  display: block; width: 100%; margin-top: .4rem; padding: .7rem .75rem;
+  border: 1px solid var(--line); border-radius: .5rem; background: var(--card); color: var(--ink);
+  font: inherit;
+}
+fieldset { margin: 1.5rem 0; padding: 0; border: 0; }
+.choices { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin-top: .65rem; }
+.choices label { display: inline-flex; align-items: center; gap: .45rem; font-weight: 450; }
+input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--accent); }
+button {
+  width: 100%; padding: .8rem 1rem; border: 0; border-radius: .55rem;
+  background: var(--accent); color: #fff; font: inherit; font-weight: 700; cursor: pointer;
+}
+button:disabled { cursor: wait; opacity: .65; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.status { margin-top: 1.25rem; }
+.status.error { color: var(--error); }
+.report-link { display: inline-block; margin-top: .75rem; color: var(--accent); font-weight: 700; }
+footer { margin-top: 1.25rem; font-size: .82rem; }
+@media (max-width: 34rem) {
+  .shell { padding-top: 2rem; }
+  .fields { grid-template-columns: 1fr; }
+}

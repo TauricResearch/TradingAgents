@@ -213,6 +213,12 @@ tradingagents --ticker NVDA --date 2026-09-23 --analysts market,news,fundamental
 ```
 Each flag skips only its own question. Run without a terminal, a missing answer stops the run before it starts and names the flag or variable to set.
 
+### Browser UI
+
+Start the browser interface with `python -m cli.web` (or `tradingagents-web` when installed), then open `http://127.0.0.1:8000`. It uses the provider, models, and credentials already configured in `.env`, runs one analysis at a time, and makes each completed HTML report available in the browser. The server binds to loopback by default. For remote access, keep it behind an authenticated HTTPS reverse proxy; do not expose the server directly to the internet. To change the bind address or port, use `--host` and `--port`.
+
+To keep the UI online outside a development workspace, deploy the included `render.yaml` Blueprint to Render. The Blueprint uses a paid Starter web service and persistent disk for reports, cache, and memory. During Blueprint setup, enter the API key and a UI username/password as secrets; use a unique password of at least 20 characters (for example, generate one with `openssl rand -hex 32`). Render serves the app over HTTPS, and the UI requires sign-in. Rotate any API key that has been exposed in a file or chat before adding it to Render.
+
 At start-up the interactive CLI mentions a newer release and notices from Tauric Research. It checks at most once a day, in the background, and sends nothing about your runs; set `TRADINGAGENTS_NO_UPDATE_CHECK=1` to turn it off. Runs without a terminal never check.
 
 A saved report also includes `complete_report.html`, the report as one page with its sections listed beside the text, for reading in a browser, on a phone or in print. Answering the save question at the prompt also asks about the page and can open it in your browser; `--no-html` skips it, and so does `ta.save_reports(state, "NVDA", html=False)` from Python.

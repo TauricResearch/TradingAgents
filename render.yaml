@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: tradingagents-web
+    runtime: python
+    plan: starter
+    buildCommand: pip install .
+    startCommand: python -m cli.web --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    disk:
+      name: tradingagents-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: TRADINGAGENTS_WEB_USERNAME
+        sync: false
+      - key: TRADINGAGENTS_WEB_PASSWORD
+        sync: false
+      - key: TRADINGAGENTS_LLM_PROVIDER
+        value: nvidia
+      - key: TRADINGAGENTS_QUICK_THINK_LLM
+        value: nvidia/nemotron-3.5-lightning-30b-a3b
+      - key: TRADINGAGENTS_DEEP_THINK_LLM
+        value: nvidia/nemotron-3.5-lightning-30b-a3b
+      - key: TRADINGAGENTS_OUTPUT_LANGUAGE
+        value: English
+      - key: TRADINGAGENTS_MAX_DEBATE_ROUNDS
+        value: "1"
+      - key: TRADINGAGENTS_MAX_RISK_ROUNDS
+        value: "1"
+      - key: TRADINGAGENTS_NO_UPDATE_CHECK
+        value: "1"
+      - key: TRADINGAGENTS_RESULTS_DIR
+        value: /var/data/results
+      - key: TRADINGAGENTS_CACHE_DIR
+        value: /var/data/cache
+      - key: TRADINGAGENTS_MEMORY_LOG_PATH
+        value: /var/data/memory/trading_memory.md
