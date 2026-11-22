@@ -83,11 +83,21 @@ for B/E review, not an approved public contract.
 | Sole support unreachable | `REVIEW` | `VENDOR_UNAVAILABLE` | none |
 | Sole support stale | `REVIEW` | `STALE_DATA` | none |
 | Future-dated price/evidence | `REJECTED` | `FUTURE_DATA` | none |
-| Stale portfolio version | `REJECTED` | `STALE_PORTFOLIO` | none |
+| Stale caller snapshot (proposal version matches DB) | `REJECTED` | `STALE_PORTFOLIO` | none |
+| Proposal loses a concurrent portfolio-version race | `STALE_PORTFOLIO` | `STALE_PORTFOLIO` | none |
 | Policy missing/inactive/expired | `BLOCKED` | `INCOMPATIBLE_STATE` | none |
 | Audit or storage unavailable | `BLOCKED` | `AUDIT_UNAVAILABLE` | rollback |
 | Duplicate proposal hash | stored verdict | original reason | none |
 | Budget/deadline exhausted | `INCOMPLETE` (B, outside gate) | `BUDGET_DENIED` | none |
+
+The 20% concentration cap is a position-increasing (BUY) control. A SELL is
+risk-reducing and exempt from the concentration cap; the 10% notional cap still
+applies to both BUY and SELL.
+
+A proposal that loses a concurrent `portfolio_version` race returns the distinct
+status `STALE_PORTFOLIO`; a stale caller snapshot whose proposal version still
+matches the DB returns `REJECTED/STALE_PORTFOLIO`. Neither writes the ledger. This
+distinction is pinned by the approved ATM-01 and ATM-07/ATM-09 tests.
 
 Hash/identity rule: malformed hash syntax is `INVALID_OUTPUT`; a well-formed hash
 that does not match the recomputed content or binds a different run/snapshot/policy

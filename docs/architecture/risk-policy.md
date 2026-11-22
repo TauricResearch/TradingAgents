@@ -115,11 +115,29 @@ than freezing a product default of 300 seconds.
 | Sole usable support is unreachable | `REVIEW` | `VENDOR_UNAVAILABLE` |
 | Sole usable support is stale | `REVIEW` | `STALE_DATA` |
 | Future-dated price/evidence | `REJECTED` | `FUTURE_DATA` |
-| Stale portfolio version | `REJECTED` | `STALE_PORTFOLIO` |
+| Stale caller snapshot (proposal version matches DB) | `REJECTED` | `STALE_PORTFOLIO` |
+| Proposal loses a concurrent portfolio-version race | `STALE_PORTFOLIO` | `STALE_PORTFOLIO` |
 | Policy missing/inactive/expired | `BLOCKED` | `INCOMPATIBLE_STATE` |
 | Audit/storage unavailable | `BLOCKED` | `AUDIT_UNAVAILABLE` |
 | Duplicate `proposal_hash` | stored verdict | original reason |
 | Budget/deadline (B) | `INCOMPLETE` | `BUDGET_DENIED` |
+
+The 20% concentration cap is a position-increasing (BUY) control. A SELL is
+risk-reducing and exempt from the concentration cap; the 10% notional cap still
+applies to both BUY and SELL (approved FND-22/ACT-15/FND-23).
+
+A stale caller snapshot whose proposal version still matches the DB is
+`REJECTED/STALE_PORTFOLIO`. A proposal that loses a concurrent version race
+(proposal version differs from the DB) returns the distinct status
+`STALE_PORTFOLIO` with no ledger write; this distinction is pinned by ATM-01 versus
+ATM-07/ATM-09.
+
+HOLD requires a valid pack; claims are optional because no order is created. BUY
+and SELL require at least one claim with resolvable evidence.
+
+The gate stores exactly one outbox event per stored verdict (`Phase.RISK_GATE`);
+this is the count the duplicate/idempotency tests assert. Outbox status mapping:
+APPROVED=`OK`, REJECTED/BLOCKED=`BLOCKED`, REVIEW=`REVIEW`.
 
 B's accepted reason table includes `INVALID_CITATION`, `INTEGRITY_VIOLATION`,
 `INVALID_TIME`, `STALE_DATA` and `VENDOR_UNAVAILABLE`. E's current `RunEvent` draft
