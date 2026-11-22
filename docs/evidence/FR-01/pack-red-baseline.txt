@@ -1,0 +1,17 @@
+# FR-01 pack spec — expected RED (test-first)
+# branch test/FR-01-pack, base origin/main 10ee52d680fd
+# recorded 2026-11-22T07:53:43Z
+## pytest -o addopts="--strict-markers" -m spec test/offline/evidence -q
+ERROR test/offline/evidence/test_pack.py::test_offline_cache_is_stale - Impor...
+ERROR test/offline/evidence/test_pack.py::test_dangling_citation_rejected - I...
+ERROR test/offline/evidence/test_pack.py::test_valid_citation_passes - Import...
+ERROR test/offline/evidence/test_pack.py::test_pack_hash_is_carried_unchanged
+ERROR test/offline/evidence/test_pack.py::test_admitted_content_hash_matches_excerpt
+13 deselected, 24 errors in 0.24s
+
+## pytest test/offline/evidence -m "not spec" -q  (must stay green: 13 time-policy)
+.............                                                            [100%]
+13 passed, 24 deselected in 0.04s
+
+## py_compile
+exit=0

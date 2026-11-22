@@ -73,7 +73,7 @@ markers = [
     "unit: fast isolated unit tests",
     "integration: tests requiring external services; run only when asked for, with -m integration",
     "smoke: quick sanity-check tests",
-    "spec: test-first spec for FR-05 contracts; expected RED until the implementation lands (not a gate on the spec branch)",
+    "spec: test-first spec (FR-05 contracts, FR-01 pack, ...); expected RED until the implementation lands (not a gate on the spec branch)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
