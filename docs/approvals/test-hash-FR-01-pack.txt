@@ -13,8 +13,14 @@ base:     main
 # test_pack.py now also includes test_pack_hash_matches_risk_gate_canonical, the
 # real A->D equality check against egta.risk_gate.canonical.recompute_evidence_hash
 # (already on main); no ADR-004 is invented.
+#
+# REBASE NOTE (2026-11-22): branch rebased onto main 81f25f5 (post-#38) to clear
+# the merge conflict; test_pack.py content/hash is UNCHANGED (75fc9d...) and the
+# RED re-reproduces as 33 errors / 20 functions / 33 cases. Post-#38, D's
+# canonical._normalize handles date-only, so E-07's equality test is satisfiable.
+# test_content_commit is the rebased commit that last touched test_pack.py.
 
-test_content_commit:     24c49065d2e73c9f314198e37bd844a133bbc208   # post-#21 head; counts corrected to 33/20
+test_content_commit:     168ce87   # rebased commit; same test content as 24c4906 (hash 75fc9d); counts 33/20
 actual_cases: 33           # pytest -m spec test/offline/evidence --collect-only (33 pack cases, 20 functions)
 # 13 time-policy tests remain in test_time_policy.py (INV-02) and are deselected here.
 
