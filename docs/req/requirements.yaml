@@ -3,8 +3,9 @@
 # Entries with status: draft_from_plan are faithful transcriptions of
 # /home/lenovo/refs/execution_plan_261111.md and are NOT yet confirmed by their
 # owners. A assembles the registry but does not define other members' acceptance
-# criteria. FR-01, INV-02 and NFR-10 are confirmed by their owner A.
-# This file is (to be) validated by docs/req/req-schema.json (not written yet).
+# criteria. Confirmed: FR-01, INV-02, NFR-10 (owner A); FR-02, NFR-01, INV-03 and
+# GOV-02 (owner B, 2026-11-22). The remaining entries stay drafts until their owner replies.
+# This file is validated by docs/req/req-schema.json (on the schema PR, not on main yet).
 
 schema_version: "1.0"
 requirements:
@@ -41,7 +42,7 @@ requirements:
       unit: count
       verification: "fake provider: every call (including parallel, retry, compression) is reserved before execution; new calls when budget is insufficient = 0; negative cases cover concurrent budget contention, retry-after-timeout and unknown pricing config"
     evidence: ["T-BUD-01", "T-BUD-02", "reserved/actual/unknown_usage", "budget_denied"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "B"
 
   - id: FR-03
@@ -113,7 +114,7 @@ requirements:
       unit: tokens
       verification: "atomic-reserve stress test; actual usage and estimate reported separately (default candidate also 2 USD max_cost_usd and 24 max_calls, configurable and frozen to the run record)"
     evidence: ["reserved/actual/unknown_usage", "budget_denied"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "B"
 
   - id: NFR-02
@@ -131,7 +132,7 @@ requirements:
       unit: percent
       verification: "paired experiment of 30 scenarios x 3 runs per config, reporting p50/p95 and distributions (latency median reduction >=20%)"
     evidence: ["p50/p95", "token", "latency"]
-    status: draft_from_plan
+    status: draft_from_plan  # B side confirmed 2026-11-22 (PR #9 comment); E (co-owner) has not confirmed this entry yet
     supplied_by: "B+E"
 
   - id: NFR-03
@@ -167,7 +168,7 @@ requirements:
       unit: count
       verification: "fake clock + restart tests; after timeout output BLOCKED/INCOMPLETE without masking the failure (tool timeout 30 s, LLM timeout 90 s, run deadline 300 s)"
     evidence: ["T-RISK-02", "duplicate_prevented"]
-    status: draft_from_plan
+    status: draft_from_plan  # B side confirmed 2026-11-22 (PR #9 comment); D (co-owner) has not confirmed this entry yet
     supplied_by: "B+D"
 
   - id: NFR-05
@@ -329,7 +330,7 @@ requirements:
       unit: count
       verification: "concurrency and retry tests"
     evidence: ["T-BUD-01", "T-BUD-02"]
-    status: draft_from_plan
+    status: confirmed_by_owner
     supplied_by: "B"
 
   - id: INV-04
@@ -433,11 +434,11 @@ requirements:
     fit_criterion:
       metric: d2_artefact_sections_present
       operator: "gte"
-      threshold: null
-      unit: null
-      verification: "review the docs/architecture artifacts for each D2 section (plan does not name a concrete command)"
+      threshold: 11
+      unit: count
+      verification: "review the docs/architecture artefacts and confirm each of the 11 D2 items named in the statement is present: blueprint, ADR, invariants, trace matrix, memory, permission, runtime policy, candidate evaluation, evaluation logbook, risk list, option ledger (plan does not name a concrete command; B defined the 11-item count via PR #9 comment)"
     evidence: ["docs/architecture/"]
-    status: pending_owner_supply
+    status: confirmed_by_owner
     supplied_by: "B"
 
   - id: GOV-03

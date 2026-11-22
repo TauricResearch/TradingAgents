@@ -55,3 +55,38 @@ sessions:
       - "Read but did not modify test/FR-01-evidence; no checkout, rebase or push of it."
       - "No approval or hash binding is claimed for any entry; the FR-01 evidence branch is not approved."
       - "No push and no PR were performed in this session."
+
+  - session_id: "N/A - no opencode session; assistant script run through WSL bash"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "Doubao Work assistant, bash/WSL scripting (no opencode TUI)"
+    time:
+      - "2026-11-22T16:55+08:00"   # PR #9 owner replies read; branch rebased onto main 6830926
+      - "2026-11-22T17:12+08:00"   # transcriptions applied and schema-validated
+    task_requirement_ids:
+      - D1
+      - GATE-03
+    writable_path:
+      - "docs/req/requirements.yaml"
+      - "docs/ai-use-log-A-fragment.yaml"
+    source_of_values:
+      - "PR #9 comment 7075146925, author cosine-Y (B), 2026-11-22T06:08:02Z"
+    generated_files:
+      - file: "docs/req/requirements.yaml"
+        commit: "the transcription commit on docs/req-registry; see `git log -1` on that branch"
+        note: "Transcribed ONLY owner-supplied values: FR-02/NFR-01/INV-03 -> confirmed_by_owner; GOV-02 threshold 11, unit count, verification rewritten in the owner's wording. NFR-02 (B+E) and NFR-04 (B+D) stay draft because the co-owner has not replied. No entry outside B's scope was touched."
+    normalisation:
+      - "GOV-02 unit: the owner wrote 'distinct required D2 items'; stored as unit: count with the meaning kept in the verification text, because the schema's unit enum has no free-text value."
+    human_intervention:
+      - type: transcription rule
+        when: "2026-11-22T17:10+08:00"
+        who: "A (yuxiangdu39)"
+        what: "No acceptance criterion is inferred on an owner's behalf: shared-owner entries stay draft, and E's GOV-04/07/08 replies ('confirmed' with no criterion) were NOT transcribed."
+    verification_output:
+      - command: "jsonschema Draft202012Validator(docs/req/req-schema.json).validate(docs/req/requirements.yaml)"
+        result: "0 schema errors; 38 entries; 7 confirmed_by_owner / 26 draft_from_plan / 5 pending_owner_supply"
+    implementation_status: "registry transcription only; no test, src/ or CI change"
+    cost: "unknown"
+    notes:
+      - "Docs only: requirements.yaml and this fragment."
+      - "Branch rebased onto origin/main 6830926 before the edit; pushed with --force-with-lease."
+      - "No approval is claimed for any entry B or D supplied on another member's behalf."
