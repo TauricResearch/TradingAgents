@@ -211,6 +211,7 @@ sessions:
       - "No self-approval, merge, contract edit, CI edit or human-only file edit was performed."
       - "The 126 failures are expected red, not xfail/skip."
       - "The hash record is prepared but NOT signed by the agent."
+      - "A re-approved head 1fd6d29; PR #17 merged b245bdb; record-only update in progress."
 
   - session_id: "D-2026-11-22-FR04-cutoff-fix"
     student: "D / ZFebron491001"
@@ -218,6 +219,7 @@ sessions:
     time:
       - "2026-11-22T00:28:04+08:00"   # test-content commit d5cf2ea
       - "2026-11-22T00:28:23+08:00"   # approval record / log update
+      - "2026-11-22T12:32:15+08:00"   # PR #17 merged b245bdb
     task_requirement_ids:
       - FR-04
       - GATE-01
@@ -252,14 +254,16 @@ sessions:
         result: "d5cf2ea5a10ddc9fb7be7f91c17bfac80cd0c196 (test content)"
       - action: "git push"
         result: "origin/spec/FR-04-cutoff-fix"
-    implementation_status: "NOT STARTED — waiting for A re-approval of the new test baseline"
-    test_pr: "PENDING — FR-04 cutoff-fix Test PR"
-    test_pr_state: "OPEN — A re-approval required"
+      - action: "GitHub merge"
+        result: "PR #17 merge commit b245bdb9095f018cecf8b19419479fc6c2957395"
+    implementation_status: "READY TO START — test baseline merged; Phase 5 not started"
+    test_pr: "https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/17"
+    test_pr_state: "MERGED — A approved 1fd6d29; merge commit b245bdb"
     approval_links:
-      - "docs/approvals/test-hash-FR-04-risk-gate.txt (approved_by: PENDING; supersedes PR #2 baseline)"
+      - "docs/approvals/test-hash-FR-04-risk-gate.txt (A approved head 1fd6d29; approved_at 2026-11-22T03:30:09Z; merge_commit b245bdb)"
     repository_blockers:
-      - "A must re-approve the new aggregate hash 8486182b..."
-      - "Old approval 510828a/11cfc96 does not cover the cutoff-fix baseline."
+      - "Test baseline PR #17 merged; A approved head 1fd6d29."
+      - "Implementation integration still needs ticker/contracts/policy decisions."
     cost: "unknown"
     session_path: "unknown (raw session not exported yet)"
     notes:
@@ -267,3 +271,4 @@ sessions:
       - "No test expectation changes; only the base pack cutoff fixture."
       - "The 126 failures are expected red, not xfail/skip."
       - "The hash record is prepared but NOT signed by the agent."
+      - "A re-approved head 1fd6d29; PR #17 merged b245bdb; record-only update in progress."
