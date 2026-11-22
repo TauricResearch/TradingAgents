@@ -1,0 +1,40 @@
+# FR-01 evidence contracts (PR #5) — approval hash binding
+# Authoritative reviewed head = GitHub review commit_id (NOT stored here).
+# Merge commit recorded in external registry / PR comment after merge.
+# After approval, do NOT push this file (stale-approval trap).
+
+test_content_commit: a433d5aa8aee2329b79ceda28b9a048d800df4ab
+verification_head: f52868da423387452514c49114044cdc50608cf7
+docs_evidence_commit: 2c63403687e60ff27d02d8eb0c2a2bc25546e9f1
+actual_cases: 65
+
+# test_content_commit: the commit that last changed the test content
+#   (the two test files below are byte-identical at a433d5a and docs_evidence_commit).
+# verification_head: the clean commit the verification commands were actually run on.
+# docs_evidence_commit: source for the per-file SHA-256 of docs + evidence below
+#   (post-main-sync docs refresh; test bytes are unchanged from a433d5a).
+# actual_cases: pytest --collect-only count (23 test functions with parametrization);
+#   collected with stub types because the implementation is not present yet.
+
+files (per-file SHA-256, from git blob at docs_evidence_commit 2c63403687e60ff27d02d8eb0c2a2bc25546e9f1):
+  4618b25ac1d647ab2526e21251a2a1542e55ddd869967623501553801a4e8718  test/offline/contracts/test_evidence_contracts.py
+  dba3966fc3f0c3e5c73980cabefcba0282f75f25f295bdc3e791a2d4e40af6e8  test/offline/contracts/conftest.py
+  b69e226878af7b8cda90c7cfb8caa1524cf4d36541aec7189563b23fef6f47d1  docs/req/evidence-contracts.md
+  22bcfc005110fa003d12b41dd027142c99ab78361d61f1add1b610fe4a01f5d4  docs/req/trace-FR-01-evidence-contracts.md
+  3429718920b94fce058b925ef052f143f6daf78f058e455974654019fa36f6e3  docs/evidence/FR-01-contracts/red-baseline.txt
+  5ab4a8d9708bb8d3b8c592761c8f04ed10c088352dcd24513ad21a0ad0799f88  docs/evidence/FR-01-contracts/compile-ast.txt
+  9f7d504075568491ab9ca2f0400d556a8873ef83eb441d1e7d15b31504e08e1f  docs/evidence/FR-01-contracts/ruff.txt
+
+aggregate_sha256 (sha256sum of the per-file lines above, sorted by path):
+  3eedd9a7d69daf63b327cbd798c23b1c358274d2f01533813c5e9a6e8d4c26a4
+
+coverage (7 files): test file, conftest (runnable context), evidence-contracts.md,
+  trace, and the three FR-01-contracts evidence records. NOT included:
+  docs/req/contracts-summary.md (reverted to FR-05 baseline; its whole-file
+  hash belongs to FR-05's spec_bundle_sha256, not #5).
+
+notes:
+  - Post-approval main sync (origin/main b245bdb) changed base only; this refresh
+    updates docs + this record; the test bytes remain at a433d5a.
+  - A re-approval is required for the post-sync head because the push dismisses
+    stale reviews; the test content hash is unchanged.

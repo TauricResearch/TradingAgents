@@ -1,0 +1,221 @@
+# AI-use log — Member B fragment
+#
+# This is a B-owned fragment prepared for later assembly into the team's
+# docs/ai-use-log.yaml (owned by E). It records only facts observed in this
+# session. It is NOT a test approval record and does NOT claim that any test,
+# contract, PR or implementation was approved by A or D. B's publication
+# authorization (commit / push / open PR) is separate from A's independent
+# test approval.
+#
+# Anything not observable in the session is written as "unknown"; no approval
+# and no transcript path is invented. No credentials are recorded.
+
+schema_version: "1.0"
+project: EGTA-CS5351-Group20
+role: B
+github_login: cosine-Y
+date: 2026-11-21
+fragment_for: docs/ai-use-log.yaml
+
+agents:
+  - name: "OpenCode (opencode CLI)"
+    role: "executed repository work (read-only inspection, test authoring, local commits, push, PR creation)"
+    model_id: "cityu/CS5351/DeepSeek-V4-Flash"
+    session_id: "ses_e0451298bffeYlnqHo00GSewD2"
+    session_slug: "swift-forest"
+    session_title: "核对周五 B 任务与公共契约现状"
+    session_time_created: "2026-11-21T09:18:21+08:00"
+    session_time_updated: "2026-11-21T14:13:29+08:00"
+    session_cost_usd: unknown
+    session_tokens:
+      input: 120846
+      output: 50964
+      note: "Values read from the local OpenCode session record; reasoning/cache fields not asserted here."
+
+sessions:
+  # -----------------------------------------------------------------------
+  # Work item 1 — B1 baseline measurement and gateway probe
+  # -----------------------------------------------------------------------
+  - session_id: "ses_e0451298bffeYlnqHo00GSewD2"
+    task_requirement_ids:
+      - FR-02
+      - INV-03
+      - NFR-08
+    scope: "B1: upstream offline baseline + local structured-fallback gateway probe"
+    branch_where_docs_committed: "docs/B-baseline"
+    local_doc_commit: "57cd5f27cfa268ea4e3d41dd146a37f641f09b9f"
+    writable_path:
+      - "docs/evidence/FR-02/"
+    generated_files:
+      - file: "docs/evidence/FR-02/upstream-offline-baseline.md"
+        commit: "57cd5f2"
+        note: "Upstream offline baseline record (English). Lives on branch docs/B-baseline, not on the PR #5 branch."
+      - file: "docs/evidence/FR-02/structured-fallback-probe.md"
+        commit: "57cd5f2"
+        note: "Local gateway probe record (English). Lives on branch docs/B-baseline, not on the PR #5 branch."
+    probe_location: >-
+      The gateway probe scripts were written only under a local temporary
+      directory ("/tmp/opencode/b1-gateway-probe/") on this machine. They are
+      NOT in the repository; a teammate cannot reproduce them from the repo alone.
+    verification_output:
+      - command: "~/.venvs/cs5351-egta-b1/bin/python -m pytest tests -m \"not integration\""
+        context: "upstream offline suite at SHA 9fa1196 (branch main)"
+        exit_code: 0
+        result: "1412 passed, 1 skipped, 1 deselected, 24 warnings"
+        note: "skip = optional 'langchain_aws' (Bedrock) not installed"
+      - command: "~/.venvs/cs5351-egta-b1/bin/python probe_real_client.py"
+        context: "real NormalizedChatOpenAI + httpx.MockTransport; simulated HTTP 400 on the structured request; fictional key; max_retries=0"
+        exit_code: 0
+        result: >-
+          Local partial result only: for gateway allowance 2 / 1 / 0 the mock
+          transport received exactly 2 / 1 / 0 requests. Exit code 0 asserts the
+          transport-layer request counts; other figures were printed observations.
+    human_intervention:
+      - category: "intervention / approval"
+        action: "Approved establishing an isolated Python 3.12 project venv (scheme B) and running the original offline baseline."
+        limit: "Environment setup + baseline measurement only; no implementation."
+      - category: "intervention / approval"
+        action: "Approved writing the B1 baseline record and the structured-fallback record."
+        limit: "Documentation only; no gateway implementation, no budget tests."
+      - category: "intervention / correction"
+        action: "Corrected the HTTP 400 description in structured-fallback-probe.md (client raises, original helper catches and attempts free-text fallback) and standardised 'transfer-layer' to 'transport-layer'."
+      - category: "intervention / approval"
+        action: "Authorized the local commit of the two B1 docs (57cd5f2)."
+        limit: "Local commit only; push/PR not authorized then."
+    git_output:
+      - action: "git commit (branch docs/B-baseline)"
+        result: "57cd5f27cfa268ea4e3d41dd146a37f641f09b9f"
+    implementation_status: "NONE — B1 gateway implementation and budget tests not started this session."
+
+  # -----------------------------------------------------------------------
+  # Work item 2 — shared evidence contract test spec (PR #5)
+  # -----------------------------------------------------------------------
+  - session_id: "ses_e0451298bffeYlnqHo00GSewD2"
+    task_requirement_ids:
+      - FR-01
+      - INV-02
+      - GATE-01
+    scope: "Spec tests for shared evidence contracts (RunSpec / EvidenceItem / EvidencePack + canonical ReasonCode); no src implementation"
+    branch: "spec/B-evidence-contracts"
+    base: "main"
+    initial_test_commit: "e1cb6add88c5a0eaa877f6570be36ad875d22a31"
+    final_test_content_commit: "a433d5aa8aee2329b79ceda28b9a048d800df4ab"
+    writable_path:
+      - "test/offline/contracts/"
+    generated_files:
+      - file: "test/offline/contracts/conftest.py"
+        commit: "e1cb6ad"
+        note: "puts src/ on sys.path (same pattern as E's contract tests); no pyproject change"
+      - file: "test/offline/contracts/test_evidence_contracts.py"
+        commit: "e1cb6ad"
+        note: "initial 18 test functions; superseded by the final 23-test revision at a433d5a"
+      - file: "test/offline/contracts/test_evidence_contracts.py"
+        commit: "a433d5a"
+        note: "final 23 test functions; byte-identical through 3d529ed/291db39/efbcb5e"
+    verification_output:
+      - command: "~/.venvs/cs5351-egta-b1/bin/python -m ruff check test/offline/contracts/conftest.py test/offline/contracts/test_evidence_contracts.py"
+        exit_code: 0
+        result: "All checks passed!"
+      - command: "~/.venvs/cs5351-egta-b1/bin/python -m py_compile test/offline/contracts/conftest.py test/offline/contracts/test_evidence_contracts.py"
+        exit_code: 0
+        result: "AST count 18 test_* functions"
+      - command: "~/.venvs/cs5351-egta-b1/bin/python -m pytest test/offline/contracts/test_evidence_contracts.py"
+        exit_code: 2
+        result: "Collection error: ModuleNotFoundError: No module named 'egta'. Zero test cases executed (expected RED: base branch has no egta implementation)."
+    human_intervention:
+      - category: "intervention / correction"
+        action: "Required the E-31 JSON assertion to use model_dump(mode=\"json\")[\"published_at\"] == \"2026-11-11\" and to remove the unused date import."
+        reason: "Precise day-precision assertion; no fabricated time/offset."
+      - category: "intervention / approval"
+        action: "Reviewed the staged diff, then authorized the local commit (e1cb6ad)."
+        limit: "Local commit only."
+      - category: "intervention / approval"
+        action: "Authorized pushing branch spec/B-evidence-contracts and opening a spec PR (PR #5) with reviewer A."
+        limit: "Push + PR creation only; no merge; no implementation."
+    git_output:
+      - action: "git commit (branch spec/B-evidence-contracts)"
+        result: "e1cb6add88c5a0eaa877f6570be36ad875d22a31"
+      - action: "git push"
+        result: "origin/spec/B-evidence-contracts @ e1cb6add88c5a0eaa877f6570be36ad875d22a31"
+      - action: "gh pr create"
+        result: "PR #5 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/5 (OPEN, reviewer yuxiangdu39 requested)"
+    implementation_status: "NOT STARTED — depends on A's test approval; implementation will be a separate PR descending from the post-merge baseline."
+
+review_and_authorization_split:
+  human_publication_authorization:
+    by: "B (human operator)"
+    covers: "commit of both doc/test commits, push of spec/B-evidence-contracts, creation of PR #5"
+    evidence: "interactive human instructions in this session"
+  independent_test_approval:
+    by: "A (@yuxiangdu39)"
+    status: "APPROVED at efbcb5e on 2026-11-21T14:03:43Z (GATE-01 test spec approval; test content a433d5a). A returned CHANGES_REQUESTED on 2982562 and f52868d before that approval."
+    note: "B's publication authorization is NOT A's test approval; the two are recorded separately. The post-approval main sync changes docs/base only; the test bytes are unchanged, and A re-approval is requested for the new head because a push dismisses stale reviews."
+
+# -----------------------------------------------------------------------
+# Revision session — address A's CHANGES_REQUESTED on 2982562, rebase onto
+# main 2fb2813, revise spec to D's second INV-02 ruling (excluding #5 form).
+# -----------------------------------------------------------------------
+revision_sessions:
+  - session_id: "ses_e0451298bffeYlnqHo00GSewD2"
+    agent_tool_model: "OpenCode / opencode CLI / cityu/CS5351/DeepSeek-V4-Flash"
+    date: 2026-11-21
+    task_requirement_ids: [FR-01, INV-02, GATE-01]
+    scope: "PR #5 revision: E-31 excluded/unavailable, strict availability + normalization, tampered item constructible, non-empty excluded_items, as_of->cutoff, E-21 ids; trace + expected-RED + hash + contract summary; rebase onto main"
+    worktree: "/tmp/opencode/b-revise (local temporary worktree)"
+    branch: "rev/B-evidence-contracts-rebase (temporary; original spec/B-evidence-contracts kept as restore point)"
+    rebase:
+      from_commit: "29825627a8406378311cbf299becb7e6511b4934"
+      onto: "2fb28136aa1cd575ff5810f50dccd7b605b7c2a5"
+      result: "clean; conftest.py dropped from diff (byte-identical to main); 3 commits preserved"
+      range_diff_note: "content of 3 commits preserved; only the conftest addition disappeared"
+    directives_followed:
+      - "D second review of #4 (2d5c3d6): date-only same-UTC-date excluded/unavailable, reason not INVALID_TIME; fixture E-31 at 19da73a expects FUTURE_DATA/unavailable."
+      - "A PR #5 review (items 1-8) and A comment on E-21 ids (E-21-1/E-21-2 distinct; E-21-2 duplicate)."
+    generated_files:
+      - note: "test/offline/contracts/test_evidence_contracts.py revised: 23 test functions, pytestmark=pytest.mark.spec (E-31 pack items=[] + excluded entry; tampered constructible; non-empty excluded_items exact 3-field; E-21; as_of->cutoff)"
+      - note: "docs/req/trace-FR-01-evidence-contracts.md new (#5-specific; distinct from A's trace-FR-01-evidence.md)"
+      - note: "docs/evidence/FR-01-contracts/{red-baseline,compile-ast,ruff}.txt new"
+      - note: "docs/approvals/test-hash-FR-01-contracts.txt created: test_content_commit a433d5a; verification_head f52868d; per-file SHA-256 + aggregate 288af7d4…"
+      - note: "docs/req/evidence-contracts.md new (standalone); docs/req/contracts-summary.md left unchanged from its main baseline to avoid changing FR-05's spec bundle"
+    verification_output:
+      - command: "py_compile test/offline/contracts/test_evidence_contracts.py"
+        exit_code: 0
+        result: "AST count 23 test_* functions"
+      - command: "ruff check ."
+        context: "rebased onto main 2fb2813 (known-first-party=['egta'])"
+        exit_code: 0
+        result: "All checks passed!"
+      - command: "python -m pytest -m spec test/offline/contracts/test_evidence_contracts.py -q --tb=line"
+        exit_code: 2
+        result: "Collection error: ModuleNotFoundError: No module named 'egta'. Zero executed (expected RED; no src/ on base)."
+    human_intervention:
+      - category: "intervention / approval"
+        action: "Chose rebase onto main in an isolated worktree, keeping the original branch as a restore point."
+        limit: "Local rebase + local unstaged revision; no commit/push/PR edit yet."
+      - category: "intervention / correction"
+        action: "Corrected the earlier report: pinned 19da73a E-31 excludes same-date date-only as unavailable/FUTURE_DATA; prior 'same-day admitted' wording superseded."
+    implementation_status: "NOT STARTED — three types delivered in a separate implementation PR after #5 merges; ReasonCode comes from E's active contracts PR #18 (v3) / #10 (v2); PR #6 is closed."
+    approval_status: "APPROVED by A at efbcb5e on 2026-11-21T14:03:43Z (test content a433d5a); post-approval main sync requests A re-approval; D code-owner review pending."
+
+final_review:
+  reviewed_head_before_sync: "efbcb5e157b3c3997aca275439807c70aa44119f"
+  test_content_commit: "a433d5aa8aee2329b79ceda28b9a048d800df4ab"
+  approval: "A (@yuxiangdu39) APPROVED at efbcb5e on 2026-11-21T14:03:43Z; re-approval requested after the post-approval main sync because a push dismisses stale reviews. Test bytes are unchanged."
+  main_synced_to: "b245bdb (via the PR branch; no conflict)"
+  docs_refresh: "ReasonCode source now cites E's active contracts PRs (#18/#10); provider_error placement documented in RunEvent/audit; trace evidence-binding paragraph cleaned; no test bytes changed."
+  actual_cases: 65
+  actual_cases_note: "pytest --collect-only -m spec with stub types (implementation absent); the exact count is also recorded in docs/approvals/test-hash-FR-01-contracts.txt for the future CI gate."
+  ci: "GitHub Actions was green on efbcb5e; rerun is required after the sync. FR-01 spec is not yet in the offline gate (DEBT-FR01-CI)."
+  outstanding:
+    - "A re-approval on the post-sync head"
+    - "D code-owner review on the post-sync head"
+    - "FR-01 CI gate after the implementation types exist (DEBT-FR01-CI)"
+
+open_items:
+  - "Non-empty excluded_items: 3-field shape agreed (case_local_id/availability/reason_code); top-level export name NOT frozen; provider_error detail lives in RunEvent/audit."
+  - "E-21 duplicate ids: E-21-1 and E-21-2 asserted distinct (A confirmed); dedupe belongs to A's module."
+  - "ReasonCode source: egta.contracts.events, 13 codes; E's active contracts PRs #18 (v3) / #10 (v2); PR #6 is closed."
+  - "Resolved: contracts-summary.md is unchanged; the evidence contract lives in docs/req/evidence-contracts.md and is bound by this PR's record."
+  - "actual_cases = 65 (23 test functions; parametrized expansions); FR-01 CI gate remains DEBT-FR01-CI."
+  - "Gateway probe scripts exist only in a local /tmp directory; not reproducible from the repository."
+  - "Raw session transcript path: unknown (not exported)."
