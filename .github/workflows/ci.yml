@@ -84,6 +84,9 @@ jobs:
   #                such as FR-01 evidence cannot contaminate it)
   #   evaluation ⇔ src/egta/evaluation  (-m spec test/offline/evaluation, 28)
   #   risk_gate  ⇔ src/egta/risk_gate   (test/offline/risk_gate by path, 139)
+  #   budget     ⇔ src/egta/budget      (-m spec test/offline/budget; count read
+  #                from docs/approvals/test-hash-FR-02-budget.txt actual_cases;
+  #                N/A until FR-02 is implemented + its record exists)
   # If a suite's dir is absent it reports ::notice:: N/A (skip only that suite).
   #
   # The gate runs pytest (not just --collect-only): the run's terminal summary
@@ -103,9 +106,10 @@ jobs:
           pip install -e ".[dev]"
       - name: Gate each offline suite
         env:
-          # contracts expected is read from the approval record (F1 scheme 2) so
-          # the spec PR and CI can never drift. E2/risk_gate have no record yet.
+          # contracts + budget expected are read from their approval records (F1
+          # scheme 2) so a spec PR and CI can never drift. E2/risk_gate use env.
           CONTRACTS_RECORD: "docs/approvals/test-hash-FR-05-contracts.txt"
+          BUDGET_RECORD: "docs/approvals/test-hash-FR-02-budget.txt"
           EXPECT_EVALUATION: "28"
           EXPECT_RISK_GATE: "139"  # A confirmed FR-04 126 + 13 = 139
         run: |
@@ -139,6 +143,7 @@ jobs:
               ("contracts",  "src/egta/contracts",  ["-m", "spec", *_fr05_paths], None),
               ("evaluation", "src/egta/evaluation", ["-m", "spec", "test/offline/evaluation"], "ENV:EXPECT_EVALUATION"),
               ("risk_gate",  "src/egta/risk_gate",  ["test/offline/risk_gate"],                "ENV:EXPECT_RISK_GATE"),
+              ("budget",     "src/egta/budget",     ["-m", "spec", "test/offline/budget"],      "RECORD:docs/approvals/test-hash-FR-02-budget.txt"),
           ]
 
           # pytest terminal summary, e.g. "123 passed, 2 skipped in 0.4s".
