@@ -90,3 +90,40 @@ sessions:
       - "Docs only: requirements.yaml and this fragment."
       - "Branch rebased onto origin/main 6830926 before the edit; pushed with --force-with-lease."
       - "No approval is claimed for any entry B or D supplied on another member's behalf."
+
+  - session_id: "ses_2026-11-22-d1-prd-schema"
+    student: "A / yuxiangdu39"
+    agent_tool_model: "OpenCode / opencode CLI / CS5351-DeepSeek-V4-Flash"
+    time:
+      - "2026-11-22T15:27+08:00"   # PR #15 opened (prd.yaml + req-schema.json)
+      - "2026-11-22T18:05+08:00"   # round-1 fixes after D review (schema anchoring + PRD consistency)
+    task_requirement_ids:
+      - D1
+      - NFR-10
+      - GATE-03
+    writable_path:
+      - "docs/req/prd.yaml"
+      - "docs/req/req-schema.json"
+      - "docs/ai-use-log-A-fragment.yaml"
+    pr: 15
+    branch: docs/req-schema-prd
+    generated_files:
+      - file: "docs/req/req-schema.json"
+        note: "JSON Schema (draft 2020-12) for requirements.yaml; round-1 fix anchored id/owner/metric patterns with ^...$ and added id-prefix-to-type conditionals (D review items 1-2)."
+      - file: "docs/req/prd.yaml"
+        note: "machine-readable PRD; round-1 fix split ST-05 (coding agent) from ST-06 (runtime analysis agent), remapped GAP-03/G3 to FR-03/NFR-03, replaced the *id001 alias with an explicit governance list, added by_owner and a review_record (D review items 3-5)."
+    human_intervention:
+      - type: review response
+        when: "2026-11-22T18:05+08:00"
+        who: "A (yuxiangdu39)"
+        what: "Addressed D's round-1 CHANGES_REQUESTED on PR #15: anchored patterns, id-type conditionals, actor split, objective-id correction, doc finalisation. Real-schema negative regression tests live in the checker spec (PR #30) per the merge-order decision."
+    verification_output:
+      - command: "python -c 'import json,jsonschema; jsonschema.Draft202012Validator.check_schema(json.load(open(\"docs/req/req-schema.json\")))'"
+        result: "schema is a valid draft 2020-12 schema"
+      - command: "prd cross-reference check vs requirements.yaml (#9 90b9496)"
+        result: "0 unknown refs; all 38 ids covered by by_type/by_component/by_owner; by_type/by_component/by_owner values match the registry"
+    implementation_status: "docs only (PRD + schema); no test, src/ or CI change"
+    cost: "unknown"
+    notes:
+      - "PRD and schema reference requirement ids only; requirements.yaml remains the single source of truth."
+      - "#15 is docs-only; the GATE-03 checker and its real-schema tests are PR #30/#31."
