@@ -414,3 +414,138 @@ sessions:
       - "E's contracts code was used read-only from impl/FR-05-contracts-v3 for compatibility verification."
       - "The earlier CI run passed on 5419dd8; the new head needs a fresh CI run."
       - "After E PR #18 merged, contracts.audit is on main; verify_payload re-ran OK on main."
+
+  - session_id: "D-2026-11-22-post-20-inventory-verify"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    opencode_session_id: "ses_dfd91c6a0ffeGCYpCzxK7KuCWM"
+    previous_opencode_session_id: "ses_e079e10bcffenzVS8BxvxK6Dl8"
+    previous_session_last_update: "2026-11-22T16:10:15+08:00"
+    time:
+      - "2026-11-22T16:45:07+08:00"   # new session created
+      - "2026-11-22T16:54:20+08:00"   # main sync, #23 read-only verification, fragment update
+    task_requirement_ids:
+      - FR-04
+      - FR-05
+      - GATE-01
+      - GATE-03
+      - GATE-06
+    writable_path:
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: approve
+        what: "Approved the prior read-only inventory's next-step plan: sync local main, verify #23 read-only, update D fragment"
+        evidence: "interactive approval: 批准"
+        limit: "No authorization was given to submit a GitHub review, comment, approval or merge; frozen tests, approval records, contracts, CI and human-only files remain unchanged"
+    changes:
+      - "local main fast-forwarded from 31d01cc to 6830926 (remote main after #26); origin/main updated"
+      - "verified #23 on post-#20 main in a temporary detached worktree with the #23 diff applied; no repository source change"
+    verification_output:
+      - command: "git fetch origin main && git branch -f main origin/main"
+        exit_code: 0
+        result: "main and origin/main = 6830926c44e7a16bae0cac1992f43a6aac8b26f6"
+      - command: "post-#20 main 6830926 + #23 94f2185 diff; extracted CI Gate each offline suite"
+        exit_code: 0
+        result: "contracts 223/223 OK; evaluation 28/28 OK; risk_gate 139/139 OK; budget src/egta/budget absent -> N/A"
+        evidence: "/tmp/opencode/pr23-gate.out (temporary, not committed)"
+      - command: "git merge-base --is-ancestor 66f17b9 10ee52d; git grep D#4 assertions on 6830926"
+        exit_code: 0
+        result: "#12 merge 66f17b9 is ancestor of #18 merge 10ee52d; D#4 assertions present (MISSING_METRIC, quality_labels, run_pair_id/case_id, illegal rubric, threshold->REVIEW)"
+      - command: "inspect #23 old CI run 44999261418 / base 10ee52d"
+        exit_code: 0
+        result: "old base tree has no src/egta/risk_gate; the old-base CI run cannot prove risk_gate 139"
+      - command: "inspect #9/#10 current state"
+        exit_code: 0
+        result: "#9 open, head 762f148, base 3741987, BEHIND, D comment 7075616405 unchanged, no duplicate reply; #10 remains OPEN"
+    git_output:
+      - action: "git fetch / local main update"
+        result: "31d01cc -> 6830926; no commit, push, PR review, comment, approval or merge"
+      - action: "D fragment update"
+        result: "D-side record prepared; later included in feat/FR-04-governance-checkers"
+    implementation_status: "FR-04 delivered; #23 D4 closure locally verified but official D review pending post-#20 sync/rebase; #9 pending A"
+    approval_links:
+      - "PR #17 A approved head 1fd6d29; merge b245bdb; aggregate 8486182b"
+      - "PR #18 merge 10ee52d; PR #20 final head 5825a5d, A+E approved, merge 31d01cc"
+      - "PR #26 head 5808f0a, A approved, merge 6830926"
+      - "PR #23 head 94f2185 (open, base 10ee52d, behind)"
+    repository_blockers:
+      - "#23 head 94f2185 is still based on 10ee52d (pre-#20); it needs sync/rebase to 6830926 and a fresh CI run before D review."
+      - "#10 is still OPEN; the formal D close/supersede marker described in #23 is not yet recorded."
+      - "#9 head 762f148 is behind main; A aggregation, sync and CI are pending."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "This entry records only D-observed facts; no GitHub review/comment/approval/merge was submitted."
+      - "No frozen test, approval record, contract, CI or CODEOWNERS file was changed."
+      - "The budget suite is correctly N/A until FR-02 exists and docs/approvals/test-hash-FR-02-budget.txt exists."
+      - "The earlier #23 CI run 44999261418 is not current risk_gate evidence because its base 10ee52d predates src/egta/risk_gate."
+      - "The temporary verification worktree and patch are outside the repository under /tmp/opencode; E's total log was not touched."
+
+  - session_id: "D-2026-11-22-FR04-governance-checkers"
+    student: "D / ZFebron491001"
+    agent_tool_model: "OpenCode / DeepSeek V4.1 Flash"
+    opencode_session_id: "ses_dfd91c6a0ffeGCYpCzxK7KuCWM"
+    time:
+      - "2026-11-22T16:58:00+08:00"   # implementation start on feat/FR-04-governance-checkers
+      - "2026-11-22T17:08:08+08:00"   # verification, evidence and log update
+    task_requirement_ids:
+      - FR-04
+      - NFR-05
+      - NFR-07
+      - GATE-01
+      - GATE-02
+      - D3
+    writable_path:
+      - "tools/check_permissions.py"
+      - "tools/check_approval.py"
+      - "docs/architecture/permission-model.md"
+      - "docs/evidence/FR-04/phase7-governance-green.txt"
+      - "docs/ai-use-log-D-fragment.yaml"
+    human_intervention:
+      - type: approve
+        what: "Authorized execution of plan B: implement the approved Phase 7 governance checkers"
+        evidence: "interactive approval: 好的，按照你的plan执行即可"
+        limit: "Local implementation only; no GitHub review, approval or merge. Push/PR remains human-only per the MCP manifest."
+    changes:
+      - "added tools/check_permissions.py: role allowlists, human-only/protected/contract/approval path rejection, cross-module import detection, credential-reference detection and JSON output"
+      - "added tools/check_approval.py: record parsing, pending/self-approval checks, registry lookup, approved-test ancestry, per-file/aggregate hash checks, test-drift detection and JSON output"
+      - "updated permission-model observed facts and checker status without claiming CI or runtime enforcement"
+      - "added Phase 7 green evidence including #26 test hashes for A's approval record"
+    verification_output:
+      - command: "python -m pytest test/offline/governance -q"
+        exit_code: 0
+        result: "38 passed (32 behavioural + 6 manifest)"
+      - command: "python -m pytest test/offline/risk_gate -q"
+        exit_code: 0
+        result: "139 passed"
+      - command: "python -m pytest -m spec <seven FR-05 contracts files> -q"
+        exit_code: 0
+        result: "223 passed"
+      - command: "python -m pytest -m spec test/offline/evaluation -q"
+        exit_code: 0
+        result: "28 passed"
+      - command: "python -m ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+      - command: "python -m mypy tools/check_permissions.py tools/check_approval.py"
+        exit_code: 0
+        result: "Success: no issues found in 2 source files"
+    git_output:
+      - action: "git branch"
+        result: "feat/FR-04-governance-checkers from 6830926; local changes only"
+      - action: "git commit/push/PR"
+        result: "not performed; push/PR is human-only per docs/code-governance/mcp-tool-manifest.md"
+    implementation_status: "IMPLEMENTED + VERIFIED locally; awaiting human commit/push, A/E review and E CI integration"
+    approval_links:
+      - "Test baseline: PR #26, A approved head 5808f0a, merge 6830926, test content 0c5c2e7"
+    repository_blockers:
+      - "docs/req/requirements.yaml (#9) is still missing on main; approval checker production CI integration must wait for it."
+      - "AGENTS.md/Prompt.md/.opencode rules remain missing; GOV-03/GOV-09 still cannot pass."
+      - "ADR-003 and risk-policy remain PROPOSED pending human approval."
+    cost: "unknown"
+    session_path: "unknown (raw session not exported yet)"
+    notes:
+      - "No frozen governance tests, approval records, contracts, CI or CODEOWNERS were changed."
+      - "A single-invocation pytest test/offline is not used: existing basename collisions and the FR-01 EvidenceItem import gap are pre-existing; CI runs per-suite."
+      - "The #26 per-file and aggregate hashes are evidence, not an approval record; A's GitHub approval remains authoritative."
+      - "Push/PR/merge were not performed; the MCP manifest reserves them for the human."

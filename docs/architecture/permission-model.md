@@ -74,7 +74,8 @@ Observed repository facts:
 - `AGENTS.md`, `Prompt.md`, `.opencode/rules.md` are missing.
 - The current ruleset (`protect-main`) requires a PR and one approval but does not
   require status checks or CODEOWNERS review.
-- No automated permission checker exists yet.
+- The Phase 7 permission and approval checkers now exist as offline-tested tools;
+  they are not yet wired into CI or runtime enforcement.
 
 Mapping recommendation (for human review, not an executed configuration):
 
@@ -84,8 +85,8 @@ Mapping recommendation (for human review, not an executed configuration):
 | `.opencode/permissions.jsonc` | File/tool allowlist consumed by a controlled launcher or mapped to the executor's actual config | NOT PRESENT / NOT VERIFIED |
 | `AGENTS.md` | Static startup context with read order and boundaries | MISSING |
 | `Prompt.md` | Static task-independent startup prompt | MISSING |
-| `tools/check_permissions.py` | Independent CI/local checker over git diff and tree | NOT IMPLEMENTED (Phase 7) |
-| `tools/check_approval.py` | Independent CI/local checker over approval records and git history | NOT IMPLEMENTED (Phase 7) |
+| `tools/check_permissions.py` | Independent CI/local checker over git diff and tree | IMPLEMENTED + OFFLINE-TESTED; NOT YET CI-WIRED |
+| `tools/check_approval.py` | Independent CI/local checker over approval records and git history | IMPLEMENTED + OFFLINE-TESTED; NOT YET CI-WIRED |
 
 Do not claim a policy is enforced merely because it appears in Markdown. Runtime
 enforcement must be demonstrated by a real refusal test and recorded with command,
@@ -114,5 +115,6 @@ exit code and evidence path.
 - return non-zero on missing, conflicting, or unverifiable evidence;
 - rely on Git history and protected approval records, not editable PR prose alone.
 
-Both checkers are Phase 7 deliverables and are not implemented in this Phase 0–4
-specification package.
+Both checkers are implemented in `tools/` and covered by `test/offline/governance`.
+CI integration and runtime enforcement remain unclaimed pending E's gate wiring and
+the D1 requirements registry (#9).

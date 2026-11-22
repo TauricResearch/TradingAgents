@@ -1,0 +1,68 @@
+Phase 7 governance checker implementation verification
+=====================================================
+Date: 2026-11-22T17:10:00+08:00
+Branch: feat/FR-04-governance-checkers
+Base: 6830926c44e7a16bae0cac1992f43a6aac8b26f6
+Test baseline: PR #26
+  test_content_commit: 0c5c2e7 (governance tests; 5808f0a changed evidence whitespace only)
+  reviewed_pr_head:    5808f0ac43f75c3a1616e7efc3955fa5b1b1f46d
+  merge_commit:        6830926c44e7a16bae0cac1992f43a6aac8b26f6
+  approved_by:         A (@yuxiangdu39)
+Implementation: tools/check_permissions.py, tools/check_approval.py
+Environment: Python 3.12.15, pytest 9.2.0, ruff 0.17.6, mypy 2.4.1
+
+Verification commands and results
+---------------------------------
+1) python -m pytest test/offline/governance -q
+   exit 0
+   38 passed in 2.51s
+   (32 behavioural cases + 6 manifest meta-tests; no xfail/skip)
+
+2) python -m pytest test/offline/risk_gate -q
+   exit 0
+   139 passed in 0.86s
+   (FR-04 regression unchanged)
+
+3) python -m pytest -m spec <seven FR-05 contracts files> -q
+   exit 0
+   223 passed in 0.19s
+
+4) python -m pytest -m spec test/offline/evaluation -q
+   exit 0
+   28 passed in 0.08s
+
+5) python -m ruff check .
+   exit 0
+   All checks passed!
+
+6) python -m mypy tools/check_permissions.py tools/check_approval.py
+   exit 0
+   Success: no issues found in 2 source files
+
+Scope
+-----
+- Adds only the two independent checkers and their verification evidence.
+- Does not change the approved governance tests, contracts, CI, approval records,
+  CODEOWNERS, or runtime risk_gate code.
+- The checkers use git history and hashes, not PR prose; violations have stable
+  codes and the CLI supports --json.
+- The approval checker is implemented and offline-tested against a temporary
+  registry fixture. Production CI integration remains E-owned and requires the
+  D1 requirements registry from #9; without it the checker fails closed with
+  REGISTRY_MISSING.
+
+Test hash binding for #26 (evidence for A's approval record)
+------------------------------------------------------------
+files (per-file SHA-256, sorted by path):
+  1e568ced5af08fbc0bbbe7e255d40cc4a47263b49c886304acc34d6112c71c0d  test/offline/governance/cases.py
+  ac46245a08157e42bf81ef4109b2ce033c92b68cd5faf094ce85672f04a42569  test/offline/governance/conftest.py
+  c7f8c17acde534092c649e40f61f368c0fb202b93cdfa07f7c75609ed12cb17f  test/offline/governance/harness.py
+  f01970f4b01b08d87fa109fed7542b0e57e908778d046d3b052ca19bf0da5abb  test/offline/governance/test_approval.py
+  278a2428f07804f11b922effe058ceafcfce15e1a228f931fafcf1d9f306c181  test/offline/governance/test_permissions.py
+  0953f9f93cb616277c1843f6cec039e3ca7f3c74b6564d993e4fb42b2b8191fe  test/offline/governance/test_spec_manifest.py
+
+aggregate_sha256 (sha256 of sorted per-file lines):
+  78172b6b23baeb15c1704b0a4316d34be965a8a8bc67bb256e6ca3b8898aa9d6
+
+This file is evidence, not an approval record. A's GitHub approval on head
+5808f0a remains authoritative; the author must not self-approve.
