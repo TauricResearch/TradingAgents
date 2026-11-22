@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>TradingAgents</title>
+  <link rel="stylesheet" href="/static/web.css">
+  <script src="/static/web.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">MULTI-AGENT MARKET RESEARCH</p>
+      <h1>TradingAgents</h1>
+      <p class="intro">Run an analysis and read the complete report in your browser.</p>
+    </header>
+
+    <section class="card" aria-labelledby="run-title">
+      <h2 id="run-title">New analysis</h2>
+      <p id="model-info" class="muted">Using the configured model</p>
+      <form id="run-form">
+        <div class="fields">
+          <label for="ticker">Ticker
+            <input id="ticker" name="ticker" required maxlength="32" value="NVDA"
+                   autocomplete="off" placeholder="NVDA">
+          </label>
+          <label for="date">Analysis date
+            <input id="date" name="date" type="date" required>
+          </label>
+        </div>
+        <fieldset>
+          <legend>Analysts</legend>
+          <div class="choices">
+            <label><input type="checkbox" name="analysts" value="market" checked> Market</label>
+            <label><input type="checkbox" name="analysts" value="sentiment" checked> Sentiment</label>
+            <label><input type="checkbox" name="analysts" value="news" checked> News</label>
+            <label><input type="checkbox" name="analysts" value="fundamentals" checked> Fundamentals</label>
+          </div>
+        </fieldset>
+        <button id="submit" type="submit">Run analysis</button>
+      </form>
+      <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+      <a id="report" class="report-link" hidden target="_blank" rel="noopener">Open HTML report</a>
+    </section>
+
+    <footer>Research output is AI-generated and is not financial advice.</footer>
+  </main>
+</body>
+</html>
