@@ -5,7 +5,7 @@ entry expires. Owner identifiers follow the A–E role map in `execution_plan_26
 
 | ID | Category | Description | Impact | Opened | Expiry condition | Status |
 |---|---|---|---|---|---|---|
-| DEBT-FR05-D4 | Governance / audit debt | The D#4 of the approved baseline (`5e30376`) remains **false-green**: `failures` / `quality_labels` / default `run_pair_id`/`case_id` are not effectively locked by assertions; the `188`/`30` counts in `docs/req/trace-FR-05-contracts.md` / `docs/approvals/spec-registry*.md` are inconsistent with the actual **contracts 223 / E2 28**. | The implementation may pass the tests yet fail to meet D#4; the evidence basis (口径) of GATE-01/GATE-03 is inconsistent. | 2026-11-21 | Open a new **test/spec PR** to: add the D#4 assertions (failures/quality_labels/ids effectively locked), correct trace/registry counts to the actual 223/28, recompute the hashes, and re-batch review by D+B. | **Closed** — merged via #18 into main `10ee52d`; contracts 223 / E2 28 green. |
+| DEBT-FR05-D4 | Governance / audit debt | The D#4 of the approved baseline (`5e30376`) remains **false-green**: `failures` / `quality_labels` / default `run_pair_id`/`case_id` are not effectively locked by assertions; the `188`/`30` counts in `docs/req/trace-FR-05-contracts.md` / `docs/approvals/spec-registry*.md` are inconsistent with the actual **contracts 223 / E2 28**. | The implementation may pass the tests yet fail to meet D#4; the evidence basis (口径) of GATE-01/GATE-03 is inconsistent. | 2026-11-21 | Open a new **test/spec PR** to: add the D#4 assertions (failures/quality_labels/ids effectively locked), correct trace/registry counts to the actual 223/28, recompute the hashes, and re-batch review by D+B. | **Closing-pending — awaiting D (verifier) confirmation.** Implemented/merged via #18 (`10ee52d`); winner/composite still deferred (D#4 not fully complete, independent debt). |
 
 Owner: E · Verifier: D · Due: 2026-11-22T18:00:00+08:00
 
@@ -13,12 +13,14 @@ Owner: E · Verifier: D · Due: 2026-11-22T18:00:00+08:00
 
 Owner: E · Verifier: A
 
-> **DEBT-FR05-D4 — CLOSED.** Closed via **#18** merged into main `10ee52d`;
-> contracts **223** / E2 **28** green. The follow-up spec (`spec/FR-05-compare-fixes`,
-> #12) added the missing D#4 assertions (single-sided `MISSING_METRIC`, illegal
-> rubric rejection, observed≠threshold + Option-Y threshold→REVIEW failures,
-> `quality_labels`=enhanced, explicit `run_pair_id`/`case_id` locks); the v3
-> implementation (#18) satisfies them. Owner: E · Verifier: D.
+> **DEBT-FR05-D4 — closing-pending (awaiting D).** E cannot close this alone; it
+> needs the **verifier (D)** to confirm. Implemented/merged via **#18** (`10ee52d`)
+> — contracts **223** / E2 **28** green; the D#4 test-field assertions
+> (single-sided `MISSING_METRIC`, illegal rubric, observed≠threshold + Option-Y
+> threshold→REVIEW failures, `quality_labels`=enhanced, explicit ids) are covered.
+> **Still deferred (part of D#4, tracked as an independent debt):**
+> `winner`/`composite` scoring (`winner/baseline_win/enhanced_win` = None/False).
+> Owner: E · Verifier: D. **D to confirm closure.**
 
 ## Follow-up debts (from #18 / v3 review — semantics to spec/test in a later spec PR)
 

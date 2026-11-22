@@ -92,6 +92,16 @@ jobs:
   # The gate runs pytest (not just --collect-only): the run's terminal summary
   # `passed` count must equal the expected number, and any skip/xfail/xpass/error
   # fails the gate. --collect-only is also checked for an extra consistency guard.
+  #
+  # GATE-06 (AI-use log) — why there is no status check here (D item 4): GATE-06 is
+  # a *review-time* rule, not a deterministic build artifact. A reliable CI check
+  # would need to know, per PR, whether a code/test/prompt file changed AND whether
+  # docs/ai-use-log.yaml changed in the SAME PR — but docs-only / CI-only / governance
+  # PRs legitimately change no code and add no log entry, so a naive "require an
+  # ai-use-log diff" check would false-fail them. GATE-06 is therefore enforced by
+  # the human reviewer (D/A) on the PR, not by a required status check. If the team
+  # later decides to automate it, it must be a diff-aware job (only fire when code/
+  # test/prompt paths changed) — tracked as a follow-up, not enabled here.
   offline-tests:
     name: offline spec suites (per-suite gate)
     runs-on: ubuntu-latest
