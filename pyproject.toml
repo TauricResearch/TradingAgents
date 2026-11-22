@@ -49,7 +49,12 @@ tradingagents = "cli.main:app"
 version = {attr = "tradingagents.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+# Hybrid layout: upstream ``tradingagents`` and ``cli`` stay at the repo root;
+# the EGTA application lives under ``src/`` (``src/egta``). Discover both roots
+# rather than switching the whole project to a src layout (which would drop the
+# existing top-level packages). ``egta`` is matched as a namespace package.
+where = [".", "src"]
+include = ["tradingagents*", "cli*", "egta*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
