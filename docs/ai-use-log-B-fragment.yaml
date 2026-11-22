@@ -219,3 +219,70 @@ open_items:
   - "actual_cases = 65 (23 test functions; parametrized expansions); FR-01 CI gate remains DEBT-FR01-CI."
   - "Gateway probe scripts exist only in a local /tmp directory; not reproducible from the repository."
   - "Raw session transcript path: unknown (not exported)."
+
+# -----------------------------------------------------------------------
+# Implementation session — shared evidence contracts (FR-01 types)
+# -----------------------------------------------------------------------
+implementation_sessions:
+  - session_id: "ses_e0451298bffeYlnqHo00GSewD2"
+    agent_tool_model: "OpenCode / opencode CLI / cityu/CS5351/DeepSeek-V4-Flash"
+    date: 2026-11-22
+    task_requirement_ids: [FR-01, INV-02]
+    scope: "Implement public evidence contracts RunSpec/EvidenceItem/EvidencePack (type layer only); no filtering, id generation, dedupe, or digest comparison"
+    worktree: "/tmp/opencode/b-impl (local temporary worktree)"
+    branch: "impl/B-evidence-contracts"
+    base: "69da0e464b562d54bcfdec5beb84bd98bbf8a943 (origin/main; PR #5 merge)"
+    approved_spec_head: "88dbd7c"
+    generated_files:
+      - file: "src/egta/contracts/evidence.py"
+        note: "RunSpec, EvidenceItem, EvidencePack, Availability (StrEnum), ExcludedItem; imports ReasonCode from egta.contracts.events (owned by E #18/#10), no duplicate enum"
+      - file: "src/egta/contracts/__init__.py"
+        note: "re-exports RunSpec, EvidenceItem, EvidencePack (and Availability, ExcludedItem); ReasonCode stays in egta.contracts.events"
+    verification_output:
+      - command: "python -m pytest -m spec test/offline/contracts/test_evidence_contracts.py"
+        context: "B branch ALONE (main 69da0e4; no egta.contracts.events)"
+        exit_code: 2
+        result: "collection error: ModuleNotFoundError: No module named 'egta.contracts.events' (ReasonCode owned by unmerged #18)"
+      - command: "python -m pytest -m spec test/offline/contracts/test_evidence_contracts.py"
+        context: "combined with #18 head 4682b6b src/egta/contracts/events.py overlaid in a scratch copy"
+        exit_code: 0
+        result: "65 collected, 65 passed"
+      - command: "ruff check ."
+        exit_code: 0
+        result: "All checks passed"
+      - command: "py_compile src/egta/contracts/*.py"
+        exit_code: 0
+        result: "ok"
+      - command: "sha256sum test/offline/contracts/test_evidence_contracts.py"
+        result: "4618b25ac1d647ab2526e21251a2a1542e55ddd869967623501553801a4e8718 == approval record (test bytes unchanged)"
+    human_intervention:
+      - category: "intervention / approval"
+        action: "Authorized local implementation + verification in an isolated worktree; no copy of E's source, no duplicate ReasonCode."
+        limit: "Local implementation only; no commit/push/PR."
+    implementation_status: "DONE (type layer) — green once egta.contracts.events (E #18) is present; branch alone is RED on that import by design."
+    dependencies:
+      - "egta.contracts.events.ReasonCode — owned by E #18 (v3) / #10 (v2); both open, not merged to main. Verified against #18 head 92fc3016f605e33ba8f51f4819ad0f24323a6ce6."
+      - "Packaging fixed in this session: hybrid layout kept, src/egta now discovered."
+    packaging_change:
+      file: "pyproject.toml"
+      before: 'packages.find include = ["tradingagents*", "cli*"] (root only)'
+      after: 'where = [".", "src"]; include = ["tradingagents*", "cli*", "egta*"]'
+      rationale: "Keep the existing top-level tradingagents/ and cli/ packages; NOT switching to a src layout (would drop them). egta under src/ is added as a namespace package."
+      wheel_contents: "egta/, tradingagents/, cli/ all present; top_level.txt = cli, egta, tradingagents"
+      isolation_result:
+        - "ALONE (B branch wheel): tradingagents + cli import OK; egta.contracts fails only on missing egta.contracts.events (E #18 not merged)."
+        - "COMBINED (with #18 head 92fc301): RunSpec/EvidenceItem/EvidencePack + ReasonCode import OK in a clean venv outside the repo, PYTHONPATH cleared; tradingagents 0.7.1 + cli still import."
+    contract_time_responsibilities:
+      - "RunSpec.as_of: tz-aware UTC instant; bare date and naive rejected (frozen)."
+      - "EvidencePack.cutoff: same instant as run/fixture as_of; tz-aware (frozen)."
+      - "EvidenceItem.published_at/fetched_at: date-only kept as date with day precision; a tz-aware timestamp is normalized to UTC; a naive timestamp is left as given (NOT rejected here) — admissibility, including naive/malformed evidence time, is A's egta.evidence responsibility."
+    release_readiness_verification:
+      combined_source: "B worktree src + E #18 head 92fc3016f605e33ba8f51f4819ad0f24323a6ce6+ my pyproject, overlaid in /tmp/opencode/combined"
+      evidence_contracts: "65 collected, 65 passed"
+      fr05_contracts_9_files: "223 passed"
+      e2_evaluation_4_files: "28 passed"
+      full_repo_ruff: "All checks passed"
+      approved_hash_checks: "FR-05 (9 files) and E2 (6 files) per-file SHA-256 all OK; evidence-contract test 4618b25... unchanged"
+    notes:
+      - "Merge note: E's #18 src/egta/contracts/__init__.py is EMPTY; when #18 and B both land, B's non-empty __init__.py (re-exports) must be preserved. Verified by restoring B's __init__.py over #18's in the combined overlay."
+      - "A's src/egta/evidence on main is untouched."
