@@ -34,6 +34,7 @@
 - `test/fixtures/security/` (D-owned canaries, no real secrets)
 - `tools/check_permissions.py`
 - `tools/check_approval.py`
+- `AGENTS.md` (D3 owner; human review still required before merge)
 - `docs/architecture/adr/003-risk-authority.md`
 - `docs/architecture/invariants.md` (D entries only)
 - `docs/architecture/permission-model.md`

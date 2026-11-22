@@ -67,6 +67,7 @@ ALLOWED_PREFIXES = {
         "test/fixtures/security/",
         "tools/check_permissions.py",
         "tools/check_approval.py",
+        "AGENTS.md",
         "docs/architecture/adr/003-risk-authority.md",
         "docs/architecture/invariants.md",
         "docs/architecture/permission-model.md",

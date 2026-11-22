@@ -512,6 +512,7 @@ sessions:
       - "added tools/check_approval.py: record parsing, pending/self-approval checks, registry lookup, approved-test ancestry, per-file/aggregate hash checks, test-drift detection and JSON output"
       - "updated permission-model observed facts and checker status without claiming CI or runtime enforcement"
       - "added Phase 7 green evidence including #26 test hashes for A's approval record"
+      - "added AGENTS.md to the D-writable allowlist so D3 ownership does not require a policy exception"
     verification_output:
       - command: "python -m pytest test/offline/governance -q"
         exit_code: 0
