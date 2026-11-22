@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .canonical import sha256_hex
+from .canonical import payload_hash
 from .models import (
     PortfolioSnapshot,
     Position,
@@ -303,7 +303,7 @@ def store_outbox_event(
     ).fetchone()
     prev_hash = previous["payload_hash"] if previous is not None else ""
     event_id = uuid4().hex
-    timestamp_iso = timestamp.astimezone(UTC).isoformat()
+    timestamp_iso = timestamp.astimezone(UTC).isoformat().replace("+00:00", "Z")
     payload = {
         "schema_version": "1.0",
         "event_id": event_id,
@@ -317,7 +317,7 @@ def store_outbox_event(
         "metrics": metrics,
         "reason_code": reason_code,
     }
-    digest = sha256_hex(payload)
+    digest = payload_hash(payload)
     connection.execute(
         "INSERT INTO outbox_events "
         "(schema_version, event_id, run_id, sequence, phase, timestamp, "

@@ -167,4 +167,13 @@ def recompute_evidence_hash(pack: Any) -> str:
 
 
 def payload_hash(payload: Mapping[str, Any]) -> str:
-    return sha256_hex(payload)
+    """SHA-256 over contracts.audit's canonical RunEvent JSON.
+
+    ``contracts.audit.recompute_payload_hash`` uses Pydantic
+    ``model_dump(mode="json")`` plus ``json.dumps(..., sort_keys=True,
+    separators=(",", ":"))``. UTC datetimes therefore render with a trailing
+    ``Z``. Keep this byte-compatible; otherwise an outbox event that is valid
+    for the risk gate is rejected by E's verify_payload/replay.
+    """
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

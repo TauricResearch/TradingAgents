@@ -115,6 +115,12 @@ evidence availability value.
 `BLOCKED`; `INCOMPLETE` is app/budget-level, not a risk verdict. If contracts v1
 chooses differently, the mapping is deferred to that contract.
 
+Outbox `payload_hash` uses contracts.audit canonicalization: canonical JSON of the
+RunEvent fields excluding `payload_hash`, compact sorted keys, UTC timestamps with a
+trailing `Z`. This is required so E's `verify_payload`/replay accepts risk_gate
+events. The `UNIQUE(proposal_hash)` idempotency key is intentional: the hash includes
+`run_id`, so it is at least as strict as `(run_id, proposal_hash)`.
+
 The offline suite injects `price_freshness_seconds=240`, `fee_bps=10` and
 `slippage_bps=0` as **test-only** fixture parameters. They are not approved product
 defaults. The product values remain PENDING; unconfigured or invalid policy must fail

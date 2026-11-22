@@ -139,6 +139,14 @@ The gate stores exactly one outbox event per stored verdict (`Phase.RISK_GATE`);
 this is the count the duplicate/idempotency tests assert. Outbox status mapping:
 APPROVED=`OK`, REJECTED/BLOCKED=`BLOCKED`, REVIEW=`REVIEW`.
 
+### Outbox payload compatibility
+
+The outbox `payload_hash` follows E's `contracts.audit.recompute_payload_hash` byte
+semantics: canonical JSON over the RunEvent fields excluding `payload_hash`, sorted
+keys and compact separators, with UTC timestamps rendered as `...Z` (not `+00:00`).
+This prevents `verify_payload`/replay from rejecting valid risk_gate events. The
+outbox stores the same `Z` timestamp.
+
 B's accepted reason table includes `INVALID_CITATION`, `INTEGRITY_VIOLATION`,
 `INVALID_TIME`, `STALE_DATA` and `VENDOR_UNAVAILABLE`. E's current `RunEvent` draft
 does not yet include all five; contracts v1 must align before implementation. If a
@@ -208,6 +216,10 @@ remain valid once either resolution is frozen; only the field-mapping shim chang
 ## 6. Idempotency and version semantics
 
 - `proposal_hash` is the idempotency key.
+- The SQLite unique constraint is intentionally `UNIQUE(proposal_hash)` (single
+  column). `proposal_hash` covers `run_id`, so this is at least as strict as
+  `(run_id, proposal_hash)`; a cross-run collision would imply identical formal
+  proposal content including the run id.
 - The hash covers all formal `AdvisoryProposal` fields except `proposal_hash` itself.
   Test-only bypass fields (`policy_override`, `bypass`) are not part of the formal
   hash and must not influence the decision.
