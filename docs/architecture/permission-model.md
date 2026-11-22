@@ -72,7 +72,8 @@
 Observed repository facts:
 
 - `.opencode/` does not exist.
-- `AGENTS.md`, `Prompt.md`, `.opencode/rules.md` are missing.
+- `AGENTS.md` now exists as the D3 entry point; `Prompt.md` and `.opencode/rules.md`
+  are still missing.
 - The current ruleset (`protect-main`) requires a PR and one approval but does not
   require status checks or CODEOWNERS review.
 - The Phase 7 permission and approval checkers now exist as offline-tested tools;
@@ -84,7 +85,7 @@ Mapping recommendation (for human review, not an executed configuration):
 |---|---|---|
 | `.opencode/rules.md` | Human-maintained rule file; read-only to agent | NOT PRESENT / NOT VERIFIED |
 | `.opencode/permissions.jsonc` | File/tool allowlist consumed by a controlled launcher or mapped to the executor's actual config | NOT PRESENT / NOT VERIFIED |
-| `AGENTS.md` | Static startup context with read order and boundaries | MISSING |
+| `AGENTS.md` | Static startup context with read order and boundaries | PRESENT (D3; human review pending) |
 | `Prompt.md` | Static task-independent startup prompt | MISSING |
 | `tools/check_permissions.py` | Independent CI/local checker over git diff and tree | IMPLEMENTED + OFFLINE-TESTED; NOT YET CI-WIRED |
 | `tools/check_approval.py` | Independent CI/local checker over approval records and git history | IMPLEMENTED + OFFLINE-TESTED; NOT YET CI-WIRED |

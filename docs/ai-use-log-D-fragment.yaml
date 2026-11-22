@@ -496,6 +496,7 @@ sessions:
       - GATE-01
       - GATE-02
       - D3
+      - GOV-03
     writable_path:
       - "tools/check_permissions.py"
       - "tools/check_approval.py"
@@ -513,6 +514,7 @@ sessions:
       - "updated permission-model observed facts and checker status without claiming CI or runtime enforcement"
       - "added Phase 7 green evidence including #26 test hashes for A's approval record"
       - "added AGENTS.md to the D-writable allowlist so D3 ownership does not require a policy exception"
+      - "added root AGENTS.md D3 entry point with structural constraints, permission rules, human-only rules, MCP reference and project covenant"
     verification_output:
       - command: "python -m pytest test/offline/governance -q"
         exit_code: 0
@@ -555,4 +557,5 @@ sessions:
       - "No frozen governance tests, approval records, contracts, CI or CODEOWNERS were changed."
       - "A single-invocation pytest test/offline is not used: existing basename collisions and the FR-01 EvidenceItem import gap are pre-existing; CI runs per-suite."
       - "The #26 per-file and aggregate hashes are evidence, not an approval record; A's GitHub approval remains authoritative."
+      - "AGENTS.md is a proposed D3 policy artifact and requires human review; Prompt.md is still missing, so GOV-09 is not claimed."
       - "Push and PR creation were performed under explicit human authorization; no GitHub review, approval or merge was submitted."
