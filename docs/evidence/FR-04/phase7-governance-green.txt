@@ -2,6 +2,7 @@ Phase 7 governance checker implementation verification
 =====================================================
 Date: 2026-11-22T17:10:00+08:00
 Branch: feat/FR-04-governance-checkers
+PR: #29 https://github.com/ZFebron491001/EGTA-CS5351-Group20/pull/29
 Base: 6830926c44e7a16bae0cac1992f43a6aac8b26f6
 Test baseline: PR #26
   test_content_commit: 0c5c2e7 (governance tests; 5808f0a changed evidence whitespace only)
