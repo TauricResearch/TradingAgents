@@ -2,7 +2,8 @@
 
 The canonical form is the proposed shared form: sorted object keys, compact
 separators, UTF-8, Decimal as a fixed-point string, aware datetimes normalized to
-UTC, tuples as arrays, and SHA-256 lowercase hex.
+UTC, date-only values as ISO date strings, tuples as arrays, and SHA-256 lowercase
+hex.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -31,6 +32,8 @@ def _normalize(value: Any) -> Any:
         if value.tzinfo is None or value.utcoffset() is None:
             return value.isoformat()
         return value.astimezone(UTC).isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
     if isinstance(value, int):
         return value
     if isinstance(value, float):

@@ -1,0 +1,67 @@
+FR-04 date-only evidence canonicalization fix
+==============================================
+Date: 2026-11-22T21:00:00+08:00
+Branch: fix/FR-04-date-only-canonical
+Base: dc59be13ffe664214006de0cf89dfa6c96be3ca1
+Test-first commit: 276a020 (date-only regression, expected RED)
+Fix: src/egta/risk_gate/canonical.py — date-only values render as ISO date strings
+after the datetime branch, so the datetime subclass check remains first.
+
+Problem
+-------
+A's PR #25 E-07 fixture keeps day precision (`published_at` is a `datetime.date`).
+`recompute_evidence_hash` raised `TypeError: cannot canonicalize <class
+'datetime.date'>`, so `test_pack_hash_matches_risk_gate_canonical[E-07]` could not
+produce the same hash as A's date-only `build_pack`.
+
+Red baseline (before fix)
+-------------------------
+Command: python -m pytest test/offline/risk_gate/test_evidence_time_policy.py -q -k EVD-05 --tb=short
+Result: 1 failed
+  TypeError: cannot canonicalize <class 'datetime.date'>
+  at src/egta/risk_gate/canonical.py:47
+
+Green after fix
+---------------
+Command: python -m pytest test/offline/risk_gate/test_evidence_time_policy.py -q -k EVD-05 --tb=short
+Result: 1 passed, 21 deselected
+
+Command: python -m pytest test/offline/risk_gate -q
+Result: 139 passed
+
+Command: python -m ruff check .
+Result: All checks passed
+
+Command: python -m mypy src/egta/risk_gate
+Result: Success: no issues found in 7 source files
+
+What the D-side regression checks
+---------------------------------
+`T-RISK-EVD-05` now also constructs a pack with `published_at=date(2026, 10, 1)`.
+It asserts:
+- canonical bytes contain `"published_at":"2026-10-01"` (no invented time);
+- the date-only pack hash equals the hash of the same pack with the ISO date
+  string, so A's date-only `build_pack` and D's recomputation converge.
+
+Approval-record update (A-directed)
+-----------------------------------
+A independently recomputed the new values and explicitly directed D to update the
+FR-04 approval record on #38. A's GitHub review on #38 remains authoritative; D
+applied the verified values and did not self-approve.
+
+Updated per-file hash:
+  eae1f93c1403c15bfc5d9a6e5f69c5687158719beb8212e892e1095fddff00eb  test/offline/risk_gate/test_evidence_time_policy.py
+
+Updated aggregate over all risk_gate test files (sorted by path):
+  f3c45de208b87b6ddee54d132648a29443cb46ac4f9219be465a9634350fcca2
+
+The record now binds test_content_commit and reviewed_pr_head to the stable test
+commit 276a020; merge_commit is PENDING #38. The expected risk_gate test count
+remains 139, so no CI expected-count change is needed.
+
+Approval-checker verification:
+  python tools/check_approval.py \
+    --record docs/approvals/test-hash-FR-04-risk-gate.txt \
+    --implementation-base 276a020 --implementation-head HEAD \
+    --registry docs/req/requirements.yaml --author ZFebron491001
+  -> OK: approval record verified
