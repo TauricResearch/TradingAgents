@@ -38,9 +38,11 @@ model on any API error, rate-limit or timeout:
 * Scout (Groq)         : ``openai/gpt-oss-120b`` -> ``qwen/qwen3.8-27b`` -> ``openai/gpt-oss-20b``
 * Risk Auditor (Gemini): ``gemini-2.5-flash`` -> ``gemini-2.5-flash-lite`` -> ``gemini-3.8-flash``
 
-The whole cascade shares one hard deadline (``DEFAULT_TIMEOUT`` = 8s). If a provider
-dies outright the survivor carries the verdict; if both fail (or keys are absent)
-the council fails open and the deterministic :class:`RiskEngine` alone decides.
+The Scout cascade runs under one hard deadline (``DEFAULT_TIMEOUT`` = 8s); the Gemini
+Risk Auditor gets its own, more generous budget (``AUDITOR_TIMEOUT`` = 10s) so a
+spiky ``generate_content`` call is not cut off prematurely. If a provider dies
+outright the survivor carries the verdict; if both fail (or keys are absent) the
+council fails open and the deterministic :class:`RiskEngine` alone decides.
 """
 
 from __future__ import annotations
@@ -59,6 +61,12 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence
 LOGGER = logging.getLogger("copilot.council")
 
 DEFAULT_TIMEOUT = 8.0
+
+# The Gemini Risk Auditor gets its own, more generous request budget: Gemini's
+# generate_content latency is spikier than Groq's, and the old shared
+# DEFAULT_TIMEOUT/len(cascade) split gave each auditor model only ~2.5s, which
+# timed out prematurely. 10s lets a single Gemini call finish comfortably.
+AUDITOR_TIMEOUT = 10.0
 
 # --------------------------------------------------------------------------- #
 # Risk rules - The5ers Bootcamp ($5,000 demo, scaling to $20,000)
@@ -501,8 +509,12 @@ class SentinelCouncil:
         scout_models: Optional[Sequence[str]] = None,
         auditor_models: Optional[Sequence[str]] = None,
         risk_engine: Optional[RiskEngine] = None,
+        auditor_timeout: float = AUDITOR_TIMEOUT,
     ) -> None:
         self.timeout = float(timeout) if timeout and timeout > 0 else DEFAULT_TIMEOUT
+        self.auditor_timeout = (
+            float(auditor_timeout) if auditor_timeout and auditor_timeout > 0 else AUDITOR_TIMEOUT
+        )
         self._groq_key = (groq_api_key or os.getenv("GROQ_API_KEY", "")).strip()
         self._gemini_key = (
             gemini_api_key or os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
@@ -535,6 +547,7 @@ class SentinelCouncil:
             "scout_models": list(self.scout_models),
             "auditor_models": list(self.auditor_models),
             "timeout": self.timeout,
+            "auditor_timeout": self.auditor_timeout,
         }
 
     def configure(self, groq_api_key: Optional[str] = None, gemini_api_key: Optional[str] = None) -> None:
@@ -564,7 +577,8 @@ class SentinelCouncil:
         """Blocking wrapper for Streamlit. Always returns within ~timeout + margin."""
         try:
             runner = self._ensure_runner()
-            return runner.run(self.deliberate(setup), timeout=self.timeout + 3.0)
+            margin = max(self.timeout, self.auditor_timeout) + 3.0
+            return runner.run(self.deliberate(setup), timeout=margin)
         except Exception as exc:  # noqa: BLE001 - never let the UI crash
             LOGGER.warning("council evaluate failed open: %s", exc)
             verdict = CouncilVerdict()
@@ -697,8 +711,13 @@ class SentinelCouncil:
         )
 
     async def _call_auditor(self, setup: Dict[str, Any]) -> CounselorOpinion:
+        # Dedicated budget so a single Gemini request can run up to AUDITOR_TIMEOUT
+        # (10s) instead of the ~2.5s slice the shared scout deadline used to grant.
         return await self._run_cascade(
-            "Risk Auditor", "gemini", self.auditor_models, lambda m: self._auditor_once(m, setup)
+            "Risk Auditor", "gemini", self.auditor_models,
+            lambda m: self._auditor_once(m, setup),
+            timeout=self.auditor_timeout,
+            per_call_timeout=self.auditor_timeout,
         )
 
     async def _run_cascade(
@@ -707,10 +726,18 @@ class SentinelCouncil:
         provider: str,
         models: Sequence[str],
         make_call: Callable[[str], Awaitable[CounselorOpinion]],
+        timeout: Optional[float] = None,
+        per_call_timeout: Optional[float] = None,
     ) -> CounselorOpinion:
-        """Try each model in order under one shared hard deadline. Never raises."""
+        """Try each model in order under one shared hard deadline. Never raises.
+
+        ``timeout`` overrides the shared deadline (defaults to ``self.timeout``).
+        ``per_call_timeout``, when set, caps each attempt at that many seconds
+        rather than splitting the deadline evenly across the remaining models -
+        used to give the Gemini Risk Auditor its full 10s request budget.
+        """
         cascade = list(models) or [""]
-        deadline = time.monotonic() + self.timeout
+        deadline = time.monotonic() + (timeout if timeout and timeout > 0 else self.timeout)
         attempted: List[str] = []
         last_error = ""
 
@@ -719,7 +746,10 @@ class SentinelCouncil:
             if remaining <= 0:
                 last_error = last_error or "time budget exhausted"
                 break
-            budget = remaining / max(1, len(cascade) - index)
+            if per_call_timeout and per_call_timeout > 0:
+                budget = min(remaining, per_call_timeout)
+            else:
+                budget = remaining / max(1, len(cascade) - index)
             attempted.append(model)
             try:
                 opinion = await asyncio.wait_for(make_call(model), timeout=budget)
