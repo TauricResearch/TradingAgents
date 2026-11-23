@@ -230,6 +230,50 @@ def get_insider_transactions(
 
 
 @tool
+def get_dcf_valuation(
+    ticker: Annotated[str, InjectedState("company_of_interest")],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Discounted-cash-flow valuation of the instrument under analysis, computed in code.
+    Returns free cash flow history, every assumption with its source (CAPM cost of equity,
+    WACC, growth path, terminal growth), enterprise value, equity value, value per share,
+    upside versus the last close and a WACC x terminal-growth sensitivity table. For a
+    bank or insurer it says a DCF does not apply and gives P/B, P/E and ROE instead. When
+    an input is missing or was not public on the run date it says UNAVAILABLE and why.
+    Args:
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+    Returns:
+        str: A markdown valuation report. Read its numbers; do not recompute them.
+    """
+    from tradingagents.valuation.service import dcf_report
+
+    return dcf_report(ticker, as_of(curr_date, trade_date))
+
+
+@tool
+def get_peer_multiples(
+    ticker: Annotated[str, InjectedState("company_of_interest")],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Compare the instrument's P/E, EV/EBITDA, P/S and P/B with its peers' medians and give the
+    price each median implies, computed in code. Peers come from the configured peer map or
+    the same Yahoo industry. Peer data is present-day only, so for a past run date it says
+    UNAVAILABLE and why.
+    Args:
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+    Returns:
+        str: A markdown peer-comparison report. Read its numbers; do not recompute them.
+    """
+    from tradingagents.valuation.service import peer_report
+
+    return peer_report(ticker, as_of(curr_date, trade_date))
+
+
+@tool
 def get_macro_indicators(
     indicator: Annotated[
         str,

@@ -25,6 +25,7 @@ from tradingagents.dataflows.vendors.sec_edgar import (
     get_balance_sheet as get_sec_edgar_balance_sheet,
     get_cashflow as get_sec_edgar_cashflow,
     get_income_statement as get_sec_edgar_income_statement,
+    get_valuation_inputs as get_sec_edgar_valuation_inputs,
 )
 from tradingagents.dataflows.vendors.yahoo.fundamentals import (
     get_balance_sheet as get_yfinance_balance_sheet,
@@ -38,6 +39,10 @@ from tradingagents.dataflows.vendors.yahoo.market import (
     get_YFin_data_online,
 )
 from tradingagents.dataflows.vendors.yahoo.news import get_global_news_yfinance, get_news_yfinance
+from tradingagents.dataflows.vendors.yahoo.valuation import (
+    get_peer_snapshot as get_yfinance_peer_snapshot,
+    get_valuation_inputs as get_yfinance_valuation_inputs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +75,13 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+        ]
+    },
+    "valuation_data": {
+        "description": "Raw company and peer figures for the valuation analyst (data, not text)",
+        "tools": [
+            "get_valuation_inputs",
+            "get_peer_snapshot",
         ]
     },
     "macro_data": {
@@ -137,6 +149,15 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # valuation_data: these return dicts for the valuation module, which turns a
+    # DATA_UNAVAILABLE / NO_DATA_AVAILABLE sentinel string into its own notice.
+    "get_valuation_inputs": {
+        "sec_edgar": get_sec_edgar_valuation_inputs,
+        "yfinance": get_yfinance_valuation_inputs,
+    },
+    "get_peer_snapshot": {
+        "yfinance": get_yfinance_peer_snapshot,
     },
     # macro_data
     "get_macro_indicators": {

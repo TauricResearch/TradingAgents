@@ -8,6 +8,8 @@ class AnalystType(StrEnum):
     SOCIAL = "social"
     NEWS = "news"
     FUNDAMENTALS = "fundamentals"
+    # Opt-in: never part of an unspecified "all analysts" default.
+    VALUATION = "valuation"
 
 
 class AssetType(StrEnum):

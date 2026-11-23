@@ -53,6 +53,9 @@ class AgentState(MessagesState):
     sentiment_report: Annotated[str, "Report from the Sentiment Analyst"]
     news_report: Annotated[str, "Report from the News Analyst on company and world news"]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Analyst"]
+    valuation_report: Annotated[str, "Report from the Valuation Analyst (DCF and peer multiples); empty unless selected"]
+
+    quant_risk_metrics: Annotated[str, "Quantitative Risk Metrics block computed in code before the debates; empty when the step is off"]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

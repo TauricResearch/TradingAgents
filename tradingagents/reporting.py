@@ -53,6 +53,7 @@ _SECTIONS = (
         ("Sentiment Analyst", "sentiment.md", ("sentiment_report",)),
         ("News Analyst", "news.md", ("news_report",)),
         ("Fundamentals Analyst", "fundamentals.md", ("fundamentals_report",)),
+        ("Valuation Analyst", "valuation.md", ("valuation_report",)),
     )),
     ("II. Research Team Decision", "2_research", (
         ("Bull Researcher", "bull.md", ("investment_debate_state", "bull_history")),
@@ -63,6 +64,7 @@ _SECTIONS = (
         ("Trader", "trader.md", ("trader_investment_plan",)),
     )),
     ("IV. Risk Management Team Decision", "4_risk", (
+        ("Quantitative Risk Metrics", "quant_risk.md", ("quant_risk_metrics",)),
         ("Aggressive Analyst", "aggressive.md", ("risk_debate_state", "aggressive_history")),
         ("Conservative Analyst", "conservative.md", ("risk_debate_state", "conservative_history")),
         ("Neutral Analyst", "neutral.md", ("risk_debate_state", "neutral_history")),

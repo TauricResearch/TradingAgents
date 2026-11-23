@@ -80,6 +80,7 @@ Our framework decomposes complex trading tasks into specialized roles.
 - Sentiment Analyst: Aggregates news headlines, StockTwits, and Reddit chatter into a single sentiment read to gauge short-term market mood.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
+- Valuation Analyst (opt-in): Reads a DCF and peer-multiple valuation computed in code, with its assumptions and sensitivity table. See [Valuation and risk metrics](#valuation-and-risk-metrics).
 
 The selected analysts work at the same time, each on its own tools, and the research debate starts once all of their reports are in.
 
@@ -225,6 +226,7 @@ TradingAgents works with any market Yahoo Finance covers, using the exchange-suf
 - Hong Kong: `0700.HK` · Tokyo: `7203.T` · London: `AZN.L`
 - India: `RELIANCE.NS`, `.BO` · Canada: `.TO` · Australia: `.AX`
 - China A-shares: Shanghai `.SS`, Shenzhen `.SZ` (e.g. `600519.SS` for Kweichow Moutai)
+- Gulf: Saudi `.SR` (e.g. `2222.SR`), Dubai `.AE`, Qatar `.QA`, Kuwait `.KW`, Bahrain `.BH`. Alpha and beta use USD-listed MSCI country ETFs as benchmarks where Yahoo has no index history; see [docs/ANALYST_UPGRADES.md](docs/ANALYST_UPGRADES.md#3-gulf-markets).
 - Crypto: `BTC-USD`, `ETH-USD`
 
 <p align="center">
@@ -309,6 +311,19 @@ SEC_EDGAR_USER_AGENT="Your Name your@email.com"
 
 It covers companies that file with the SEC, including foreign companies listed in the US. Anything else, such as Hong Kong or A-share listings, falls through to the next vendor in the chain. EDGAR's machine-readable filings begin in 2009, and a fourth quarter is reported as unavailable rather than derived, because filers publish it only inside the annual figure.
 
+### Valuation and risk metrics
+
+Two additions make the agents reason with numbers computed in code, never by a model. Each formula, with a worked example, is in [docs/ANALYST_UPGRADES.md](docs/ANALYST_UPGRADES.md).
+
+- **Valuation analyst.** Select it with `--analysts valuation`. It reads a five-year DCF (CAPM and market-weighted WACC, a WACC × terminal-growth sensitivity table, every assumption listed) and peer-median multiples, and its report reaches the researchers and managers. Banks and insurers get P/B, P/E and ROE instead of a DCF. US figures are SEC EDGAR as filed; a figure that cannot be computed or was not public on the run date is reported as unavailable, with the reason, never estimated.
+- **Risk metrics.** Before the risk debate a computed step adds volatility, beta, drawdown, VaR and CVaR, Sharpe and Sortino, an ATR stop and a volatility-scaled position size to the trader's, risk debators' and portfolio manager's prompts and to the saved reports. It is on by default; `risk_metrics_risk_per_position` (default 1% of the book) sets the sizing, and `TRADINGAGENTS_RISK_METRICS_ENABLED=false` turns it off.
+
+```bash
+tradingagents --ticker AAPL --date 2026-11-06 --analysts market,fundamentals,valuation --save
+```
+
+A past run date withholds non-US company figures and peer multiples, since Yahoo cannot say what was public then. Name your own peers with `valuation_peer_map` rather than relying on Yahoo's industry list.
+
 ### Current holdings
 
 By default the agents do not know what you hold, so their guidance is written for a reader who applies it to their own position. Pass a portfolio to have the trader, the risk analysts and the portfolio manager work against your actual book.
@@ -377,6 +392,24 @@ tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 ```
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. A decision is entered at the first close after its date, because a run reads news published after that day's close. Your own memory log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
+
+### Research platform
+
+For studying the agents over many runs, `research_platform` adds a local dashboard and
+CLI: run a watchlist, keep every decision with its risk-based size and stop, score the
+ratings against later prices, and follow them with a paper portfolio. No broker and no
+orders. It defaults to Anthropic models when no provider is set.
+
+```bash
+pip install -e ".[platform]"
+tradingagents-platform dashboard
+tradingagents-platform run AAPL MSFT 2222.SR
+tradingagents-platform scorecard
+tradingagents-platform paper --cash 100000
+```
+
+How the scorecard and the simulation are computed is in
+[docs/RESEARCH_PLATFORM.md](docs/RESEARCH_PLATFORM.md).
 
 ## Reproducibility
 

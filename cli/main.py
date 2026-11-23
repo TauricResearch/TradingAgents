@@ -111,7 +111,7 @@ def backtest(
     end: str = typer.Option(..., "--end", help="Last analysis date, YYYY-MM-DD"),
     every: int = typer.Option(7, "--every", help="Days between analysis dates"),
     analysts: str = typer.Option(
-        None, "--analysts", help="Comma-separated analysts to run: market, sentiment, news, fundamentals; omit for all the asset type allows"
+        None, "--analysts", help="Comma-separated analysts to run: market, sentiment, news, fundamentals, valuation; omit for every analyst but valuation the asset type allows"
     ),
     asset_type: str = typer.Option("stock", "--asset-type", help="stock or crypto"),
     portfolio: str = typer.Option(
@@ -128,9 +128,10 @@ def backtest(
         book = load_portfolio(portfolio) if portfolio else None
         kind = AssetType(asset_type.strip().lower())
         # The analysts are named and checked as for an analysis; without a
-        # choice, every analyst the asset type allows runs.
+        # choice, every analyst the asset type allows runs, except the opt-in valuation analyst.
         chosen = (parse_analysts(analysts, kind) if analysts
-                  else filter_analysts_for_asset_type(list(AnalystType), kind))
+                  else filter_analysts_for_asset_type(
+                      [a for a in AnalystType if a != AnalystType.VALUATION], kind))
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from None

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from tradingagents.agents.context import get_instrument_context_from_state, get_language_instruction
+from tradingagents.agents.context import (
+    get_instrument_context_from_state,
+    get_language_instruction,
+    valuation_block,
+)
 from tradingagents.agents.schemas import ResearchPlan, render_research_plan
 from tradingagents.agents.structured import (
     NO_EXTERNAL_TOOLS,
@@ -19,6 +23,11 @@ def create_research_manager(llm):
         history = state["investment_debate_state"].get("history", "")
 
         investment_debate_state = state["investment_debate_state"]
+        valuation = valuation_block(state)
+        valuation_section = (
+            f"{valuation}Weigh the valuation evidence with the debate; where it says UNAVAILABLE, "
+            f"treat it as unknown, not as neutral.\n\n" if valuation else ""
+        )
 
         prompt = f"""As the Research Manager and debate facilitator, your role is to critically evaluate this round of debate and deliver a clear, actionable investment plan for the trader.
 
@@ -37,7 +46,7 @@ The debate always contains conflicting arguments; deciding which side is stronge
 
 ---
 
-**Debate History:**
+{valuation_section}**Debate History:**
 {history}
 
 ## Output

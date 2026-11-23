@@ -23,6 +23,15 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_CHECKPOINT_ENABLED":   "checkpoint_enabled",
     "TRADINGAGENTS_BENCHMARK_TICKER":     "benchmark_ticker",
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
+    # Quantitative risk metrics; see docs/ANALYST_UPGRADES.md.
+    "TRADINGAGENTS_RISK_METRICS_ENABLED":           "risk_metrics_enabled",
+    "TRADINGAGENTS_RISK_METRICS_RISK_PER_POSITION": "risk_metrics_risk_per_position",
+    "TRADINGAGENTS_RISK_METRICS_ATR_MULTIPLE":      "risk_metrics_atr_multiple",
+    # Valuation analyst (DCF + peer multiples); see docs/ANALYST_UPGRADES.md.
+    "TRADINGAGENTS_VALUATION_ENABLED":            "valuation_enabled",
+    "TRADINGAGENTS_VALUATION_RISK_FREE_RATE":     "valuation_risk_free_rate",
+    "TRADINGAGENTS_VALUATION_EQUITY_RISK_PREMIUM": "valuation_equity_risk_premium",
+    "TRADINGAGENTS_VALUATION_TERMINAL_GROWTH":    "valuation_terminal_growth",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
@@ -164,6 +173,9 @@ def build_default_config() -> dict:
             "news_data": "yfinance",             # Options: alpha_vantage, yfinance
             "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
+            # Raw inputs for the valuation analyst: SEC EDGAR as filed (US filers),
+            # then Yahoo (present-day runs only). Peer data is Yahoo only.
+            "valuation_data": "sec_edgar,yfinance",  # Options: sec_edgar, yfinance
         },
         # Tool-level configuration (takes precedence over category-level)
         "tool_vendors": {
@@ -200,8 +212,62 @@ def build_default_config() -> dict:
             ".SS":  "000001.SS",   # Shanghai (SSE Composite)
             ".SZ":  "399001.SZ",   # Shenzhen (SZSE Component)
             ".SA":  "^BVSP",       # B3 Brazil (Ibovespa)
+            # Gulf markets. Yahoo lists the local indices (^TASI.SR, DFMGI.AE, ^GNRI.QA,
+            # ^BKA.KW) but serves only their latest quote, never a history, so alpha and
+            # beta cannot be computed from them and a decision would stay pending for good.
+            # The USD-listed MSCI country ETFs have full daily history and stand in:
+            # their returns are in USD, which the riyal, dirham and riyal pegs make
+            # close to local returns (the dinar is a managed basket peg). Bahrain has
+            # no ETF and Yahoo lists no Abu Dhabi suffix, so those fall to the "" default
+            # or ``benchmark_ticker``.
+            ".SR":  "KSA",         # Saudi Tadawul (iShares MSCI Saudi Arabia ETF)
+            ".AE":  "UAE",         # Dubai Financial Market (iShares MSCI UAE ETF)
+            ".QA":  "QAT",         # Qatar Exchange (iShares MSCI Qatar ETF)
+            ".KW":  "KWT",         # Boursa Kuwait (iShares MSCI Kuwait ETF)
             "":     "SPY",         # default for US-listed tickers (no suffix)
         },
+
+        # --- Quantitative risk metrics (a computed step before the risk debate) --
+        # Off leaves every prompt and report exactly as before.
+        "risk_metrics_enabled": True,
+        "risk_metrics_window_days": 365,          # the year ending on the run date
+        "risk_metrics_var_confidence": 0.95,
+        "risk_metrics_atr_window": 14,
+        "risk_metrics_atr_multiple": 2.0,         # stop distance, in ATRs
+        # Share of the book lost if the ATR stop is hit; sets the position size.
+        "risk_metrics_risk_per_position": 0.01,
+        # Largest position as a share of the book (1.0 = no leverage).
+        "risk_metrics_max_position_pct": 1.0,
+        # Sharpe/Sortino risk-free rate: this FRED series (3-month Treasury bill), else the default.
+        "risk_metrics_risk_free_series": "DTB3",
+        "risk_metrics_use_fred_risk_free": True,
+        "risk_metrics_risk_free_rate": 0.04,
+
+        # --- Valuation analyst (DCF + peer multiples) -------------------------
+        # The "valuation" analyst runs only when selected (--analysts valuation);
+        # set this False to refuse the selection and leave every run unchanged.
+        "valuation_enabled": True,
+        # Risk-free rate used when FRED's 10y Treasury cannot be read (no
+        # FRED_API_KEY, or the vendor is down). The report says which one it used.
+        "valuation_risk_free_rate": 0.04,
+        "valuation_use_fred_risk_free": True,
+        "valuation_equity_risk_premium": 0.055,
+        "valuation_terminal_growth": 0.025,
+        "valuation_forecast_years": 5,
+        # Years of weekly returns for beta against the regional benchmark.
+        "valuation_beta_years": 2,
+        # Used only when a company's effective tax rate cannot be computed.
+        "valuation_tax_rate_default": 0.21,
+        # Initial FCF growth comes from history, clamped to this range; when
+        # history cannot give a usable figure, ``valuation_default_growth`` is
+        # used and the report says so.
+        "valuation_growth_floor": -0.05,
+        "valuation_growth_cap": 0.25,
+        "valuation_default_growth": 0.05,
+        # Optional peer map, ticker -> peers, e.g. {"2222.SR": ["1120.SR", "2010.SR"]}.
+        # Without an entry, peers are the same Yahoo industry's largest companies.
+        "valuation_peer_map": {},
+        "valuation_max_peers": 8,
 
     })
 

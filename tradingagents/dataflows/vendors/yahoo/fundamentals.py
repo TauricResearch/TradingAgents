@@ -2,6 +2,7 @@ from typing import Annotated
 
 import yfinance as yf
 
+from tradingagents.dataflows.currencies import MINOR_UNITS, currency_for_symbol
 from tradingagents.dataflows.date_window import (
     withhold_live_profile,
     withhold_undated_statements,
@@ -17,7 +18,7 @@ from tradingagents.dataflows.vendors.yahoo.common import (
 )
 
 # Quote currencies Yahoo gives in a minor unit, and the main unit of each.
-_MAIN_UNIT = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
+_MAIN_UNIT = {code: main for code, (main, _) in MINOR_UNITS.items()}
 
 
 def get_fundamentals(
@@ -52,7 +53,9 @@ def get_fundamentals(
     # and P/B are computed against them; income figures in the currency the
     # company reports in (an ADR quotes in USD, reports in TWD), or bare when
     # Yahoo does not say which.
-    quote = info.get("currency")
+    # Yahoo names no quote currency for some listings (Bahrain's); the market's own
+    # is used there, and none is guessed for a market that is not known.
+    quote = info.get("currency") or currency_for_symbol(canonical)
     main = _MAIN_UNIT.get(quote, quote)
     reported = info.get("financialCurrency")
 
