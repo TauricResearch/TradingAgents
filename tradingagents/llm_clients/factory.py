@@ -106,6 +106,10 @@ def build_llm_kwargs(config: dict) -> dict[str, Any]:
         if reasoning_effort:
             kwargs["reasoning_effort"] = reasoning_effort
 
+    elif provider == "openai_compatible":
+        if config.get("openai_compatible_use_responses_api"):
+            kwargs["use_responses_api"] = True
+
     elif provider == "anthropic":
         effort = config.get("anthropic_effort")
         if effort:

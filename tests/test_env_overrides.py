@@ -24,6 +24,7 @@ def test_no_env_uses_built_in_defaults(monkeypatch):
     assert config["deep_think_llm"] == "gpt-6-sol"
     assert config["quick_think_llm"] == "gpt-6-luna"
     assert config["backend_url"] is None
+    assert config["openai_compatible_use_responses_api"] is False
     assert config["max_debate_rounds"] == 1
     assert config["checkpoint_enabled"] is False
 
@@ -79,6 +80,14 @@ def test_reasoning_thinking_overrides(monkeypatch):
     assert config["openai_reasoning_effort"] == "high"
     assert config["google_thinking_level"] == "minimal"
     assert config["anthropic_effort"] == "low"
+
+
+@pytest.mark.parametrize("raw,expected", [("true", True), ("false", False)])
+def test_openai_compatible_responses_api_override(monkeypatch, raw, expected):
+    config = _config_with_env(
+        monkeypatch, TRADINGAGENTS_OPENAI_COMPATIBLE_USE_RESPONSES_API=raw
+    )
+    assert config["openai_compatible_use_responses_api"] is expected
 
 
 def test_reasoning_effort_defaults_to_none(monkeypatch):
