@@ -147,6 +147,87 @@ def add_indicators(df: pd.DataFrame, ema_fast: int = 50, ema_slow: int = 200, rs
     return out
 
 
+def _to_float(value: Any) -> Optional[float]:
+    """Best-effort ``float`` coercion; ``None`` when the value is missing/blank."""
+    try:
+        return None if value is None else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def market_context(
+    df: Optional[pd.DataFrame],
+    tick: Optional[Dict[str, Any]] = None,
+    *,
+    symbol: str = "",
+    timeframe: str = "",
+    bars: int = 10,
+    digits: Optional[int] = None,
+    ema_fast: int = 50,
+    ema_slow: int = 200,
+    rsi_period: int = 14,
+) -> Dict[str, Any]:
+    """Compact, prompt-ready market snapshot for the Sentinel Council.
+
+    Retail MetaTrader 5 FX exposes **no centralised orderbook / depth of market**, so
+    the closest available liquidity read is the terminal's best bid/ask (and the
+    spread between them) alongside the most recent OHLCV candles - never a depth
+    book. The mapping is JSON-friendly and is rendered verbatim into *both* the Scout
+    and Risk Auditor prompts (via :func:`sentinel_council._format_setup`) so neither
+    model reports missing or insufficient technical data.
+
+    Returns ``{"symbol","timeframe","bid","ask","spread","indicators","recent_candles"}``.
+    """
+    nd = int(digits) if digits is not None else 6
+    context: Dict[str, Any] = {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "bid": None,
+        "ask": None,
+        "spread": None,
+        "indicators": {},
+        "recent_candles": [],
+    }
+
+    if tick:
+        bid = _to_float(tick.get("bid"))
+        ask = _to_float(tick.get("ask"))
+        spread = _to_float(tick.get("spread"))
+        if spread is None and bid is not None and ask is not None:
+            spread = ask - bid
+        context["bid"] = round(bid, nd) if bid is not None else None
+        context["ask"] = round(ask, nd) if ask is not None else None
+        context["spread"] = round(spread, nd) if spread is not None else None
+
+    if df is not None and not df.empty:
+        last = df.iloc[-1]
+        close = float(last["close"])
+        context["indicators"] = {
+            "close": round(close, nd),
+            f"ema{ema_fast}": round(float(last.get(f"ema{ema_fast}", close)), nd),
+            f"ema{ema_slow}": round(float(last.get(f"ema{ema_slow}", close)), nd),
+            f"rsi{rsi_period}": round(float(last.get(f"rsi{rsi_period}", 50.0)), 2),
+            "atr14": round(float(last.get("atr14", 0.0)), nd),
+        }
+        tail = df.tail(max(1, int(bars)))
+        for _, row in tail.iterrows():
+            stamp = row.get("time")
+            if hasattr(stamp, "isoformat"):
+                stamp = stamp.isoformat()
+            context["recent_candles"].append(
+                {
+                    "time": stamp,
+                    "open": round(float(row["open"]), nd),
+                    "high": round(float(row["high"]), nd),
+                    "low": round(float(row["low"]), nd),
+                    "close": round(float(row["close"]), nd),
+                    "volume": _to_float(row.get("volume")),
+                }
+            )
+
+    return context
+
+
 # --------------------------------------------------------------------------- #
 # Client
 # --------------------------------------------------------------------------- #
@@ -553,6 +634,7 @@ __all__ = [
     "SymbolSpec",
     "load_mt5",
     "add_indicators",
+    "market_context",
     "DEFAULT_SYMBOLS",
     "TIMEFRAMES",
 ]

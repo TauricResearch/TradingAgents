@@ -47,7 +47,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st  # noqa: E402
 
-from data_fetcher import TIMEFRAMES, MT5Client, SymbolSpec  # noqa: E402
+from data_fetcher import TIMEFRAMES, MT5Client, SymbolSpec, market_context  # noqa: E402
 from sentinel_council import (  # noqa: E402
     ACCOUNT_SIZE_MAX_USD,
     ACCOUNT_SIZE_USD,
@@ -74,6 +74,7 @@ CANDLES = 300
 EMA_FAST = 50
 EMA_SLOW = 200
 RSI_PERIOD = 14
+MARKET_BARS = 10
 DEFAULT_STOP_ATR = 1.5
 DEFAULT_TARGET_RRR = 2.0
 DEFAULT_PROFIT_TARGET = DAILY_PROFIT_TARGET_USD   # +$50 (tunable in the +$50..+$100 band)
@@ -102,6 +103,7 @@ def build_setup(
     symbol: str,
     daily_pnl: float,
     trades_today: int,
+    timeframe: str = "",
     now: Optional[datetime] = None,
     stop_atr_mult: float = DEFAULT_STOP_ATR,
     target_rrr: float = DEFAULT_TARGET_RRR,
@@ -146,11 +148,10 @@ def build_setup(
         "entry": round(entry, spec.digits),
         "stop": round(stop, spec.digits),
         "take_profit": round(tp, spec.digits),
-        "close": round(close, spec.digits),
-        f"ema{ema_fast}": round(ema_f, spec.digits),
-        f"ema{ema_slow}": round(ema_s, spec.digits),
-        f"rsi{rsi_period}": round(rsi, 2),
-        "atr14": round(atr, spec.digits),
+        "market": market_context(
+            df, tick, symbol=symbol, timeframe=timeframe, bars=MARKET_BARS,
+            digits=spec.digits, ema_fast=ema_fast, ema_slow=ema_slow, rsi_period=rsi_period,
+        ),
         "value_per_unit": spec.value_per_price_unit_per_lot,
         "min_lot": spec.min_lot,
         "max_lot": spec.max_lot,
@@ -558,7 +559,7 @@ def render_page(params: Dict[str, Any], client: MT5Client) -> None:
     now = datetime.now(timezone.utc)
     setup = build_setup(
         df, spec, tick, symbol=symbol, daily_pnl=params["daily_pnl"],
-        trades_today=params["trades_today"], now=now,
+        trades_today=params["trades_today"], timeframe=timeframe, now=now,
         stop_atr_mult=params["stop_atr"], target_rrr=params["target_rrr"],
         profit_target=params["profit_target"],
     )
@@ -639,7 +640,10 @@ def run_once() -> int:
         df = client.fetch_frame(symbol, DEFAULT_TIMEFRAME, CANDLES)
         spec = client.spec(symbol)
         tick = client.tick(symbol)
-        setup = build_setup(df, spec, tick, symbol=symbol, daily_pnl=0.0, trades_today=0, now=now)
+        setup = build_setup(
+            df, spec, tick, symbol=symbol, daily_pnl=0.0, trades_today=0,
+            timeframe=DEFAULT_TIMEFRAME, now=now,
+        )
         assessment = RISK_ENGINE.assess(setup)
         print(
             f"{symbol:7s} rows={len(df):4d} bid={tick['bid']:.{spec.digits}f} ask={tick['ask']:.{spec.digits}f} "
@@ -652,7 +656,8 @@ def run_once() -> int:
         build_setup(
             client.fetch_frame(DEFAULT_SYMBOL, DEFAULT_TIMEFRAME, CANDLES),
             client.spec(DEFAULT_SYMBOL), client.tick(DEFAULT_SYMBOL),
-            symbol=DEFAULT_SYMBOL, daily_pnl=0.0, trades_today=0, now=now,
+            symbol=DEFAULT_SYMBOL, daily_pnl=0.0, trades_today=0,
+            timeframe=DEFAULT_TIMEFRAME, now=now,
         )
     )
     print(f"Council: verdict={verdict.verdict} approved={verdict.approved} degraded={verdict.degraded}")

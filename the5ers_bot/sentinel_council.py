@@ -39,10 +39,12 @@ model on any API error, rate-limit or timeout:
 * Risk Auditor (Gemini): ``gemini-2.5-flash`` -> ``gemini-2.5-flash-lite`` -> ``gemini-3.8-flash``
 
 The Scout cascade runs under one hard deadline (``DEFAULT_TIMEOUT`` = 8s); the Gemini
-Risk Auditor gets its own, more generous budget (``AUDITOR_TIMEOUT`` = 10s) so a
-spiky ``generate_content`` call is not cut off prematurely. If a provider dies
-outright the survivor carries the verdict; if both fail (or keys are absent) the
-council fails open and the deterministic :class:`RiskEngine` alone decides.
+Risk Auditor gets its own, far more generous budget (``AUDITOR_TIMEOUT`` = 30s) and a
+model fallback chain, so a spiky or transiently-unavailable ``generate_content`` call
+is retried against the next Gemini model instead of being cut off prematurely or
+marked unavailable. If a provider dies outright the survivor carries the verdict; if
+both fail (or keys are absent) the council fails open and the deterministic
+:class:`RiskEngine` alone decides.
 """
 
 from __future__ import annotations
@@ -62,11 +64,12 @@ LOGGER = logging.getLogger("copilot.council")
 
 DEFAULT_TIMEOUT = 8.0
 
-# The Gemini Risk Auditor gets its own, more generous request budget: Gemini's
-# generate_content latency is spikier than Groq's, and the old shared
-# DEFAULT_TIMEOUT/len(cascade) split gave each auditor model only ~2.5s, which
-# timed out prematurely. 10s lets a single Gemini call finish comfortably.
-AUDITOR_TIMEOUT = 10.0
+# The Gemini Risk Auditor gets its own, far more generous request budget: Gemini's
+# ``generate_content`` latency is spikier than Groq's and it can surface transient
+# 503 UNAVAILABLE / rate-limit errors. The shared DEFAULT_TIMEOUT/len(cascade) split
+# used to hand each auditor model only ~2.5s and timed out prematurely; 30s lets a
+# single Gemini request finish comfortably before the cascade falls back.
+AUDITOR_TIMEOUT = 30.0
 
 # --------------------------------------------------------------------------- #
 # Risk rules - The5ers Bootcamp ($5,000 demo, scaling to $20,000)
@@ -577,7 +580,8 @@ class SentinelCouncil:
         """Blocking wrapper for Streamlit. Always returns within ~timeout + margin."""
         try:
             runner = self._ensure_runner()
-            margin = max(self.timeout, self.auditor_timeout) + 3.0
+            auditor_window = self.auditor_timeout * max(1, len(self.auditor_models))
+            margin = max(self.timeout, auditor_window) + 3.0
             return runner.run(self.deliberate(setup), timeout=margin)
         except Exception as exc:  # noqa: BLE001 - never let the UI crash
             LOGGER.warning("council evaluate failed open: %s", exc)
@@ -711,12 +715,17 @@ class SentinelCouncil:
         )
 
     async def _call_auditor(self, setup: Dict[str, Any]) -> CounselorOpinion:
-        # Dedicated budget so a single Gemini request can run up to AUDITOR_TIMEOUT
-        # (10s) instead of the ~2.5s slice the shared scout deadline used to grant.
+        # Dedicated, generous budget: each Gemini request may run up to
+        # AUDITOR_TIMEOUT (30s) and, on a 503 UNAVAILABLE / rate-limit / timeout /
+        # any error, the cascade automatically falls through to the next Gemini
+        # model before the auditor is marked unavailable. The cascade window is the
+        # per-request budget times the number of models so a hung primary still
+        # leaves time for its fallbacks.
+        cascade_window = self.auditor_timeout * max(1, len(self.auditor_models))
         return await self._run_cascade(
             "Risk Auditor", "gemini", self.auditor_models,
             lambda m: self._auditor_once(m, setup),
-            timeout=self.auditor_timeout,
+            timeout=cascade_window,
             per_call_timeout=self.auditor_timeout,
         )
 
@@ -835,10 +844,40 @@ def _clamp_confidence(value: Any) -> float:
     return max(0.0, min(1.0, number))
 
 
+def _format_market(market: Dict[str, Any]) -> str:
+    """Render the :func:`data_fetcher.market_context` snapshot into a readable block."""
+    scope = [str(x) for x in (market.get("symbol"), market.get("timeframe")) if x]
+    title = "Market snapshot" + (f" ({', '.join(scope)})" if scope else "")
+    lines = [f"{title}:"]
+
+    quotes = [f"{k}={market[k]}" for k in ("bid", "ask", "spread") if market.get(k) is not None]
+    if quotes:
+        lines.append("- quotes: " + ", ".join(quotes) + "  [retail FX has no orderbook depth]")
+
+    indicators = market.get("indicators") or {}
+    if indicators:
+        lines.append("- indicators: " + ", ".join(f"{k}={v}" for k, v in indicators.items()))
+
+    candles = market.get("recent_candles") or []
+    if candles:
+        lines.append(f"- recent OHLCV candles (last {len(candles)}, oldest -> newest):")
+        for c in candles:
+            lines.append(
+                f"    {c.get('time', '')}  O={c.get('open')} H={c.get('high')} "
+                f"L={c.get('low')} C={c.get('close')} V={c.get('volume')}"
+            )
+    return "\n".join(lines)
+
+
 def _format_setup(setup: Dict[str, Any]) -> str:
-    return "Trade setup under review:\n" + "\n".join(
-        f"- {k}: {v}" for k, v in setup.items() if v is not None and k not in {"now", "spec"}
-    )
+    skip = {"now", "spec", "market"}
+    lines = ["Trade setup under review:"]
+    lines += [f"- {k}: {v}" for k, v in setup.items() if v is not None and k not in skip]
+    market = setup.get("market")
+    if isinstance(market, dict) and market:
+        lines.append("")
+        lines.append(_format_market(market))
+    return "\n".join(lines)
 
 
 def _opinion_from_text(role: str, provider: str, model: str, text: str) -> CounselorOpinion:
@@ -876,6 +915,7 @@ __all__ = [
     "SCOUT_MODELS",
     "AUDITOR_MODELS",
     "DEFAULT_TIMEOUT",
+    "AUDITOR_TIMEOUT",
     "ACCOUNT_SIZE_USD",
     "ACCOUNT_SIZE_MAX_USD",
     "RISK_PER_TRADE_USD",
