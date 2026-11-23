@@ -392,6 +392,8 @@ class OpenAIClient(BaseLLMClient):
             # only speaks Chat Completions, so keep Responses off there (#1024).
             if spec.use_responses_api and _is_native_openai_base_url(base_url):
                 llm_kwargs["use_responses_api"] = True
+            elif self.provider == "openai_compatible" and self.kwargs.get("use_responses_api"):
+                llm_kwargs["use_responses_api"] = True
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 

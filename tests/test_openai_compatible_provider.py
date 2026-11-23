@@ -8,7 +8,7 @@ model name is accepted, and the env backend URL precedence (#978).
 import pytest
 
 from tradingagents.llm_clients.api_key_env import get_api_key_env
-from tradingagents.llm_clients.factory import create_llm_client
+from tradingagents.llm_clients.factory import build_llm_kwargs, create_llm_client
 from tradingagents.llm_clients.openai_client import LocalCompatibleChatOpenAI, OpenAIClient
 from tradingagents.llm_clients.validators import validate_model
 
@@ -42,6 +42,21 @@ def test_keyless_local_uses_placeholder_and_chat_completions(monkeypatch):
     # must use Chat Completions, not OpenAI's Responses API
     assert getattr(llm, "use_responses_api", False) in (False, None)
 
+
+@pytest.mark.unit
+def test_responses_api_is_opt_in_through_config():
+    config = {
+        "llm_provider": "openai_compatible",
+        "openai_compatible_use_responses_api": True,
+    }
+    kwargs = build_llm_kwargs(config)
+    llm = create_llm_client(
+        provider="openai_compatible",
+        model="gpt-6-luna",
+        base_url="https://relay.example/v1",
+        **kwargs,
+    ).get_llm()
+    assert llm.use_responses_api is True
 
 @pytest.mark.unit
 def test_optional_key_from_env(monkeypatch):
