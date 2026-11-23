@@ -41,15 +41,20 @@ dev = [
 bedrock = [
     "langchain-aws>=1.7.9",
 ]
+# The research platform's dashboard: pip install ".[platform]".
+platform = [
+    "streamlit>=1.40",
+]
 
 [project.scripts]
 tradingagents = "cli.main:app"
+tradingagents-platform = "research_platform.commands:app"
 
 [tool.setuptools.dynamic]
 version = {attr = "tradingagents.__version__"}
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*", "cli*", "research_platform*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]

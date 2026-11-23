@@ -69,6 +69,14 @@ def risk_block(ticker: str, as_of: str, asset_type: str = "stock", cfg: dict | N
         return unavailable(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
 
+def compute_metrics(ticker: str, as_of: str, asset_type: str = "stock", cfg: dict | None = None) -> rm.RiskMetrics:
+    """The metrics themselves, for callers that need the numbers rather than the text.
+
+    Raises ``RiskMetricsError`` or ``VendorError`` when an input is missing.
+    """
+    return _compute(ticker, as_of, asset_type, cfg or get_config())
+
+
 def _compute(ticker: str, as_of: str, asset_type: str, cfg: dict):
     days = int(cfg["risk_metrics_window_days"])
     bars = get_final_bars(ticker, as_of, days)

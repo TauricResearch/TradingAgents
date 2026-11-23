@@ -393,6 +393,24 @@ tradingagents backtest NVDA,AAPL --start 2026-06-01 --end 2026-08-01 --every 7
 
 Each cell is scored on realized alpha against the instrument's regional benchmark, grouped by rating. A decision is entered at the first close after its date, because a run reads news published after that day's close. Your own memory log is never written to, and re-running the same grid with `run_id=result.run_id` skips the cells that already ran, so an interrupted sweep continues where it stopped.
 
+### Research platform
+
+For studying the agents over many runs, `research_platform` adds a local dashboard and
+CLI: run a watchlist, keep every decision with its risk-based size and stop, score the
+ratings against later prices, and follow them with a paper portfolio. No broker and no
+orders. It defaults to Anthropic models when no provider is set.
+
+```bash
+pip install -e ".[platform]"
+tradingagents-platform dashboard
+tradingagents-platform run AAPL MSFT 2222.SR
+tradingagents-platform scorecard
+tradingagents-platform paper --cash 100000
+```
+
+How the scorecard and the simulation are computed is in
+[docs/RESEARCH_PLATFORM.md](docs/RESEARCH_PLATFORM.md).
+
 ## Reproducibility
 
 TradingAgents is LLM-driven, so two runs of the same ticker and date can differ. This is expected for a research tool built on language models, not a defect. The variation comes from a few distinct sources, and it helps to separate them.
