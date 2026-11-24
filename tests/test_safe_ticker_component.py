@@ -41,7 +41,7 @@ class TestSafeTickerComponent(unittest.TestCase):
     def test_rejects_dot_only_values(self):
         # '.' and '..' pass the regex but traverse when used as a path
         # component (e.g. ``Path(results_dir) / ticker / "logs"``).
-        for bad in (".", "..", "...", "...."):
+        for bad in (".", "..", "...", "....", ".env", ".hidden", "a..b"):
             with self.assertRaises(ValueError):
                 safe_ticker_component(bad)
 
