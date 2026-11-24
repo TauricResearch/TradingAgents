@@ -1,16 +1,14 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
 name: Feature request
-description: A capability TradingAgents lacks, or a change to how it works.
-labels: ["enhancement"]
+description: Suggest a change to TradingAgents.
+labels: [enhancement]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Any OpenAI-compatible endpoint already works through the `openai_compatible` provider, and OpenRouter serves many hosted models, so a new LLM provider is often not needed.
   - type: textarea
     id: problem
     attributes:
       label: The problem
-      description: What you are trying to do, and where TradingAgents falls short today.
+      description: What you are trying to do, and what gets in the way.
     validations:
       required: true
   - type: textarea
@@ -22,4 +20,5 @@ body:
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
+      label: Alternatives
+      description: Other ways to solve it, and how you work around it now.

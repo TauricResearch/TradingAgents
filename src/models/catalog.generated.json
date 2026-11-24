@@ -1,0 +1,289 @@
+{
+  "anthropic/claude-fable-5-2": {
+    "name": "Claude Fable 5.2",
+    "context": 1000000,
+    "output": 128000,
+    "cost": {
+      "input": 8,
+      "output": 40
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "anthropic/claude-haiku-5-5": {
+    "name": "Claude Haiku 5.5",
+    "context": 1000000,
+    "output": 128000,
+    "cost": {
+      "input": 0.1,
+      "output": 0.5
+    },
+    "reasoning": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "anthropic/claude-opus-5-5": {
+    "name": "Claude Opus 5.5",
+    "context": 1000000,
+    "output": 128000,
+    "cost": {
+      "input": 4,
+      "output": 20
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "anthropic/claude-sonnet-5-5": {
+    "name": "Claude Sonnet 5.5",
+    "context": 1000000,
+    "output": 128000,
+    "cost": {
+      "input": 2,
+      "output": 10
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "deepseek/deepseek-flash": {
+    "name": "DeepSeek V4.1 Flash 1017",
+    "context": 1048576,
+    "output": 393216,
+    "cost": {
+      "input": 0.15,
+      "output": 0.6
+    },
+    "reasoning": [
+      "none",
+      "low",
+      "high",
+      "max"
+    ]
+  },
+  "deepseek/deepseek-v4-pro": {
+    "name": "DeepSeek V4 Pro",
+    "context": 1048576,
+    "output": 393216,
+    "cost": {
+      "input": 0.66,
+      "output": 1.98
+    },
+    "reasoning": [
+      "none",
+      "low",
+      "high",
+      "max"
+    ]
+  },
+  "google/gemini-4-argon": {
+    "name": "Gemini 4 Argon",
+    "context": 1048576,
+    "output": 32768,
+    "cost": {
+      "input": 2,
+      "output": 10
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "google/gemini-4-carbon": {
+    "name": "Gemini 4 Carbon",
+    "context": 1048576,
+    "output": 32768,
+    "cost": {
+      "input": 2,
+      "output": 10
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "google/gemini-4-hydrogen": {
+    "name": "Gemini 4 Hydrogen",
+    "context": 1048576,
+    "output": 65536,
+    "cost": {
+      "input": 1.5,
+      "output": 7.5
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ]
+  },
+  "google/gemini-4-neon": {
+    "name": "Gemini 4 Neon",
+    "context": 1048576,
+    "output": 65536,
+    "cost": {
+      "input": 3,
+      "output": 15
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ]
+  },
+  "openai/gpt-6-luna": {
+    "name": "GPT-6 Luna",
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000,
+    "cost": {
+      "input": 0.1,
+      "output": 0.5
+    },
+    "reasoning": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "openai/gpt-6.1-terra": {
+    "name": "GPT-6.1 Terra",
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000,
+    "cost": {
+      "input": 1,
+      "output": 5
+    },
+    "reasoning": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "openai/gpt-6.2-astra": {
+    "name": "GPT-6.2 Astra",
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000,
+    "cost": {
+      "input": 8,
+      "output": 40
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "openai/gpt-6.2-sol": {
+    "name": "GPT-6.2 Sol",
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000,
+    "cost": {
+      "input": 2,
+      "output": 10
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "openrouter/anthropic/claude-haiku-5.5": {
+    "name": "Claude Haiku 5.5",
+    "context": 1000000,
+    "output": 128000,
+    "cost": {
+      "input": 0.1,
+      "output": 0.5
+    },
+    "reasoning": [
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "openrouter/anthropic/claude-sonnet-5.5": {
+    "name": "Claude Sonnet 5.5",
+    "context": 1000000,
+    "output": 128000,
+    "cost": {
+      "input": 2,
+      "output": 10
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  },
+  "openrouter/google/gemini-4-argon": {
+    "name": "Gemini 4 Argon",
+    "context": 1048576,
+    "output": 32768,
+    "cost": {
+      "input": 2,
+      "output": 10
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high"
+    ]
+  },
+  "openrouter/openai/gpt-6.2-sol": {
+    "name": "GPT-6.2 Sol",
+    "context": 1050000,
+    "input": 922000,
+    "output": 128000,
+    "cost": {
+      "input": 2,
+      "output": 10
+    },
+    "reasoning": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ]
+  }
+}

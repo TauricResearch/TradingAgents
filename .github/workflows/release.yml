@@ -1,0 +1,170 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
+name: Release
+
+# A version tag builds the executables once, signs the macOS ones, runs those same files on each
+# platform, and makes a draft release of them with their checksums and the version's CHANGELOG.md
+# notes; the draft's files are then checked against what was built. The draft is published by hand.
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+env:
+  TRADINGAGENTS_NO_UPDATE_CHECK: "1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: The tag names this version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: test "$TAG" = "v$(node -p 'require("./package.json").version')"
+      - run: npm ci
+      - name: CHANGELOG.md has this version's notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: mkdir -p notes && npx bun scripts/release-notes.ts "$TAG" > notes/notes.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: notes
+          path: notes/
+          if-no-files-found: error
+          retention-days: 1
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - name: Build the executables
+        # Each on the target's Bun runtime as package-lock.json locks it, checked by its sha512.
+        run: |
+          for target in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            runtime=$(npx bun scripts/runtime.ts "bun-$target" "$RUNNER_TEMP/runtimes")
+            npx bun scripts/compile.ts "release/tradingagents-$target" "bun-$target" "$runtime"
+          done
+          cp scripts/install.sh release/
+      - name: The npm packages can be written and packed
+        # Published from the release's own files when it is published (npm.yml); checked here first.
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          npx bun scripts/npm-packages.ts "${TAG#v}" release "$RUNNER_TEMP/npm"
+          for dir in "$RUNNER_TEMP"/npm/*; do npm pack --dry-run "$dir"; done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: built
+          path: release/
+          if-no-files-found: error
+          retention-days: 1
+
+  sign:
+    # A macOS executable whose signature no longer holds (one inherited from Bun's own) is signed again
+    # ad hoc; the checksums are of the files as released.
+    needs: build
+    runs-on: macos-15
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: built
+          path: release
+      - name: Sign where needed, and checksum
+        run: |
+          cd release
+          for bin in tradingagents-darwin-*; do
+            codesign --verify --strict "$bin" 2>/dev/null || codesign --force --sign - "$bin"
+            codesign --verify --strict --verbose=2 "$bin"
+          done
+          shasum -a 256 tradingagents-* > SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: release/
+          if-no-files-found: error
+          retention-days: 30
+
+  smoke:
+    needs: sign
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: linux-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }
+          - { os: macos-15-intel, target: darwin-x64 }
+          - { os: macos-15, target: darwin-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: release
+      - name: Install with the install script, from this run's files
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          export TRADINGAGENTS_RELEASE_URL="file://$PWD/release" TRADINGAGENTS_INSTALL_DIR="$RUNNER_TEMP/bin"
+          sh release/install.sh
+          test "v$("$TRADINGAGENTS_INSTALL_DIR/tradingagents" --version)" = "$TAG"
+      - name: The signature holds
+        if: runner.os == 'macOS'
+        run: codesign --verify --strict --verbose=2 "$RUNNER_TEMP/bin/tradingagents"
+      - name: The executable runs as released
+        run: sh scripts/smoke.sh "$RUNNER_TEMP/bin/tradingagents" "$RUNNER_TEMP/smoke"
+
+  draft:
+    # A draft only: it is not seen outside the repository until it is published.
+    needs: smoke
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: notes
+          path: notes
+      - name: Make the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          case $TAG in *-*) pre=--prerelease ;; *) pre= ;; esac
+          gh release create "$TAG" release/* --draft $pre --verify-tag --title "$TAG" --notes-file notes/notes.md
+
+  assets:
+    # The draft holds exactly the files built, each as built.
+    needs: draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: built
+      - name: The draft's files are the ones built
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release download "$TAG" --dir drafted
+          diff <(ls built) <(ls drafted)
+          cd drafted && sha256sum -c SHA256SUMS && cmp install.sh ../built/install.sh

@@ -1,0 +1,12 @@
+---
+name: technical-analysis
+description: One instrument's trend, momentum, volatility and price levels from its technical indicators and price history, read as evidence about price behavior rather than as signals. Use it when the user asks about a chart, the trend, support and resistance, whether something looks overbought or oversold, or for indicators such as RSI, MACD or moving averages.
+metadata:
+  group: Markets
+---
+
+A technical analysis reads how an instrument's price has behaved: the trend and its strength, momentum, volatility and the levels where price has turned. It is good when indicators that measure different things are weighed together and each reading is explained by its definition, so the reader sees evidence about price behavior and can judge it.
+
+technicals gives the latest completed session's indicators, each with its definition: RSI, MACD, the 50- and 200-day moving averages and where the close sits against them, Bollinger bands, ATR, stochastics, ADX, and the volume-based ones where volume exists. It is the quick picture of where things stand now. Anything over time comes from indicators on a year of daily bars from price_history, referenced whole once they have come back: how RSI or ADX has moved over a window and in which direction, when the close crossed a moving average or the 50-day crossed the 200-day, when MACD crossed its signal or RSI went beyond 70 or 30, each with its date, and every value in its data for calc. The same bars show the highs and lows and the levels where price turned, with calc working out ranges and distances over slices of the closes exactly (closes[-50:], say), and returns_risk gives the returns over windows, volatility and drawdown that put the indicators in scale.
+
+Indicators are transformations of past prices, so they describe what has happened; agreement between trend, momentum and volume carries more weight than any one reading. The customary thresholds (Wilder's RSI 30 and 70) mean most beside the trend, since in a strong trend RSI can stay beyond them for weeks. A level is a price where trading turned before, best stated with the dates it held. A crossing is an event on a date, evidence about price behavior rather than a signal; on a year of bars the 200-day average has values for its last 50 or so sessions only, so crossings are dated within the span the result states. What the price does next is an inference, marked as one.

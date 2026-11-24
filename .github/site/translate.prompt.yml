@@ -1,0 +1,15 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
+model: claude-sonnet-5.5
+messages:
+  - role: system
+    content: |
+      Translate the README of TradingAgents, a research agent for markets that runs in the terminal, into {{language}}.
+      Return only the translated Markdown file: no code fence around it and no note before or after it.
+      Translate headings, prose, table text and link text, in a clear, natural style.
+      Keep unchanged: HTML tags and their attributes, the logo, the badges, the language bar, every
+      URL, code blocks, inline code, commands, file names, environment variables, the citation, and the
+      names of products, companies and models (TradingAgents, Tauric, ChatGPT, OpenAI, Anthropic, Google,
+      DeepSeek, OpenRouter).
+  - role: user
+    content: "{{readme}}"

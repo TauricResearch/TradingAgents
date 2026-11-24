@@ -1,0 +1,57 @@
+{
+  "name": "tradingagents",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TradingAgents: Towards Agentic Finance Research",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "tradingagents": "dist/cli/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "compile": "npm run build && bun scripts/compile.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p scripts/tsconfig.json",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/bun": "1.4.4",
+    "@types/node": "22.20.5",
+    "@types/pdfkit": "0.17.7",
+    "@types/react": "19.3.0",
+    "@types/semver": "7.8.0",
+    "bun": "1.4.4",
+    "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "4.0.106",
+    "@ai-sdk/deepseek": "3.0.88",
+    "@ai-sdk/google": "4.0.122",
+    "@ai-sdk/openai": "4.0.121",
+    "@ai-sdk/openai-compatible": "3.0.93",
+    "@openrouter/ai-sdk-provider": "3.1.0",
+    "ai": "7.0.177",
+    "ajv": "8.20.0",
+    "chalk": "6.0.1",
+    "ink": "8.0.0",
+    "marked": "18.2.1",
+    "openapi-fetch": "0.17.0",
+    "pdfkit": "0.20.2",
+    "react": "19.3.1",
+    "semver": "7.8.6",
+    "string-width": "9.0.0",
+    "uuid": "14.0.3",
+    "wrap-ansi": "10.0.2",
+    "yahoo-finance2": "4.0.6",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  }
+}

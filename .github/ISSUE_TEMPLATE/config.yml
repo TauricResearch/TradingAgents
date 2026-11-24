@@ -1,8 +1,10 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
 blank_issues_enabled: false
 contact_links:
-  - name: Questions and showcases
+  - name: Questions and ideas
     url: https://github.com/TauricResearch/TradingAgents/discussions
-    about: Usage questions, ideas, and projects built on TradingAgents
+    about: Ask a question or discuss an idea.
   - name: Security vulnerability
     url: https://github.com/TauricResearch/TradingAgents/security/advisories/new
-    about: Report privately; please do not open a public issue
+    about: Report it privately, as SECURITY.md says, not in an issue.

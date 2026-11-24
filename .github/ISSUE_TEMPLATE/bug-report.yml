@@ -1,58 +1,81 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
 name: Bug report
-description: Something fails, crashes, or behaves differently from the docs.
-labels: ["bug"]
+description: TradingAgents fails, crashes or does something other than it should.
+labels: [bug]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Search [existing issues](https://github.com/TauricResearch/TradingAgents/issues?q=is%3Aissue) first, and check that the bug reproduces on the latest release.
-        Remove API keys and other secrets from anything you paste.
   - type: input
     id: version
     attributes:
       label: Version
-      description: Output of `pip show tradingagents | grep Version`, or `git rev-parse --short HEAD` for a source checkout.
-      placeholder: "0.5.1"
+      description: The output of `tradingagents --version`.
     validations:
       required: true
   - type: dropdown
-    id: entry
+    id: install
     attributes:
-      label: How you run it
+      label: How it was installed
       options:
-        - CLI (tradingagents)
-        - Python package (TradingAgentsGraph)
-        - Backtest (run_backtest or tradingagents backtest)
-        - Docker
+        - Install script
+        - npm
+        - Release file
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux (x64)
+        - Linux (arm64)
+        - macOS (Intel)
+        - macOS (Apple silicon)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - Tauric
+        - ChatGPT plan
+        - OpenAI
+        - Anthropic
+        - Google
+        - DeepSeek
+        - OpenRouter
+        - OpenAI-compatible server
     validations:
       required: true
   - type: input
-    id: models
+    id: model
     attributes:
-      label: LLM provider and models
-      placeholder: "openai, gpt-6-sol / gpt-6-luna"
-    validations:
-      required: true
-  - type: input
-    id: run
-    attributes:
-      label: Ticker and analysis date
-      placeholder: "NVDA, 2026-09-23"
+      label: Model
+      description: Its `provider/id`, such as `anthropic/claude-opus-5-5`.
   - type: textarea
-    id: what
+    id: did
     attributes:
-      label: What happened, and what you expected
+      label: What you did
+      description: The command or question, and the steps that lead to the problem.
     validations:
       required: true
   - type: textarea
-    id: repro
+    id: expected
     attributes:
-      label: Steps or code to reproduce
-      description: The smallest steps or snippet that shows the problem.
-      render: python
+      label: What you expected
+    validations:
+      required: true
   - type: textarea
-    id: logs
+    id: happened
     attributes:
-      label: Error output
-      description: The full traceback or log lines, as text rather than a screenshot.
-      render: text
+      label: What happened
+      description: The message or output, as shown.
+    validations:
+      required: true
+  - type: textarea
+    id: transcript
+    attributes:
+      label: Transcript or output
+      description: Optional. The transcript from `/export md`, or an excerpt of the output. Remove keys and anything private first.
+      render: markdown

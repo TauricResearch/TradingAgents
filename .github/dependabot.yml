@@ -1,0 +1,31 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
+# Weekly updates for npm packages and GitHub Actions: minor and patch releases together in one pull
+# request, each major on its own. A release is taken only after it has been out a few days, and exact
+# versions stay exact.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    versioning-strategy: increase
+    cooldown:
+      default-days: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # The types follow the Node.js line the package supports (22), not the newest Node.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]

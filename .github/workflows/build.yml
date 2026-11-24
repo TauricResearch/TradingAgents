@@ -1,0 +1,37 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or pull request supersedes a run still going.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRADINGAGENTS_NO_UPDATE_CHECK: "1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run compile
+      - name: The executable runs as released
+        run: sh scripts/smoke.sh dist-bin/tradingagents "$RUNNER_TEMP/smoke"

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "**",
+      "!dist",
+      "!node_modules",
+      "!coverage",
+      "!dist-bin",
+      "!src/data/tauric/schema.generated.ts",
+      "!src/data/tauric/applications.schema.generated.ts",
+      "!src/data/tauric/openapi.json",
+      "!src/data/tauric/applications.openapi.json",
+      "!src/agents/builtin.generated.ts",
+      "!src/cli/changelog.generated.ts",
+      "!src/cli/report/fonts.generated.json",
+      "!src/models/catalog.generated.json"
+    ]
+  },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },
+  "linter": { "rules": { "preset": "recommended" } },
+  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always" } },
+  "overrides": [{ "includes": ["specs/**/*.md"], "formatter": { "enabled": false } }]
+}

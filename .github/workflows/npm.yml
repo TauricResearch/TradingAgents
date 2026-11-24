@@ -1,0 +1,74 @@
+# Copyright 2026 Tauric Research
+# SPDX-License-Identifier: Apache-2.0
+name: npm
+
+# When a release is published, its executables go to npm: a package per platform (@tauric/tradingagents-*)
+# and @tauric/tradingagents, whose tradingagents command runs the one for the platform it is installed on. The files
+# are the release's own, checked against its SHA256SUMS. Publishing is by npm's trusted publishing (this
+# workflow's OIDC identity, no stored token), which records provenance. The release workflow checks the
+# packages can be written and packed before the release is drafted.
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: npm-${{ github.event.release.tag_name }}
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: The tag names this version
+        run: test "$TAG" = "v$(node -p 'require("./package.json").version')"
+      - run: npm ci --ignore-scripts
+      - name: The release's executables, as checked against its SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release download "$TAG" --dir release --pattern 'tradingagents-*' --pattern SHA256SUMS
+          cd release && sha256sum --check --strict SHA256SUMS
+      - name: Write the packages
+        run: npx bun scripts/npm-packages.ts "${TAG#v}" release packages
+      - name: Publish, the platform packages first
+        # @tauric/tradingagents goes last, once npm serves every package it depends on; a version
+        # already on npm is left as it is, so a run can be repeated.
+        run: |
+          version=${TAG#v}
+          case $version in *-*) tag=next ;; *) tag=latest ;; esac
+          # npm says nothing (and succeeds) for a version a package does not have.
+          served() { [ -n "$(npm view "$1@$version" version $2 2>/dev/null)" ]; }
+          publish() {
+            name=$(node -p "require('./$1/package.json').name")
+            if served "$name"; then
+              echo "$name@$version is on npm already"
+              return
+            fi
+            npm publish "./$1" --tag "$tag"
+          }
+          for dir in packages/tradingagents-*; do publish "$dir"; done
+          for dir in packages/tradingagents-*; do
+            name=$(node -p "require('./$dir/package.json').name")
+            for attempt in $(seq 60); do
+              served "$name" --prefer-online && break
+              [ "$attempt" -lt 60 ] || { echo "$name@$version is not served yet"; exit 1; }
+              sleep 10
+            done
+          done
+          publish packages/tradingagents
