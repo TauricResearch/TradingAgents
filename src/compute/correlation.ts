@@ -29,10 +29,12 @@ export function correlate(
   if ("error" in aligned) return aligned;
   const { columns, dates } = aligned;
   const observations = columns[0]?.length ?? 0;
-  if (observations < LEAST) {
+  // Returns are one fewer than the levels they come from, and two points always correlate at +1 or -1.
+  const least = of === "returns" ? LEAST + 1 : LEAST;
+  if (observations < least) {
     const who = series.length === 2 ? `${series[0]?.label} and ${series[1]?.label}` : "the series";
     return {
-      error: `${who} share ${observations} ${dates ? "dates" : "values"}; ${of} need at least ${LEAST}`,
+      error: `${who} share ${observations} ${dates ? "dates" : "values"}; ${of} need at least ${least}`,
     };
   }
   if (of === "returns") {
