@@ -743,7 +743,10 @@ class SentinelCouncil:
         ``timeout`` overrides the shared deadline (defaults to ``self.timeout``).
         ``per_call_timeout``, when set, caps each attempt at that many seconds
         rather than splitting the deadline evenly across the remaining models -
-        used to give the Gemini Risk Auditor its full 10s request budget.
+        used to give the Gemini Risk Auditor its full 30s request budget. Every
+        failed attempt (503 UNAVAILABLE, rate limit, timeout or any error) is
+        logged before the cascade falls through to the next model; if the whole
+        chain fails the role is logged and returned as unavailable.
         """
         cascade = list(models) or [""]
         deadline = time.monotonic() + (timeout if timeout and timeout > 0 else self.timeout)
@@ -772,12 +775,17 @@ class SentinelCouncil:
                 continue
             if not isinstance(opinion, CounselorOpinion):
                 last_error = f"{model}: malformed response"
+                LOGGER.warning("%s '%s' returned a malformed response; next fallback.", role, model)
                 continue
             opinion.model = model
             opinion.attempted = list(attempted)
             opinion.fallback = index > 0
             return opinion
 
+        LOGGER.warning(
+            "%s marked unavailable after trying %s (%s).",
+            role, ", ".join(attempted) or "no model", last_error or "no response",
+        )
         return CounselorOpinion(
             role=role, provider=provider, model=cascade[0],
             ok=False, error=last_error or "no model available", attempted=list(attempted),

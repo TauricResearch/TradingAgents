@@ -22,7 +22,11 @@ Design
   plain-English opinion and fail **open**.
 * **Risk model (The5ers Bootcamp, $5,000 demo scaling to $20,000)** - 1R = $10, RRR
   floor 1:1.5, max 3 trades/day, circuit breaker at -$20 (2R) with a hard kill-switch
-  at -$30 (3R), a +$20 daily profit target, and a London / London-NY session filter.
+  at -$30 (3R), a +$50 daily profit target, and a London / London-NY session filter.
+* **Demo / Paper Mode** - an opt-in, clearly-labelled $5,000 **simulated** book that
+  logs entry / SL / TP / lot and mark-to-market P/L. It is kept fully separate from
+  the live guardrails (which always read the real account's net daily P&L) and never
+  sends a live order - the co-pilot is advisory-only.
 
 Run it:
     streamlit run the5ers_bot/copilot_app.py     # dashboard
@@ -81,6 +85,7 @@ DEFAULT_PROFIT_TARGET = DAILY_PROFIT_TARGET_USD   # +$50 (tunable in the +$50..+
 PROFIT_TARGET_MIN = 20.0
 PROFIT_TARGET_MAX = 200.0
 REFRESH_SECONDS = 10
+DEMO_BUDGET_USD = ACCOUNT_SIZE_USD   # $5,000 paper account (Demo / Paper Mode)
 
 CIRCUIT_STYLE = {
     "SAFE": {"color": "#26a69a", "icon": "🟢", "label": "SAFE", "blurb": "All guardrails clear - you may take a qualified setup."},
@@ -178,6 +183,61 @@ def indicator_snapshot(df: pd.DataFrame) -> Dict[str, float]:
 
 
 # --------------------------------------------------------------------------- #
+# Demo / Paper trading (simulated only - never touches the terminal)
+# --------------------------------------------------------------------------- #
+def demo_trade_from_assessment(
+    assessment: RiskAssessment, setup: Optional[Dict[str, Any]], *, when: Optional[datetime] = None
+) -> Optional[Dict[str, Any]]:
+    """Translate a qualified signal card into a *simulated* paper trade.
+
+    Returns ``None`` unless the setup is directional with a real entry/lot. The
+    result is a plain dict for ``st.session_state`` - no MT5 call is made and no
+    order is ever sent to the terminal.
+    """
+    if setup is None or assessment.direction not in ("long", "short"):
+        return None
+    if not assessment.entry or not assessment.lot:
+        return None
+    when = when or datetime.now(timezone.utc)
+    return {
+        "time": when.strftime("%H:%M:%S"),
+        "symbol": assessment.symbol,
+        "direction": assessment.direction,
+        "entry": float(assessment.entry),
+        "stop": float(assessment.stop),
+        "take_profit": float(assessment.take_profit),
+        "lot": float(assessment.lot),
+        "value_per_unit": float(setup.get("value_per_unit") or 0.0),
+        "status": "open",
+        "exit": None,
+        "pnl": 0.0,
+    }
+
+
+def demo_mark_to_market(trade: Dict[str, Any], price: Optional[float] = None) -> float:
+    """Simulated USD P/L: realized value when closed, else marked at ``price``."""
+    if trade.get("status") == "closed":
+        return round(float(trade.get("pnl", 0.0)), 2)
+    if price is None:
+        return 0.0
+    sign = 1.0 if trade.get("direction") == "long" else -1.0
+    vpu = float(trade.get("value_per_unit") or 0.0)
+    return round(sign * (float(price) - float(trade["entry"])) * vpu * float(trade.get("lot") or 0.0), 2)
+
+
+def demo_totals(
+    trades: List[Dict[str, Any]], price_by_symbol: Dict[str, Optional[float]]
+) -> tuple:
+    """Return ``(realized, floating)`` simulated P/L across the paper book."""
+    realized = round(sum(float(t.get("pnl", 0.0)) for t in trades if t.get("status") == "closed"), 2)
+    floating = round(
+        sum(demo_mark_to_market(t, price_by_symbol.get(t.get("symbol"))) for t in trades if t.get("status") == "open"),
+        2,
+    )
+    return realized, floating
+
+
+# --------------------------------------------------------------------------- #
 # Session state
 # --------------------------------------------------------------------------- #
 def _init_state() -> None:
@@ -189,6 +249,9 @@ def _init_state() -> None:
     ss.setdefault("cp_trades_today", 0)
     ss.setdefault("cp_verdict", None)
     ss.setdefault("cp_activity", [])
+    ss.setdefault("cp_demo_mode", False)
+    ss.setdefault("cp_live_exec", False)
+    ss.setdefault("cp_demo_trades", [])
 
 
 def _apply_pending() -> None:
@@ -278,7 +341,7 @@ def render_sidebar(client: MT5Client) -> Dict[str, Any]:
 
         st.divider()
 
-        st.markdown("### 🧮 Daily Guardrail Tracker")
+        st.markdown("### 🧮 Live Guardrail Tracker (baseline)")
         st.caption("Guardrails track the day's **net P&L change**, not the account balance.")
         profit_target = st.number_input(
             "Daily profit target ($)", min_value=PROFIT_TARGET_MIN, max_value=PROFIT_TARGET_MAX,
@@ -309,6 +372,24 @@ def render_sidebar(client: MT5Client) -> Dict[str, Any]:
 
         st.divider()
 
+        st.markdown("### 🧪 Demo / Paper Mode")
+        st.caption(
+            f"A separate **${DEMO_BUDGET_USD:,.0f} paper account** - simulated fills only, "
+            "never mixed into the live guardrails above."
+        )
+        demo_mode = st.toggle(
+            "Demo / Paper Mode ($5,000 budget)", key="cp_demo_mode",
+            help="Logs simulated trades in the panel below. The live guardrails keep using the real account P&L.",
+        )
+        live_exec = st.toggle(
+            "Live order execution (opt-in)", key="cp_live_exec",
+            help="This co-pilot never sends orders in this build - keep OFF and place trades by hand in MT5.",
+        )
+        if live_exec:
+            st.warning("Advisory-only build: no orders are ever sent to MT5, even with this ON.", icon="⚠️")
+
+        st.divider()
+
         st.markdown("### 🧠 Sentinel Council (optional LLMs)")
         groq_key = st.text_input("Groq API key (Scout)", value=os.getenv("GROQ_API_KEY", ""), type="password")
         gemini_key = st.text_input("Gemini API key (Auditor)", value=os.getenv("GEMINI_API_KEY", ""), type="password")
@@ -329,6 +410,8 @@ def render_sidebar(client: MT5Client) -> Dict[str, Any]:
         "gemini_key": gemini_key.strip(),
         "auto_refresh": bool(auto_refresh),
         "manual": bool(manual),
+        "demo_mode": bool(demo_mode),
+        "live_exec": bool(live_exec),
     }
 
 
@@ -536,6 +619,108 @@ def render_council_verdict(verdict: Any) -> None:
         st.caption(f"• {message}")
 
 
+def render_demo_mode(
+    params: Dict[str, Any], client: MT5Client, assessment: RiskAssessment, setup: Optional[Dict[str, Any]]
+) -> None:
+    """Demo / Paper Mode panel - fully isolated from the live guardrails."""
+    st.divider()
+    if not params.get("demo_mode"):
+        st.markdown("#### 🧪 Demo / Paper Mode")
+        st.caption(
+            "OFF - the baseline live guardrails above apply. Toggle it on in the sidebar to paper-trade "
+            f"the ${DEMO_BUDGET_USD:,.0f} budget (simulated trades only)."
+        )
+        return
+
+    trades: List[Dict[str, Any]] = st.session_state.cp_demo_trades
+    price_by_symbol = {s: client.tick(s).get("bid") for s in PAIRS}
+    realized, floating = demo_totals(trades, price_by_symbol)
+    equity = DEMO_BUDGET_USD + realized + floating
+
+    st.markdown(
+        f"""
+        <div style="border:2px solid #7e57c2;border-radius:12px;padding:14px 18px;background:#7e57c214;">
+          <div style="font-size:20px;font-weight:700;color:#b39ddb;">
+            🧪 DEMO / PAPER MODE · ${DEMO_BUDGET_USD:,.0f} budget
+          </div>
+          <div style="color:#c9cdd4;font-size:14px;margin-top:4px;">
+            Simulated trades only - <b>no orders are sent to MT5</b>. This book is kept fully separate from the
+            live daily-P&L guardrails, which keep running on the real account figures above.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if params.get("live_exec"):
+        st.warning("Live execution is switched ON, but this build is advisory-only: no orders are ever sent.", icon="⚠️")
+
+    m = st.columns(4)
+    m[0].metric("Paper budget", f"${DEMO_BUDGET_USD:,.2f}")
+    m[1].metric("Realized P/L (sim)", f"${realized:+,.2f}")
+    m[2].metric("Open P/L (sim)", f"${floating:+,.2f}")
+    m[3].metric("Paper equity", f"${equity:,.2f}")
+
+    has_open = any(t.get("status") == "open" for t in trades)
+    c = st.columns([2, 1, 1])
+    if c[0].button(
+        "📝 Log paper trade from current setup", use_container_width=True,
+        disabled=assessment.direction == "neutral" or setup is None,
+        help="Books the signal card above as a simulated trade at the live bid.",
+    ):
+        trade = demo_trade_from_assessment(assessment, setup)
+        if trade:
+            trades.append(trade)
+            _log(f"Paper trade logged: {trade['direction']} {trade['symbol']} @ {trade['entry']:g} ({trade['lot']:.2f} lots).")
+            st.rerun()
+    if c[1].button("Close all", use_container_width=True, disabled=not has_open):
+        for t in trades:
+            if t.get("status") == "open":
+                px = price_by_symbol.get(t["symbol"])
+                t["pnl"] = demo_mark_to_market(t, px)
+                t["exit"] = px
+                t["status"] = "closed"
+        _log("Closed all paper trades at the live bid.")
+        st.rerun()
+    if c[2].button("Reset demo", use_container_width=True, disabled=not trades):
+        st.session_state.cp_demo_trades = []
+        _log("Demo paper book reset.")
+        st.rerun()
+
+    if not trades:
+        st.caption("No paper trades yet. Take a qualified setup and log it here to track simulated entry / SL / TP / lot and P/L.")
+        return
+
+    rows = []
+    for i, t in enumerate(trades, 1):
+        pnl = demo_mark_to_market(t, price_by_symbol.get(t["symbol"]))
+        rows.append(
+            {
+                "#": i, "Time": t["time"], "Symbol": t["symbol"], "Dir": str(t["direction"]).upper(),
+                "Entry": f"{t['entry']:g}", "SL": f"{t['stop']:g}", "TP": f"{t['take_profit']:g}",
+                "Lot": f"{t['lot']:.2f}",
+                "Status": t.get("status", "open"),
+                "Exit": f"{t['exit']:g}" if t.get("exit") is not None else "-",
+                "P/L (sim)": f"{pnl:+,.2f}",
+            }
+        )
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    open_idx = [i for i, t in enumerate(trades) if t.get("status") == "open"]
+    if open_idx:
+        pick = st.selectbox(
+            "Close a single paper trade (at the live bid)", open_idx,
+            format_func=lambda i: f"#{i + 1} · {trades[i]['direction']} {trades[i]['symbol']} @ {trades[i]['entry']:g}",
+        )
+        if st.button("Close selected"):
+            t = trades[pick]
+            px = price_by_symbol.get(t["symbol"])
+            t["pnl"] = demo_mark_to_market(t, px)
+            t["exit"] = px
+            t["status"] = "closed"
+            _log(f"Closed paper trade #{pick + 1} {t['symbol']} at {px}.")
+            st.rerun()
+
+
 def render_activity() -> None:
     st.markdown("#### 🗒️ Activity Log")
     log = st.session_state.cp_activity
@@ -584,6 +769,8 @@ def render_page(params: Dict[str, Any], client: MT5Client) -> None:
     st.divider()
     render_signal_card(assessment, (st.session_state.cp_council.status() if st.session_state.cp_council else {}))
 
+    render_demo_mode(params, client, assessment, setup)
+
     consult_cols = st.columns([1, 2])
     if consult_cols[0].button("🧠 Consult Sentinel Council", use_container_width=True, type="primary", disabled=setup is None):
         council = _council(params["groq_key"], params["gemini_key"])
@@ -609,6 +796,12 @@ def main() -> None:
     params = render_sidebar(client)
 
     st.title("🛰️ AI Co-Pilot · Sentinel Council")
+    mode = (
+        f"🧪 DEMO / PAPER MODE (${DEMO_BUDGET_USD:,.0f} simulated budget) - live guardrails still baseline"
+        if params["demo_mode"]
+        else "🟢 BASELINE LIVE GUARDRAILS"
+    )
+    st.caption(f"Mode: **{mode}**")
     st.caption(
         f"The5ers Bootcamp evaluation · ${ACCOUNT_SIZE_USD:,.0f} demo → ${ACCOUNT_SIZE_MAX_USD:,.0f} funded · "
         f"1R=${RISK_PER_TRADE_USD:.0f} · RRR ≥ 1:{MIN_RRR:g} · max {MAX_TRADES_PER_DAY} trades/day · "
