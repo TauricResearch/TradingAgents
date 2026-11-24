@@ -6,15 +6,21 @@ name: npm
 # and @tauric/tradingagents, whose tradingagents command runs the one for the platform it is installed on. The files
 # are the release's own, checked against its SHA256SUMS. Publishing is by npm's trusted publishing (this
 # workflow's OIDC identity, no stored token), which records provenance. The release workflow checks the
-# packages can be written and packed before the release is drafted.
+# packages can be written and packed before the release is drafted. Run it by hand with a tag to publish a release
+# whose run did not finish.
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A published release's tag, such as v1.0.0"
+        required: true
 
 permissions: {}
 
 concurrency:
-  group: npm-${{ github.event.release.tag_name }}
+  group: npm-${{ github.event.release.tag_name || inputs.tag }}
 
 jobs:
   npm:
@@ -23,11 +29,11 @@ jobs:
       contents: read
       id-token: write
     env:
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -36,7 +42,8 @@ jobs:
           cache: npm
       - name: The tag names this version
         run: test "$TAG" = "v$(node -p 'require("./package.json").version')"
-      - run: npm ci --ignore-scripts
+      # No dependency's install script runs in this job, but Bun's own: it puts the bun executable in place.
+      - run: npm ci --ignore-scripts && node node_modules/bun/install.js
       - name: The release's executables, as checked against its SHA256SUMS
         env:
           GH_TOKEN: ${{ github.token }}
