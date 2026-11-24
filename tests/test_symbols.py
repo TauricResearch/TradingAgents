@@ -69,6 +69,14 @@ class TestNormalizeSymbol(unittest.TestCase):
         self.assertEqual(normalize_symbol("600519.sh"), "600519.SS")
         self.assertEqual(normalize_symbol("600519.SS"), "600519.SS")
 
+    def test_mena_forex_and_regional_equity_aliases(self):
+        self.assertEqual(normalize_symbol("SARUSD"), "SARUSD=X")
+        self.assertEqual(normalize_symbol("USDQAR"), "USDQAR=X")
+        self.assertEqual(normalize_symbol("ARAMCO"), "2222.SR")
+        self.assertEqual(normalize_symbol("أرامكو"), "2222.SR")
+        self.assertEqual(normalize_symbol("EMAAR"), "EMAAR.AE")
+        self.assertEqual(normalize_symbol("THYAO"), "THYAO.IS")
+
 
 @pytest.mark.unit
 class TestNoMarketDataError(unittest.TestCase):
