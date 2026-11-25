@@ -45,7 +45,7 @@
     "ink": "8.0.0",
     "marked": "18.2.1",
     "openapi-fetch": "0.17.0",
-    "pdfkit": "0.20.2",
+    "pdfkit": "0.21.0",
     "react": "19.3.1",
     "semver": "7.8.6",
     "string-width": "9.0.0",
