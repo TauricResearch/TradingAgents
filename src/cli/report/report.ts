@@ -11,12 +11,10 @@ import { type Part, type Run, reportParts } from "./layout.js";
 
 export type Report = {
   title: string;
+  /** For an answer to a plan, or one that ran it as proposed: the question the planning started from. */
   question: string;
-  /**
-   * The question asked just before in plan mode, when this one was asked in plan mode too or ran its plan
-   * as proposed: the answer may carry out the plan that one got, so the reader sees what it was.
-   */
-  earlier?: string;
+  /** What the person added while planning, in the order said: the replies in plan mode after the question. */
+  added: string[];
   /** When the answer was written, as an ISO time. */
   at: string;
   model: string;
@@ -28,7 +26,7 @@ export type Report = {
 
 /**
  * The last completed turn of `session` in `done` as a report, or undefined when it has none with an answer.
- * The title is the answer's opening heading when it has one. `model` stands in when the turn did not say.
+ * The question of a plan is the one the planning started from, not the reply that ran it. The title is the answer's opening heading when it has one. `model` stands in when the turn did not say.
  */
 export function lastReport(
   done: readonly Block[],
@@ -39,22 +37,34 @@ export function lastReport(
   );
   const last = turns.at(-1);
   if (!last?.answer.trim()) return undefined;
-  const before = turns.at(-2);
+  const [asked, ...added] = planning(turns);
   const parts = reportParts(last.answer);
   const [first, ...rest] = parts;
   const titled = first?.kind === "heading";
   return {
     title: titled ? textOf(first.runs) : message("report.title"),
-    question: printable(last.question).trim(),
-    ...(before?.plan && (last.plan || last.question === message("app.runPlan"))
-      ? { earlier: printable(before.question).trim() }
-      : {}),
+    question: printable((asked ?? last).question).trim(),
+    added: added.map((turn) => printable(turn.question).trim()).filter(Boolean),
     at: last.at,
     model: printable(last.model ?? model),
     version: printable(version),
     parts: titled ? rest : parts,
     sources: last.sources.map((source) => printable(sourceLine(source))),
   };
+}
+
+/**
+ * The turns a plan was made in, when the last of `turns` answered in plan mode or ran the plan as proposed:
+ * the plan-mode turns up to it (the run itself left out), in order. Otherwise none.
+ */
+function planning(turns: readonly Answered[]): Answered[] {
+  const last = turns.at(-1);
+  const ran = !last?.plan && last?.question === message("app.runPlan");
+  if (!last?.plan && !ran) return [];
+  const end = ran ? turns.length - 1 : turns.length;
+  let start = end;
+  while (start > 0 && turns[start - 1]?.plan) start--;
+  return turns.slice(start, end);
 }
 
 function textOf(runs: readonly Run[]): string {

@@ -195,6 +195,8 @@ const BOOKKEEPING = new Set(["update_plan", "use_skill", ASK_TOOL]);
 const MEMORY = new Set(["recall_memory", "save_note", "record_decision"]);
 /** A call that researches (data, compute, an agent), as against keeping the books: what an answer follows. */
 const researches = (name: string) => !BOOKKEEPING.has(name) && !MEMORY.has(name) && name !== "evidence";
+/** Steps' text joined as the engine joins an answer's: the ones with text, a blank line between. */
+const joined = (...texts: string[]) => texts.filter((text) => text.trim()).join("\n\n");
 
 /** The state once `run` has gone on after a retry: what said it was being asked for again is gone. */
 function resumed(state: TranscriptState, isMain: boolean, run: string): TranscriptState {
@@ -282,8 +284,9 @@ export type TranscriptState = {
    * text of its steps.
    */
   /**
-   * `stepText`: the step under way; `sinceResearch`: what the finished steps wrote since the main agent's
-   * last research call, which the turn's answer is made of.
+   * `stepText`: the step under way; `sinceCall` and `sinceResearch`: what the finished steps wrote since the
+   * main agent's last call and its last research call. The turn's answer is the first, or the second when
+   * the first is empty, as the engine makes it.
    */
   /** `worked`: the main agent carried research out (computed, or ran an agent) in this turn. */
   turn: {
@@ -292,6 +295,7 @@ export type TranscriptState = {
     asked?: true;
     worked?: true;
     stepText: string;
+    sinceCall: string;
     sinceResearch: string;
   };
   /** The app wrote the question it just sent: the next `turn.started` does not write it again. */
@@ -346,7 +350,7 @@ export const emptyTranscript: TranscriptState = {
     delegated: [],
     titles: {},
   },
-  turn: { question: "", stepText: "", sinceResearch: "" },
+  turn: { question: "", stepText: "", sinceCall: "", sinceResearch: "" },
   citations: { recorded: [], cited: [] },
   status: { turnActive: false },
 };
@@ -726,6 +730,7 @@ export function reduceTranscript(
           question: event.question,
           ...(event.mode === "plan" ? { plan: true as const } : {}),
           stepText: "",
+          sinceCall: "",
           sinceResearch: "",
         },
         citations: { recorded: written.citations.recorded, cited: [] },
@@ -775,16 +780,18 @@ export function reduceTranscript(
             turn: {
               ...state.turn,
               stepText: "",
-              sinceResearch: [state.turn.sinceResearch, state.turn.stepText]
-                .filter((t) => t.trim())
-                .join("\n\n"),
+              sinceCall: joined(state.turn.sinceCall, state.turn.stepText),
+              sinceResearch: joined(state.turn.sinceResearch, state.turn.stepText),
             },
           }
         : state;
     case "tool.called": {
-      // The main agent acting ends its thinking; its data calls join the step's batch. A research call
-      // follows the step that made it: what that step and those before wrote is not the answer.
-      if (isMain && researches(event.name)) state = { ...state, turn: { ...state.turn, sinceResearch: "" } };
+      // The main agent acting ends its thinking; its data calls join the step's batch. A call follows the
+      // step that made it: what that step and those before wrote is not the answer.
+      if (isMain) {
+        const sinceResearch = researches(event.name) ? "" : state.turn.sinceResearch;
+        state = { ...state, turn: { ...state.turn, sinceCall: "", sinceResearch } };
+      }
       if (isMain && carriesOut(event)) state = { ...state, turn: { ...state.turn, worked: true } };
       if (isMain) {
         state = closeThought(state, id, envelope.ts);
@@ -1046,10 +1053,13 @@ export function reduceTranscript(
     case "usage.updated":
       return { ...state, status: { ...state.status, usage: event.usage } };
     case "turn.completed": {
-      // The answer is what was written since the last research call, the step under way included when a
-      // turn ends without a closing step event; shown already when it was all streamed. A turn that asked
-      // ends with its questions, which the question step shows: only what the model wrote is shown here.
-      const written = [state.turn.sinceResearch, state.turn.stepText].filter((t) => t.trim()).join("\n\n");
+      // The answer is what was written since the last call, or since the last research call when nothing
+      // was, the step under way included when a turn ends without a closing step event; shown already when
+      // it was all streamed. A turn that asked ends with its questions, which the question step shows: only
+      // what the model wrote is shown here.
+      const written =
+        joined(state.turn.sinceCall, state.turn.stepText) ||
+        joined(state.turn.sinceResearch, state.turn.stepText);
       const streamed = event.answer.replace(/\s+/g, "") === written.replace(/\s+/g, "");
       const flushed = flushText(closeThought(state, id, envelope.ts), id);
       // The engine's numbering, for an answer not streamed and for the list of what it cited.

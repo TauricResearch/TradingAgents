@@ -347,20 +347,23 @@ export async function runAgent(
 }
 
 /**
- * The run's answer: what it wrote after its last research call (data, compute or an agent), in order. Text
- * written beside bookkeeping calls only (a decision recorded, the plan updated) after that call belongs to
- * the answer; text beside a research call was written before the results it waited for, so it does not.
+ * The run's answer: what it wrote after its last tool call, as the prompt says; text beside a call is
+ * progress. A run that wrote nothing after it (its report beside a bookkeeping call, such as a decision
+ * recorded) answers with what it wrote after its last research call (data, compute or an agent), in order.
  */
 function answerOf(messages: readonly Message[], registry: Pick<ToolRegistry, "kindOf">): string {
-  const researched = (message: Message) =>
+  const calls = (research: boolean) => (message: Message) =>
     message.role === "assistant" &&
-    message.parts.some((part) => part.type === "tool-call" && registry.kindOf(part.name) !== "control");
-  const last = messages.findLastIndex(researched);
-  return messages
-    .slice(last + 1)
-    .flatMap((message) => (message.role === "assistant" ? message.parts : []))
-    .flatMap((part) => (part.type === "text" && part.text.trim() ? [part.text.trim()] : []))
-    .join("\n\n");
+    message.parts.some(
+      (part) => part.type === "tool-call" && (!research || registry.kindOf(part.name) !== "control"),
+    );
+  const textAfter = (index: number) =>
+    messages
+      .slice(index + 1)
+      .flatMap((message) => (message.role === "assistant" ? message.parts : []))
+      .flatMap((part) => (part.type === "text" && part.text.trim() ? [part.text.trim()] : []))
+      .join("\n\n");
+  return textAfter(messages.findLastIndex(calls(false))) || textAfter(messages.findLastIndex(calls(true)));
 }
 
 /**

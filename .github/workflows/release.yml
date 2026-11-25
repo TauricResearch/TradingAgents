@@ -31,7 +31,8 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: test "$TAG" = "v$(node -p 'require("./package.json").version')"
-      - run: npm ci
+      # Installed as npm.yml installs, so the packages are checked as they will be published.
+      - run: npm run ci:install
       - name: CHANGELOG.md has this version's notes
         env:
           TAG: ${{ github.ref_name }}

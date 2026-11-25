@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1 (2026-11-25)
+
+- A plan's report asks the question the planning started from; replies added while planning follow it in the PDF.
+- A report opens with the answer, without the progress notes written along the way.
+- Price history reads two, three and five years.
+- A year of price history that spans February 29 is no longer refused.
+- Storing a key names the provider's API key (for example, "Stored the Tauric API key").
+- A correlation of returns needs at least three returns (four shared dates); over three dates it reported a perfect +1 or -1.
+
 ## 1.0.0 (2026-11-24)
 
 - TradingAgents: Towards Agentic Finance Research.

@@ -42,8 +42,8 @@ jobs:
           cache: npm
       - name: The tag names this version
         run: test "$TAG" = "v$(node -p 'require("./package.json").version')"
-      # No dependency's install script runs in this job, but Bun's own: it puts the bun executable in place.
-      - run: npm ci --ignore-scripts && node node_modules/bun/install.js
+      # No dependency's install script runs, but Bun's own: it puts the bun executable in place.
+      - run: npm run ci:install
       - name: The release's executables, as checked against its SHA256SUMS
         env:
           GH_TOKEN: ${{ github.token }}

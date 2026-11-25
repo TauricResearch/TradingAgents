@@ -81,7 +81,7 @@ export function uncovered(report: Report): number {
   const texts = [
     report.title,
     report.question,
-    report.earlier ?? "",
+    ...report.added,
     ...report.sources,
     ...partTexts(report.parts),
   ];
@@ -336,17 +336,19 @@ export async function reportPdf(report: Report): Promise<Uint8Array> {
     );
   doc.y += 14;
 
-  // The question (after the one before it, when that one's plan may be what it carries out), set off in a
-  // panel; a question too long for a page runs on without the panel.
+  // The question (then what was added to it while planning, under one label), set off in a panel; a
+  // question too long for a page runs on without the panel.
   const asked = [
-    ...(report.earlier ? [{ label: message("report.earlier"), text: report.earlier }] : []),
     { label: message("report.question"), text: report.question },
+    ...report.added.map((text, i) => ({ label: i ? "" : message("report.added"), text })),
   ].filter((entry) => entry.text);
   if (asked.length) {
     const inner = width - 28;
-    const heights = asked.map(({ text }) => {
+    const heights = asked.map(({ label, text }) => {
       doc.font("regular").fontSize(BODY);
-      return doc.heightOfString(text, { width: inner, lineGap: LINE_GAP, features: FEATURES }) + 11;
+      return (
+        doc.heightOfString(text, { width: inner, lineGap: LINE_GAP, features: FEATURES }) + (label ? 11 : 0)
+      );
     });
     const height = heights.reduce((sum, each) => sum + each, 0) + 6 * (asked.length - 1) + 19;
     const panel = height <= bottom() - MARGIN;
@@ -355,16 +357,18 @@ export async function reportPdf(report: Report): Promise<Uint8Array> {
     if (panel) doc.save().rect(left, top, width, height).fill(PANEL).restore();
     doc.y = top + 9;
     for (const { label, text } of asked) {
-      doc
-        .font("bold")
-        .fontSize(6.5)
-        .fillColor(MUTED)
-        .text(label.toUpperCase(), left + 14, doc.y, {
-          characterSpacing: 1,
-          lineBreak: false,
-          features: FEATURES,
-        });
-      doc.y += 11;
+      if (label) {
+        doc
+          .font("bold")
+          .fontSize(6.5)
+          .fillColor(MUTED)
+          .text(label.toUpperCase(), left + 14, doc.y, {
+            characterSpacing: 1,
+            lineBreak: false,
+            features: FEATURES,
+          });
+        doc.y += 11;
+      }
       paragraph([{ text }], left + 14, inner, BODY, INK);
       doc.y += 6;
     }

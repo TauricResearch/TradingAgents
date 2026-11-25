@@ -11,7 +11,7 @@ import { referenceTo } from "./references.js";
 import { defineTool, type ToolAnswer, ToolRefusalError } from "./tool.js";
 import { fieldNotes, instrument, instrumentLine, provenanceOf } from "./tool-text.js";
 
-const PERIODS = ["5d", "1mo", "3mo", "6mo", "ytd", "1y"] as const;
+const PERIODS = ["5d", "1mo", "3mo", "6mo", "ytd", "1y", "2y", "3y", "5y"] as const;
 /** Instrument types whose values are rates or yields. */
 const RATES = new Set(["rate"]);
 type Period = (typeof PERIODS)[number];
@@ -275,7 +275,8 @@ async function referenceRates(
 
 /**
  * The dates a period covers, ending at `to` (both inclusive), so every provider answers the same
- * window: 5d is the 7 calendar days ending at `to`, months and a year count back by calendar, ytd
+ * window: 5d is the 7 calendar days ending at `to`, months and years count back by calendar and start
+ * the day after the date they count back to (a year is 365 or 366 days, as Tauric serves at most), ytd
  * starts on January 1 of `to`'s year.
  */
 export function windowOf(period: Period, to: string): { from: string; to: string } {
@@ -284,10 +285,11 @@ export function windowOf(period: Period, to: string): { from: string; to: string
   if (period === "5d") {
     return { from: new Date(Date.UTC(year, month - 1, date - 6)).toISOString().slice(0, 10), to };
   }
-  // The same day of an earlier month, or that month's last day when it is shorter (March 31 -> February 28).
-  const back = { "1mo": 1, "3mo": 3, "6mo": 6, "1y": 12 }[period];
+  // The day after the same day of an earlier month, or after that month's last day when it is shorter
+  // (March 31 -> March 1).
+  const back = { "1mo": 1, "3mo": 3, "6mo": 6, "1y": 12, "2y": 24, "3y": 36, "5y": 60 }[period];
   const lastDay = new Date(Date.UTC(year, month - 1 - back + 1, 0)).getUTCDate();
-  const from = new Date(Date.UTC(year, month - 1 - back, Math.min(date, lastDay)));
+  const from = new Date(Date.UTC(year, month - 1 - back, Math.min(date, lastDay) + 1));
   return { from: from.toISOString().slice(0, 10), to };
 }
 

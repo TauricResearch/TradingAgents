@@ -6,7 +6,7 @@
  * translated into the capability contracts.
  */
 
-import { errorText } from "../../contracts/index.js";
+import { addDays, errorText } from "../../contracts/index.js";
 import { CALLS } from "../../contracts/limits.js";
 import type {
   Capability,
@@ -47,7 +47,19 @@ type Answer<M extends keyof TauricClient> = TauricClient[M] extends (...args: ne
   : never;
 
 export function tauricProvider(client: TauricClient) {
+  // A window longer than Tauric serves at once is read in pieces, newest first, until it is covered or the
+  // source's history starts within a piece (an older piece would have nothing).
   const daily = async (key: string, window: { from: string; to: string }, signal?: AbortSignal) => {
+    const pieces: DailyBars[] = [];
+    for (const piece of piecesOf(window)) {
+      const answer = await dailyPiece(key, piece, signal);
+      pieces.push(answer);
+      const since = answer.coverage.history_from;
+      if (since && since >= piece.from) break;
+    }
+    return joined(pieces);
+  };
+  const dailyPiece = async (key: string, window: { from: string; to: string }, signal?: AbortSignal) => {
     const { kind, id } = parseInstrument(key);
     const call = signal ? { signal } : {};
     const query = { interval: "1d" as const, start: window.from, end: window.to };
@@ -140,13 +152,9 @@ export function tauricProvider(client: TauricClient) {
               revision: REVISION[bar.status],
               ...(Object.keys(bar.field_states).length ? { field_states: bar.field_states } : {}),
             })),
-            history_from: answer.coverage.history_from ?? null,
-            // A full page may have left earlier bars out; the next page ends just before its oldest bar. The
-            // source's continue_end is not followed here: on intraday pages it can skip a session's first bars.
-            earlier_end:
-              sorted.length >= limit && sorted[0]?.start
-                ? new Date(Date.parse(sorted[0].start) - 1_000).toISOString()
-                : null,
+            history_from: coverage.history_from ?? null,
+            // The bar just before the oldest one served; none at the start of the source's history.
+            earlier_end: coverage.continue_end ?? null,
           };
         },
         // Both listings from this one source, or neither.
@@ -673,6 +681,45 @@ const REVISION = { settled: "final", unsettled: "provisional" } as const satisfi
   Bars["data"][number]["status"],
   DailyBar["revision"]
 >;
+
+/** `window` as windows Tauric serves, newest first, each ending the day before the one after it starts. */
+function piecesOf({ from, to }: { from: string; to: string }): { from: string; to: string }[] {
+  const pieces: { from: string; to: string }[] = [];
+  for (let end = to; end >= from; ) {
+    const earliest = addDays(end, 1 - CALLS.dailyWindowDays);
+    const start = earliest > from ? earliest : from;
+    pieces.push({ from: start, to: end });
+    end = addDays(start, -1);
+  }
+  // A window that ends before it starts is asked as it is, for the source to answer.
+  return pieces.length ? pieces : [{ from, to }];
+}
+
+/**
+ * Pieces of one window, newest first, as one: their bars oldest first, the newest piece's instrument and
+ * basis, complete only when every piece is, and older bars continuing where the oldest piece says.
+ */
+function joined(pieces: readonly DailyBars[]): DailyBars {
+  const newest = pieces[0] as DailyBars;
+  if (pieces.length === 1) return newest;
+  const all = [...pieces].reverse();
+  const oldest = all[0] as DailyBars;
+  const dated = all.flatMap((piece) => piece.bars);
+  const completes = all.map((piece) => piece.coverage.complete);
+  return {
+    ...newest,
+    bars: dated,
+    coverage: {
+      from: dated[0]?.date ?? null,
+      through: dated.at(-1)?.date ?? null,
+      complete: completes.includes(false) ? false : completes.includes(null) ? null : true,
+      complete_reason: all.find((piece) => piece.coverage.complete_reason)?.coverage.complete_reason ?? null,
+      history_from: all.find((piece) => piece.coverage.history_from)?.coverage.history_from ?? null,
+      missing_sessions: all.reduce((sum, piece) => sum + piece.coverage.missing_sessions, 0),
+    },
+    earlier_end: oldest.earlier_end,
+  };
+}
 
 /** Tauric's answer for the window asked: the bars in it and whether every session there is accounted for. */
 function bars(answer: Bars, { from, to }: { from: string; to: string }): DailyBars {

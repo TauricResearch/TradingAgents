@@ -100,7 +100,8 @@ const catalog = {
   "cli.nothingStoredBecause": ({ reason }: { reason: string }) => `Nothing stored: ${reason}`,
   "cli.envKeyWins": ({ variable }: { variable: string }) =>
     `${variable} is set and is used; the stored key is used once it is unset.`,
-  "cli.keyStored": ({ name, path }: { name: string; path: string }) => `Stored the ${name} key in ${path}.`,
+  "cli.keyStored": ({ name, path }: { name: string; path: string }) =>
+    `Stored the ${name === "model" ? "model server" : keyLabel(name)} API key in ${path}.`,
   "cli.setup": ({
     app,
     baseUrlVar,
@@ -199,7 +200,7 @@ event odds from Polymarket; the rest is not available.
     ["/help for commands", "esc to stop"].join(separator),
   "report.title": () => "Research report",
   "report.question": () => "Question",
-  "report.earlier": () => "Earlier question",
+  "report.added": () => "Added while planning",
   "report.sources": () => "Sources",
   "report.written": ({ at }: { at: string }) => `${at.slice(0, 10)} ${at.slice(11, 16)} UTC`,
   "report.page": ({ page, count }: { page: number; count: number }) => `Page ${page} of ${count}`,
@@ -644,7 +645,7 @@ event odds from Polymarket; the rest is not available.
   "session.signedOut": ({ app }: { app: string }) => `not signed in to ChatGPT: ${app} login chatgpt`,
   "session.changedWhileOpening": () => "the session changed while it was being opened; open it again",
   "config.noKey": ({ provider, vars, app }: { provider: string; vars: string; app: string }) =>
-    `the ${provider} model needs a key: set ${vars}, or store one with ${app} key ${provider}`,
+    `the ${keyLabel(provider)} model needs an API key: set ${vars}, or store one with ${app} key ${provider}`,
   "config.badReasoning": ({ where, levels }: { where: string; levels: string }) =>
     `${where}: reasoning must be one of ${levels}`,
   "config.keyForOtherServer": ({ endpoint, app }: { endpoint: string; app: string }) =>

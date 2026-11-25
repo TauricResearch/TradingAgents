@@ -29,7 +29,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # Installed as the release installs.
+      - run: npm run ci:install
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run compile

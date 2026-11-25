@@ -60,6 +60,8 @@ export const CALLS = {
   resultChars: 12_000,
   /** Intraday bars one price_history page asks for: the most the source serves at once. */
   intradayBars: 100,
+  /** Days of daily bars, both ends counted, one Tauric request serves at most; a longer window is read in pieces. */
+  dailyWindowDays: 366,
   /** Pages of 25 companies a sector screen reads at most: 500 companies, the largest sector. */
   screenPages: 20,
   textChars: 10_000,

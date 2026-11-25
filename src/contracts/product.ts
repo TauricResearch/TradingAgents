@@ -10,7 +10,7 @@ export const APP_TITLE = "TradingAgents";
 export const MAKER = "Tauric Research";
 
 /** This build's version; a test keeps it equal to package.json's. */
-export const VERSION = "1.0.0";
+export const VERSION = "1.0.1";
 
 /** How this build names itself to the services it calls. */
 export const USER_AGENT = `${APP_NAME}/${VERSION}`;

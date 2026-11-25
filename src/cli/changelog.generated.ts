@@ -5,6 +5,21 @@ import type { VersionNotes } from "./whats-new.js";
 
 export const CHANGELOG: readonly VersionNotes[] = [
   {
+    "version": "1.0.1",
+    "sections": [
+      {
+        "items": [
+          "A plan's report asks the question the planning started from; replies added while planning follow it in the PDF.",
+          "A report opens with the answer, without the progress notes written along the way.",
+          "Price history reads two, three and five years.",
+          "A year of price history that spans February 29 is no longer refused.",
+          "Storing a key names the provider's API key (for example, \"Stored the Tauric API key\").",
+          "A correlation of returns needs at least three returns (four shared dates); over three dates it reported a perfect +1 or -1."
+        ]
+      }
+    ]
+  },
+  {
     "version": "1.0.0",
     "sections": [
       {

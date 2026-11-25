@@ -29,11 +29,12 @@ export function correlate(
   if ("error" in aligned) return aligned;
   const { columns, dates } = aligned;
   const observations = columns[0]?.length ?? 0;
-  if (observations < LEAST) {
+  // The minimum counts what is correlated: returns are one fewer than the shared dates.
+  const points = of === "returns" ? Math.max(0, observations - 1) : observations;
+  if (points < LEAST) {
     const who = series.length === 2 ? `${series[0]?.label} and ${series[1]?.label}` : "the series";
-    return {
-      error: `${who} share ${observations} ${dates ? "dates" : "values"}; ${of} need at least ${LEAST}`,
-    };
+    const shared = `${observations} ${dates ? "dates" : "values"}${of === "returns" ? `, so ${points} returns` : ""}`;
+    return { error: `${who} share ${shared}; a correlation needs at least ${LEAST}` };
   }
   if (of === "returns") {
     const index = columns.findIndex((column) => column.some((value) => value <= 0));
