@@ -8,20 +8,19 @@ once UNLOCK_OPEN allows it. Its kill switch is final: once tripped, by its drawd
 by ``python -m trader live halt``, nothing lifts it, and the experiment is over.
 
 Beyond what pauses the demo account, the live account is paused when the code or the
-Signal its orders follow changes (``trader.demo.job.check_fingerprint``) and while its
-equity is over MAX_EQUITY; an order that would leave a position of more notional than
-MAX_POSITION is refused, one that only reduces a position never is.
+Signal its orders follow changes (``trader.demo.job.check_fingerprint``). An order that
+would leave a position of more notional than MAX_POSITION is refused, one that only
+reduces a position never is. Its equity has no cap (ADR 0010).
 """
 
 from trader.demo.account import Profile
 
-# Live's absolute limits, in USDT (ADR 0010).
-MAX_EQUITY = 2_000.0
-MAX_POSITION = 4_000.0  # notional of a contract's position after an order
+# Live's absolute limit, in USDT (ADR 0010).
+MAX_POSITION = 100_000.0  # notional of a contract's position after an order
 
 LIVE = Profile(
     "live", production=True, born_paused=True, kill_final=True,
-    fingerprinted=True, max_equity=MAX_EQUITY, max_position=MAX_POSITION,
+    fingerprinted=True, max_position=MAX_POSITION,
 )
 
 # Whether ``live resume`` may unpause the live account. Open since #34, the last of the code
