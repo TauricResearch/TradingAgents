@@ -40,8 +40,8 @@ function positionColumns(own: string, other: string): Column<MirrorPosition>[] {
 function fillText(f: MirrorTrade['own'] | null) {
   if (!f) return <span className="text-muted">无成交</span>
   return (
-    <span className="num" title={`手续费 ${fmtNum(f.fee)} · ${fmtTime(f.ts)}`}>
-      <Num value={f.qty} fmt={fmtQty} /> @ {fmtNum(f.price)}
+    <span className="num" title={`币数 ${fmtQty(f.qty)} · 手续费 ${fmtNum(f.fee)} · ${fmtTime(f.ts)}`}>
+      <Num value={f.qty * f.price} fmt={fmtSigned} /> @ {fmtNum(f.price)}
     </span>
   )
 }
@@ -50,8 +50,8 @@ function tradeColumns(own: string, other: string): Column<MirrorTrade>[] {
   return [
     { key: 'hour', header: '小时', render: (t) => <Time ts={t.hour} /> },
     { key: 'coin', header: '币', render: (t) => coinLabel(t.coin ?? t.inst) },
-    { key: 'other', header: joined(other, '成交'), render: (t) => fillText(t.other) },
-    { key: 'own', header: joined(own, '成交'), render: (t) => fillText(t.own) },
+    { key: 'other', header: joined(other, '成交（USDT）'), render: (t) => fillText(t.other) },
+    { key: 'own', header: joined(own, '成交（USDT）'), render: (t) => fillText(t.own) },
     {
       key: 'slippage',
       header: '滑点 bp',
