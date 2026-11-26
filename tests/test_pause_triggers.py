@@ -4,9 +4,10 @@ The demo and live accounts pause on what their sync cannot explain: a fill the p
 did not make, a change of the balance that no trade, fee, funding or transfer explains
 (transfers: tests/test_transfers.py), a position the booked fills still do not explain
 at the next hourly sync. The live account
-also pauses when what its orders follow changes (the code of ``trader/`` or the Signal)
-and while its equity is over MAX_EQUITY, and refuses an order that would leave a position
-of more than MAX_POSITION notional.
+also pauses when what its orders follow changes (the code of ``trader/`` or the Signal),
+and refuses an order that would leave a position of more than MAX_POSITION notional. Its
+equity has no cap; an account whose profile has a ``max_equity`` pauses while its equity
+is over it.
 Paused, an account sends nothing that changes a position, an order or a setting, its
 drawdown alerts and kills nothing, and a person's halt still closes it out; ``resume``
 lifts the pause once a sync finds nothing that pauses it."""
@@ -21,7 +22,7 @@ from tests.test_live_pause import LiveEnv
 from trader.demo import job
 from trader.demo.account import DEMO, DemoAccount
 from trader.intraday.paper import HOUR_MS
-from trader.live.account import LIVE, MAX_EQUITY, MAX_POSITION
+from trader.live.account import LIVE, MAX_POSITION
 from trader.okx import DAY_MS
 from trader.okx_private import TRADE_BILL, Bill
 from trader.settings import KILL_DRAWDOWN
@@ -246,7 +247,19 @@ def test_the_demo_account_trades_on_through_a_change_of_its_code_or_signal(env, 
     assert len(orders(env)) == 2
 
 
-def test_live_equity_over_its_cap_pauses_the_account_and_holds_the_resume(trading):
+def test_live_equity_has_no_cap(trading):
+    trading.exchange.transfer(2_000.0)  # beside the 500 it holds
+    run(trading, 0)
+    assert not trading.account.paused and trading.account.pause_reasons == []
+    assert pause_alerts(trading) == [] and len(orders(trading)) == 1
+    assert trading.ledger.transfers() == [(HOUR, 2_000.0)] and trading.ledger.contributed() == 2_500.0
+
+
+def test_equity_over_the_profiles_cap_pauses_the_account_and_holds_the_resume(trading):
+    capped = replace(LIVE, max_equity=2_000.0)
+    trading.account = DemoAccount(
+        trading.ledger, trading.okx, trading.exchange, watchlist=(BTC,), sleep=lambda s: None, profile=capped
+    )
     trading.exchange.cash = 2_500.0  # transferred in by mistake
     run(trading, 0)
     text = "净值 2,500.00 USDT 超过上限 2,000 USDT"
@@ -259,7 +272,11 @@ def test_live_equity_over_its_cap_pauses_the_account_and_holds_the_resume(tradin
     assert len(pause_alerts(trading)) == 1
 
 
-def test_a_transfer_that_takes_live_equity_over_its_cap_is_booked_and_pauses_on_the_cap(trading):
+def test_a_transfer_that_takes_equity_over_the_profiles_cap_is_booked_and_pauses_on_the_cap(trading):
+    capped = replace(LIVE, max_equity=2_000.0)
+    trading.account = DemoAccount(
+        trading.ledger, trading.okx, trading.exchange, watchlist=(BTC,), sleep=lambda s: None, profile=capped
+    )
     trading.exchange.transfer(2_000.0)  # beside the 500 it holds
     run(trading, 0)
     text = "净值 2,500.00 USDT 超过上限 2,000 USDT"
@@ -279,7 +296,7 @@ def test_a_live_order_leaving_a_position_over_its_cap_is_refused_and_alerted(tra
     assert events(trading, "order_refused") == [refused]
 
 
-def test_the_live_caps_are_adr_0010s_and_the_demo_has_none():
-    assert (LIVE.max_equity, LIVE.max_position) == (MAX_EQUITY, MAX_POSITION) == (2_000.0, 4_000.0)
+def test_live_caps_its_positions_not_its_equity_and_the_demo_caps_neither():
+    assert (LIVE.max_equity, LIVE.max_position) == (None, MAX_POSITION) == (None, 4_000.0)
     assert (DEMO.max_equity, DEMO.max_position, DEMO.fingerprinted) == (None, None, False)
     assert LIVE.fingerprinted

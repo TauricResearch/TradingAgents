@@ -110,7 +110,8 @@ class Profile:
     ``Settings`` (``<name>_ledger_path``, ``<name>_lock_path``) and the meta keys of its
     failure alerts and of its messages not sent yet. ``production`` is the environment
     of OKX its client must be of: the production one, with real money, or else simulated
-    trading. The last three are the live account's guards (ADR 0010)."""
+    trading. The last three are guards for the live account (ADR 0010), which sets all
+    but ``max_equity``."""
 
     name: str
     production: bool = False
