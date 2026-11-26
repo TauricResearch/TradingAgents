@@ -113,7 +113,16 @@ const fillColumns: Column<FillRow>[] = [
     render: (f) =>
       f.qty >= 0 ? <span className="text-up">买入</span> : <span className="text-down">卖出</span>,
   },
-  { key: 'qty', header: '数量', align: 'right', render: (f) => <Num value={f.qty} fmt={fmtQty} /> },
+  {
+    key: 'qty',
+    header: '数量（USDT）',
+    align: 'right',
+    render: (f) => (
+      <span title={`币数 ${fmtQty(f.qty)}`}>
+        <Num value={f.qty * f.price} fmt={fmtSigned} />
+      </span>
+    ),
+  },
   {
     key: 'price',
     header: '价格',
