@@ -16,7 +16,7 @@ reduces a position never is. Its equity has no cap (ADR 0010).
 from trader.demo.account import Profile
 
 # Live's absolute limit, in USDT (ADR 0010).
-MAX_POSITION = 4_000.0  # notional of a contract's position after an order
+MAX_POSITION = 100_000.0  # notional of a contract's position after an order
 
 LIVE = Profile(
     "live", production=True, born_paused=True, kill_final=True,

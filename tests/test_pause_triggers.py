@@ -297,6 +297,6 @@ def test_a_live_order_leaving_a_position_over_its_cap_is_refused_and_alerted(tra
 
 
 def test_live_caps_its_positions_not_its_equity_and_the_demo_caps_neither():
-    assert (LIVE.max_equity, LIVE.max_position) == (None, MAX_POSITION) == (None, 4_000.0)
+    assert (LIVE.max_equity, LIVE.max_position) == (None, MAX_POSITION) == (None, 100_000.0)
     assert (DEMO.max_equity, DEMO.max_position, DEMO.fingerprinted) == (None, None, False)
     assert LIVE.fingerprinted
