@@ -48,7 +48,7 @@ vLLM, Ollama, LM Studio and similar servers work through their OpenAI-style API.
 
 or with `TRADINGAGENTS_BASE_URL` and `TRADINGAGENTS_MODEL` (the model as the server names it). A server key stored with `tradingagents key model` is kept for the address it was stored for, and is not sent to another one.
 
-The context window is read from the server when it reports one; to set it, add `"contextWindow": 131072` to the provider's block.
+The context window is read from the server when it reports the window it runs the model with: vLLM, SGLang and llama.cpp do, and so do Ollama and LM Studio once the model is loaded. Otherwise 32,768 tokens is assumed; to set the window, add `"contextWindow": 131072` to the provider's block (`providers.openai-compatible.contextWindow`).
 
 ### Thinking models on a server
 
