@@ -31,15 +31,15 @@ A complete `config.json`:
 }
 ```
 
-| Environment variable                                                                              | Sets                                                                               |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `TRADINGAGENTS_MODEL`                                                                             | the model, as `provider/id` (or the server's model, with `TRADINGAGENTS_BASE_URL`) |
-| `TRADINGAGENTS_BASE_URL`                                                                          | an OpenAI-compatible server's address                                              |
-| `TRADINGAGENTS_MODEL_API_KEY`                                                                     | that server's key                                                                  |
+| Environment variable                                                                                               | Sets                                                                               |
+| ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `TRADINGAGENTS_MODEL`                                                                                              | the model, as `provider/id` (or the server's model, with `TRADINGAGENTS_BASE_URL`) |
+| `TRADINGAGENTS_BASE_URL`                                                                                           | an OpenAI-compatible server's address                                              |
+| `TRADINGAGENTS_MODEL_API_KEY`                                                                                      | that server's key                                                                  |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`, `LLMTR_API_KEY` | a provider's key (see [models](models.md))                                         |
-| `TAURIC_API_KEY`                                                                                  | the Tauric API key                                                                 |
-| `TRADINGAGENTS_SYNC`                                                                              | `on` or `off`, over the setting in `config.json`                                   |
-| `TRADINGAGENTS_HOME`                                                                              | one directory for configuration and data                                           |
-| `TRADINGAGENTS_NO_UPDATE_CHECK`                                                                   | any non-empty value turns off the check for a newer release                        |
+| `TAURIC_API_KEY`                                                                                                   | the Tauric API key                                                                 |
+| `TRADINGAGENTS_SYNC`                                                                                               | `on` or `off`, over the setting in `config.json`                                   |
+| `TRADINGAGENTS_HOME`                                                                                               | one directory for configuration and data                                           |
+| `TRADINGAGENTS_NO_UPDATE_CHECK`                                                                                    | any non-empty value turns off the check for a newer release                        |
 
 Settings come from the command line first, then the environment, then `config.json`.
