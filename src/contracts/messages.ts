@@ -71,7 +71,10 @@ const catalog = {
     `This copy was installed with npm. Update it with: ${command}`,
   "update.unwritable": ({ dir, install }: { dir: string; install: string }) =>
     `You cannot write to ${dir}, so this copy cannot update itself. Reinstall with: ${install}`,
-  "update.busy": () => "Another update is running.",
+  "update.busy": ({ path, pid, host }: { path: string; pid?: number; host?: string }) => {
+    const holder = pid === undefined ? "" : ` (process ${pid}${host === undefined ? "" : ` on ${host}`})`;
+    return `Another update is running${holder}. If it is not, remove ${path} and try again.`;
+  },
   "update.badChecksum": () => "The download does not match its checksum; nothing was changed.",
   "update.noChecksum": ({ name }: { name: string }) =>
     `SHA256SUMS has no single checksum for ${name}; nothing was changed.`,

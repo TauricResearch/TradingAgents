@@ -17,6 +17,7 @@ import semver from "semver";
 import { INSTALL_COMMAND, NPM_PLATFORM_PREFIX, NPM_UPDATE_COMMAND } from "../config/index.js";
 import { APP_NAME, errorText, message } from "../contracts/index.js";
 import { REQUEST_MS, UPDATES } from "../contracts/limits.js";
+import { Lock } from "../store/lock.js";
 import { capped, latestRelease } from "./updates.js";
 
 export type UpdateResult =
@@ -116,8 +117,16 @@ export async function selfUpdate(deps: UpdateDeps): Promise<UpdateResult> {
   }
   if (!deps.lookup) return refused(message("update.none"));
 
-  const release = await lock(deps.lockPath);
-  if (!release) return refused(message("update.busy"));
+  const lock = await Lock.acquire(deps.lockPath);
+  if (!(lock instanceof Lock)) {
+    const path = lock.stuck ?? deps.lockPath;
+    return refused(
+      message("update.busy", {
+        path,
+        ...(lock.heldBy ? { pid: lock.heldBy.pid, host: lock.heldBy.host } : {}),
+      }),
+    );
+  }
   const partial = join(dir, `.${APP_NAME}.${process.pid}`);
   try {
     const fetchImpl = deps.fetch ?? fetch;
@@ -142,7 +151,7 @@ export async function selfUpdate(deps: UpdateDeps): Promise<UpdateResult> {
     return { kind: "updated", from: deps.current, to: newest.version };
   } finally {
     await fs.rm(partial, { force: true });
-    await release();
+    await lock.release();
   }
 }
 
@@ -153,36 +162,6 @@ export function checksumOf(sums: string, name: string): string | undefined {
     .map((line) => /^([0-9a-f]{64}) {2}(.+)$/.exec(line))
     .filter((match) => match?.[2] === name);
   return found.length === 1 ? found[0]?.[1] : undefined;
-}
-
-/**
- * Take the lock, or undefined when another update holds it. A lock whose process is gone is taken over.
- * Gives the function that lets it go.
- */
-async function lock(path: string): Promise<(() => Promise<void>) | undefined> {
-  await fs.mkdir(dirname(path), { recursive: true });
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      await fs.writeFile(path, String(process.pid), { flag: "wx" });
-      return () => fs.rm(path, { force: true });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      const holder = Number((await fs.readFile(path, "utf8").catch(() => "")).trim());
-      if (Number.isInteger(holder) && holder > 0 && alive(holder)) return undefined;
-      await fs.rm(path, { force: true });
-    }
-  }
-  return undefined;
-}
-
-function alive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    // EPERM: it runs, as someone else.
-    return (error as NodeJS.ErrnoException).code === "EPERM";
-  }
 }
 
 /** An https answer's body, refused past `limit` bytes or when a redirect left https. */
