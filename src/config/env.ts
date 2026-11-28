@@ -31,4 +31,5 @@ export const KEY_VARS: { readonly [P in HostedProvider]: readonly string[] } = {
   google: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_API_KEY"],
   deepseek: ["DEEPSEEK_API_KEY"],
   openrouter: ["OPENROUTER_API_KEY"],
+  llmtr: ["LLMTR_API_KEY"],
 };

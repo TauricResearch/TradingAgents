@@ -66,6 +66,7 @@ const providerFields: Record<ProviderId, Record<string, z.ZodType>> = {
   google: { contextWindow },
   deepseek: { contextWindow },
   openrouter: { contextWindow },
+  llmtr: { contextWindow },
 };
 type ProviderBlocks = { "openai-compatible"?: ServerFields } & {
   [P in Exclude<ProviderId, "openai-compatible">]?: { contextWindow?: number };

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Models: LLMTR, an OpenAI-compatible gateway at `https://llmtr.com/v1`, reached with `LLMTR_API_KEY`.
+
 ## 1.0.1 (2026-11-25)
 
 - A plan's report asks the question the planning started from; replies added while planning follow it in the PDF.

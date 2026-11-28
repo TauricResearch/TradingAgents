@@ -250,6 +250,7 @@ event odds from Polymarket; the rest is not available.
   "setup.about.google": () => "an API key from aistudio.google.com",
   "setup.about.deepseek": () => "an API key from platform.deepseek.com",
   "setup.about.openrouter": () => "a key from openrouter.ai",
+  "setup.about.llmtr": () => "a key from llmtr.com",
   "setup.about.openai-compatible": () => "vLLM, Ollama or any server with an OpenAI-style API",
   "setup.about.tauric": () => `${KEY_PURPOSE}, with one key`,
   "setup.ready": () => "ready",
@@ -876,6 +877,7 @@ export const PROVIDER_LABELS = {
   google: "Google",
   deepseek: "DeepSeek",
   openrouter: "OpenRouter",
+  llmtr: "LLMTR",
   "openai-compatible": "OpenAI-compatible server",
 } as const;
 

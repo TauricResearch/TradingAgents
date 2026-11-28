@@ -19,6 +19,7 @@ export const CATALOG_PROVIDERS = [
   "google",
   "deepseek",
   "openrouter",
+  "llmtr",
 ] as const;
 export type CatalogProvider = (typeof CATALOG_PROVIDERS)[number];
 
@@ -62,6 +63,12 @@ export const CATALOG: { readonly [P in CatalogProvider]: readonly { id: string; 
     { id: "google/gemini-4-argon", role: "alt" },
     { id: "anthropic/claude-haiku-5.5", role: "fast" },
   ],
+  // IDs are vendor/model as the account can use; any other id can be passed as llmtr/<id>.
+  llmtr: [
+    { id: "qwen/qwen3.8-flash", role: "default" },
+    { id: "qwen/qwen3.8-max", role: "alt" },
+    { id: "minimax/minimax-m3.1-flash", role: "fast" },
+  ],
 };
 
 /** Where each provider's metadata comes from in models.dev: a plan's models are OpenAI's. */
@@ -73,6 +80,7 @@ export const METADATA_SOURCE: { readonly [P in CatalogProvider]: string } = {
   google: "google",
   deepseek: "deepseek",
   openrouter: "openrouter",
+  llmtr: "llmtr",
 };
 
 /** What the catalog knows of a model. */

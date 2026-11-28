@@ -136,6 +136,12 @@ const deepseekFailure: ProviderClassifier = ({ status, message: said }) => {
   return undefined;
 };
 
+/** LLMTR's own failures: a refused or expired key. */
+const llmtrFailure: ProviderClassifier = ({ status, message: said }) => {
+  if (status === 401) return keyRefused("LLMTR", "https://llmtr.com/dashboard", said);
+  return undefined;
+};
+
 /** OpenRouter's reasoning details carry the reasoning itself: a finished turn keeps the rest. */
 function withoutReasoningDetails(replay: Replay): Replay | undefined {
   const { openrouter, ...rest } = replay;
@@ -263,6 +269,19 @@ const HOSTED: Record<HostedProvider, Hosted> = {
     },
     classify: openrouterFailure,
     settleReplay: withoutReasoningDetails,
+  },
+  llmtr: {
+    model: (route, fetch) =>
+      createOpenAICompatible({
+        name: "llmtr",
+        apiKey: route.apiKey,
+        baseURL: "https://llmtr.com/v1",
+        includeUsage: true,
+        ...fetching(fetch),
+      }).chatModel(route.model),
+    // Thinking fields have not been verified against the live LLMTR API; sampling is left to the gateway.
+    step: () => () => ({ sampling: {} }),
+    classify: llmtrFailure,
   },
 };
 

@@ -45,6 +45,7 @@ body:
         - Google
         - DeepSeek
         - OpenRouter
+        - LLMTR
         - OpenAI-compatible server
     validations:
       required: true

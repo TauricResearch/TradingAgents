@@ -50,12 +50,12 @@ export type ModelOption = {
   reasoning: ReasoningLevel[];
 };
 
-/** The models the catalog lists for `provider`, each with its role; OpenRouter's grouped by family. */
+/** The models the catalog lists for `provider`, each with its role; OpenRouter's and LLMTR's grouped by family. */
 export function modelsOf(provider: ProviderId): ModelOption[] {
   if (!(CATALOG_PROVIDERS as readonly string[]).includes(provider)) return [];
   const options = CATALOG[provider as CatalogProvider].map(({ id, role }): ModelOption => {
     const info = modelInfo(provider as CatalogProvider, id);
-    const family = provider === "openrouter" ? id.slice(0, id.indexOf("/")) : undefined;
+    const family = provider === "openrouter" || provider === "llmtr" ? id.slice(0, id.indexOf("/")) : undefined;
     return {
       id,
       name: info?.name ?? id,

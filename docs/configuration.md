@@ -36,7 +36,7 @@ A complete `config.json`:
 | `TRADINGAGENTS_MODEL`                                                                             | the model, as `provider/id` (or the server's model, with `TRADINGAGENTS_BASE_URL`) |
 | `TRADINGAGENTS_BASE_URL`                                                                          | an OpenAI-compatible server's address                                              |
 | `TRADINGAGENTS_MODEL_API_KEY`                                                                     | that server's key                                                                  |
-| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY` | a provider's key (see [models](models.md))                                         |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`, `LLMTR_API_KEY` | a provider's key (see [models](models.md))                                         |
 | `TAURIC_API_KEY`                                                                                  | the Tauric API key                                                                 |
 | `TRADINGAGENTS_SYNC`                                                                              | `on` or `off`, over the setting in `config.json`                                   |
 | `TRADINGAGENTS_HOME`                                                                              | one directory for configuration and data                                           |

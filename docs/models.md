@@ -15,9 +15,10 @@ The first session in a terminal with no model set walks through the choice. Late
 | Google                   | an API key from AI Studio                                   | `GEMINI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` or `GOOGLE_API_KEY` |
 | DeepSeek                 | an API key                                                  | `DEEPSEEK_API_KEY`                                                   |
 | OpenRouter               | an API key                                                  | `OPENROUTER_API_KEY`                                                 |
+| LLMTR                    | an API key                                                  | `LLMTR_API_KEY`                                                      |
 | OpenAI-compatible server | its address and model, and a key if it needs one            | `TRADINGAGENTS_MODEL_API_KEY`                                        |
 
-A key in the environment is used over a stored one. `tradingagents key <provider>` stores a provider's key, `tradingagents key tauric` the Tauric API key, and `tradingagents key model` an OpenAI-compatible server's: type it at the hidden prompt, or pipe it in. Keys are stored in `credentials.json`, readable only by you, and are never sent anywhere but their own provider. Nothing is checked when a key is stored; a key that does not work says so on first use, with where to fix it.
+LLMTR model IDs are `vendor/model` as the account can use (for example `qwen/qwen3.8-flash`); any other id can be passed as `llmtr/<id>`. A key in the environment is used over a stored one. `tradingagents key <provider>` stores a provider's key, `tradingagents key tauric` the Tauric API key, and `tradingagents key model` an OpenAI-compatible server's: type it at the hidden prompt, or pipe it in. Keys are stored in `credentials.json`, readable only by you, and are never sent anywhere but their own provider. Nothing is checked when a key is stored; a key that does not work says so on first use, with where to fix it.
 
 A ChatGPT sign-in prints an address to open in a browser, and is kept in `chatgpt-auth.json` in the [configuration directory](configuration.md); `tradingagents logout chatgpt` signs out. Questions count toward the plan's usage limits.
 
