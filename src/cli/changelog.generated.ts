@@ -5,6 +5,16 @@ import type { VersionNotes } from "./whats-new.js";
 
 export const CHANGELOG: readonly VersionNotes[] = [
   {
+    "version": "Unreleased",
+    "sections": [
+      {
+        "items": [
+          "Models: LLMTR, an OpenAI-compatible gateway at `https://llmtr.com/v1`, reached with `LLMTR_API_KEY`."
+        ]
+      }
+    ]
+  },
+  {
     "version": "1.0.1",
     "sections": [
       {

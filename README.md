@@ -62,12 +62,12 @@ Start your agentic finance research with Tauric!
 
 ## Models
 
-| Provider                                        | Needs                                      |
-| ----------------------------------------------- | ------------------------------------------ |
-| Tauric AI                                       | [Tauric API key](https://tauric.ai/signup) |
-| OpenAI, Anthropic, Google, DeepSeek, OpenRouter | their API key                              |
-| Self-hosted models (vLLM, Ollama)               | its address and model                      |
-| AI subscriptions (ChatGPT)                      | `tradingagents login chatgpt`              |
+| Provider                                               | Needs                                      |
+| ------------------------------------------------------ | ------------------------------------------ |
+| Tauric AI                                              | [Tauric API key](https://tauric.ai/signup) |
+| OpenAI, Anthropic, Google, DeepSeek, OpenRouter, LLMTR | their API key                              |
+| Self-hosted models (vLLM, Ollama)                      | its address and model                      |
+| AI subscriptions (ChatGPT)                             | `tradingagents login chatgpt`              |
 
 With another provider, `/login` adds a Tauric API key for filings, statements and news. See
 [docs/models.md](docs/models.md).

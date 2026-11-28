@@ -10,6 +10,6 @@ messages:
       Keep unchanged: HTML tags and their attributes, the logo, the badges, the language bar, every
       URL, code blocks, inline code, commands, file names, environment variables, the citation, and the
       names of products, companies and models (TradingAgents, Tauric, ChatGPT, OpenAI, Anthropic, Google,
-      DeepSeek, OpenRouter).
+      DeepSeek, OpenRouter, LLMTR).
   - role: user
     content: "{{readme}}"
