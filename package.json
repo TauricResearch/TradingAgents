@@ -19,6 +19,7 @@
     "build": "tsc -p tsconfig.build.json",
     "compile": "npm run build && bun scripts/compile.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p scripts/tsconfig.json",
+    "test": "bun test",
     "lint": "biome check .",
     "format": "biome format --write ."
   },
